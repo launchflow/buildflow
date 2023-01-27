@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flow-io"
+version = "0.0.1"
+authors = [
+    { name = "Caleb Van Dyke", email = "caleb@launchflow.com" },
+    { name = "Josh Tanke", email = "josh@launchflow.com" },
+]
+description = "flow cli application"
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+    "apache-beam",
+    "google-cloud-bigquery",
+    "ray",
+    "redis",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "flake8",
+    "setuptools",
+    "wheel"
+]
+
+[tool.setuptools.packages]
+find = {}  # Scan the project directory with the default parameters
