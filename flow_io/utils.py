@@ -58,7 +58,6 @@ def _get_node_info(node_space: str) -> _NodeInfo:
         if node['nodeSpace'] in nodes:
             incoming_node_spaces.append(incoming)
     flow_file = _get_flow_file()
-    print('DO NOT SUBMIT: ', flow_file)
     base_path = flow_file.replace('flow_state.json', '')
     config_file = os.path.join(base_path, node['nodeSpace'], 'config.json')
     with open(config_file, mode='r', encoding='UTF-8') as f:
