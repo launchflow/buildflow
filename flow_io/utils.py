@@ -29,7 +29,7 @@ def _read_flow_config() -> Dict[str, Any]:
 def _get_node_space_from_module() -> str:
     frm = inspect.stack()[1]
     mod = inspect.getmodule(frm[0])
-    mod_name = mod.__name__ 
+    mod_name = mod.__name__
     return mod_name.replace('.', '/')
 
 
