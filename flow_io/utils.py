@@ -19,9 +19,30 @@ def _get_flow_file() -> str:
     return flow_file
 
 
+def _get_deployment_file() -> str:
+    deployment_file = os.environ.get('FLOW_DEPLOYMENT_FILE')
+    if deployment_file is None:
+        # TODO: maybe we could try and parse this out if it's not set? My main
+        # worry is that it feels brittle and might break easily
+        # Maybe we can walk backwards till we find the correct file?
+        raise ValueError(
+            'Could not determine deployment file. Please set the '
+            'FLOW_DEPLOYMENT_FILE environment variable to point to the flow '
+            'that is running. If you using the LaunchFlow extension this '
+            'should happen automatically.')
+    return deployment_file
+
+
 def _read_flow_config() -> Dict[str, Any]:
     flow_file = _get_flow_file()
     with open(flow_file, 'r', encoding='UTF-8') as f:
+        flow = json.load(f)
+    return flow
+
+
+def _read_deployment_config() -> Dict[str, Any]:
+    deployment_file = _get_deployment_file()
+    with open(deployment_file, 'r', encoding='UTF-8') as f:
         flow = json.load(f)
     return flow
 
@@ -43,6 +64,7 @@ class _NodeInfo:
 
 def _get_node_info(node_space: str) -> _NodeInfo:
     flow = _read_flow_config()
+    deployment = _read_deployment_config()
     node = None
     for n in flow['nodes']:
         if n['nodeSpace'] in node_space:
@@ -57,10 +79,6 @@ def _get_node_info(node_space: str) -> _NodeInfo:
     for incoming, nodes in flow['outgoingEdges'].items():
         if node['nodeSpace'] in nodes:
             incoming_node_spaces.append(incoming)
-    flow_file = _get_flow_file()
-    base_path = flow_file.replace('flow_state.json', '')
-    config_file = os.path.join(base_path, node['nodeSpace'], 'config.json')
-    with open(config_file, mode='r', encoding='UTF-8') as f:
-        config = json.load(f)
+    config = deployment['nodeDeployments'].get(node_space, {})
     return _NodeInfo(node['nodeSpace'], incoming_node_spaces,
                      outgoing_node_spaces, config)

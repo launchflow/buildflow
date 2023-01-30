@@ -27,7 +27,9 @@ class RayTest(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.mkdtemp()
         self.flow_file = os.path.join(self.temp_dir, 'flow_state.json')
+        self.deployment_file = os.path.join(self.temp_dir, 'deployment.json')
         os.environ['FLOW_FILE'] = self.flow_file
+        os.environ['FLOW_DEPLOYMENT_FILE'] = self.deployment_file
 
     @pytest.fixture(autouse=True)
     def capsys(self, capsys):
@@ -44,12 +46,10 @@ class RayTest(unittest.TestCase):
                 'outgoingEdges': {},
             }
             json.dump(flow_contents, f)
-        node_dir = os.path.join(self.temp_dir, 'flow_io/ray_io')
-        os.makedirs(os.path.join(self.temp_dir, 'flow_io/ray_io'))
-        with open(os.path.join(node_dir, 'config.json'),
-                  mode='w',
-                  encoding='UTF-8') as f:
-            json.dump({}, f)
+        with open(self.deployment_file, 'w', encoding='UTF-8') as f:
+            json.dump({
+                'nodeDeployments': {}
+            }, f)
 
         @ray.remote
         def ray_func(input):
