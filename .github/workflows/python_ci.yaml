@@ -34,12 +34,8 @@ jobs:
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
-
-      - name: Install Pub/Sub Emulator
-        run: |
-          gcloud components install beta
-          gcloud components install pubsub-emulator
-          gcloud components update
+        with:
+          install_components: 'beta,pubsub-emulator'
 
       - name: Run Pub/Sub integration test
         run: |
