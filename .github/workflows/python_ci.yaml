@@ -37,6 +37,7 @@ jobs:
 
       - name: Install Pub/Sub Emulator
         run: |
+          gcloud components install beta
           gcloud components install pubsub-emulator
           gcloud components update
 
