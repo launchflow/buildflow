@@ -31,6 +31,15 @@ jobs:
       - name: Test with pytest
         run: |
           pytest
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+
+      - name: Install Pub/Sub Emulator
+        run: |
+          gcloud components install pubsub-emulator
+          gcloud components update
+
       - name: Run Pub/Sub integration test
         run: |
           cd flow_io/ray_io/integration_test
