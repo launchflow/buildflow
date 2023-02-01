@@ -28,9 +28,6 @@ jobs:
           checkName: 'test_and_lint (3.10)'  # NOTE: this needs to be the same as the job name
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run mypy
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Test with pytest
         run: |
           pytest
