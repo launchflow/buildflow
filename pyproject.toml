@@ -15,6 +15,7 @@ requires-python = ">=3.7"
 dependencies = [
     "apache-beam",
     "google-cloud-bigquery",
+    "google-cloud-pubsub",
     "ray",
     "redis",
 ]

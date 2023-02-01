@@ -1,0 +1,14 @@
+{
+    "nodeDeployments": {
+        "resource/queue/pubsub/pubsub123": {
+            "topic": "projects/pubsub-test-project/topics/incoming_topic",
+            "subscriptions": {
+                "flow_io/ray_io": "projects/pubsub-test-project/subscriptions/flow_io-ray_io"
+            }
+        },
+        "resource/queue/pubsub/pubsub456": {
+            "topic": "projects/pubsub-test-project/topics/outgoing_topic",
+            "subscriptions": {}
+        }
+    }
+}

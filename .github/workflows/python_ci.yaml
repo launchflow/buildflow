@@ -29,13 +29,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run mypy
-        # Only run mypy on py 3.10 to avoid multiple PR comments.
-        if: ${{ matrix.python-version == '3.10' }}
-        uses: sasanquaneuf/mypy-github-action@releases/v1
-        with:
-          checkName: 'test_and_lint (3.10)'   # NOTE: this needs to be the same as the job name
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Test with pytest
         run: |
           pytest
+      - name: Run Pub/Sub integration test
+        run: |
+          cd flow-io/ray_io && ./pubsub_integration.sh

@@ -1,0 +1,17 @@
+{
+    "nodes": [
+        {
+            "nodeSpace": "flow_io/ray_io"
+        },
+        {
+            "nodeSpace": "resource/queue/pubsub/pubsub123"
+        },
+        {
+            "nodeSpace": "resource/queue/pubsub/pubsub456"
+        }
+    ],
+    "outgoingEdges": {
+        "flow_io/ray_io": ["resource/queue/pubsub/pubsub456"],
+        "resource/queue/pubsub/pubsub123": ["flow_io/ray_io"]
+    }
+}
