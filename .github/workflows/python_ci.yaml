@@ -33,4 +33,5 @@ jobs:
           pytest
       - name: Run Pub/Sub integration test
         run: |
-          cd flow_io/ray_io && ./pubsub_integration.sh
+          cd flow_io/ray_io/integration_test
+          ./pubsub_integration.sh
