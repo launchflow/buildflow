@@ -47,8 +47,8 @@ def _read_deployment_config() -> Dict[str, Any]:
     return flow
 
 
-def _get_node_space_from_module() -> str:
-    frm = inspect.stack()[1]
+def _get_node_space_from_module(depth: int = 1) -> str:
+    frm = inspect.stack()[depth]
     mod = inspect.getmodule(frm[0])
     mod_name = mod.__name__
     return mod_name.replace('.', '/')

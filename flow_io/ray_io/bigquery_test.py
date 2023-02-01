@@ -48,7 +48,7 @@ class FakeBigQueryClient:
         self._write_file()
 
 
-class RedisStream(unittest.TestCase):
+class BigQueryTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:

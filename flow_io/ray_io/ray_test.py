@@ -51,10 +51,6 @@ class RayTest(unittest.TestCase):
                 'nodeDeployments': {}
             }, f)
 
-        @ray.remote
-        def ray_func(input):
-            return input
-
         with InputNode() as dag_input:
             final_outputs = ray_io.output(dag_input)
 
