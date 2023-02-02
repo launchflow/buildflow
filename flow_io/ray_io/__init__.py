@@ -63,7 +63,7 @@ def output(*args) -> List:
     for output_destination in output_destinations:
         dag_output, config = output_destination
         for output in args:
-            output_class = dag_output.options(lifetime="detached").bind(
-                **config)
+            output_class = dag_output.options(
+                name='ASDF', lifetime="detached").bind(**config)
             final_outputs.append(output_class.write.bind(output))
     return final_outputs
