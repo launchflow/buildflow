@@ -4,12 +4,9 @@ import json
 import os
 import shutil
 import tempfile
-import time
 import unittest
 
-import pytest
 import ray
-from ray.dag.input_node import InputNode
 
 from flow_io import ray_io
 
@@ -31,10 +28,6 @@ class RayTest(unittest.TestCase):
         os.environ['FLOW_FILE'] = self.flow_file
         os.environ['FLOW_DEPLOYMENT_FILE'] = self.deployment_file
 
-    @pytest.fixture(autouse=True)
-    def capsys(self, capsys):
-        self.capsys = capsys
-
     def test_end_to_end_empty(self):
         with open(self.flow_file, 'w', encoding='UTF-8') as f:
             flow_contents = {
@@ -47,22 +40,14 @@ class RayTest(unittest.TestCase):
             }
             json.dump(flow_contents, f)
         with open(self.deployment_file, 'w', encoding='UTF-8') as f:
-            json.dump({
-                'nodeDeployments': {}
-            }, f)
+            json.dump({'nodeDeployments': {}}, f)
 
-        with InputNode() as dag_input:
-            final_outputs = ray_io.sink(dag_input)
+        sink = ray_io.sink()
+        source = ray_io.source(sink.write, inputs=[1, 2, 3])
+        output = ray.get(source.run.remote())
 
-        ray_io.source(*final_outputs, inputs=[1, 2, 3])
-
-        time.sleep(10)
-
-        out, _ = self.capsys.readouterr()
-
-        self.assertIn('OUTPUT:  1', out)
-        self.assertIn('OUTPUT:  2', out)
-        self.assertIn('OUTPUT:  3', out)
+        # TODO: why are these nested lists?
+        self.assertEqual(output, [[1], [2], [3]])
 
     def tearDown(self):
         shutil.rmtree(self.temp_dir)

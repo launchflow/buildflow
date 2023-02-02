@@ -6,9 +6,11 @@ from typing import Dict
 from google.cloud import pubsub_v1
 import ray
 
+from flow_io.ray_io import base
+
 
 @ray.remote
-class PubSubSourceActor:
+class PubSubSourceActor(base.RaySource):
 
     def __init__(
         self,
@@ -17,8 +19,7 @@ class PubSubSourceActor:
         topic: str,
         subscriptions: Dict[str, str],
     ) -> None:
-        self.ray_inputs = ray_inputs
-        self.topic = topic
+        super().__init__(ray_inputs, input_node)
         try:
             self.subscription = subscriptions[input_node]
         except KeyError:
@@ -48,7 +49,7 @@ class PubSubSourceActor:
 
 
 @ray.remote
-class PubsubSinkActor:
+class PubsubSinkActor(base.RaySink):
 
     def __init__(
         self,
