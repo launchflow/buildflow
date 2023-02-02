@@ -42,7 +42,9 @@ class PubSubSourceActor:
                         # option.
                         decoded_data = received_message.message.data.decode()
                         ray.get(ray_input.remote(json.loads(decoded_data)))
-                s.acknowledge(ack_ids=ack_ids, subscription=self.subscription)
+                if ack_ids:
+                    s.acknowledge(ack_ids=ack_ids,
+                                  subscription=self.subscription)
 
 
 @ray.remote
