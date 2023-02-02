@@ -1,6 +1,5 @@
 from google.cloud import pubsub_v1
 import ray
-from ray.dag.input_node import InputNode
 from flow_io import ray_io
 
 pubsub_project = 'pubsub-test-project'
@@ -9,7 +8,7 @@ subscriber = pubsub_v1.SubscriberClient()
 topic_path = ps_client.topic_path(pubsub_project, 'incoming_topic')
 topic = ps_client.create_topic(request={"name": topic_path})
 subscription_path = subscriber.subscription_path(pubsub_project,
-                                                 'flow_io-ray_io')
+                                                 'pubsub_main')
 with subscriber:
     subscription = subscriber.create_subscription(request={
         "name": subscription_path,
@@ -39,12 +38,16 @@ print(' - subscription: ', subscription_path)
 
 
 @ray.remote
-def ray_func(ray_input):
-    return {'new_field': ray_input['field'] + 1}
+class ProcessorActor:
+
+    def __init__(self, sink):
+        self.sink = sink
+
+    def process(self, ray_input):
+        ray.get(sink.write.remote({'new_field': ray_input['field'] + 1}))
 
 
-with InputNode() as dag_input:
-    output = ray_func.bind(dag_input)
-    final_outputs = ray_io.output(output)
-
-ray_io.input(*final_outputs)
+sink = ray_io.sink()
+processor = ProcessorActor.remote(sink)
+source = ray_io.source(processor.process)
+ray.get(source.run.remote())

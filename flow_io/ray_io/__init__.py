@@ -1,28 +1,29 @@
 from typing import List
 
 from flow_io import utils
+from flow_io.ray_io import all_output
 from flow_io.ray_io import bigquery
 from flow_io.ray_io import pubsub
 from flow_io.ray_io import empty
 from flow_io.ray_io import redis_stream
 
-_NODE_SPACE_TO_INPUT = {
+_NODE_SPACE_TO_SOURCE = {
     'resource/storage/bigquery/table': bigquery.BigQueryInput,
     'resource/queue/redis/stream': redis_stream.RedisStreamInput,
-    'resource/queue/pubsub': pubsub.PubSubInput,
+    'resource/queue/pubsub': pubsub.PubSubSourceActor,
 }
-_NODE_SPACE_TO_OUTPUT = {
+_NODE_SPACE_TO_SINK = {
     'resource/storage/bigquery/table': bigquery.BigQueryOutput,
     'resource/queue/redis/stream': redis_stream.RedisStreamOutput,
-    'resource/queue/pubsub': pubsub.PubSubOutput,
+    'resource/queue/pubsub': pubsub.PubsubSinkActor,
 }
 
 
-def input(*args, **kwargs):
+def source(*args, **kwargs):
     node_info = utils._get_node_info(utils._get_node_launch_file())
     config = kwargs
     if not node_info.incoming_node_spaces:
-        dag_input = empty.Input
+        source = empty.Input
     elif len(node_info.incoming_node_spaces) > 1:
         raise ValueError(
             f'Multiple incoming nodes for node: `{node_info["nodeSpace"]}`. '
@@ -33,14 +34,14 @@ def input(*args, **kwargs):
         incoming_node_info = utils._get_node_info(incoming_node_space)
         config.update(incoming_node_info.node_config)
         try:
-            dag_input = _NODE_SPACE_TO_INPUT[node_space_removed_id]
+            source = _NODE_SPACE_TO_SOURCE[node_space_removed_id]
         except KeyError:
             raise ValueError(
                 f'IO is currently not supported for {node_space_removed_id}')
-    dag_input(args, **config).run()
+    return source.remote(args, node_info.node_space, **config)
 
 
-def output(*args) -> List:
+def sink() -> List:
     node_info = utils._get_node_info(utils._get_node_launch_file())
     output_destinations = []
     if not node_info.outgoing_node_spaces:
@@ -53,17 +54,14 @@ def output(*args) -> List:
             outgoing_node_info = utils._get_node_info(outgoing_node_space)
             config = outgoing_node_info.node_config
             try:
-                dag_output = _NODE_SPACE_TO_OUTPUT[node_space_removed_id]
+                sink = _NODE_SPACE_TO_SINK[node_space_removed_id]
             except KeyError:
                 raise ValueError('IO is currently not supported for '
                                  f'{node_space_removed_id}')
-            output_destinations.append((dag_output, config))
+            output_destinations.append((sink, config))
 
-    final_outputs = []
+    sinks = []
     for output_destination in output_destinations:
-        dag_output, config = output_destination
-        for output in args:
-            output_class = dag_output.options(
-                name='ASDF', lifetime="detached").bind(**config)
-            final_outputs.append(output_class.write.bind(output))
-    return final_outputs
+        sink, config = output_destination
+        sinks.append(sink.remote(**config))
+    return all_output.AllOutputActor.remote(sinks)

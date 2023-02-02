@@ -52,9 +52,9 @@ class RayTest(unittest.TestCase):
             }, f)
 
         with InputNode() as dag_input:
-            final_outputs = ray_io.output(dag_input)
+            final_outputs = ray_io.sink(dag_input)
 
-        ray_io.input(*final_outputs, inputs=[1, 2, 3])
+        ray_io.source(*final_outputs, inputs=[1, 2, 3])
 
         time.sleep(10)
 

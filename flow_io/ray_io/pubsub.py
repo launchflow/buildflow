@@ -1,50 +1,52 @@
 """IO connectors for Pub/Sub and Ray."""
 
 import json
-from typing import Dict, Iterable
+from typing import Dict
 
 from google.cloud import pubsub_v1
 import ray
 
-from flow_io import utils
 
-
-class PubSubInput:
+@ray.remote
+class PubSubSourceActor:
 
     def __init__(
         self,
-        ray_dags: Iterable,
+        ray_inputs,
+        input_node: str,
         topic: str,
         subscriptions: Dict[str, str],
     ) -> None:
-        self.ray_dags = ray_dags
+        self.ray_inputs = ray_inputs
         self.topic = topic
-        incoming_node = utils._get_node_launch_file(3)
-        self.subscription = None
-        for node_space, subscription in subscriptions.items():
-            if node_space in incoming_node:
-                self.subscription = subscription
-        if self.subscription is None:
+        try:
+            self.subscription = subscriptions[input_node]
+        except KeyError:
             raise ValueError(
                 'Subscription was not available for incoming node: '
-                f'{incoming_node}')
+                f'{input_node}. Avaliable subscriptions: {subscriptions}')
+        self.subscriber = pubsub_v1.SubscriberClient()
 
     def run(self):
+        while True:
+            with pubsub_v1.SubscriberClient() as s:
+                # TODO: make this configurable
+                response = s.pull(subscription=self.subscription,
+                                  max_messages=10)
 
-        def callback(message):
-            for dag in self.ray_dags:
-                decoded_data = json.loads(message.data.decode())
-                a = ray.get(dag.execute(decoded_data))
-                print('DO NOT SUBMIT: ', a)
-            message.ack()
-
-        with pubsub_v1.SubscriberClient() as subscriber:
-            future = subscriber.subscribe(self.subscription, callback)
-            future.result()
+                ack_ids = []
+                for received_message in response.received_messages:
+                    ack_ids.append(received_message.ack_id)
+                    for ray_input in self.ray_inputs:
+                        # TODO: maybe we should add the option to include the
+                        # attributes. I believe beam provides that as an
+                        # option.
+                        decoded_data = received_message.message.data.decode()
+                        ray.get(ray_input.remote(json.loads(decoded_data)))
 
 
 @ray.remote
-class PubSubOutput:
+class PubsubSinkActor:
 
     def __init__(
         self,
@@ -54,7 +56,7 @@ class PubSubOutput:
         self.pubslisher_client = pubsub_v1.PublisherClient()
         self.topic = topic
 
-    def write(self, element: Dict):
+    async def write(self, element: Dict):
         future = self.pubslisher_client.publish(
             self.topic,
             json.dumps(element).encode('UTF-8'))

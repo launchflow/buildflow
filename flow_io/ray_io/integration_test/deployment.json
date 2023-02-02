@@ -3,7 +3,7 @@
         "resource/queue/pubsub/pubsub123": {
             "topic": "projects/pubsub-test-project/topics/incoming_topic",
             "subscriptions": {
-                "flow_io/ray_io": "projects/pubsub-test-project/subscriptions/flow_io-ray_io"
+                "integration_test/pubsub_main": "projects/pubsub-test-project/subscriptions/pubsub_main"
             }
         },
         "resource/queue/pubsub/pubsub456": {
