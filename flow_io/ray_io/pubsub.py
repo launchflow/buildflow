@@ -34,7 +34,8 @@ class PubSubInput:
         def callback(message):
             for dag in self.ray_dags:
                 decoded_data = json.loads(message.data.decode())
-                ray.get(dag.execute(decoded_data))
+                a = ray.get(dag.execute(decoded_data))
+                print('DO NOT SUBMIT: ', a)
             message.ack()
 
         with pubsub_v1.SubscriberClient() as subscriber:
