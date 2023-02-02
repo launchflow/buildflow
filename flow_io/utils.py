@@ -48,7 +48,8 @@ def _read_deployment_config() -> Dict[str, Any]:
 
 
 def _get_node_space_from_module(depth: int = 1) -> str:
-    print('DO NOT SUBMIT: ', inspect.stack())
+    for i, frm in enumerate(inspect.stack()):
+        print(f'DO NOT SUBMIT: {i} {inspect.getmodule(frm[0])}')
     frm = inspect.stack()[depth]
     print('DO NOT SUBMIT: ', frm)
     mod = inspect.getmodule(frm[0])
