@@ -19,7 +19,7 @@ class PubSubInput:
     ) -> None:
         self.ray_dags = ray_dags
         self.topic = topic
-        incoming_node = utils._get_node_space_from_module(2)
+        incoming_node = utils._get_node_space_from_module(3)
         if incoming_node not in subscriptions:
             raise ValueError(
                 'Subscription was not available for incoming node: '
