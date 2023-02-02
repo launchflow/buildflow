@@ -34,7 +34,7 @@ class PubSubInput:
         def callback(message):
             for dag in self.ray_dags:
                 decoded_data = json.loads(message.data.decode())
-                ray.get(dag.options(lifetime="detached").execute(decoded_data))
+                ray.get(dag.execute(decoded_data))
             message.ack()
 
         with pubsub_v1.SubscriberClient() as subscriber:

@@ -55,16 +55,15 @@ def output(*args) -> List:
             try:
                 dag_output = _NODE_SPACE_TO_OUTPUT[node_space_removed_id]
             except KeyError:
-                raise ValueError(
-                    'IO is currently not supported for '
-                    f'{node_space_removed_id}'
-                )
+                raise ValueError('IO is currently not supported for '
+                                 f'{node_space_removed_id}')
             output_destinations.append((dag_output, config))
 
     final_outputs = []
     for output_destination in output_destinations:
         dag_output, config = output_destination
         for output in args:
-            output_class = dag_output.bind(**config)
+            output_class = dag_output.options(lifetime="detached").bind(
+                **config)
             final_outputs.append(output_class.write.bind(output))
     return final_outputs
