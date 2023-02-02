@@ -48,10 +48,10 @@ def _read_deployment_config() -> Dict[str, Any]:
 
 
 def _get_node_space_from_module(depth: int = 1) -> str:
+    print('DO NOT SUBMIT: ', inspect.stack())
     frm = inspect.stack()[depth]
     print('DO NOT SUBMIT: ', frm)
-    print('DO NOT SUBMIT: ', depth)
-    mod = inspect.getmodule(frm[depth])
+    mod = inspect.getmodule(frm[0])
     mod_name = mod.__name__
     return mod_name.replace('.', '/')
 
