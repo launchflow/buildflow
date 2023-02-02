@@ -47,11 +47,10 @@ def _read_deployment_config() -> Dict[str, Any]:
     return flow
 
 
-def _get_node_space_from_module(depth: int = 2) -> str:
+def _get_node_launch_file(depth: int = 2) -> str:
     frm = inspect.stack()[depth]
     mod = inspect.getmodule(frm[0])
-    mod_name = mod.__name__
-    return mod_name.replace('.', '/')
+    return mod.__file__
 
 
 @dataclasses.dataclass

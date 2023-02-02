@@ -19,7 +19,7 @@ _NODE_SPACE_TO_OUTPUT = {
 
 
 def input(*args, **kwargs):
-    node_info = utils._get_node_info(utils._get_node_space_from_module())
+    node_info = utils._get_node_info(utils._get_node_launch_file())
     config = kwargs
     if not node_info.incoming_node_spaces:
         dag_input = empty.Input
@@ -41,7 +41,7 @@ def input(*args, **kwargs):
 
 
 def output(*args) -> List:
-    node_info = utils._get_node_info(utils._get_node_space_from_module())
+    node_info = utils._get_node_info(utils._get_node_launch_file())
     output_destinations = []
     if not node_info.outgoing_node_spaces:
         output_destinations.append((empty.Output, {}))

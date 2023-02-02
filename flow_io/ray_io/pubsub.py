@@ -19,12 +19,15 @@ class PubSubInput:
     ) -> None:
         self.ray_dags = ray_dags
         self.topic = topic
-        incoming_node = utils._get_node_space_from_module(3)
-        if incoming_node not in subscriptions:
+        incoming_node = utils._get_node_launch_file(3)
+        self.subscription = None
+        for node_space, subscription in subscriptions.items():
+            if node_space in incoming_node:
+                self.subscription = subscription
+        if self.subscription is None:
             raise ValueError(
                 'Subscription was not available for incoming node: '
                 f'{incoming_node}')
-        self.subscription = subscriptions[incoming_node]
 
     def run(self):
 
