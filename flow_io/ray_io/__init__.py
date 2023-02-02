@@ -2,6 +2,7 @@ from typing import List
 
 from flow_io import utils
 from flow_io.ray_io import all_output
+from flow_io.ray_io import base  # noqa: 401
 from flow_io.ray_io import bigquery
 from flow_io.ray_io import pubsub
 from flow_io.ray_io import empty
@@ -20,10 +21,13 @@ _NODE_SPACE_TO_SINK = {
 
 
 def source(*args, **kwargs):
+    if not args:
+        raise ValueError(
+            'at least one output node must be provided for a source')
     node_info = utils._get_node_info(utils._get_node_launch_file())
     config = kwargs
     if not node_info.incoming_node_spaces:
-        source = empty.Input
+        source = empty.EmptySourceActor
     elif len(node_info.incoming_node_spaces) > 1:
         raise ValueError(
             f'Multiple incoming nodes for node: `{node_info["nodeSpace"]}`. '
@@ -45,7 +49,7 @@ def sink() -> List:
     node_info = utils._get_node_info(utils._get_node_launch_file())
     output_destinations = []
     if not node_info.outgoing_node_spaces:
-        output_destinations.append((empty.Output, {}))
+        output_destinations.append((empty.EmptySinkActor, {}))
     else:
         for outgoing in node_info.outgoing_node_spaces:
             outgoing_node_space = outgoing
