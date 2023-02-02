@@ -25,7 +25,6 @@ class PubSubSourceActor:
             raise ValueError(
                 'Subscription was not available for incoming node: '
                 f'{input_node}. Avaliable subscriptions: {subscriptions}')
-        self.subscriber = pubsub_v1.SubscriberClient()
 
     def run(self):
         while True:
@@ -43,7 +42,7 @@ class PubSubSourceActor:
                         # option.
                         decoded_data = received_message.message.data.decode()
                         ray.get(ray_input.remote(json.loads(decoded_data)))
-                s.acknowledge(ack_ids=ack_ids)
+                s.acknowledge(ack_ids=ack_ids, subscription=self.subscription)
 
 
 @ray.remote
