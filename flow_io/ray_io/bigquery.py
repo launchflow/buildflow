@@ -32,6 +32,9 @@ class BigQuerySourceActor(base.RaySource):
         self.query = query
 
     def run(self):
+        # TODO: it would be nice if we could shard up the reading
+        # of the rows with ray. What if someone instantiates the
+        # actor multiple times?
         query_job = self.bigquery_client.query(self.query)
         refs = []
         for row in query_job.result():
