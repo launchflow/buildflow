@@ -35,6 +35,7 @@ class PubSubSourceActor(base.RaySource):
                                   max_messages=10)
 
                 ack_ids = []
+                refs = []
                 for received_message in response.received_messages:
                     ack_ids.append(received_message.ack_id)
                     for ray_input in self.ray_inputs:
@@ -42,7 +43,8 @@ class PubSubSourceActor(base.RaySource):
                         # attributes. I believe beam provides that as an
                         # option.
                         decoded_data = received_message.message.data.decode()
-                        ray.get(ray_input.remote(json.loads(decoded_data)))
+                        refs.append(ray_input.remote(json.loads(decoded_data)))
+                ray.get(refs)
                 if ack_ids:
                     s.acknowledge(ack_ids=ack_ids,
                                   subscription=self.subscription)

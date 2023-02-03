@@ -2,14 +2,13 @@
 
 import json
 import os
+import shutil
 import tempfile
-import time
 import unittest
 
 import ray
-from ray.dag.input_node import InputNode
 
-from flow_io.ray_io import redis_stream
+from flow_io import ray_io
 
 
 class FakeRedisClient():
@@ -52,13 +51,13 @@ class FakeRedisClient():
             if stream not in streams:
                 continue
             stream_data = []
-            for id, data in id_data.items():
-                if int(id) < streams[stream]:
+            for r_id, data in id_data.items():
+                if int(r_id) < int(streams[stream]):
                     continue
                 encoded_data = {}
                 for key, value in data.items():
                     encoded_data[key.encode()] = value.encode()
-                stream_data.append((str(id).encode(), encoded_data))
+                stream_data.append((str(r_id).encode(), encoded_data))
             to_ret.append([stream.encode(), stream_data])
         return to_ret
 
@@ -73,30 +72,58 @@ class RedisStream(unittest.TestCase):
     def tearDownClass(cls) -> None:
         ray.shutdown()
 
+    def setUp(self) -> None:
+        _, self.temp_file = tempfile.mkstemp()
+        self.temp_dir = tempfile.mkdtemp()
+        self.flow_file = os.path.join(self.temp_dir, 'flow_state.json')
+        self.deployment_file = os.path.join(self.temp_dir, 'deployment.json')
+        os.environ['FLOW_FILE'] = self.flow_file
+        os.environ['FLOW_DEPLOYMENT_FILE'] = self.deployment_file
+        with open(self.flow_file, 'w', encoding='UTF-8') as f:
+            flow_contents = {
+                'nodes': [
+                    {
+                        'nodeSpace': 'flow_io/ray_io'
+                    },
+                    {
+                        'nodeSpace': 'resource/queue/redis/stream/stream1',
+                    },
+                    {
+                        'nodeSpace': 'resource/queue/redis/stream/stream2',
+                    },
+                ],
+                'outgoingEdges': {
+                    'resource/queue/redis/stream/stream1': ['flow_io/ray_io'],
+                    'flow_io/ray_io': ['resource/queue/redis/stream/stream2'],
+                },
+            }
+            json.dump(flow_contents, f)
+        with open(self.deployment_file, 'w', encoding='UTF-8') as f:
+            json.dump(
+                {
+                    'nodeDeployments': {
+                        'resource/queue/redis/stream/stream1': {
+                            'host': 'localhost',
+                            'port': '6879',
+                            'streams': ['input_stream'],
+                            'start_positions': {
+                                'input_stream': 0
+                            },
+                        },
+                        'resource/queue/redis/stream/stream2': {
+                            'host': 'localhost',
+                            'port': '6879',
+                            'streams': ['output_stream']
+                        }
+                    }
+                }, f)
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
     def test_end_to_end(self):
 
-        @ray.remote
-        def ray_func(input):
-            return input
-
-        input_config = {
-            'streams': ['input_stream'],
-            'host': 'host',
-            'port': 'str',
-            'start_positions': {
-                'input_stream': 0
-            }
-        }
-
-        output_config = {
-            'streams': ['output_stream'],
-            'host': 'host',
-            'port': 'str',
-        }
-
-        _, tmp_redis_file = tempfile.mkstemp()
-
-        r = FakeRedisClient(tmp_redis_file)
+        r = FakeRedisClient(self.temp_file)
 
         r.xadd('input_stream', {'field': 'value'})
         expected = [[
@@ -106,23 +133,12 @@ class RedisStream(unittest.TestCase):
             })]
         ]]
 
-        try:
-            with InputNode() as input:
-                ray_func_ref = ray_func.bind(input)
-                output_ref = redis_stream.RedisStreamOutput.bind(
-                    **output_config, redis_client=r)
-                output = output_ref.write.bind(ray_func_ref)
+        sink = ray_io.sink(redis_client=r)
+        source = ray_io.source(sink.write, redis_client=r, num_reads=1)
+        ray.get(source.run.remote())
 
-            redis_stream.RedisStreamInput([output],
-                                          **input_config,
-                                          num_reads=1,
-                                          redis_client=r).run()
-
-            time.sleep(10)
-            data_written = r.xread({'output_stream': 0})
-            self.assertEqual(expected, data_written)
-        finally:
-            os.remove(tmp_redis_file)
+        data_written = r.xread({'output_stream': 0})
+        self.assertEqual(expected, data_written)
 
 
 if __name__ == '__main__':
