@@ -2,6 +2,7 @@ import dataclasses
 import inspect
 import json
 import os
+import sys
 from typing import Any, Dict
 
 
@@ -50,6 +51,9 @@ def _read_deployment_config() -> Dict[str, Any]:
 def _get_node_launch_file(depth: int = 2) -> str:
     frm = inspect.stack()[depth]
     mod = inspect.getmodule(frm[0])
+    if sys.version_info[1] <= 8:
+        # py 3.8 only returns the relative file path.
+        return os.path.join(os.getcwd(), mod.__file__)
     return mod.__file__
 
 

@@ -2,15 +2,15 @@
 
 from dataclasses import dataclass
 import json
+import os
+import shutil
 import tempfile
-import time
 from typing import Any, Dict
 import unittest
 
 import ray
-from ray.dag.input_node import InputNode
 
-from flow_io.ray_io import bigquery
+from flow_io import ray_io
 
 
 @dataclass
@@ -60,6 +60,51 @@ class BigQueryTest(unittest.TestCase):
 
     def setUp(self) -> None:
         _, self.temp_file = tempfile.mkstemp()
+        self.temp_dir = tempfile.mkdtemp()
+        self.flow_file = os.path.join(self.temp_dir, 'flow_state.json')
+        self.deployment_file = os.path.join(self.temp_dir, 'deployment.json')
+        os.environ['FLOW_FILE'] = self.flow_file
+        os.environ['FLOW_DEPLOYMENT_FILE'] = self.deployment_file
+        with open(self.flow_file, 'w', encoding='UTF-8') as f:
+            flow_contents = {
+                'nodes': [
+                    {
+                        'nodeSpace': 'flow_io/ray_io'
+                    },
+                    {
+                        'nodeSpace': 'resource/storage/bigquery/table/table1',
+                    },
+                    {
+                        'nodeSpace': 'resource/storage/bigquery/table/table2',
+                    },
+                ],
+                'outgoingEdges': {
+                    'resource/storage/bigquery/table/table1':
+                    ['flow_io/ray_io'],
+                    'flow_io/ray_io':
+                    ['resource/storage/bigquery/table/table2'],
+                },
+            }
+            json.dump(flow_contents, f)
+        with open(self.deployment_file, 'w', encoding='UTF-8') as f:
+            json.dump(
+                {
+                    'nodeDeployments': {
+                        'resource/storage/bigquery/table/table1': {
+                            'project': 'in',
+                            'dataset': 'put',
+                            'table': 'table',
+                        },
+                        'resource/storage/bigquery/table/table2': {
+                            'project': 'out',
+                            'dataset': 'put',
+                            'table': 'table',
+                        }
+                    }
+                }, f)
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
 
     def test_end_to_end(self):
 
@@ -72,33 +117,14 @@ class BigQueryTest(unittest.TestCase):
                 'field': 1
             }]})
 
-        input_config = {
-            'query': 'SELECT * FROM `table`',
-            'project': '',
-            'dataset': '',
-            'table': '',
-        }
-
-        output_config = {
-            'project': 'out',
-            'dataset': 'put',
-            'table': 'table',
-            'query': '',
-        }
-
         expected = [{'field': 1}]
 
-        with InputNode() as input:
-            ray_func_ref = ray_func.bind(input)
-            output_ref = bigquery.BigQueryOutput.bind(
-                **output_config, bigquery_client=bq_client)
-            output = output_ref.write.bind(ray_func_ref)
+        sink = ray_io.sink(bigquery_client=bq_client)
+        source = ray_io.source(sink.write,
+                               query='SELECT * FROM `table`',
+                               bigquery_client=bq_client)
+        ray.get(source.run.remote())
 
-        bigquery.BigQueryInput([output],
-                               **input_config,
-                               bigquery_client=bq_client).run()
-
-        time.sleep(10)
         bq_client.load_file()
         got = bq_client.bigquery_data['out.put.table']
         self.assertEqual(expected, got)
