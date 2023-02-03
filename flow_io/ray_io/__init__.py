@@ -9,12 +9,12 @@ from flow_io.ray_io import empty
 from flow_io.ray_io import redis_stream
 
 _NODE_SPACE_TO_SOURCE = {
-    'resource/storage/bigquery/table': bigquery.BigQueryInput,
+    'resource/storage/bigquery/table': bigquery.BigQuerySourceActor,
     'resource/queue/redis/stream': redis_stream.RedisStreamInput,
     'resource/queue/pubsub': pubsub.PubSubSourceActor,
 }
 _NODE_SPACE_TO_SINK = {
-    'resource/storage/bigquery/table': bigquery.BigQueryOutput,
+    'resource/storage/bigquery/table': bigquery.BigQuerySinkActor,
     'resource/queue/redis/stream': redis_stream.RedisStreamOutput,
     'resource/queue/pubsub': pubsub.PubsubSinkActor,
 }
@@ -45,7 +45,7 @@ def source(*args, **kwargs):
     return source.remote(args, node_info.node_space, **config)
 
 
-def sink() -> List:
+def sink(**kwargs) -> List:
     node_info = utils._get_node_info(utils._get_node_launch_file())
     output_destinations = []
     if not node_info.outgoing_node_spaces:
@@ -57,6 +57,7 @@ def sink() -> List:
                 outgoing_node_space.split('/')[0:-1])
             outgoing_node_info = utils._get_node_info(outgoing_node_space)
             config = outgoing_node_info.node_config
+            config.update(kwargs)
             try:
                 sink = _NODE_SPACE_TO_SINK[node_space_removed_id]
             except KeyError:

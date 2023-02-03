@@ -30,7 +30,6 @@ class EmptySourceActor(base.RaySource):
         refs = []
         for i in self.inputs:
             for ray_input in self.ray_inputs:
-                print('DO NOT SUBMIT: asdfasdf')
                 refs.append(ray_input.remote(i))
         return ray.get(refs)
 

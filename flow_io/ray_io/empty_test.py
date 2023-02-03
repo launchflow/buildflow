@@ -11,7 +11,7 @@ import ray
 from flow_io import ray_io
 
 
-class RayTest(unittest.TestCase):
+class EmptyTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
