@@ -108,10 +108,6 @@ class BigQueryTest(unittest.TestCase):
 
     def test_end_to_end(self):
 
-        @ray.remote
-        def ray_func(input):
-            return input
-
         bq_client = FakeBigQueryClient(
             self.temp_file, {'SELECT * FROM `table`': [{
                 'field': 1
@@ -123,6 +119,33 @@ class BigQueryTest(unittest.TestCase):
         source = ray_io.source(sink.write,
                                query='SELECT * FROM `table`',
                                bigquery_client=bq_client)
+        ray.get(source.run.remote())
+
+        bq_client.load_file()
+        got = bq_client.bigquery_data['out.put.table']
+        self.assertEqual(expected, got)
+
+    def test_end_to_end_multi_output(self):
+
+        bq_client = FakeBigQueryClient(
+            self.temp_file, {'SELECT * FROM `in.put.table`': [{
+                'field': 1
+            }]})
+
+        expected = [{'field': 1}, {'field': 1}]
+
+        @ray.remote
+        class ProcessActor:
+
+            def __init__(self, sink):
+                self.sink = sink
+
+            def process(self, elem):
+                return ray.get(sink.write.remote([elem, elem]))
+
+        sink = ray_io.sink(bigquery_client=bq_client)
+        processor = ProcessActor.remote(sink)
+        source = ray_io.source(processor.process, bigquery_client=bq_client)
         ray.get(source.run.remote())
 
         bq_client.load_file()

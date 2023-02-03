@@ -4,19 +4,22 @@ from flow_io import utils
 from flow_io.ray_io import all_output
 from flow_io.ray_io import base  # noqa: 401
 from flow_io.ray_io import bigquery
+from flow_io.ray_io import duckdb
 from flow_io.ray_io import pubsub
 from flow_io.ray_io import empty
 from flow_io.ray_io import redis_stream
 
 _NODE_SPACE_TO_SOURCE = {
     'resource/storage/bigquery/table': bigquery.BigQuerySourceActor,
+    'resource/storage/duckdb/table': duckdb.DuckDBSourceActor,
     'resource/queue/redis/stream': redis_stream.RedisStreamInput,
-    'resource/queue/pubsub': pubsub.PubSubSourceActor,
+    'resource/queue/pubsub/regular': pubsub.PubSubSourceActor,
 }
 _NODE_SPACE_TO_SINK = {
     'resource/storage/bigquery/table': bigquery.BigQuerySinkActor,
+    'resource/storage/duckdb/table': duckdb.DuckDBSinkActor,
     'resource/queue/redis/stream': redis_stream.RedisStreamOutput,
-    'resource/queue/pubsub': pubsub.PubsubSinkActor,
+    'resource/queue/pubsub/regular': pubsub.PubsubSinkActor,
 }
 
 

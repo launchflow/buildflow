@@ -1,6 +1,6 @@
 """Base class for all Ray IO Connectors"""
 
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Union
 
 
 class RaySource:
@@ -17,5 +17,8 @@ class RaySource:
 class RaySink:
     """Base class for all Ray sinks."""
 
-    async def write(self, element: Dict[str, Any]):
+    async def write(
+        self,
+        element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+    ):
         raise ValueError('All Ray sinks should implement: `write`')

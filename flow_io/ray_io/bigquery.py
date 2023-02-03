@@ -1,6 +1,6 @@
 """IO connectors for Bigquery and Ray."""
 
-from typing import Dict, Iterable
+from typing import Any, Dict, Iterable, Union
 
 from google.cloud import bigquery
 import ray
@@ -22,13 +22,15 @@ class BigQuerySourceActor(base.RaySource):
         project: str,
         dataset: str,
         table: str,
-        query: str,
+        query: str = '',
         bigquery_client=None,
     ) -> None:
         super().__init__(ray_inputs, input_node_space)
         if bigquery_client is None:
             bigquery_client = _get_bigquery_client()
         self.bigquery_client = bigquery_client
+        if not query:
+            query = f'SELECT * FROM `{project}.{dataset}.{table}`'
         self.query = query
 
     def run(self):
@@ -58,5 +60,11 @@ class BigQuerySinkActor:
         self.bigquery_client = bigquery_client
         self.bigquery_table = f'{project}.{dataset}.{table}'
 
-    def write(self, element: Dict):
-        return self.bigquery_client.insert_rows(self.bigquery_table, [element])
+    def write(
+        self,
+        element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+    ):
+        to_insert = element
+        if isinstance(element, dict):
+            to_insert = [element]
+        return self.bigquery_client.insert_rows(self.bigquery_table, to_insert)

@@ -4,14 +4,18 @@
             "nodeSpace": "integration_test/pubsub_main"
         },
         {
-            "nodeSpace": "resource/queue/pubsub/pubsub123"
+            "nodeSpace": "resource/queue/pubsub/regular/pubsub123"
         },
         {
-            "nodeSpace": "resource/queue/pubsub/pubsub456"
+            "nodeSpace": "resource/queue/pubsub/regular/pubsub456"
         }
     ],
     "outgoingEdges": {
-        "integration_test/pubsub_main": ["resource/queue/pubsub/pubsub456"],
-        "resource/queue/pubsub/pubsub123": ["integration_test/pubsub_main"]
+        "integration_test/pubsub_main": [
+            "resource/queue/pubsub/regular/pubsub456"
+        ],
+        "resource/queue/pubsub/regular/pubsub123": [
+            "integration_test/pubsub_main"
+        ]
     }
 }

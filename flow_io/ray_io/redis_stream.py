@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import ray
 import redis
@@ -92,6 +92,13 @@ class RedisStreamOutput(base.RaySource):
         self.redis_client = redis_client
         self.streams = streams
 
-    def write(self, element: Dict):
+    def write(
+        self,
+        element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+    ):
+        to_insert = element
+        if isinstance(element, dict):
+            to_insert = [element]
         for stream in self.streams:
-            self.redis_client.xadd(stream, element)
+            for item in to_insert:
+                self.redis_client.xadd(stream, item)
