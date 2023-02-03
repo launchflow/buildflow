@@ -17,6 +17,7 @@ dependencies = [
     "duckdb",
     "google-cloud-bigquery",
     "google-cloud-pubsub",
+    "pandas",
     "ray",
     "redis",
 ]
