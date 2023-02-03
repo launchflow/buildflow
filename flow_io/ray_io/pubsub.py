@@ -1,7 +1,7 @@
 """IO connectors for Pub/Sub and Ray."""
 
 import json
-from typing import Dict
+from typing import Any, Dict, Iterable, Union
 
 from google.cloud import pubsub_v1
 import ray
@@ -61,8 +61,15 @@ class PubsubSinkActor(base.RaySink):
         self.pubslisher_client = pubsub_v1.PublisherClient()
         self.topic = topic
 
-    async def write(self, element: Dict):
-        future = self.pubslisher_client.publish(
-            self.topic,
-            json.dumps(element).encode('UTF-8'))
-        future.result()
+    async def write(
+        self,
+        element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+    ):
+        to_insert = element
+        if isinstance(element, dict):
+            to_insert = [element]
+        for item in to_insert:
+            future = self.pubslisher_client.publish(
+                self.topic,
+                json.dumps(item).encode('UTF-8'))
+            future.result()

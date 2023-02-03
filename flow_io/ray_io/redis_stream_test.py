@@ -140,6 +140,37 @@ class RedisStream(unittest.TestCase):
         data_written = r.xread({'output_stream': 0})
         self.assertEqual(expected, data_written)
 
+    def test_end_to_end_multi_output(self):
+
+        r = FakeRedisClient(self.temp_file)
+
+        r.xadd('input_stream', {'field': 'value'})
+        expected = [[
+            'output_stream'.encode(),
+            [('1'.encode(), {
+                'field'.encode(): 'value'.encode()
+            }), ('2'.encode(), {
+                'field'.encode(): 'value'.encode()
+            })]
+        ]]
+
+        @ray.remote
+        class ProcessActor:
+
+            def __init__(self, sink):
+                self.sink = sink
+
+            def process(self, elem):
+                return ray.get(sink.write.remote([elem, elem]))
+
+        sink = ray_io.sink(redis_client=r)
+        processor = ProcessActor.remote(sink)
+        source = ray_io.source(processor.process, redis_client=r, num_reads=1)
+        ray.get(source.run.remote())
+
+        data_written = r.xread({'output_stream': 0})
+        self.assertEqual(expected, data_written)
+
 
 if __name__ == '__main__':
     unittest.main()

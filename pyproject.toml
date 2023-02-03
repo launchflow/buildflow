@@ -14,8 +14,10 @@ readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
     "apache-beam",
+    "duckdb",
     "google-cloud-bigquery",
     "google-cloud-pubsub",
+    "pandas",
     "ray",
     "redis",
 ]
