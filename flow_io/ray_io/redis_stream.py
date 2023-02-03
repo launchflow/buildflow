@@ -2,21 +2,21 @@
 
 import logging
 import time
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 import ray
 import redis
 
-
-def _get_redis_client(redis_config: Dict[str, Any]) -> redis.Redis:
-    return redis.Redis(host=redis_config['host'], port=redis_config['port'])
+from flow_io.ray_io import base
 
 
-class RedisStreamInput:
+@ray.remote
+class RedisStreamInput(base.RaySource):
 
     def __init__(
         self,
-        ray_dags: Iterable,
+        ray_inputs: Iterable,
+        input_node_space: str,
         host: str,
         port: int,
         streams: List[str],
@@ -28,10 +28,10 @@ class RedisStreamInput:
         # testing purposes.
         redis_client=None,
     ) -> None:
+        super().__init__(ray_inputs, input_node_space)
         if redis_client is None:
             redis_client = redis.Redis(host=host, port=port)
         self.redis_client = redis_client
-        self.ray_dags = ray_dags
         self.redis_client = redis_client
         self.num_reads = num_reads
         self.streams = {}
@@ -68,14 +68,16 @@ class RedisStreamInput:
                     decoded_item = {}
                     for key, value in item.items():
                         decoded_item[key.decode()] = value.decode()
-                    for ray_dag in self.ray_dags:
-                        ray_dag.execute(decoded_item)
+                    refs = []
+                    for ray_input in self.ray_inputs:
+                        refs.append(ray_input.remote(decoded_item))
+                    ray.get(refs)
 
             time.sleep(1)
 
 
 @ray.remote
-class RedisStreamOutput:
+class RedisStreamOutput(base.RaySource):
 
     def __init__(
         self,
