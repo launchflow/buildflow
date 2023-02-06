@@ -17,6 +17,8 @@ dependencies = [
     "duckdb",
     "google-cloud-bigquery",
     "google-cloud-pubsub",
+    # TODO: https://github.com/grpc/grpc/issues/31885
+    "grpcio==1.48.2",
     "pandas",
     "ray",
     "redis",
