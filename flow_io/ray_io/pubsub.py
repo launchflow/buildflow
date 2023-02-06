@@ -1,5 +1,6 @@
 """IO connectors for Pub/Sub and Ray."""
 
+import logging
 import json
 from typing import Any, Dict, Iterable, Union
 
@@ -34,20 +35,31 @@ class PubSubSourceActor(base.RaySource):
                 response = s.pull(subscription=self.subscription,
                                   max_messages=10)
 
-                ack_ids = []
-                refs = []
+                ray_futures = {}
                 for received_message in response.received_messages:
-                    ack_ids.append(received_message.ack_id)
                     for ray_input in self.ray_inputs:
                         # TODO: maybe we should add the option to include the
                         # attributes. I believe beam provides that as an
                         # option.
                         decoded_data = received_message.message.data.decode()
-                        refs.append(ray_input.remote(json.loads(decoded_data)))
-                ray.get(refs)
-                if ack_ids:
-                    s.acknowledge(ack_ids=ack_ids,
-                                  subscription=self.subscription)
+                        ref = ray_input.remote(json.loads(decoded_data))
+                        ray_futures[received_message.ack_id] = ref.future()
+
+                while ray_futures:
+                    new_futures = {}
+                    for ack_id, future in ray_futures.items():
+                        if future.done():
+                            try:
+                                future.result()
+                            except Exception as e:
+                                logging.error(
+                                    'Failed to process pubsub message. Message'
+                                    ' has not been acked. Error : %s', e)
+                            s.acknowledge(ack_ids=[ack_id],
+                                          subscription=self.subscription)
+                        else:
+                            new_futures[ack_id] = future
+                    ray_futures = new_futures
 
 
 @ray.remote
