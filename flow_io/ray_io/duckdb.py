@@ -1,5 +1,7 @@
 """IO connectors for DuckDB and Ray."""
 
+import logging
+import time
 from typing import Any, Dict, Iterable, Union
 
 import duckdb
@@ -49,8 +51,6 @@ class DuckDBSinkActor:
         self.database = database
         self.table = table
 
-    # TODO: should we let folks pass in multiple elements at a time? Maybe we
-    # make it so they can do both.
     def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
@@ -60,11 +60,21 @@ class DuckDBSinkActor:
             df = pd.DataFrame([element])
         else:
             df = pd.DataFrame(element)
-        try:
-            duck_con.append(self.table, df)
-        except duckdb.CatalogException:
-            # This can happen if the table doesn't exist yet. If this happens
-            # create it from the DF.
-            duck_con.execute(f'CREATE TABLE {self.table} AS SELECT * FROM df')
+        while True:
+            try:
+                duck_con.append(self.table, df)
+                break
+            except duckdb.CatalogException:
+                # This can happen if the table doesn't exist yet. If this
+                # happen create it from the DF.
+                duck_con.execute(
+                    f'CREATE TABLE {self.table} AS SELECT * FROM df')
+                break
+            except duckdb.IOException:
+                logging.warning(
+                    'Can\'t concurrently write to DuckDB waiting 2 '
+                    'seconds then will try again.'
+                )
+                time.sleep(2)
         duck_con.close()
         return
