@@ -19,6 +19,9 @@ dependencies = [
     "google-cloud-pubsub",
     # TODO: https://github.com/grpc/grpc/issues/31885
     "grpcio==1.48.2",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp",
     "pandas",
     "ray",
     "redis",

@@ -5,6 +5,7 @@ import json
 from typing import Any, Dict, Iterable, Union
 
 from google.cloud import pubsub_v1
+from opentelemetry import trace
 import ray
 
 from flow_io.ray_io import base
@@ -36,14 +37,20 @@ class PubSubSourceActor(base.RaySource):
                                   max_messages=10)
 
                 ray_futures = {}
+                input_data = []
                 for received_message in response.received_messages:
                     for ray_input in self.ray_inputs:
                         # TODO: maybe we should add the option to include the
                         # attributes. I believe beam provides that as an
                         # option.
                         decoded_data = received_message.message.data.decode()
+                        input_data.append(input_data)
                         ref = ray_input.remote(json.loads(decoded_data))
                         ray_futures[received_message.ack_id] = ref.future()
+
+                if self.data_tracing_enabled:
+                    current_span = trace.get_current_span()
+                    current_span.set_attribute('input_data', input_data)
 
                 while ray_futures:
                     new_futures = {}
