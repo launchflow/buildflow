@@ -16,6 +16,7 @@ def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str,
     print('DO NOT SUBMIT: ', key)
     print('DO NOT SUBMIT: ', json.dumps(data))
     current_span = trace.get_current_span()
+    print('DO NOT SUBMIT: ', current_span)
     current_span.set_attribute(key, json.dumps(data))
 
 
