@@ -29,7 +29,6 @@ class PubSubSourceActor(base.RaySource):
                 f'{input_node}. Avaliable subscriptions: {subscriptions}')
 
     def run(self):
-        base.add_to_span('test_input', 'fdsa')
         while True:
             with pubsub_v1.SubscriberClient() as s:
                 # TODO: make this configurable
@@ -50,7 +49,7 @@ class PubSubSourceActor(base.RaySource):
                         ray_futures[received_message.ack_id] = ref.future()
 
                 if self.data_tracing_enabled:
-                    base.add_to_span('input_data', {'field': 123})
+                    base.add_to_span('input_data', all_input_data)
 
                 while ray_futures:
                     new_futures = {}
