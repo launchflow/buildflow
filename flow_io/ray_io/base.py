@@ -8,6 +8,8 @@ from opentelemetry import trace
 
 
 def _data_tracing_enabled() -> bool:
+    result = 'ENABLE_FLOW_DATA_TRACING' in os.environ
+    print('DO NOT SUBMIT: ', result)
     return 'ENABLE_FLOW_DATA_TRACING' in os.environ
 
 
