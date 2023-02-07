@@ -1,5 +1,6 @@
 """Base class for all Ray IO Connectors"""
 
+import json
 import os
 from typing import Any, Dict, Iterable, Union
 
@@ -9,6 +10,11 @@ from opentelemetry import trace
 
 def _data_tracing_enabled() -> bool:
     return 'ENABLE_FLOW_DATA_TRACING' in os.environ
+
+
+def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]]):
+    current_span = trace.get_current_span()
+    current_span.set_attribute(key, json.dumps(data))
 
 
 class RaySource:
@@ -40,6 +46,5 @@ class RaySink:
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
         if self.data_tracing_enabled:
-            current_span = trace.get_current_span()
-            current_span.set_attribute('output_data', 123)
+            add_to_span('output_data', element)
         return self._write(element)
