@@ -37,19 +37,19 @@ class PubSubSourceActor(base.RaySource):
                                   max_messages=10)
 
                 ray_futures = {}
-                input_data = []
+                all_input_data = []
                 for received_message in response.received_messages:
                     for ray_input in self.ray_inputs:
                         # TODO: maybe we should add the option to include the
                         # attributes. I believe beam provides that as an
                         # option.
                         decoded_data = received_message.message.data.decode()
-                        input_data.append(input_data)
+                        all_input_data.append(input_data)
                         ref = ray_input.remote(json.loads(decoded_data))
                         ray_futures[received_message.ack_id] = ref.future()
 
                 if self.data_tracing_enabled:
-                    base.add_to_span('input_data', input_data)
+                    base.add_to_span('input_data', all_input_data)
 
                 while ray_futures:
                     new_futures = {}
