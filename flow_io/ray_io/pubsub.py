@@ -44,8 +44,9 @@ class PubSubSourceActor(base.RaySource):
                         # attributes. I believe beam provides that as an
                         # option.
                         decoded_data = received_message.message.data.decode()
-                        all_input_data.append(decoded_data)
-                        ref = ray_input.remote(json.loads(decoded_data))
+                        json_loaded = json.loads(decoded_data)
+                        all_input_data.append(json_loaded)
+                        ref = ray_input.remote(json_loaded)
                         ray_futures[received_message.ack_id] = ref.future()
 
                 if self.data_tracing_enabled:
