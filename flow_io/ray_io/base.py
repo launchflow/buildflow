@@ -39,9 +39,7 @@ class RaySink:
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
-        print('DO NOT SUBMIT: ', self.data_tracing_enabled)
         if self.data_tracing_enabled:
-            print('DO NOT SUBMIT: adding trace')
             current_span = trace.get_current_span()
-            current_span.set_attribute('output_data', element)
+            current_span.set_attribute('output_data', 123)
         return self._write(element)
