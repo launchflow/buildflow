@@ -49,7 +49,7 @@ class PubSubSourceActor(base.RaySource):
                         ray_futures[received_message.ack_id] = ref.future()
 
                 if self.data_tracing_enabled:
-                    base.add_to_span('input_data', 123)
+                    base.add_to_span('input_data', {'field': 123})
 
                 while ray_futures:
                     new_futures = {}
