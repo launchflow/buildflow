@@ -29,6 +29,7 @@ class PubSubSourceActor(base.RaySource):
                 f'{input_node}. Avaliable subscriptions: {subscriptions}')
 
     def run(self):
+        base.add_to_span('test_input', 'fdsa')
         while True:
             with pubsub_v1.SubscriberClient() as s:
                 # TODO: make this configurable
