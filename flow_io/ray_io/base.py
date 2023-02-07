@@ -4,7 +4,6 @@ import json
 import os
 from typing import Any, Dict, Iterable, Union
 
-
 from opentelemetry import trace
 
 
@@ -12,7 +11,10 @@ def _data_tracing_enabled() -> bool:
     return 'ENABLE_FLOW_DATA_TRACING' in os.environ
 
 
-def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]]):
+def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str,
+                                                                    Any]]]):
+    print('DO NOT SUBMIT: ', key)
+    print('DO NOT SUBMIT: ', json.dumps(data))
     current_span = trace.get_current_span()
     current_span.set_attribute(key, json.dumps(data))
 
