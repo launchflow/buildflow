@@ -77,10 +77,11 @@ class PubsubSinkActor(base.RaySink):
         topic: str,
         subscriptions: Dict[str, str],
     ) -> None:
+        super().__init__()
         self.pubslisher_client = pubsub_v1.PublisherClient()
         self.topic = topic
 
-    async def write(
+    async def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):

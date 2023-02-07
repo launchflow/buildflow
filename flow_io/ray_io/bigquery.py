@@ -46,7 +46,7 @@ class BigQuerySourceActor(base.RaySource):
 
 
 @ray.remote
-class BigQuerySinkActor:
+class BigQuerySinkActor(base.RaySink):
 
     def __init__(
         self,
@@ -55,12 +55,13 @@ class BigQuerySinkActor:
         table: str,
         bigquery_client=None,
     ) -> None:
+        super().__init__()
         if bigquery_client is None:
             bigquery_client = _get_bigquery_client()
         self.bigquery_client = bigquery_client
         self.bigquery_table = f'{project}.{dataset}.{table}'
 
-    def write(
+    def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):

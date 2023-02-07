@@ -77,7 +77,7 @@ class RedisStreamInput(base.RaySource):
 
 
 @ray.remote
-class RedisStreamOutput(base.RaySource):
+class RedisStreamOutput(base.RaySink):
 
     def __init__(
         self,
@@ -87,12 +87,13 @@ class RedisStreamOutput(base.RaySource):
         start_positions: Optional[Dict[str, str]] = None,
         redis_client=None,
     ) -> None:
+        super().__init__()
         if redis_client is None:
             redis_client = redis.Redis(host=host, port=port)
         self.redis_client = redis_client
         self.streams = streams
 
-    def write(
+    def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):

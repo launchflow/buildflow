@@ -41,17 +41,18 @@ class DuckDBSourceActor(base.RaySource):
 
 
 @ray.remote
-class DuckDBSinkActor:
+class DuckDBSinkActor(base.RaySink):
 
     def __init__(
         self,
         database: str,
         table: str,
     ) -> None:
+        super().__init__()
         self.database = database
         self.table = table
 
-    def write(
+    def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):

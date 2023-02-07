@@ -8,8 +8,6 @@ from opentelemetry import trace
 
 
 def _data_tracing_enabled() -> bool:
-    result = 'ENABLE_FLOW_DATA_TRACING' in os.environ
-    print('DO NOT SUBMIT: ', result)
     return 'ENABLE_FLOW_DATA_TRACING' in os.environ
 
 
@@ -21,11 +19,8 @@ class RaySource:
         self.input_node_space = input_node_space
         self.data_tracing_enabled = _data_tracing_enabled()
 
-    def _run(self):
-        raise ValueError('All Ray sources should implement: `_`')
-
     def run(self):
-        return self._run()
+        raise ValueError('All Ray sources should implement: `_`')
 
 
 class RaySink:
@@ -34,13 +29,13 @@ class RaySink:
     def __init__(self) -> None:
         self.data_tracing_enabled = _data_tracing_enabled()
 
-    async def _write(
+    def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
         raise ValueError('All Ray sinks should implement: `_write`')
 
-    async def write(
+    def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):

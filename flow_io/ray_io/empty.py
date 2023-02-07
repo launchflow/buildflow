@@ -35,7 +35,7 @@ class EmptySourceActor(base.RaySource):
 
 
 @ray.remote
-class EmptySinkActor:
+class EmptySinkActor(base.RaySink):
 
-    def write(self, element=Any):
+    def _write(self, element=Any):
         return element
