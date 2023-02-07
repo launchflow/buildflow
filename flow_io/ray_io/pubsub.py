@@ -5,7 +5,6 @@ import json
 from typing import Any, Dict, Iterable, Union
 
 from google.cloud import pubsub_v1
-from opentelemetry import trace
 import ray
 
 from flow_io.ray_io import base
@@ -50,7 +49,7 @@ class PubSubSourceActor(base.RaySource):
                         ray_futures[received_message.ack_id] = ref.future()
 
                 if self.data_tracing_enabled:
-                    base.add_to_span('input_data', all_input_data)
+                    base.add_to_span('input_data', 123)
 
                 while ray_futures:
                     new_futures = {}
