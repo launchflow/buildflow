@@ -70,8 +70,7 @@ class DuckDBSinkActor(base.RaySink):
                 if connect_tries == _MAX_CONNECT_TRIES:
                     raise ValueError(
                         'Failed to connect to duckdb. Did you leave a '
-                        'connection open?'
-                    ) from e
+                        'connection open?') from e
                 logging.warning(
                     'Can\'t concurrently write to DuckDB waiting 2 '
                     'seconds then will try again.')
@@ -85,6 +84,9 @@ class DuckDBSinkActor(base.RaySink):
             except duckdb.CatalogException:
                 # This can happen if the table doesn't exist yet. If this
                 # happen create it from the DF.
+                logging.info(
+                    'Table `%s` did not exist in databse: `%s`, creating.',
+                    self.table, self.database)
                 duck_con.execute(
                     f'CREATE TABLE {self.table} AS SELECT * FROM df')
         duck_con.close()
