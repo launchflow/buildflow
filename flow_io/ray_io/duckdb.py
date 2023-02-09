@@ -64,6 +64,7 @@ class DuckDBSinkActor(base.RaySink):
             try:
                 duck_con = duckdb.connect(database=self.database,
                                           read_only=False)
+                break
             except duckdb.IOException as e:
                 connect_tries += 1
                 if connect_tries == _MAX_CONNECT_TRIES:
