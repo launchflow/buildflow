@@ -71,9 +71,9 @@ class RaySink:
     def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
-        ctx: Optional[Dict[str, str]] = None,
+        ctx: Dict[str, str],
     ):
-        if self.data_tracing_enabled and ctx is not None:
+        if self.data_tracing_enabled:
             print('CREATING SPAN IN RAY SINK: ', ctx)
             add_to_span('output_data', element, ctx)
         return self._write(element)
