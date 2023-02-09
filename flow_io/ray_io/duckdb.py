@@ -80,14 +80,10 @@ class DuckDBSinkActor(base.RaySink):
         else:
             df = pd.DataFrame(element)
         try:
-            logging.warning('writing: %s to %s', df, self.table)
             duck_con.append(self.table, df)
         except duckdb.CatalogException:
             # This can happen if the table doesn't exist yet. If this
             # happen create it from the DF.
-            logging.warning(
-                'Table `%s` did not exist in databse: `%s`, creating.',
-                self.table, self.database)
             duck_con.execute(
                 f'CREATE TABLE {self.table} AS SELECT * FROM df')
         duck_con.close()
