@@ -28,8 +28,8 @@ class DuckDBTest(unittest.TestCase):
         self.deployment_file = os.path.join(self.temp_dir, 'deployment.json')
         os.environ['FLOW_FILE'] = self.flow_file
         os.environ['FLOW_DEPLOYMENT_FILE'] = self.deployment_file
-        self.input_database = 'input.duckdb'
-        self.output_database = 'output.duckdb'
+        self.input_database = os.path.join(self.temp_dir, 'input.duckdb')
+        self.output_database = os.path.join(self.temp_dir, 'output.duckdb')
         with open(self.flow_file, 'w', encoding='UTF-8') as f:
             flow_contents = {
                 'nodes': [
@@ -66,8 +66,6 @@ class DuckDBTest(unittest.TestCase):
 
     def tearDown(self) -> None:
         shutil.rmtree(self.temp_dir)
-        os.remove(self.input_database)
-        os.remove(self.output_database)
 
     def test_end_to_end(self):
         input_con = duckdb.connect(self.input_database)
