@@ -4,17 +4,43 @@ import json
 import os
 from typing import Any, Dict, Iterable, Union
 
-from opentelemetry import trace
+from opentelemetry import propagators, trace
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
+
+trace.set_tracer_provider(
+   TracerProvider(
+       resource=Resource.create({SERVICE_NAME: "my-hello-service"})
+   )
+)
+
+jaeger_exporter = JaegerExporter(
+   agent_host_name="localhost",
+   agent_port=6831,
+)
+
+trace.get_tracer_provider().add_span_processor(
+   SimpleSpanProcessor(jaeger_exporter)
+)
+
+tracer = trace.get_tracer(__name__)
 
 def _data_tracing_enabled() -> bool:
     return 'ENABLE_FLOW_DATA_TRACING' in os.environ
 
 
-def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str,
-                                                                    Any]]]):
-    current_span = trace.get_current_span()
-    current_span.set_attribute(key, json.dumps(data))
+def header_from_ctx(ctx, key):
+    header = ctx.get(key)
+    return [header] if header else []
+
+def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], ctx: Dict[str, str]):
+    propagators.inject(type(ctx).__setitem__, ctx)
+    ctx = propagators.extract(header_from_ctx, ctx)
+    with tracer.start_as_current_span(key, context=ctx) as span:
+        span.set_attribute(key, json.dumps(data))
 
 
 class RaySource:
@@ -44,7 +70,8 @@ class RaySink:
     def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        ctx: Dict[str, str],
     ):
         if self.data_tracing_enabled:
-            add_to_span('output_data', element)
+            add_to_span('output_data', element, ctx)
         return self._write(element)

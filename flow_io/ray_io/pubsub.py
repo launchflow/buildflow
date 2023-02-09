@@ -49,7 +49,8 @@ class PubSubSourceActor(base.RaySource):
                         ray_futures[received_message.ack_id] = ref.future()
 
                 if self.data_tracing_enabled:
-                    base.add_to_span('input_data', all_input_data)
+                    # TODO: Load context from pubsub message
+                    base.add_to_span('input_data', all_input_data, {})
 
                 while ray_futures:
                     new_futures = {}
