@@ -74,6 +74,6 @@ class RaySink:
         ctx: Dict[str, str],
     ):
         if self.data_tracing_enabled:
-            logging.debug('CREATING SPAN IN RAY SINK: ', ctx)
+            logging.info('CREATING SPAN IN RAY SINK: ', ctx)
             add_to_span('output_data', element, ctx)
         return self._write(element)
