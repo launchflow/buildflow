@@ -45,7 +45,14 @@ class PubSubSourceActor(base.RaySource):
                         decoded_data = received_message.message.data.decode()
                         json_loaded = json.loads(decoded_data)
                         all_input_data.append(json_loaded)
-                        ref = ray_input.remote(json_loaded)
+
+                        ctx = None
+                        if self.data_tracing_enabled:
+                            ctx = {}
+                            # TODO: Load context from pubsub message
+                            print('CREATING SPAN IN PUBSUB SOURCE')
+                            base.add_to_span('input_data', all_input_data, ctx)
+                        ref = ray_input.remote(json_loaded, ctx)
                         ray_futures[received_message.ack_id] = ref.future()
 
                 if self.data_tracing_enabled:

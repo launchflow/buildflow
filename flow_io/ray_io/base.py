@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Dict, Iterable, Union, Optional
 
 from opentelemetry import propagators, trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
@@ -71,9 +71,9 @@ class RaySink:
     def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
-        ctx: Dict[str, str],
+        ctx: Optional[Dict[str, str]] = None,
     ):
-        if self.data_tracing_enabled:
+        if self.data_tracing_enabled and ctx is not None:
             print('CREATING SPAN IN RAY SINK: ', ctx)
             add_to_span('output_data', element, ctx)
         return self._write(element)
