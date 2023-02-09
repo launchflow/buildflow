@@ -4,11 +4,14 @@ import json
 import logging
 from typing import Any, Dict, Iterable, Union, Optional
 
-from opentelemetry import propagators, trace
+from opentelemetry import propagate, trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+
+PROPAGATOR = propagate.get_global_textmap()
 
 
 trace.set_tracer_provider(
@@ -38,8 +41,8 @@ def header_from_ctx(ctx, key):
     return [header] if header else []
 
 def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], ctx: Dict[str, str]):
-    propagators.inject(type(ctx).__setitem__, ctx)
-    ctx = propagators.extract(header_from_ctx, ctx)
+    PROPAGATOR.inject(type(ctx).__setitem__, ctx)
+    ctx = PROPAGATOR.extract(header_from_ctx, ctx)
     with tracer.start_as_current_span(key, context=ctx) as span:
         span.set_attribute(key, json.dumps(data))
 
