@@ -5,7 +5,6 @@ import json
 from typing import Any, Dict, Iterable, Union
 
 from google.cloud import pubsub_v1
-from opentelemetry import trace
 import ray
 
 from flow_io.ray_io import base
@@ -44,8 +43,9 @@ class PubSubSourceActor(base.RaySource):
                         # attributes. I believe beam provides that as an
                         # option.
                         decoded_data = received_message.message.data.decode()
-                        all_input_data.append(decoded_data)
-                        ref = ray_input.remote(json.loads(decoded_data))
+                        json_loaded = json.loads(decoded_data)
+                        all_input_data.append(json_loaded)
+                        ref = ray_input.remote(json_loaded)
                         ray_futures[received_message.ack_id] = ref.future()
 
                 if self.data_tracing_enabled:
@@ -80,7 +80,7 @@ class PubsubSinkActor(base.RaySink):
         self.pubslisher_client = pubsub_v1.PublisherClient()
         self.topic = topic
 
-    async def _write(
+    def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
