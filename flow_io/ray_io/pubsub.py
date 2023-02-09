@@ -50,6 +50,7 @@ class PubSubSourceActor(base.RaySource):
 
                 if self.data_tracing_enabled:
                     # TODO: Load context from pubsub message
+                    print('CREATING SPAN IN PUBSUB SOURCE')
                     base.add_to_span('input_data', all_input_data, {})
 
                 while ray_futures:

@@ -29,7 +29,8 @@ trace.get_tracer_provider().add_span_processor(
 tracer = trace.get_tracer(__name__)
 
 def _data_tracing_enabled() -> bool:
-    return 'ENABLE_FLOW_DATA_TRACING' in os.environ
+    # return 'ENABLE_FLOW_DATA_TRACING' in os.environ
+    return True
 
 
 def header_from_ctx(ctx, key):
@@ -73,5 +74,6 @@ class RaySink:
         ctx: Dict[str, str],
     ):
         if self.data_tracing_enabled:
+            print('CREATING SPAN IN RAY SINK: ', ctx)
             add_to_span('output_data', element, ctx)
         return self._write(element)
