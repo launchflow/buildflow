@@ -30,14 +30,13 @@ class DuckDBSourceActor(base.RaySource):
 
     def run(self):
         refs = []
-        while True:
-            df = self.duck_con.fetch_df_chunk()
-            if df.empty:
-                break
+        df = self.duck_con.fetch_df_chunk()
+        while not df.empty:
             elements = df.to_dict('records')
             for ray_input in self.ray_inputs:
                 for element in elements:
                     refs.append(ray_input.remote(element))
+            df = self.duck_con.fetch_df_chunk()
         self.duck_con.close()
         return ray.get(refs)
 
