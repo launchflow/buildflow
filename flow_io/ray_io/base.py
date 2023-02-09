@@ -1,7 +1,7 @@
 """Base class for all Ray IO Connectors"""
 
 import json
-import os
+import logging
 from typing import Any, Dict, Iterable, Union, Optional
 
 from opentelemetry import propagators, trace
@@ -74,6 +74,6 @@ class RaySink:
         ctx: Dict[str, str],
     ):
         if self.data_tracing_enabled:
-            print('CREATING SPAN IN RAY SINK: ', ctx)
+            logging.debug('CREATING SPAN IN RAY SINK: ', ctx)
             add_to_span('output_data', element, ctx)
         return self._write(element)
