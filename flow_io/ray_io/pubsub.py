@@ -29,7 +29,7 @@ class PubSubSourceActor(base.RaySource):
                 f'{input_node}. Avaliable subscriptions: {subscriptions}')
 
     def run(self):
-        logging.info('STARTING PUBSUB SORUCE')
+        print('STARTING PUBSUB SORUCE')
         while True:
             with pubsub_v1.SubscriberClient() as s:
                 # TODO: make this configurable
@@ -50,7 +50,7 @@ class PubSubSourceActor(base.RaySource):
                         # TODO: Load context from pubsub message
                         ctx = {}
                         if self.data_tracing_enabled:
-                            logging.info('CREATING SPAN IN PUBSUB SOURCE')
+                            print('CREATING SPAN IN PUBSUB SOURCE')
                             base.add_to_span('input_data', json_loaded, ctx)
                         ref = ray_input.remote(json_loaded, ctx)
                         ray_futures[received_message.ack_id] = ref.future()
