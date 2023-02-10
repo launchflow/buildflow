@@ -52,5 +52,6 @@ class SimplerTracer(Tracer):
         trace_id = carrier.get('trace_id', uuid.uuid4().hex)
         ctx = self._r.get(trace_id) or {}
         ctx[key] = data
+        print(carrier, ctx, key, data)
         self._r.set(trace_id, json.dumps(ctx))
         return {'trace_id': trace_id}
