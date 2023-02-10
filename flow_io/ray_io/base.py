@@ -32,18 +32,17 @@ trace.get_tracer_provider().add_span_processor(
 
 tracer = trace.get_tracer(__name__)
 
+
+tracer = trace.get_tracer(__name__)
+with tracer.start_as_current_span("rootSpan"):
+   with tracer.start_as_current_span("childSpan"):
+           print("Hello world!")
+
+
 def _data_tracing_enabled() -> bool:
     # return 'ENABLE_FLOW_DATA_TRACING' in os.environ
     return True
 
-
-def header_from_ctx(ctx, key):
-    header = ctx.get(key)
-    return [header] if header else []
-
-
-def set_header_in_ctx(ctx, key, value):
-    ctx[key] = value
 
 def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
     ctx = TraceContextTextMapPropagator().extract(carrier=carrier)
