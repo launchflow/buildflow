@@ -62,4 +62,5 @@ class RaySink:
         print('In write: ', self.data_tracing_enabled, element, carrier)
         if self.data_tracing_enabled:
             add_to_trace('output_data', element, carrier)
+        print('Done adding trace: ', carrier)
         return self._write(element)
