@@ -1,6 +1,6 @@
 """Base class for all Ray IO Connectors"""
 
-from typing import Any, Dict, Iterable, Union, Optional
+from typing import Any, Dict, Iterable, Union
 
 from flow_io import tracer as t
 

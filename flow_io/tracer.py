@@ -46,7 +46,7 @@ class OpenTelemetryTracer(Tracer):
 class SimplerTracer(Tracer):
 
     def __init__(self):
-        self._r = redis.Redis(host='redis', port=6379, db=0)
+        self._r = redis.Redis(host='redis', port=6381, db=0)
 
     def add_to_trace(self, key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
         trace_id = carrier.get('trace_id', uuid.uuid4().hex)
