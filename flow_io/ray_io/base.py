@@ -8,7 +8,7 @@ from opentelemetry import propagate, trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 
 PROPAGATOR = propagate.get_global_textmap()
@@ -26,7 +26,7 @@ jaeger_exporter = JaegerExporter(
 )
 
 trace.get_tracer_provider().add_span_processor(
-   SimpleSpanProcessor(jaeger_exporter)
+   BatchSpanProcessor(jaeger_exporter)
 )
 
 tracer = trace.get_tracer(__name__)
@@ -48,6 +48,7 @@ def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     print("ADDING TO SPAN: ", key, data, ctx)
     with tracer.start_as_current_span(key, context=ctx) as span:
         span.set_attribute(key, json.dumps(data))
+        print('testing')
 
 
 class RaySource:
