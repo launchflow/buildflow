@@ -9,6 +9,7 @@ from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 
 PROPAGATOR = propagate.get_global_textmap()
@@ -44,13 +45,18 @@ def header_from_ctx(ctx, key):
 def set_header_in_ctx(ctx, key, value):
     ctx[key] = value
 
-def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], ctx: Dict[str, str]):
-    print("ADDING TO SPAN: ", key, data, ctx)
-    with tracer.start_as_current_span(key) as span:
+def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
+    ctx = TraceContextTextMapPropagator().extract(carrier=carrier)
+    print("ADDING TO SPAN: ", key, data, carrier, ctx)
+    with tracer.start_as_current_span(key, context=ctx) as span:
+        carrier = {}
+        TraceContextTextMapPropagator().inject(carrier)
         print('Tracer: ', tracer)
         print('span: ', span)
+        print('carrier: ', carrier)
         span.set_attribute(key, json.dumps(data))
-        print('testing')
+        return carrier
+
 
 
 class RaySource:
@@ -80,9 +86,9 @@ class RaySink:
     def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
-        ctx: Dict[str, str],
+        carrier: Dict[str, str],
     ):
         if self.data_tracing_enabled:
-            print('CREATING SPAN IN RAY SINK: ', ctx)
-            add_to_span('output_data', element, ctx)
+            print('CREATING SPAN IN RAY SINK: ', carrier)
+            add_to_span('output_data', element, carrier)
         return self._write(element)
