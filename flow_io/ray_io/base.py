@@ -59,6 +59,7 @@ class RaySink:
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
         carrier: Dict[str, str],
     ):
+        print('In write: ', self.data_tracing_enabled, element, carrier)
         if self.data_tracing_enabled:
             add_to_trace('output_data', element, carrier)
         return self._write(element)
