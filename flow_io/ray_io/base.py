@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, Union, Optional
 from flow_io import tracer as t
 
 
-tracer = t.OpenTelemetryTracer()
+tracer = t.SimplerTracer()
 
 def add_to_trace(
     key: str,
