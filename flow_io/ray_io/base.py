@@ -1,55 +1,33 @@
 """Base class for all Ray IO Connectors"""
 
-import json
-import logging
 from typing import Any, Dict, Iterable, Union, Optional
 
-from opentelemetry import propagate, trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from flow_io import tracer as t
 
 
-PROPAGATOR = propagate.get_global_textmap()
+tracer = t.OpenTelemetryTracer()
 
+def add_to_trace(
+    key: str,
+    value: Any,
+    carrier: Dict[str, str],
+) -> Dict[str, str]:
+    """Add a key value pair to the current span.
 
-trace.set_tracer_provider(
-   TracerProvider(
-       resource=Resource.create({SERVICE_NAME: "my-hello-service"})
-   )
-)
+    Args:
+        key: The key to add to the span.
+        value: The value to add to the span.
+        carrier: The context state handler.
 
-jaeger_exporter = JaegerExporter(
-   agent_host_name="jaeger",
-   agent_port=6831,
-)
-
-trace.get_tracer_provider().add_span_processor(
-   BatchSpanProcessor(jaeger_exporter)
-)
-
-tracer = trace.get_tracer(__name__)
+    Returns:
+        The updated carrier.
+    """
+    return tracer.add_to_trace(key, value, carrier)
 
 
 def _data_tracing_enabled() -> bool:
     # return 'ENABLE_FLOW_DATA_TRACING' in os.environ
     return True
-
-
-def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
-    ctx = TraceContextTextMapPropagator().extract(carrier=carrier)
-    print("ADDING TO SPAN: ", key, data, carrier, ctx)
-    with tracer.start_as_current_span(key, context=ctx) as span:
-        carrier = {}
-        TraceContextTextMapPropagator().inject(carrier)
-        print('Tracer: ', tracer)
-        print('span: ', span)
-        print('carrier: ', carrier)
-        span.set_attribute(key, json.dumps(data))
-        return carrier
-
 
 
 class RaySource:
@@ -61,7 +39,7 @@ class RaySource:
         self.data_tracing_enabled = _data_tracing_enabled()
 
     def run(self):
-        raise ValueError('All Ray sources should implement: `_`')
+        raise ValueError('All Ray sources should implement: `run`')
 
 
 class RaySink:
@@ -82,6 +60,5 @@ class RaySink:
         carrier: Dict[str, str],
     ):
         if self.data_tracing_enabled:
-            print('CREATING SPAN IN RAY SINK: ', carrier)
-            add_to_span('output_data', element, carrier)
+            add_to_trace('output_data', element, carrier)
         return self._write(element)

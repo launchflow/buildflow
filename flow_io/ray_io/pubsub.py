@@ -51,7 +51,7 @@ class PubSubSourceActor(base.RaySource):
                         carrier = {}
                         if self.data_tracing_enabled:
                             print('CREATING SPAN IN PUBSUB SOURCE')
-                            carrier = base.add_to_span('input_data', json_loaded, carrier)
+                            carrier = base.add_to_trace('input_data', json_loaded, carrier)
                         ref = ray_input.remote(json_loaded, carrier)
                         ray_futures[received_message.ack_id] = ref.future()
 
