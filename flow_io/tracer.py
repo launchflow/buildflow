@@ -51,7 +51,7 @@ class SimplerTracer(Tracer):
     def add_to_trace(self, key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
         print('in trace handler: ', carrier)
         trace_id = carrier.get('trace_id', uuid.uuid4().hex)
-        ctx = json.loads(self._r.get(trace_id)) or {}
+        ctx = json.loads(self._r.get(trace_id) or '{}')
         ctx[key] = data
         print(carrier, ctx, key, data)
         self._r.set(trace_id, json.dumps(ctx))
