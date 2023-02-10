@@ -1,5 +1,8 @@
 from typing import Any, Dict, Iterable, Union
 import json
+import os
+import redis
+import uuid
 from opentelemetry import trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -38,3 +41,14 @@ class OpenTelemetryTracer(Tracer):
             TraceContextTextMapPropagator().inject(carrier)
             span.set_attribute(key, json.dumps(data))
             return carrier
+
+
+class SimplerTracer(Tracer):
+
+    def __init__(self):
+        self._r = redis.Redis(host='redis', port=6379, db=0)
+
+    def add_to_trace(self, key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
+        trace_id = carrier.get('trace_id', uuid.uuid4().hex)
+        self._r.set(key, json.dumps(data))
+        return {'trace_id': trace_id}
