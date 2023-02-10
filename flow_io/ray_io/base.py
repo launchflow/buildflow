@@ -33,12 +33,6 @@ trace.get_tracer_provider().add_span_processor(
 tracer = trace.get_tracer(__name__)
 
 
-tracer = trace.get_tracer(__name__)
-with tracer.start_as_current_span("rootSpan"):
-   with tracer.start_as_current_span("childSpan"):
-           print("Hello world!")
-
-
 def _data_tracing_enabled() -> bool:
     # return 'ENABLE_FLOW_DATA_TRACING' in os.environ
     return True
