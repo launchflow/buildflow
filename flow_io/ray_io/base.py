@@ -47,6 +47,8 @@ def set_header_in_ctx(ctx, key, value):
 def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], ctx: Dict[str, str]):
     print("ADDING TO SPAN: ", key, data, ctx)
     with tracer.start_as_current_span(key, context=ctx) as span:
+        print('Tracer: ', tracer)
+        print('span: ', span)
         span.set_attribute(key, json.dumps(data))
         print('testing')
 
