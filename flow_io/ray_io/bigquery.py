@@ -64,7 +64,10 @@ class BigQuerySinkActor(base.RaySink):
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        carrier: Dict[str, str],
     ):
+        # TODO: add tracing
+        del carrier
         to_insert = element
         if isinstance(element, dict):
             to_insert = [element]

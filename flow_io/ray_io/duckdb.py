@@ -59,7 +59,15 @@ class DuckDBSinkActor(base.RaySink):
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        carrier: Dict[str, str],
     ):
+        def add_trace_info(elem: Dict[str, Any]):
+            if 'trace_id' not in elem:
+                elem['trace_id'] = carrier['trace_id']
+            else:
+                logging.warning('Cannot add trace_id to element. Key is already in use.')
+            return elem
+
         connect_tries = 0
         while connect_tries < _MAX_CONNECT_TRIES:
             try:
@@ -77,9 +85,9 @@ class DuckDBSinkActor(base.RaySink):
                     'seconds then will try again.')
                 time.sleep(2)
         if isinstance(element, dict):
-            df = pd.DataFrame([element])
+            df = pd.DataFrame([add_trace_info(element)])
         else:
-            df = pd.DataFrame(element)
+            df = pd.DataFrame([add_trace_info(elem) for elem in element])
         try:
             duck_con.append(self.table, df)
         except duckdb.CatalogException:

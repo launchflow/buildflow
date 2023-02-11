@@ -45,11 +45,14 @@ class PubSubSourceActor(base.RaySource):
                         decoded_data = received_message.message.data.decode()
                         json_loaded = json.loads(decoded_data)
                         all_input_data.append(json_loaded)
-                        ref = ray_input.remote(json_loaded)
-                        ray_futures[received_message.ack_id] = ref.future()
 
-                if self.data_tracing_enabled:
-                    base.add_to_span('input_data', all_input_data)
+                        carrier = {}
+                        if 'trace_id' in received_message.attributes:
+                            carrier['trace_id'] = received_message.attributes['trace_id']
+                        if self.data_tracing_enabled:
+                            carrier = base.add_to_trace('input_data', json_loaded, carrier)
+                        ref = ray_input.remote(json_loaded, carrier)
+                        ray_futures[received_message.ack_id] = ref.future()
 
                 while ray_futures:
                     new_futures = {}
@@ -83,7 +86,10 @@ class PubsubSinkActor(base.RaySink):
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        carrier: Dict[str, str],
     ):
+        # TODO: add tracing
+        del carrier
         to_insert = element
         if isinstance(element, dict):
             to_insert = [element]

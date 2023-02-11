@@ -1,7 +1,7 @@
 """IO for dags that don't have any input / output configured."""
 
 import logging
-from typing import Any, Iterable
+from typing import Any, Dict, Iterable
 
 import ray
 
@@ -37,5 +37,6 @@ class EmptySourceActor(base.RaySource):
 @ray.remote
 class EmptySinkActor(base.RaySink):
 
-    def _write(self, element=Any):
+    def _write(self, element=Any, carrier: Dict[str, str]={}):
+        del carrier
         return element

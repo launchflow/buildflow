@@ -1,20 +1,33 @@
 """Base class for all Ray IO Connectors"""
 
-import json
-import os
 from typing import Any, Dict, Iterable, Union
+import os
 
-from opentelemetry import trace
+from flow_io import tracer as t
+
+
+tracer = t.RedisTracer()
+
+def add_to_trace(
+    key: str,
+    value: Any,
+    carrier: Dict[str, str],
+) -> Dict[str, str]:
+    """Add a key value pair to the current span.
+
+    Args:
+        key: The key to add to the span.
+        value: The value to add to the span.
+        carrier: The context state handler.
+
+    Returns:
+        The updated carrier.
+    """
+    return tracer.add_to_trace(key, value, carrier)
 
 
 def _data_tracing_enabled() -> bool:
     return 'ENABLE_FLOW_DATA_TRACING' in os.environ
-
-
-def add_to_span(key: str, data: Union[Dict[str, Any], Iterable[Dict[str,
-                                                                    Any]]]):
-    current_span = trace.get_current_span()
-    current_span.set_attribute(key, json.dumps(data))
 
 
 class RaySource:
@@ -26,7 +39,7 @@ class RaySource:
         self.data_tracing_enabled = _data_tracing_enabled()
 
     def run(self):
-        raise ValueError('All Ray sources should implement: `_`')
+        raise ValueError('All Ray sources should implement: `run`')
 
 
 class RaySink:
@@ -38,13 +51,15 @@ class RaySink:
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        carrier: Dict[str, str],
     ):
         raise ValueError('All Ray sinks should implement: `_write`')
 
     def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        carrier: Dict[str, str],
     ):
         if self.data_tracing_enabled:
-            add_to_span('output_data', element)
-        return self._write(element)
+            add_to_trace('output_data', element, carrier)
+        return self._write(element, carrier)
