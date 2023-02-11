@@ -43,7 +43,7 @@ class OpenTelemetryTracer(Tracer):
             return carrier
 
 
-class SimplerTracer(Tracer):
+class RedisTracer(Tracer):
 
     def __init__(self):
         self._r = redis.Redis(host='redis', port=6381, db=0)

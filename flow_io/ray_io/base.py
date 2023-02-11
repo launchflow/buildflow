@@ -6,7 +6,7 @@ import os
 from flow_io import tracer as t
 
 
-tracer = t.SimplerTracer()
+tracer = t.RedisTracer()
 
 def add_to_trace(
     key: str,
