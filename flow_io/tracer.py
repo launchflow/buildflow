@@ -50,6 +50,6 @@ class RedisTracer(Tracer):
 
     def add_to_trace(self, key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
         trace_id = carrier.get('trace_id', uuid.uuid4().hex)
-        self._r.xadd(trace_id, json.dumps({key: data}))
+        self._r.xadd(trace_id, {key: json.dumps(data)})
         # merges the dicts together to keep other keys in the downstream carrier
         return  {**{'trace_id': trace_id}, **carrier}
