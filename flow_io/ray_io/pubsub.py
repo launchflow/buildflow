@@ -29,7 +29,6 @@ class PubSubSourceActor(base.RaySource):
                 f'{input_node}. Avaliable subscriptions: {subscriptions}')
 
     def run(self):
-        print('STARTING PUBSUB SORUCE')
         while True:
             with pubsub_v1.SubscriberClient() as s:
                 # TODO: make this configurable
@@ -47,10 +46,10 @@ class PubSubSourceActor(base.RaySource):
                         json_loaded = json.loads(decoded_data)
                         all_input_data.append(json_loaded)
 
-                        # TODO: Load context from pubsub message
                         carrier = {}
+                        if 'trace_id' in received_message.attributes:
+                            carrier['trace_id'] = received_message.attributes['trace_id']
                         if self.data_tracing_enabled:
-                            print('CREATING SPAN IN PUBSUB SOURCE')
                             carrier = base.add_to_trace('input_data', json_loaded, carrier)
                         ref = ray_input.remote(json_loaded, carrier)
                         ray_futures[received_message.ack_id] = ref.future()
@@ -87,7 +86,10 @@ class PubsubSinkActor(base.RaySink):
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        carrier: Dict[str, str],
     ):
+        # TODO: add tracing
+        del carrier
         to_insert = element
         if isinstance(element, dict):
             to_insert = [element]

@@ -51,6 +51,7 @@ class RaySink:
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        carrier: Dict[str, str],
     ):
         raise ValueError('All Ray sinks should implement: `_write`')
 
@@ -59,8 +60,6 @@ class RaySink:
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
         carrier: Dict[str, str],
     ):
-        print('In write: ', self.data_tracing_enabled, element, carrier)
         if self.data_tracing_enabled:
             add_to_trace('output_data', element, carrier)
-        print('Done adding trace: ', carrier)
-        return self._write(element)
+        return self._write(element, carrier)

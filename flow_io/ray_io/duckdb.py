@@ -55,12 +55,21 @@ class DuckDBSinkActor(base.RaySink):
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        carrier: Dict[str, str],
     ):
+        def add_trace_info(elem: Dict[str, Any]):
+            if 'trace_id' not in elem:
+                elem['trace_id'] = carrier['trace_id']
+            else:
+                logging.warning('Cannot add trace_id to element. Key is already in use.')
+            return elem
+
         duck_con = duckdb.connect(database=self.database, read_only=False)
         if isinstance(element, dict):
+            add_trace_info(element)
             df = pd.DataFrame([element])
         else:
-            df = pd.DataFrame(element)
+            df = pd.DataFrame([add_trace_info(elem) for elem in element])
         while True:
             try:
                 duck_con.append(self.table, df)
