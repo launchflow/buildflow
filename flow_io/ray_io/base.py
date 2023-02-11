@@ -1,6 +1,7 @@
 """Base class for all Ray IO Connectors"""
 
 from typing import Any, Dict, Iterable, Union
+import os
 
 from flow_io import tracer as t
 
@@ -26,8 +27,7 @@ def add_to_trace(
 
 
 def _data_tracing_enabled() -> bool:
-    # return 'ENABLE_FLOW_DATA_TRACING' in os.environ
-    return True
+    return 'ENABLE_FLOW_DATA_TRACING' in os.environ
 
 
 class RaySource:
