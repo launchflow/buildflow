@@ -30,14 +30,18 @@ class DuckDBSourceActor(base.RaySource):
 
     def run(self):
         refs = []
-        while True:
-            element = self.duck_con.fetchone()
-            if not element:
-                break
+        df = self.duck_con.fetch_df_chunk()
+        while not df.empty:
+            elements = df.to_dict('records')
             for ray_input in self.ray_inputs:
-                refs.append(ray_input.remote(element))
+                for element in elements:
+                    refs.append(ray_input.remote(element))
+            df = self.duck_con.fetch_df_chunk()
         self.duck_con.close()
         return ray.get(refs)
+
+
+_MAX_CONNECT_TRIES = 20
 
 
 @ray.remote
@@ -64,27 +68,32 @@ class DuckDBSinkActor(base.RaySink):
                 logging.warning('Cannot add trace_id to element. Key is already in use.')
             return elem
 
-        duck_con = duckdb.connect(database=self.database, read_only=False)
-        if isinstance(element, dict):
-            add_trace_info(element)
-            df = pd.DataFrame([element])
-        else:
-            df = pd.DataFrame([add_trace_info(elem) for elem in element])
-        while True:
+        connect_tries = 0
+        while connect_tries < _MAX_CONNECT_TRIES:
             try:
-                duck_con.append(self.table, df)
+                duck_con = duckdb.connect(database=self.database,
+                                          read_only=False)
                 break
-            except duckdb.CatalogException:
-                # This can happen if the table doesn't exist yet. If this
-                # happen create it from the DF.
-                duck_con.execute(
-                    f'CREATE TABLE {self.table} AS SELECT * FROM df')
-                break
-            except duckdb.IOException:
+            except duckdb.IOException as e:
+                connect_tries += 1
+                if connect_tries == _MAX_CONNECT_TRIES:
+                    raise ValueError(
+                        'Failed to connect to duckdb. Did you leave a '
+                        'connection open?') from e
                 logging.warning(
                     'Can\'t concurrently write to DuckDB waiting 2 '
-                    'seconds then will try again.'
-                )
+                    'seconds then will try again.')
                 time.sleep(2)
+        if isinstance(element, dict):
+            df = pd.DataFrame([add_trace_info(element)])
+        else:
+            df = pd.DataFrame([add_trace_info(elem) for elem in element])
+        try:
+            duck_con.append(self.table, df)
+        except duckdb.CatalogException:
+            # This can happen if the table doesn't exist yet. If this
+            # happen create it from the DF.
+            duck_con.execute(
+                f'CREATE TABLE {self.table} AS SELECT * FROM df')
         duck_con.close()
         return
