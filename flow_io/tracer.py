@@ -1,6 +1,6 @@
+# pylint: disable=line-too-long
 from typing import Any, Dict, Iterable, Union
 import json
-import os
 import redis
 import uuid
 from opentelemetry import trace

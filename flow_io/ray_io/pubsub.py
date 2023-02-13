@@ -48,9 +48,7 @@ class PubSubSourceActor(base.RaySource):
 
                         carrier = {}
                         if 'trace_id' in received_message.message.attributes:
-                            carrier[
-                                'trace_id'] = received_message.message.attributes[
-                                    'trace_id']
+                            carrier['trace_id'] = received_message.message.attributes['trace_id']  # pylint: disable=line-too-long
                         if self.data_tracing_enabled:
                             carrier = base.add_to_trace(
                                 'input_data', json_loaded, carrier)
