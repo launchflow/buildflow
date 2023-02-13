@@ -33,9 +33,9 @@ def _data_tracing_enabled() -> bool:
 class RaySource:
     """Base class for all Ray sources."""
 
-    def __init__(self, ray_inputs: Iterable, input_node_space: str) -> None:
+    def __init__(self, ray_inputs: Iterable, node_space: str) -> None:
         self.ray_inputs = ray_inputs
-        self.input_node_space = input_node_space
+        self.node_space = node_space
         self.data_tracing_enabled = _data_tracing_enabled()
 
     def run(self):
@@ -45,7 +45,8 @@ class RaySource:
 class RaySink:
     """Base class for all Ray sinks."""
 
-    def __init__(self) -> None:
+    def __init__(self, node_space: str) -> None:
+        self.node_space = node_space
         self.data_tracing_enabled = _data_tracing_enabled()
 
     def _write(
@@ -61,5 +62,5 @@ class RaySink:
         carrier: Dict[str, str],
     ):
         if self.data_tracing_enabled:
-            add_to_trace('output_data', element, carrier)
+            add_to_trace(self.node_space, {'output_data': element}, carrier)
         return self._write(element, carrier)

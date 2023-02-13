@@ -71,5 +71,5 @@ def sink(**kwargs) -> List:
     sinks = []
     for output_destination in output_destinations:
         sink, config = output_destination
-        sinks.append(sink.remote(**config))
+        sinks.append(sink.remote(node_info.node_space, **config))
     return all_output.AllOutputActor.remote(sinks)

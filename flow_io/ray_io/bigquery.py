@@ -18,14 +18,14 @@ class BigQuerySourceActor(base.RaySource):
     def __init__(
         self,
         ray_inputs: Iterable,
-        input_node_space: str,
+        node_space: str,
         project: str,
         dataset: str,
         table: str,
         query: str = '',
         bigquery_client=None,
     ) -> None:
-        super().__init__(ray_inputs, input_node_space)
+        super().__init__(ray_inputs, node_space)
         if bigquery_client is None:
             bigquery_client = _get_bigquery_client()
         self.bigquery_client = bigquery_client
@@ -53,9 +53,10 @@ class BigQuerySinkActor(base.RaySink):
         project: str,
         dataset: str,
         table: str,
+        node_space: str,
         bigquery_client=None,
     ) -> None:
-        super().__init__()
+        super().__init__(node_space=node_space)
         if bigquery_client is None:
             bigquery_client = _get_bigquery_client()
         self.bigquery_client = bigquery_client
