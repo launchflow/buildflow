@@ -13,8 +13,13 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 class Tracer(object):
 
-    def add_to_trace(self, key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
-        raise NotImplementedError(f'`add_to_trace` has not been implemented for {self.__class__.__name__}')
+    def add_to_trace(self,
+                     key: str,
+                     data: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+                     carrier: Dict[str, str] = {}):
+        raise NotImplementedError(
+            f'`add_to_trace` has not been implemented for {self.__class__.__name__}'
+        )
 
 
 class OpenTelemetryTracer(Tracer):
@@ -22,19 +27,19 @@ class OpenTelemetryTracer(Tracer):
     def __init__(self):
         trace.set_tracer_provider(
             TracerProvider(
-                resource=Resource.create({SERVICE_NAME: "my-service"})
-            )
-        )
+                resource=Resource.create({SERVICE_NAME: "my-service"})))
         jaeger_exporter = JaegerExporter(
             agent_host_name="jaeger",
             agent_port=6831,
         )
         trace.get_tracer_provider().add_span_processor(
-            BatchSpanProcessor(jaeger_exporter)
-        )
+            BatchSpanProcessor(jaeger_exporter))
         self._tracer = trace.get_tracer(__name__)
 
-    def add_to_trace(self, key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
+    def add_to_trace(self,
+                     key: str,
+                     data: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+                     carrier: Dict[str, str] = {}):
         ctx = TraceContextTextMapPropagator().extract(carrier=carrier)
         with self._tracer.start_as_current_span(key, context=ctx) as span:
             carrier = {}
@@ -48,8 +53,11 @@ class RedisTracer(Tracer):
     def __init__(self):
         self._r = redis.Redis(host='redis', port=6381, db=0)
 
-    def add_to_trace(self, key: str, data: Union[Dict[str, Any], Iterable[Dict[str, Any]]], carrier: Dict[str, str] = {}):
+    def add_to_trace(self,
+                     key: str,
+                     data: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+                     carrier: Dict[str, str] = {}):
         trace_id = carrier.get('trace_id', uuid.uuid4().hex)
         self._r.xadd(trace_id, {key: json.dumps(data)})
         # merges the dicts together to keep other keys in the downstream carrier
-        return  {**{'trace_id': trace_id}, **carrier}
+        return {**{'trace_id': trace_id}, **carrier}

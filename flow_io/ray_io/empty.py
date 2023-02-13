@@ -23,8 +23,7 @@ class EmptySourceActor(base.RaySource):
             logging.warning(
                 'No inputs provide your source. This means nothing will '
                 'happen. You can pass inputs like: '
-                '`ray_io.source(..., inputs=[1, 2, 3]`)'
-            )
+                '`ray_io.source(..., inputs=[1, 2, 3]`)')
 
     def run(self):
         refs = []
@@ -37,6 +36,6 @@ class EmptySourceActor(base.RaySource):
 @ray.remote
 class EmptySinkActor(base.RaySink):
 
-    def _write(self, element=Any, carrier: Dict[str, str]={}):
+    def _write(self, element=Any, carrier: Dict[str, str] = {}):
         del carrier
         return element

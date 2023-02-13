@@ -61,11 +61,13 @@ class DuckDBSinkActor(base.RaySink):
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
         carrier: Dict[str, str],
     ):
+
         def add_trace_info(elem: Dict[str, Any]):
             if 'trace_id' not in elem:
                 elem['trace_id'] = carrier['trace_id']
             else:
-                logging.warning('Cannot add trace_id to element. Key is already in use.')
+                logging.warning(
+                    'Cannot add trace_id to element. Key is already in use.')
             return elem
 
         connect_tries = 0
@@ -93,7 +95,6 @@ class DuckDBSinkActor(base.RaySink):
         except duckdb.CatalogException:
             # This can happen if the table doesn't exist yet. If this
             # happen create it from the DF.
-            duck_con.execute(
-                f'CREATE TABLE {self.table} AS SELECT * FROM df')
+            duck_con.execute(f'CREATE TABLE {self.table} AS SELECT * FROM df')
         duck_con.close()
         return
