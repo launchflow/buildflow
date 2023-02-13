@@ -43,8 +43,9 @@ class ProcessorActor:
     def __init__(self, sink):
         self.sink = sink
 
-    def process(self, ray_input):
-        ray.get(sink.write.remote({'new_field': ray_input['field'] + 1}))
+    def process(self, ray_input, carrier):
+        ray.get(
+            sink.write.remote({'new_field': ray_input['field'] + 1}, carrier))
 
 
 sink = ray_io.sink()

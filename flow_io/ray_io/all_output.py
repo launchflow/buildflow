@@ -12,4 +12,5 @@ class AllOutputActor:
         self.sinks = sinks
 
     def write(self, element: Dict, carrier: Dict):
-        return ray.get([sink.write.remote(element, carrier) for sink in self.sinks])
+        return ray.get(
+            [sink.write.remote(element, carrier) for sink in self.sinks])

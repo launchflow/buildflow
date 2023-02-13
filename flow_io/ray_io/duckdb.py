@@ -87,7 +87,6 @@ class DuckDBSinkActor(base.RaySink):
         except duckdb.CatalogException:
             # This can happen if the table doesn't exist yet. If this
             # happen create it from the DF.
-            duck_con.execute(
-                f'CREATE TABLE {self.table} AS SELECT * FROM df')
+            duck_con.execute(f'CREATE TABLE {self.table} AS SELECT * FROM df')
         duck_con.close()
         return
