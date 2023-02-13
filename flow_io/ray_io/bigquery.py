@@ -50,10 +50,10 @@ class BigQuerySinkActor(base.RaySink):
 
     def __init__(
         self,
+        node_space: str,
         project: str,
         dataset: str,
         table: str,
-        node_space: str,
         bigquery_client=None,
     ) -> None:
         super().__init__(node_space=node_space)

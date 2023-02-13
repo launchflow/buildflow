@@ -81,10 +81,10 @@ class RedisStreamOutput(base.RaySink):
 
     def __init__(
         self,
+        node_space: str,
         host: str,
         port: int,
         streams: List[str],
-        node_space: str,
         start_positions: Optional[Dict[str, str]] = None,
         redis_client=None,
     ) -> None:

@@ -49,9 +49,9 @@ class DuckDBSinkActor(base.RaySink):
 
     def __init__(
         self,
+        node_space: str,
         database: str,
         table: str,
-        node_space: str,
     ) -> None:
         super().__init__(node_space=node_space)
         self.database = database
