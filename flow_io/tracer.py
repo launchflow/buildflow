@@ -1,4 +1,4 @@
-# pylint: disable=line-too-long
+# flake8: noqa
 from typing import Any, Dict, Iterable, Union
 import json
 import redis
