@@ -69,15 +69,18 @@ class DuckDBSinkActor(base.RaySink):
                                           read_only=False)
                 break
             except duckdb.IOException as e:
-                connect_tries += 1
-                if connect_tries == _MAX_CONNECT_TRIES:
-                    raise ValueError(
-                        'Failed to connect to duckdb. Did you leave a '
-                        'connection open?') from e
-                logging.warning(
-                    'Can\'t concurrently write to DuckDB waiting 2 '
-                    'seconds then will try again.')
-                time.sleep(2)
+                if 'Could not set lock on file' in str(e):
+                    connect_tries += 1
+                    if connect_tries == _MAX_CONNECT_TRIES:
+                        raise ValueError(
+                            'Failed to connect to duckdb. Did you leave a '
+                            'connection open?') from e
+                    logging.warning(
+                        'Can\'t concurrently write to DuckDB waiting 2 '
+                        'seconds then will try again.')
+                    time.sleep(2)
+                else:
+                    raise e
         if isinstance(element, dict):
             df = pd.DataFrame([element])
         else:
