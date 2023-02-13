@@ -98,8 +98,8 @@ class DuckDBTest(unittest.TestCase):
             def __init__(self, sink):
                 self.sink = sink
 
-            def process(self, elem):
-                return ray.get(sink.write.remote([elem, elem]))
+            def process(self, elem, carrier={}):
+                return ray.get(self.sink.write.remote([elem, elem], carrier))
 
         sink = ray_io.sink()
         processor = ProcessActor.remote(sink)

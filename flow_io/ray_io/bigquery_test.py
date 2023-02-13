@@ -140,8 +140,8 @@ class BigQueryTest(unittest.TestCase):
             def __init__(self, sink):
                 self.sink = sink
 
-            def process(self, elem):
-                return ray.get(sink.write.remote([elem, elem]))
+            def process(self, elem, carrier):
+                return ray.get(sink.write.remote([elem, elem], carrier))
 
         sink = ray_io.sink(bigquery_client=bq_client)
         processor = ProcessActor.remote(sink)

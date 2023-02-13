@@ -29,7 +29,7 @@ class EmptySourceActor(base.RaySource):
         refs = []
         for i in self.inputs:
             for ray_input in self.ray_inputs:
-                refs.append(ray_input.remote(i))
+                refs.append(ray_input.remote(i, {}))
         return ray.get(refs)
 
 
