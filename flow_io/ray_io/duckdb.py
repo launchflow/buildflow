@@ -56,12 +56,14 @@ class DuckDBSinkActor(base.RaySink):
         super().__init__(node_space=node_space)
         self.database = database
         self.table = table
+        logging.warning('INIT DUCKDB CALLED')
 
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
         carrier: Dict[str, str],
     ):
+        logging.warning('WRITE DUCKDB CALLED')
 
         def add_trace_info(elem: Dict[str, Any]):
             if 'trace_id' not in elem:
