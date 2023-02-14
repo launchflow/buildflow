@@ -81,7 +81,7 @@ class PubsubSinkActor(base.RaySink):
         topic: str,
         subscriptions: Dict[str, str],
     ) -> None:
-        super().__init__(node_space=node_space)
+        super().__init__(node_space)
         self.pubslisher_client = pubsub_v1.PublisherClient()
         self.topic = topic
 

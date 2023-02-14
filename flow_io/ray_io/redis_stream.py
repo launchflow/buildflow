@@ -88,7 +88,7 @@ class RedisStreamOutput(base.RaySink):
         start_positions: Optional[Dict[str, str]] = None,
         redis_client=None,
     ) -> None:
-        super().__init__(node_space=node_space)
+        super().__init__(node_space)
         if redis_client is None:
             redis_client = redis.Redis(host=host, port=port)
         self.redis_client = redis_client
