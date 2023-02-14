@@ -48,7 +48,7 @@ class RaySink:
     """Base class for all Ray sinks."""
 
     def __init__(self, node_space: str) -> None:
-        # NOTE: This is the node space of the node that is writing 
+        # NOTE: This is the node space of the node that is writing
         # to the sink.
         self.node_space = node_space
         self.data_tracing_enabled = _data_tracing_enabled()
