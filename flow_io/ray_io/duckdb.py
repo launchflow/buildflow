@@ -53,7 +53,7 @@ class DuckDBSinkActor(base.RaySink):
         database: str,
         table: str,
     ) -> None:
-        super().__init__(node_space=node_space)
+        super().__init__(node_space)
         self.database = database
         self.table = table
         logging.warning('INIT DUCKDB CALLED')

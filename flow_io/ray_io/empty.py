@@ -37,7 +37,7 @@ class EmptySourceActor(base.RaySource):
 class EmptySinkActor(base.RaySink):
 
     def __init__(self, node_space: str) -> None:
-        super().__init__(node_space=node_space)
+        super().__init__(node_space)
 
     def _write(self, element=Any, carrier: Dict[str, str] = {}):
         del carrier

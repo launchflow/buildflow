@@ -56,7 +56,7 @@ class BigQuerySinkActor(base.RaySink):
         table: str,
         bigquery_client=None,
     ) -> None:
-        super().__init__(node_space=node_space)
+        super().__init__(node_space)
         if bigquery_client is None:
             bigquery_client = _get_bigquery_client()
         self.bigquery_client = bigquery_client
