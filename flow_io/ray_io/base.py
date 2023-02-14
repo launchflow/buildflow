@@ -35,7 +35,8 @@ class RaySource:
 
     def __init__(self, ray_inputs: Iterable, node_space: str) -> None:
         self.ray_inputs = ray_inputs
-        # NOTE: This is the node space of the node that is reading from the source.
+        # NOTE: This is the node space of the node that is reading
+        # from the source.
         self.node_space = node_space
         self.data_tracing_enabled = _data_tracing_enabled()
 
@@ -47,7 +48,8 @@ class RaySink:
     """Base class for all Ray sinks."""
 
     def __init__(self, node_space: str) -> None:
-        # NOTE: This is the node space of the node that is writing to the sink.
+        # NOTE: This is the node space of the node that is writing 
+        # to the sink.
         self.node_space = node_space
         self.data_tracing_enabled = _data_tracing_enabled()
 
