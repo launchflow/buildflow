@@ -16,17 +16,17 @@ class PubSubSourceActor(base.RaySource):
     def __init__(
         self,
         ray_inputs,
-        input_node: str,
+        node_space: str,
         topic: str,
         subscriptions: Dict[str, str],
     ) -> None:
-        super().__init__(ray_inputs, input_node)
+        super().__init__(ray_inputs, node_space)
         try:
-            self.subscription = subscriptions[input_node]
+            self.subscription = subscriptions[node_space]
         except KeyError:
             raise ValueError(
                 'Subscription was not available for incoming node: '
-                f'{input_node}. Avaliable subscriptions: {subscriptions}')
+                f'{node_space}. Avaliable subscriptions: {subscriptions}')
 
     def run(self):
         while True:
@@ -51,7 +51,7 @@ class PubSubSourceActor(base.RaySource):
                             carrier['trace_id'] = received_message.message.attributes['trace_id']  # noqa: E501
                         if self.data_tracing_enabled:
                             carrier = base.add_to_trace(
-                                'input_data', json_loaded, carrier)
+                                self.node_space, {'input_data': json_loaded}, carrier)  # noqa
                         ref = ray_input.remote(json_loaded, carrier)
                         ray_futures[received_message.ack_id] = ref.future()
 
@@ -77,10 +77,11 @@ class PubsubSinkActor(base.RaySink):
 
     def __init__(
         self,
+        node_space: str,
         topic: str,
         subscriptions: Dict[str, str],
     ) -> None:
-        super().__init__()
+        super().__init__(node_space)
         self.pubslisher_client = pubsub_v1.PublisherClient()
         self.topic = topic
 

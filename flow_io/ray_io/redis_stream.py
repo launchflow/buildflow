@@ -16,7 +16,7 @@ class RedisStreamInput(base.RaySource):
     def __init__(
         self,
         ray_inputs: Iterable,
-        input_node_space: str,
+        node_space: str,
         host: str,
         port: int,
         streams: List[str],
@@ -28,7 +28,7 @@ class RedisStreamInput(base.RaySource):
         # testing purposes.
         redis_client=None,
     ) -> None:
-        super().__init__(ray_inputs, input_node_space)
+        super().__init__(ray_inputs, node_space)
         if redis_client is None:
             redis_client = redis.Redis(host=host, port=port)
         self.redis_client = redis_client
@@ -81,13 +81,14 @@ class RedisStreamOutput(base.RaySink):
 
     def __init__(
         self,
+        node_space: str,
         host: str,
         port: int,
         streams: List[str],
         start_positions: Optional[Dict[str, str]] = None,
         redis_client=None,
     ) -> None:
-        super().__init__()
+        super().__init__(node_space)
         if redis_client is None:
             redis_client = redis.Redis(host=host, port=port)
         self.redis_client = redis_client

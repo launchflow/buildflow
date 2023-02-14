@@ -17,12 +17,12 @@ class DuckDBSourceActor(base.RaySource):
     def __init__(
         self,
         ray_inputs: Iterable,
-        input_node_space: str,
+        node_space: str,
         database: str,
         table: str,
         query: str = '',
     ) -> None:
-        super().__init__(ray_inputs, input_node_space)
+        super().__init__(ray_inputs, node_space)
         self.duck_con = duckdb.connect(database=database, read_only=True)
         if not query:
             query = f'SELECT * FROM {table}'
@@ -49,10 +49,11 @@ class DuckDBSinkActor(base.RaySink):
 
     def __init__(
         self,
+        node_space: str,
         database: str,
         table: str,
     ) -> None:
-        super().__init__()
+        super().__init__(node_space)
         self.database = database
         self.table = table
 
