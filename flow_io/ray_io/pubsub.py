@@ -51,7 +51,7 @@ class PubSubSourceActor(base.RaySource):
                             carrier['trace_id'] = received_message.message.attributes['trace_id']  # noqa
                         if self.data_tracing_enabled:
                             carrier = base.add_to_trace(
-                                self.node_space, {'input_data': json_loaded}, carrier)
+                                self.node_space, {'input_data': json_loaded}, carrier)  # noqa
                         ref = ray_input.remote(json_loaded, carrier)
                         ray_futures[received_message.ack_id] = ref.future()
 
