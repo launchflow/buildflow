@@ -9,7 +9,6 @@ export FLOW_FILE='./flow_state.json'
 export FLOW_DEPLOYMENT_FILE='./deployment.json'
 
 python pubsub_main.py &
-sleep 5
 python pubsub_publish.py
 python pubsub_validation.py
 final_output=$?
