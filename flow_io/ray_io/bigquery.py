@@ -41,7 +41,7 @@ class BigQuerySourceActor(base.RaySource):
         refs = []
         for row in query_job.result():
             for ray_input in self.ray_inputs:
-                refs.append(ray_input.remote(row))
+                refs.append(ray_input.remote(row, {}))
         return ray.get(refs)
 
 

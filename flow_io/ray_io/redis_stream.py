@@ -70,7 +70,7 @@ class RedisStreamInput(base.RaySource):
                         decoded_item[key.decode()] = value.decode()
                     refs = []
                     for ray_input in self.ray_inputs:
-                        refs.append(ray_input.remote(decoded_item))
+                        refs.append(ray_input.remote(decoded_item, {}))
                     ray.get(refs)
 
             time.sleep(1)
