@@ -3,6 +3,7 @@ import inspect
 import json
 import os
 import sys
+import uuid
 
 from typing import Any, Dict, List, TypeVar
 
@@ -33,14 +34,14 @@ class FlowState:
 
 
 @dataclasses.dataclass
-class PubSub(IO):
+class PubSub(InputOutput):
     topic: str
     subscriber: str = ''
     _io_type: str = 'PUBSUB'
 
 
 @dataclasses.dataclass
-class BigQuery(IO):
+class BigQuery(InputOutput):
     project: str = ''
     dataset: str = ''
     table: str = ''
@@ -53,9 +54,12 @@ _IO_MAPPING = {
     'PUBSUB': PubSub,
 }
 
-
 FLOW_STATE_ENV_VAR_NAME = 'FLOW_STATE_FILE'
-_DEFAULT_FLOW_STATE_FILE = '/tmp/flow_io/flow_state.json'
+_DEFAULT_FLOW_IO_DIR = '/tmp/flow_io'
+
+
+def default_flow_state_file():
+    return os.path.join(_DEFAULT_FLOW_IO_DIR, f'{str(uuid.uuid4())}.json')
 
 
 def init(config: Dict[str, Any]):
@@ -80,13 +84,10 @@ def init(config: Dict[str, Any]):
                   encoding='UTF-8') as f:
             flow_state_dict = json.load(f)
             flow_state = FlowState(flow_state_dict['node_states'])
-        if entry_point in flow_state.node_states:
-            raise ValueError(
-                'flow_io.init() should only be called once per file. '
-                f'Was called multiple times from {entry_point}')
         flow_state.node_states[entry_point] = node_state
     else:
-        os.environ[FLOW_STATE_ENV_VAR_NAME] = _DEFAULT_FLOW_STATE_FILE
+        os.environ[FLOW_STATE_ENV_VAR_NAME] = default_flow_state_file()
+        os.makedirs(_DEFAULT_FLOW_IO_DIR, exist_ok=True)
         flow_state = FlowState({entry_point: node_state})
     with open(os.environ[FLOW_STATE_ENV_VAR_NAME], 'w', encoding='UTF-8') as f:
         json.dump(dataclasses.asdict(flow_state), f)
