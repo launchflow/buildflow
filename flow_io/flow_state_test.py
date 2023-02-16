@@ -1,20 +1,29 @@
 import os
 import json
+import sys
 import tempfile
 import unittest
 
 import flow_io
 
 
+def get_file_path():
+    if sys.version_info[1] <= 8:
+        # py 3.8 only returns the relative file path.
+        return os.path.join(os.getcwd(), __file__)
+    return __file__
+
+
 class FlowStateTest(unittest.TestCase):
 
     def tearDown(self) -> None:
+        os.remove(os.environ[flow_io.FLOW_STATE_ENV_VAR_NAME])
         del os.environ[flow_io.FLOW_STATE_ENV_VAR_NAME]
 
     def test_new_flow_state(self):
         expected_file = {
             'node_states': {
-                __file__: {
+                get_file_path(): {
                     'input_ref': {
                         'topic': 'my_type',
                         'subscriber': '',
@@ -57,7 +66,7 @@ class FlowStateTest(unittest.TestCase):
                         '_io_type': 'BIG_QUERY'
                     }]
                 },
-                __file__: {
+                get_file_path(): {
                     'input_ref': {
                         'topic': 'my_type',
                         'subscriber': '',
@@ -110,7 +119,7 @@ class FlowStateTest(unittest.TestCase):
     def test_update_existing_flow_state(self):
         expected = {
             'node_states': {
-                __file__: {
+                get_file_path(): {
                     'input_ref': {
                         'topic': 'my_type',
                         'subscriber': '',
@@ -128,7 +137,7 @@ class FlowStateTest(unittest.TestCase):
         }
         existing_file = {
             'node_states': {
-                __file__: {
+                get_file_path(): {
                     'input_ref': {
                         'topic': 'my_type',
                         'subscriber': '',
@@ -158,7 +167,6 @@ class FlowStateTest(unittest.TestCase):
 
         with open(os.environ[flow_io.FLOW_STATE_ENV_VAR_NAME]) as f:
             got = json.load(f)
-            print('DO NOT SUBMIT: ', got)
         self.assertEqual(got, expected)
 
 
