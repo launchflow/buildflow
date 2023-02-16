@@ -17,5 +17,5 @@ while topic not in topics:
     time.sleep(1)
 
 print('Publishing to: ', topic)
-future = client.publish(topic, json.dumps({'field': 1}).encode('UTF-8'))
+future = client.publish(topic, json.dumps({'val': 1}).encode('UTF-8'))
 future.result()

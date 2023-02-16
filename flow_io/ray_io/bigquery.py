@@ -1,9 +1,9 @@
 """IO connectors for Bigquery and Ray."""
 
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable, Union
 
-from google.cloud import bigquery
 import ray
+from google.cloud import bigquery
 
 from flow_io.ray_io import base
 
@@ -17,15 +17,14 @@ class BigQuerySourceActor(base.RaySource):
 
     def __init__(
         self,
-        ray_inputs: Iterable,
-        node_space: str,
+        ray_sinks: Iterable[base.RaySink],
         project: str,
         dataset: str,
         table: str,
         query: str = '',
         bigquery_client=None,
     ) -> None:
-        super().__init__(ray_inputs, node_space)
+        super().__init__(ray_sinks)
         if bigquery_client is None:
             bigquery_client = _get_bigquery_client()
         self.bigquery_client = bigquery_client
@@ -40,8 +39,8 @@ class BigQuerySourceActor(base.RaySource):
         query_job = self.bigquery_client.query(self.query)
         refs = []
         for row in query_job.result():
-            for ray_input in self.ray_inputs:
-                refs.append(ray_input.remote(row, {}))
+            for ray_sink in self.ray_sinks:
+                refs.append(ray_sink.write.remote(row))
         return ray.get(refs)
 
 
@@ -50,13 +49,13 @@ class BigQuerySinkActor(base.RaySink):
 
     def __init__(
         self,
-        node_space: str,
+        remote_fn: Callable,
         project: str,
         dataset: str,
         table: str,
         bigquery_client=None,
     ) -> None:
-        super().__init__(node_space)
+        super().__init__(remote_fn)
         if bigquery_client is None:
             bigquery_client = _get_bigquery_client()
         self.bigquery_client = bigquery_client
@@ -65,10 +64,7 @@ class BigQuerySinkActor(base.RaySink):
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
-        carrier: Dict[str, str],
     ):
-        # TODO: add tracing
-        del carrier
         to_insert = element
         if isinstance(element, dict):
             to_insert = [element]

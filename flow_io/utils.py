@@ -1,54 +1,26 @@
-import dataclasses
 import inspect
 import json
 import os
 import sys
-from typing import Any, Dict
+
+from flow_io.flow_state import FLOW_STATE_ENV_VAR_NAME, FlowState, NodeState
 
 
-def _get_flow_file() -> str:
-    flow_file = os.environ.get('FLOW_FILE')
-    if flow_file is None:
+def _get_flow_state_file() -> str:
+    flow_state_file = os.environ.get(FLOW_STATE_ENV_VAR_NAME)
+    if flow_state_file is None:
         # TODO: maybe we could try and parse this out if it's not set? My main
         # worry is that it feels brittle and might break easily
         # Maybe we can walk backwards till we find the correct file?
         raise ValueError(
-            'Could not determine flow file. Please set the FLOW_FILE '
-            'environment variable to point to the flow that is running. If you'
-            ' using the LaunchFlow extension this should happen automatically.'
-        )
-    return flow_file
+            'Could not determine flow state file. Please set the '
+            f'{FLOW_STATE_ENV_VAR_NAME} environment variable to point '
+            'to the flow that is running. If you are using the LaunchFlow '
+            'extension this should happen automatically.')
+    return flow_state_file
 
 
-def _get_deployment_file() -> str:
-    deployment_file = os.environ.get('FLOW_DEPLOYMENT_FILE')
-    if deployment_file is None:
-        # TODO: maybe we could try and parse this out if it's not set? My main
-        # worry is that it feels brittle and might break easily
-        # Maybe we can walk backwards till we find the correct file?
-        raise ValueError(
-            'Could not determine deployment file. Please set the '
-            'FLOW_DEPLOYMENT_FILE environment variable to point to the flow '
-            'that is running. If you using the LaunchFlow extension this '
-            'should happen automatically.')
-    return deployment_file
-
-
-def _read_flow_config() -> Dict[str, Any]:
-    flow_file = _get_flow_file()
-    with open(flow_file, 'r', encoding='UTF-8') as f:
-        flow = json.load(f)
-    return flow
-
-
-def _read_deployment_config() -> Dict[str, Any]:
-    deployment_file = _get_deployment_file()
-    with open(deployment_file, 'r', encoding='UTF-8') as f:
-        flow = json.load(f)
-    return flow
-
-
-def _get_node_launch_file(depth: int = 2) -> str:
+def get_node_launch_file(depth: int = 2) -> str:
     frm = inspect.stack()[depth]
     mod = inspect.getmodule(frm[0])
     if sys.version_info[1] <= 8:
@@ -57,31 +29,15 @@ def _get_node_launch_file(depth: int = 2) -> str:
     return mod.__file__
 
 
-@dataclasses.dataclass
-class _NodeInfo:
-    node_space: str
-    incoming_node_spaces: str
-    outgoing_node_spaces: str
-    node_config: str
+def get_flow_state() -> FlowState:
+    flow_file = _get_flow_state_file()
+    with open(flow_file, 'r', encoding='UTF-8') as f:
+        return FlowState.from_config(json.load(f))
 
 
-def _get_node_info(node_space: str) -> _NodeInfo:
-    flow = _read_flow_config()
-    deployment = _read_deployment_config()
-    node = None
-    for n in flow['nodes']:
-        if n['nodeSpace'] in node_space:
-            node = n
-            break
-    if node is None:
-        raise ValueError(
-            f'Unable to find node for calling module: {node_space}')
-
-    outgoing_node_spaces = flow['outgoingEdges'].get(node['nodeSpace'], [])
-    incoming_node_spaces = []
-    for incoming, nodes in flow['outgoingEdges'].items():
-        if node['nodeSpace'] in nodes:
-            incoming_node_spaces.append(incoming)
-    config = deployment['nodeDeployments'].get(node_space, {})
-    return _NodeInfo(node['nodeSpace'], incoming_node_spaces,
-                     outgoing_node_spaces, config)
+def get_node_state(entrypoint_file: str) -> NodeState:
+    flow_state = get_flow_state()
+    if entrypoint_file not in flow_state.node_states:
+        raise RuntimeError(
+            f'{entrypoint_file} not found in FlowState config: {flow_state}')
+    return flow_state.node_states[entrypoint_file]

@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -26,7 +26,7 @@ class FlowStateTest(unittest.TestCase):
                 get_file_path(): {
                     'input_ref': {
                         'topic': 'my_type',
-                        'subscriber': '',
+                        'subscription': '',
                         '_io_type': 'PUBSUB'
                     },
                     'output_refs': [{
@@ -55,7 +55,7 @@ class FlowStateTest(unittest.TestCase):
                 'existing_entry_point.py': {
                     'input_ref': {
                         'topic': 'my_type',
-                        'subscriber': '',
+                        'subscription': '',
                         '_io_type': 'PUBSUB'
                     },
                     'output_refs': [{
@@ -69,7 +69,7 @@ class FlowStateTest(unittest.TestCase):
                 get_file_path(): {
                     'input_ref': {
                         'topic': 'my_type',
-                        'subscriber': '',
+                        'subscription': '',
                         '_io_type': 'PUBSUB'
                     },
                     'output_refs': [{
@@ -87,7 +87,7 @@ class FlowStateTest(unittest.TestCase):
                 'existing_entry_point.py': {
                     'input_ref': {
                         'topic': 'my_type',
-                        'subscriber': '',
+                        'subscription': '',
                         '_io_type': 'PUBSUB'
                     },
                     'output_refs': [{
@@ -122,7 +122,7 @@ class FlowStateTest(unittest.TestCase):
                 get_file_path(): {
                     'input_ref': {
                         'topic': 'my_type',
-                        'subscriber': '',
+                        'subscription': '',
                         '_io_type': 'PUBSUB'
                     },
                     'output_refs': [{
@@ -140,7 +140,7 @@ class FlowStateTest(unittest.TestCase):
                 get_file_path(): {
                     'input_ref': {
                         'topic': 'my_type',
-                        'subscriber': '',
+                        'subscription': '',
                         '_io_type': 'PUBSUB'
                     },
                     'output_refs': [{

@@ -4,7 +4,6 @@ import json
 import os
 import sys
 import uuid
-
 from typing import Any, Dict, List, TypeVar
 
 
@@ -14,7 +13,7 @@ class InputOutput:
 
     @classmethod
     def from_config(cls, node_info: Dict[str, Any]):
-        io_type = node_info['io_type']
+        io_type = node_info['_io_type']
         return _IO_MAPPING[io_type](**node_info)
 
 
@@ -32,11 +31,23 @@ class FlowState:
     # Mapping from entry point file to NodeState.
     node_states: Dict[str, NodeState]
 
+    @classmethod
+    def from_config(cls, config: Dict[str, Any]):
+        node_states = {}
+        for entry_point, node_state in config['node_states'].items():
+            node_states[entry_point] = NodeState(
+                input_ref=InputOutput.from_config(node_state['input_ref']),
+                output_refs=[
+                    InputOutput.from_config(output_ref)
+                    for output_ref in node_state['output_refs']
+                ])
+        return FlowState(node_states)
+
 
 @dataclasses.dataclass
 class PubSub(InputOutput):
-    topic: str
-    subscriber: str = ''
+    topic: str = ''
+    subscription: str = ''
     _io_type: str = 'PUBSUB'
 
 

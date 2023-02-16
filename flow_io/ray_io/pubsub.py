@@ -1,12 +1,13 @@
 """IO connectors for Pub/Sub and Ray."""
 
-import logging
 import json
-from typing import Any, Dict, Iterable, Union
+import logging
+from typing import Any, Callable, Dict, Iterable, Union
 
-from google.cloud import pubsub_v1
 import ray
+from google.cloud import pubsub_v1
 
+import flow_io
 from flow_io.ray_io import base
 
 
@@ -15,18 +16,11 @@ class PubSubSourceActor(base.RaySource):
 
     def __init__(
         self,
-        ray_inputs,
-        node_space: str,
-        topic: str,
-        subscriptions: Dict[str, str],
+        ray_sinks: Iterable[base.RaySink],
+        pubsub_ref: flow_io.PubSub,
     ) -> None:
-        super().__init__(ray_inputs, node_space)
-        try:
-            self.subscription = subscriptions[node_space]
-        except KeyError:
-            raise ValueError(
-                'Subscription was not available for incoming node: '
-                f'{node_space}. Avaliable subscriptions: {subscriptions}')
+        super().__init__(ray_sinks)
+        self.subscription = pubsub_ref.subscription
 
     def run(self):
         while True:
@@ -36,23 +30,15 @@ class PubSubSourceActor(base.RaySource):
                                   max_messages=10)
 
                 ray_futures = {}
-                all_input_data = []
                 for received_message in response.received_messages:
-                    for ray_input in self.ray_inputs:
-                        # TODO: maybe we should add the option to include the
-                        # attributes. I believe beam provides that as an
-                        # option.
-                        decoded_data = received_message.message.data.decode()
-                        json_loaded = json.loads(decoded_data)
-                        all_input_data.append(json_loaded)
-
-                        carrier = {}
-                        if 'trace_id' in received_message.message.attributes:
-                            carrier['trace_id'] = received_message.message.attributes['trace_id']  # noqa: E501
-                        if self.data_tracing_enabled:
-                            carrier = base.add_to_trace(
-                                self.node_space, {'input_data': json_loaded}, carrier)  # noqa
-                        ref = ray_input.remote(json_loaded, carrier)
+                    # TODO: maybe we should add the option to include the
+                    # attributes. I believe beam provides that as an
+                    # option.
+                    decoded_data = received_message.message.data.decode()
+                    json_loaded = json.loads(decoded_data)
+                    for ray_sink in self.ray_sinks:
+                        # TODO: add tracing context
+                        ref = ray_sink.write.remote(json_loaded)
                         ray_futures[received_message.ack_id] = ref.future()
 
                 while ray_futures:
@@ -77,21 +63,17 @@ class PubsubSinkActor(base.RaySink):
 
     def __init__(
         self,
-        node_space: str,
-        topic: str,
-        subscriptions: Dict[str, str],
+        remote_fn: Callable,
+        pubsub_ref: flow_io.PubSub,
     ) -> None:
-        super().__init__(node_space)
+        super().__init__(remote_fn)
         self.pubslisher_client = pubsub_v1.PublisherClient()
-        self.topic = topic
+        self.topic = pubsub_ref.topic
 
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
-        carrier: Dict[str, str],
     ):
-        # TODO: add tracing
-        del carrier
         to_insert = element
         if isinstance(element, dict):
             to_insert = [element]
