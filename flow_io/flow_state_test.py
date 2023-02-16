@@ -9,7 +9,6 @@ import flow_io
 class FlowStateTest(unittest.TestCase):
 
     def tearDown(self) -> None:
-        os.remove(os.environ[flow_io.FLOW_STATE_ENV_VAR_NAME])
         del os.environ[flow_io.FLOW_STATE_ENV_VAR_NAME]
 
     def test_new_flow_state(self):
