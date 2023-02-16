@@ -49,6 +49,27 @@ class BigQuery(InputOutput):
     _io_type: str = 'BIG_QUERY'
 
 
+@dataclasses.dataclass
+class RedisStream(InputOutput):
+    host: str
+    port: str
+    streams = List[str]
+    stream_positions = Dict[str, str] = {}
+    _io_type: str = ''
+
+
+@dataclasses.dataclass
+class DuckDB(InputOutput):
+    database: str
+    table: str = ''
+    query: str = ''
+
+
+@dataclasses.dataclass
+class Empty(InputOutput):
+    inputs: List[Any]
+
+
 _IO_MAPPING = {
     'BIG_QUERY': BigQuery,
     'PUBSUB': PubSub,
