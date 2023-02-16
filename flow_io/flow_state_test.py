@@ -158,6 +158,7 @@ class FlowStateTest(unittest.TestCase):
 
         with open(os.environ[flow_io.FLOW_STATE_ENV_VAR_NAME]) as f:
             got = json.load(f)
+            print('DO NOT SUBMIT: ', got)
         self.assertEqual(got, expected)
 
 
