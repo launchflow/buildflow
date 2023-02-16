@@ -73,8 +73,9 @@ def init(config: Dict[str, Any]):
     mod = inspect.getmodule(frm[0])
     if sys.version_info[1] <= 8:
         # py 3.8 only returns the relative file path.
-        return os.path.join(os.getcwd(), mod.__file__)
-    entry_point = mod.__file__
+        entry_point = os.path.join(os.getcwd(), mod.__file__)
+    else:
+        entry_point = mod.__file__
     node_input = config['input']
     node_outpus = config['outputs']
     node_state = NodeState(node_input, node_outpus)
