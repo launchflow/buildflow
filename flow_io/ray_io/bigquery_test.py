@@ -1,15 +1,16 @@
 """Tests for redis.py"""
 
-from dataclasses import dataclass
 import json
 import os
 import shutil
 import tempfile
-from typing import Any, Dict
 import unittest
+from dataclasses import dataclass
+from typing import Any, Dict
 
 import ray
 
+import flow_io
 from flow_io import ray_io
 
 
@@ -29,6 +30,12 @@ class FakeBigQueryClient:
         self.temp_file = temp_file
         self.bigquery_data = bigquery_data
         self._write_file()
+
+        flow_io.init(
+            config={
+                'input': flow_io.PubSub(subscription=input_subscription_path),
+                'outputs': [flow_io.PubSub(topic=output_topic_path)]
+            })
 
     def _write_file(self):
         with open(self.temp_file, 'w') as f:
