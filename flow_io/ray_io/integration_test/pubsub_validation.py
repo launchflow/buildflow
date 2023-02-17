@@ -1,9 +1,10 @@
 import json
-from google.cloud import pubsub_v1
 from concurrent.futures import TimeoutError
 
+from google.cloud import pubsub_v1
+
 output_subscriber = 'projects/pubsub-test-project/subscriptions/validation'
-expected_data = {'new_field': 2}
+expected_data = {'val': 2}
 
 match = False
 
