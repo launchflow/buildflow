@@ -3,18 +3,20 @@ from typing import Callable
 import ray
 
 from flow_io import flow_state, resources
-from flow_io.ray_io import bigquery, pubsub
+from flow_io.ray_io import bigquery, empty, pubsub
 
 # TODO: Add support for other IO types.
 _IO_TYPE_TO_SOURCE = {
     resources.BigQuery.__name__: bigquery.BigQuerySourceActor,
     resources.PubSub.__name__: pubsub.PubSubSourceActor,
+    resources.Empty.__name__: empty.EmptySourceActor,
 }
 
 # TODO: Add support for other IO types.
 _IO_TYPE_TO_SINK = {
     resources.BigQuery.__name__: bigquery.BigQuerySinkActor,
     resources.PubSub.__name__: pubsub.PubsubSinkActor,
+    resources.Empty.__name__: empty.EmptySinkActor,
 }
 
 
@@ -27,4 +29,4 @@ def run(remote_fn: Callable):
     source_actor = _IO_TYPE_TO_SOURCE[
         node_state.input_ref.__class__.__name__].remote(
             sink_actors, node_state.input_ref)
-    ray.get(source_actor.run.remote())
+    return ray.get(source_actor.run.remote())

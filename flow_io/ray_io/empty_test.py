@@ -8,6 +8,8 @@ import unittest
 
 import ray
 
+from flow_io import flow_state
+from flow_io import resources
 from flow_io import ray_io
 
 
@@ -29,25 +31,20 @@ class EmptyTest(unittest.TestCase):
         os.environ['FLOW_DEPLOYMENT_FILE'] = self.deployment_file
 
     def test_end_to_end_empty(self):
-        with open(self.flow_file, 'w', encoding='UTF-8') as f:
-            flow_contents = {
-                'nodes': [
-                    {
-                        'nodeSpace': 'flow_io/ray_io'
-                    },
-                ],
-                'outgoingEdges': {},
-            }
-            json.dump(flow_contents, f)
-        with open(self.deployment_file, 'w', encoding='UTF-8') as f:
-            json.dump({'nodeDeployments': {}}, f)
+        flow_state.init(
+            config={
+                'input': resources.Empty(inputs=[1, 2, 3]),
+                'outputs': [resources.Empty()]
+            })
 
-        sink = ray_io.sink()
-        source = ray_io.source(sink.write, inputs=[1, 2, 3])
-        output = ray.get(source.run.remote())
+        @ray.remote
+        def process(elem):
+            return elem
+
+        output = ray_io.run(process.remote)
 
         # TODO: why are these nested lists?
-        self.assertEqual(output, [[1], [2], [3]])
+        self.assertEqual(output, [1, 2, 3])
 
     def tearDown(self):
         shutil.rmtree(self.temp_dir)
