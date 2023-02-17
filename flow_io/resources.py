@@ -45,7 +45,9 @@ class RedisStream(InputOutput):
     host: str
     port: str
     streams: List[str]
-    stream_positions: Dict[str, str] = dataclasses.field(default_factory=dict)
+    start_positions: Dict[str, str] = dataclasses.field(default_factory=dict)
+    # Read timeout. If > 0 this is how long we will read from the redis stream.
+    read_timeout_secs: int = -1
     _io_type: str = IOType.RedisStream.value
 
 
@@ -64,9 +66,9 @@ class Empty(InputOutput):
 
 
 _IO_MAPPING = {
-    IOType.BigQuery.name: BigQuery,
-    IOType.Pubsub.name: PubSub,
-    IOType.RedisStream.name: RedisStream,
-    IOType.DuckDB.name: DuckDB,
-    IOType.Empty.name: Empty,
+    IOType.BigQuery.value: BigQuery,
+    IOType.Pubsub.value: PubSub,
+    IOType.RedisStream.value: RedisStream,
+    IOType.DuckDB.value: DuckDB,
+    IOType.Empty.value: Empty,
 }
