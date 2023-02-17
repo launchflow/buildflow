@@ -2,12 +2,13 @@
 
 import logging
 import time
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable, Union
 
 import duckdb
 import pandas as pd
 import ray
 
+from flow_io import resources
 from flow_io.ray_io import base
 
 
@@ -16,16 +17,15 @@ class DuckDBSourceActor(base.RaySource):
 
     def __init__(
         self,
-        ray_inputs: Iterable,
-        node_space: str,
-        database: str,
-        table: str,
-        query: str = '',
+        ray_sinks: Iterable[base.RaySink],
+        duckdb_ref=resources.DuckDB,
     ) -> None:
-        super().__init__(ray_inputs, node_space)
-        self.duck_con = duckdb.connect(database=database, read_only=True)
+        super().__init__(ray_sinks)
+        self.duck_con = duckdb.connect(database=duckdb_ref.database,
+                                       read_only=True)
+        query = duckdb_ref.query
         if not query:
-            query = f'SELECT * FROM {table}'
+            query = f'SELECT * FROM {duckdb_ref.table}'
         self.duck_con.execute(query=query)
 
     def run(self):
@@ -33,9 +33,9 @@ class DuckDBSourceActor(base.RaySource):
         df = self.duck_con.fetch_df_chunk()
         while not df.empty:
             elements = df.to_dict('records')
-            for ray_input in self.ray_inputs:
+            for ray_sink in self.ray_sinks:
                 for element in elements:
-                    refs.append(ray_input.remote(element, {}))
+                    refs.append(ray_sink.write.remote(element))
             df = self.duck_con.fetch_df_chunk()
         self.duck_con.close()
         return ray.get(refs)
@@ -49,18 +49,16 @@ class DuckDBSinkActor(base.RaySink):
 
     def __init__(
         self,
-        node_space: str,
-        database: str,
-        table: str,
+        remote_fn: Callable,
+        duckdb_ref: resources.DuckDB,
     ) -> None:
-        super().__init__(node_space)
-        self.database = database
-        self.table = table
+        super().__init__(remote_fn)
+        self.database = duckdb_ref.database
+        self.table = duckdb_ref.table
 
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
-        carrier: Dict[str, str] = {},
     ):
 
         connect_tries = 0

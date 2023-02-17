@@ -9,7 +9,6 @@ class InputOutput:
 
     @classmethod
     def from_config(cls, node_info: Dict[str, Any]):
-        print('DO NOT SUBMIT: ', node_info)
         io_type = node_info['_io_type']
         return _IO_MAPPING[io_type](**node_info)
 
@@ -54,8 +53,8 @@ class RedisStream(InputOutput):
 class DuckDB(InputOutput):
     database: str
     table: str = ''
-    query: str = IOType.DuckDB.name
-    _io_type = IOType.Empty.name
+    query: str = ''
+    _io_type: str = IOType.DuckDB.name
 
 
 @dataclasses.dataclass

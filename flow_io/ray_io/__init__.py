@@ -3,13 +3,14 @@ from typing import Callable
 import ray
 
 from flow_io import flow_state, resources
-from flow_io.ray_io import bigquery, empty, pubsub
+from flow_io.ray_io import bigquery, duckdb, empty, pubsub
 
 # TODO: Add support for other IO types.
 _IO_TYPE_TO_SOURCE = {
     resources.BigQuery.__name__: bigquery.BigQuerySourceActor,
     resources.PubSub.__name__: pubsub.PubSubSourceActor,
     resources.Empty.__name__: empty.EmptySourceActor,
+    resources.DuckDB.__name__: duckdb.DuckDBSourceActor,
 }
 
 # TODO: Add support for other IO types.
@@ -17,6 +18,7 @@ _IO_TYPE_TO_SINK = {
     resources.BigQuery.__name__: bigquery.BigQuerySinkActor,
     resources.PubSub.__name__: pubsub.PubsubSinkActor,
     resources.Empty.__name__: empty.EmptySinkActor,
+    resources.DuckDB.__name__: duckdb.DuckDBSinkActor,
 }
 
 
