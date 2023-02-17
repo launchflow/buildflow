@@ -21,7 +21,7 @@ GitHub issue!
 | Beam | ❌       | ❌              | ❌           | ❌      |
 
 
-## LaunchFLow Integration
+## LaunchFlow Integration
 
 Flow IO is maintained by the team at LaunchFlow. LaunchFlow allows you to take
 your usage of Flow IO and deploy all frameworks and resources to the cloud. If
