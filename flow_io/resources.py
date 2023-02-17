@@ -9,7 +9,6 @@ class InputOutput:
 
     @classmethod
     def from_config(cls, node_info: Dict[str, Any]):
-        print('DO NOT SUBMIT: ', node_info)
         io_type = node_info['_io_type']
         return _IO_MAPPING[io_type](**node_info)
 
@@ -29,7 +28,7 @@ class IOType(Enum):
 class PubSub(InputOutput):
     topic: str = ''
     subscription: str = ''
-    _io_type: str = IOType.Pubsub.name
+    _io_type: str = IOType.Pubsub.value
 
 
 @dataclasses.dataclass
@@ -38,7 +37,7 @@ class BigQuery(InputOutput):
     dataset: str = ''
     table: str = ''
     query: str = ''
-    _io_type: str = IOType.BigQuery.name
+    _io_type: str = IOType.BigQuery.value
 
 
 @dataclasses.dataclass
@@ -47,21 +46,21 @@ class RedisStream(InputOutput):
     port: str
     streams: List[str]
     stream_positions: Dict[str, str] = dataclasses.field(default_factory=dict)
-    _io_type: str = IOType.RedisStream.name
+    _io_type: str = IOType.RedisStream.value
 
 
 @dataclasses.dataclass
 class DuckDB(InputOutput):
     database: str
     table: str = ''
-    query: str = IOType.DuckDB.name
-    _io_type = IOType.Empty.name
+    query: str = ''
+    _io_type: str = IOType.DuckDB.value
 
 
 @dataclasses.dataclass
 class Empty(InputOutput):
     inputs: List[Any] = dataclasses.field(default_factory=list)
-    _io_type: str = IOType.Empty.name
+    _io_type: str = IOType.Empty.value
 
 
 _IO_MAPPING = {
