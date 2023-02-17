@@ -13,12 +13,14 @@ Below are all resource / framework IO connections we support. If you would
 like any additional frameworks or resources supported please file a
 GitHub issue!
 
-✅ = Fully Functional&nbsp;&nbsp;✏️ = Implementation in Progress&nbsp;&nbsp;❌ = Implementation on Backlog
+✅ = Fully Functional&nbsp;&nbsp;🚧 = Implementation in Progress&nbsp;&nbsp;❌ = Implementation on Backlog
 
-|      | BigQuery | Google Pub/Sub | Redis Stream | DuckDB |
-| ---- | -------- | -------------- | ------------ | ------ |
-| Ray  | ✅       | ✅              | ✏️            | ✅     |
-| Beam | ❌       | ❌              | ❌           | ❌      |
+|         | Postgres | BigQuery | DuckDB | Google Pub/Sub | Kafka | Redis |
+|---------|----------|----------|--------|----------------|-------|-------|
+| Ray     | 🚧       | ✅        | ✅      | ✅              | ❌     | 🚧    |
+| Beam    | ❌        | 🚧       | 🚧     | 🚧             | ❌     | ❌     |
+| Spark   | ❌        | ❌        | ❌      | ❌              | ❌     | ❌     |
+| FastApi | ❌        | ❌        | ❌      | ❌              | ❌     | ❌     |
 
 
 ## LaunchFlow Integration
