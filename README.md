@@ -25,5 +25,5 @@ GitHub issue!
 
 Flow IO is maintained by the team at LaunchFlow. LaunchFlow allows you to take
 your usage of Flow IO and deploy all frameworks and resources to the cloud. If
-you're interested in using LaunchFlow you can learn more at launchflow.com, or
-reach out to us at founders@launchflow.com
+you're interested in using LaunchFlow you can learn more at [launchflow.com](www.launchflow.com),
+or reach out to us at founders@launchflow.com
