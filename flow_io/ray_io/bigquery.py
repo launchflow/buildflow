@@ -20,11 +20,11 @@ class BigQuerySourceActor(base.RaySource):
         self,
         ray_sinks: Iterable[base.RaySink],
         bq_ref: resources.BigQuery,
-        bigquery_client=None,
+        bq_client=None,
     ) -> None:
         super().__init__(ray_sinks)
-        if bigquery_client is not None:
-            self.bq_client = bigquery_client
+        if bq_client:
+            self.bq_client = bq_client
         else:
             self.bq_client = _get_bigquery_client()
         self.query = bq_ref.query
@@ -52,11 +52,11 @@ class BigQuerySinkActor(base.RaySink):
         self,
         remote_fn: Callable,
         bq_ref: resources.BigQuery,
-        bigquery_client=None,
+        bq_client=None,
     ) -> None:
         super().__init__(remote_fn)
-        if bigquery_client is not None:
-            self.bq_client = bigquery_client
+        if bq_client:
+            self.bq_client = bq_client
         else:
             self.bq_client = _get_bigquery_client()
         self.bq_table_id = f'{bq_ref.project}.{bq_ref.dataset}.{bq_ref.table}'
