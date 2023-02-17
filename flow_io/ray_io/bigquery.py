@@ -1,10 +1,11 @@
 """IO connectors for Bigquery and Ray."""
 
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable, Union
 
-from google.cloud import bigquery
 import ray
+from google.cloud import bigquery
 
+from flow_io import resources
 from flow_io.ray_io import base
 
 
@@ -17,31 +18,26 @@ class BigQuerySourceActor(base.RaySource):
 
     def __init__(
         self,
-        ray_inputs: Iterable,
-        node_space: str,
-        project: str,
-        dataset: str,
-        table: str,
-        query: str = '',
-        bigquery_client=None,
+        ray_sinks: Iterable[base.RaySink],
+        bq_ref: resources.BigQuery,
     ) -> None:
-        super().__init__(ray_inputs, node_space)
-        if bigquery_client is None:
-            bigquery_client = _get_bigquery_client()
-        self.bigquery_client = bigquery_client
-        if not query:
-            query = f'SELECT * FROM `{project}.{dataset}.{table}`'
-        self.query = query
+        super().__init__(ray_sinks)
+        self.bq_client = _get_bigquery_client()
+        self.query = bq_ref.query
+        if not self.query:
+            self.query = (
+                'SELECT * FROM '
+                f'`{bq_ref.project}.{bq_ref.dataset}.{bq_ref.table}`')
 
     def run(self):
         # TODO: it would be nice if we could shard up the reading
         # of the rows with ray. What if someone instantiates the
         # actor multiple times?
-        query_job = self.bigquery_client.query(self.query)
+        query_job = self.bq_client.query(self.query)
         refs = []
         for row in query_job.result():
-            for ray_input in self.ray_inputs:
-                refs.append(ray_input.remote(row, {}))
+            for ray_sink in self.ray_sinks:
+                refs.append(ray_sink.write.remote(row))
         return ray.get(refs)
 
 
@@ -50,26 +46,18 @@ class BigQuerySinkActor(base.RaySink):
 
     def __init__(
         self,
-        node_space: str,
-        project: str,
-        dataset: str,
-        table: str,
-        bigquery_client=None,
+        remote_fn: Callable,
+        bq_ref: resources.BigQuery,
     ) -> None:
-        super().__init__(node_space)
-        if bigquery_client is None:
-            bigquery_client = _get_bigquery_client()
-        self.bigquery_client = bigquery_client
-        self.bigquery_table = f'{project}.{dataset}.{table}'
+        super().__init__(remote_fn)
+        self.bq_client = _get_bigquery_client()
+        self.bq_table_id = f'{bq_ref.project}.{bq_ref.dataset}.{bq_ref.table}'
 
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
-        carrier: Dict[str, str],
     ):
-        # TODO: add tracing
-        del carrier
         to_insert = element
         if isinstance(element, dict):
             to_insert = [element]
-        return self.bigquery_client.insert_rows(self.bigquery_table, to_insert)
+        return self.bq_client.insert_rows(self.bq_table_id, to_insert)
