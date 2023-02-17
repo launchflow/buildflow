@@ -37,6 +37,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
+          apt-get install redis-server
           python -m pip install --upgrade pip
           pip install .[dev]
       - name: Test with pytest
