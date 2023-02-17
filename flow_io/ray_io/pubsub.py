@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Iterable, Union
 import ray
 from google.cloud import pubsub_v1
 
-import flow_io
+from flow_io import resources
 from flow_io.ray_io import base
 
 
@@ -17,7 +17,7 @@ class PubSubSourceActor(base.RaySource):
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        pubsub_ref: flow_io.PubSub,
+        pubsub_ref: resources.PubSub,
     ) -> None:
         super().__init__(ray_sinks)
         self.subscription = pubsub_ref.subscription
@@ -64,7 +64,7 @@ class PubsubSinkActor(base.RaySink):
     def __init__(
         self,
         remote_fn: Callable,
-        pubsub_ref: flow_io.PubSub,
+        pubsub_ref: resources.PubSub,
     ) -> None:
         super().__init__(remote_fn)
         self.pubslisher_client = pubsub_v1.PublisherClient()

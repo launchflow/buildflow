@@ -4,26 +4,15 @@ import json
 import os
 import sys
 import uuid
-from typing import Any, Dict, List, TypeVar
+from typing import Any, Dict, List
 
-
-class InputOutput:
-    """Super class for all input and output types."""
-    _io_type: str
-
-    @classmethod
-    def from_config(cls, node_info: Dict[str, Any]):
-        io_type = node_info['_io_type']
-        return _IO_MAPPING[io_type](**node_info)
-
-
-IO = TypeVar('IO', bound=InputOutput)
+from flow_io import resources
 
 
 @dataclasses.dataclass
 class NodeState:
-    input_ref: IO
-    output_refs: List[IO]
+    input_ref: resources.IO
+    output_refs: List[resources.IO]
 
 
 @dataclasses.dataclass
@@ -36,34 +25,14 @@ class FlowState:
         node_states = {}
         for entry_point, node_state in config['node_states'].items():
             node_states[entry_point] = NodeState(
-                input_ref=InputOutput.from_config(node_state['input_ref']),
+                input_ref=resources.InputOutput.from_config(
+                    node_state['input_ref']),
                 output_refs=[
-                    InputOutput.from_config(output_ref)
+                    resources.InputOutput.from_config(output_ref)
                     for output_ref in node_state['output_refs']
                 ])
         return FlowState(node_states)
 
-
-@dataclasses.dataclass
-class PubSub(InputOutput):
-    topic: str = ''
-    subscription: str = ''
-    _io_type: str = 'PUBSUB'
-
-
-@dataclasses.dataclass
-class BigQuery(InputOutput):
-    project: str = ''
-    dataset: str = ''
-    table: str = ''
-    query: str = ''
-    _io_type: str = 'BIG_QUERY'
-
-
-_IO_MAPPING = {
-    'BIG_QUERY': BigQuery,
-    'PUBSUB': PubSub,
-}
 
 FLOW_STATE_ENV_VAR_NAME = 'FLOW_STATE_FILE'
 _DEFAULT_FLOW_IO_DIR = '/tmp/flow_io'
@@ -103,3 +72,40 @@ def init(config: Dict[str, Any]):
         flow_state = FlowState({entry_point: node_state})
     with open(os.environ[FLOW_STATE_ENV_VAR_NAME], 'w', encoding='UTF-8') as f:
         json.dump(dataclasses.asdict(flow_state), f)
+
+
+def _get_flow_state_file() -> str:
+    flow_state_file = os.environ.get(FLOW_STATE_ENV_VAR_NAME)
+    if flow_state_file is None:
+        # TODO: maybe we could try and parse this out if it's not set? My main
+        # worry is that it feels brittle and might break easily
+        # Maybe we can walk backwards till we find the correct file?
+        raise ValueError(
+            'Could not determine flow state file. Please set the '
+            f'{FLOW_STATE_ENV_VAR_NAME} environment variable to point '
+            'to the flow that is running. If you are using the LaunchFlow '
+            'extension this should happen automatically.')
+    return flow_state_file
+
+
+def get_node_launch_file(depth: int = 2) -> str:
+    frm = inspect.stack()[depth]
+    mod = inspect.getmodule(frm[0])
+    if sys.version_info[1] <= 8:
+        # py 3.8 only returns the relative file path.
+        return os.path.join(os.getcwd(), mod.__file__)
+    return mod.__file__
+
+
+def get_flow_state() -> FlowState:
+    flow_file = _get_flow_state_file()
+    with open(flow_file, 'r', encoding='UTF-8') as f:
+        return FlowState.from_config(json.load(f))
+
+
+def get_node_state(entrypoint_file: str) -> NodeState:
+    flow_state = get_flow_state()
+    if entrypoint_file not in flow_state.node_states:
+        raise RuntimeError(
+            f'{entrypoint_file} not found in FlowState config: {flow_state}')
+    return flow_state.node_states[entrypoint_file]

@@ -3,7 +3,7 @@ from typing import Callable
 import ray
 
 import flow_io
-from flow_io import utils
+from flow_io import flowstate
 from flow_io.ray_io import bigquery, pubsub
 
 # TODO: Add support for other IO types.
@@ -20,7 +20,7 @@ _IO_TYPE_TO_SINK = {
 
 
 def run(remote_fn: Callable):
-    node_state = utils.get_node_state(utils.get_node_launch_file())
+    node_state = flowstate.get_node_state(flowstate.get_node_launch_file())
     sink_actors = [
         _IO_TYPE_TO_SINK[output_ref.__class__.__name__].remote(
             remote_fn, output_ref) for output_ref in node_state.output_refs
