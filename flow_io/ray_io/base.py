@@ -45,12 +45,13 @@ class RaySink:
     ):
         raise ValueError('All Ray sinks should implement: `_write`')
 
-    def write(
+    async def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
         context: Dict[str, str] = {},
     ):
-        result = ray.get(self.remote_fn(element))
+        # print('waiting in write')
+        result = await self.remote_fn(element)
         if self.data_tracing_enabled:
             add_to_trace(self.node_space, {'output_data': result}, context)
         return self._write(result)

@@ -64,9 +64,9 @@ class Empty(InputOutput):
 
 
 _IO_MAPPING = {
-    IOType.BigQuery.name: BigQuery,
-    IOType.Pubsub.name: PubSub,
-    IOType.RedisStream.name: RedisStream,
-    IOType.DuckDB.name: DuckDB,
-    IOType.Empty.name: Empty,
+    IOType.BigQuery.value: BigQuery,
+    IOType.Pubsub.value: PubSub,
+    IOType.RedisStream.value: RedisStream,
+    IOType.DuckDB.value: DuckDB,
+    IOType.Empty.value: Empty,
 }

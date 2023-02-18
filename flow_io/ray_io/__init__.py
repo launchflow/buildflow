@@ -1,6 +1,7 @@
-from typing import Callable
+from typing import Callable, List
 
 import ray
+from ray.util import ActorPool
 
 from flow_io import flow_state, resources
 from flow_io.ray_io import bigquery, duckdb, empty, pubsub
@@ -24,11 +25,20 @@ _IO_TYPE_TO_SINK = {
 
 def run(remote_fn: Callable):
     node_state = flow_state.get_node_state(flow_state.get_node_launch_file())
-    sink_actors = [
-        _IO_TYPE_TO_SINK[output_ref.__class__.__name__].remote(
-            remote_fn, output_ref) for output_ref in node_state.output_refs
-    ]
-    source_actor = _IO_TYPE_TO_SOURCE[
-        node_state.input_ref.__class__.__name__].remote(
-            sink_actors, node_state.input_ref)
-    return ray.get(source_actor.run.remote())
+
+    num_io_actors = 30
+    all_source_actors = []
+    for _ in range(num_io_actors):
+        sink_actors = [
+            _IO_TYPE_TO_SINK[output_ref.__class__.__name__].remote(
+                remote_fn, output_ref) for output_ref in node_state.output_refs
+        ]
+        source_actor = _IO_TYPE_TO_SOURCE[
+            node_state.input_ref.__class__.__name__].remote(
+                sink_actors, node_state.input_ref)
+        all_source_actors.append(source_actor)
+
+    source_pool = ActorPool(all_source_actors)
+    return list(
+        source_pool.map(lambda a, _: a.run.remote(),
+                        [None for _ in range(num_io_actors)]))
