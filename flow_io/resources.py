@@ -37,6 +37,13 @@ class BigQuery(InputOutput):
     dataset: str = ''
     table: str = ''
     query: str = ''
+    # The batch size to use reading from BigQuery.
+    # The ray source will wait until one batch is done
+    # before continuing on to the next. This helps reduce
+    # overall memory usage for a ray worker.
+    # If set to -1 no batch will be use and all data will be read
+    # in and passed through.
+    batch_size: int = 100
     _io_type: str = IOType.BigQuery.value
 
 

@@ -1,5 +1,6 @@
 """IO connectors for Bigquery and Ray."""
 
+import logging
 from typing import Any, Callable, Dict, Iterable, Union
 
 import ray
@@ -23,6 +24,7 @@ class BigQuerySourceActor(base.RaySource):
     ) -> None:
         super().__init__(ray_sinks)
         self.query = bq_ref.query
+        self.batch_size = bq_ref.batch_size
         if not self.query:
             self.query = (
                 'SELECT * FROM '
@@ -35,10 +37,25 @@ class BigQuerySourceActor(base.RaySource):
         bq_client = _get_bigquery_client()
         query_job = bq_client.query(self.query)
         refs = []
-        for row in query_job.result():
-            for ray_sink in self.ray_sinks:
+        final_results = []
+        for ray_sink in self.ray_sinks:
+            num_rows = 0
+            for row in query_job.result():
+                num_rows += 1
+                if self.batch_size > 0 and num_rows >= self.batch_size:
+                    logging.warning(
+                        'Reached batch size limit wait for batch to finish. If'
+                        ' you are hitting this try increasing the maximum '
+                        'number of actors to increase parallelism.'
+                    )
+                    final_results.extend(ray.get(refs))
+                    logging.warning('Batch finished; start more tasks.')
+                    refs = []
+                    num_rows = 0
                 refs.append(ray_sink.write.remote(dict(row)))
-        return ray.get(refs)
+        if refs:
+            final_results.extend(ray.get(refs))
+        return final_results
 
 
 @ray.remote
