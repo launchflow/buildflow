@@ -7,3 +7,4 @@ from flow_io.resources import (  # noqa: F401
     PubSub,
     RedisStream,
 )
+from flow_io import ray_io

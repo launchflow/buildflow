@@ -26,7 +26,6 @@ _IO_TYPE_TO_SINK = {
 
 def run(remote_fn: Callable):
     node_state = flow_state.get_node_state(flow_state.get_node_launch_file())
-    print('DO NOT SUBMIT: here ', node_state.input_ref.__class__.__name__)
 
     sink_actors = [
         _IO_TYPE_TO_SINK[output_ref.__class__.__name__].remote(
