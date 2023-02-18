@@ -49,7 +49,8 @@ class FakeBigQueryClient:
         self._write_file()
 
 
-@pytest.mark.skip(reason='TODO: need to update this to do something with bq client.')
+@pytest.mark.skip(
+    reason='TODO: need to update this to do something with bq client.')
 class BigQueryTest(unittest.TestCase):
 
     @classmethod
