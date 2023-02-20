@@ -3,6 +3,20 @@ from typing import Optional
 
 from flowstate.api.resources import IO, Empty
 from flowstate.runtime import Runtime
+from flowstate.api import ProcessorAPI
+
+
+class Processor(ProcessorAPI):
+
+    @staticmethod
+    def _output() -> IO:
+        return Empty()
+
+    def _setup(self):
+        pass
+
+    def process(self, payload):
+        return payload
 
 
 def processor(input_ref: IO, output_ref: Optional[IO] = None):
