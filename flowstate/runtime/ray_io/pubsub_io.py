@@ -1,16 +1,15 @@
 """IO connectors for Pub/Sub and Ray."""
 
+import asyncio
 import json
-import logging
+import time
 from typing import Any, Callable, Dict, Iterable, Union
 
 import ray
 from google.cloud import pubsub_v1
 
-from flow_io import resources
-from flow_io.ray_io import base
-import time
-import asyncio
+from flowstate.api import resources
+from flowstate.runtime.ray_io import base
 
 
 @ray.remote
@@ -45,6 +44,8 @@ class PubSubSourceActor(base.RaySource):
             while True:
                 # TODO: make this configurable
                 response = await self.pull_messages(pubsub_client)
+
+                print('received messages: ', len(response.received_messages))
 
                 ray_futures = []
                 ack_ids = []

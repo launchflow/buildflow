@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import ray
 import redis
 
-from flow_io.ray_io import base
+from flowstate.runtime.ray_io import base
 
 
 @ray.remote

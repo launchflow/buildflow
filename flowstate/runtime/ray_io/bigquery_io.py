@@ -5,8 +5,8 @@ from typing import Any, Callable, Dict, Iterable, Union
 import ray
 from google.cloud import bigquery
 
-from flow_io import resources
-from flow_io.ray_io import base
+from flowstate.api import resources
+from flowstate.runtime.ray_io import base
 
 
 def _get_bigquery_client():

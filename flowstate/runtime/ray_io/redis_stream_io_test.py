@@ -8,7 +8,7 @@ import unittest
 
 import ray
 
-from flow_io import ray_io
+from flowstate import io
 
 
 class FakeRedisClient():
@@ -133,8 +133,8 @@ class RedisStream(unittest.TestCase):
             })]
         ]]
 
-        sink = ray_io.sink(redis_client=r)
-        source = ray_io.source(sink.write, redis_client=r, num_reads=1)
+        sink = io.sink(redis_client=r)
+        source = io.source(sink.write, redis_client=r, num_reads=1)
         ray.get(source.run.remote())
 
         data_written = r.xread({'output_stream': 0})
@@ -163,9 +163,9 @@ class RedisStream(unittest.TestCase):
             def process(self, elem, carrier):
                 return ray.get(sink.write.remote([elem, elem], carrier))
 
-        sink = ray_io.sink(redis_client=r)
+        sink = io.sink(redis_client=r)
         processor = ProcessActor.remote(sink)
-        source = ray_io.source(processor.process, redis_client=r, num_reads=1)
+        source = io.source(processor.process, redis_client=r, num_reads=1)
         ray.get(source.run.remote())
 
         data_written = r.xread({'output_stream': 0})

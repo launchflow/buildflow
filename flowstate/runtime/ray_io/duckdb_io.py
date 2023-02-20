@@ -8,8 +8,8 @@ import duckdb
 import pandas as pd
 import ray
 
-from flow_io import resources
-from flow_io.ray_io import base
+from flowstate.api import resources
+from flowstate.runtime.ray_io import base
 
 
 @ray.remote

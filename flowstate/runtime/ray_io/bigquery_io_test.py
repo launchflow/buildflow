@@ -9,8 +9,8 @@ from typing import Any, Dict
 
 import ray
 
-import flow_io
-from flow_io import ray_io
+from flowstate.api import resources
+from flowstate.runtime.ray_io import bigquery_io
 
 
 @dataclass
@@ -69,20 +69,20 @@ class BigQueryTest(unittest.TestCase):
         expected = [input_row]
         fake_bq_client = FakeBigQueryClient(
             self.temp_file, {'SELECT * FROM `table`': [input_row]})
-        bq_ref = flow_io.BigQuery(project='project',
-                                  dataset='dataset',
-                                  table='table',
-                                  query='SELECT * FROM `table`')
+        bq_ref = resources.BigQuery(project='project',
+                                    dataset='dataset',
+                                    table='table',
+                                    query='SELECT * FROM `table`')
 
         @ray.remote
         def pass_through_fn(elem):
             return elem
 
         sink_actors = [
-            ray_io.bigquery.BigQuerySinkActor.remote(pass_through_fn.remote,
-                                                     bq_ref, fake_bq_client)
+            bigquery_io.BigQuerySinkActor.remote(pass_through_fn.remote,
+                                                 bq_ref, fake_bq_client)
         ]
-        source_actor = ray_io.bigquery.BigQuerySourceActor.remote(
+        source_actor = bigquery_io.BigQuerySourceActor.remote(
             sink_actors, bq_ref, fake_bq_client)
         ray.get(source_actor.run.remote())
 
@@ -95,10 +95,10 @@ class BigQueryTest(unittest.TestCase):
         expected = [input_row, input_row]
         fake_bq_client = FakeBigQueryClient(
             self.temp_file, {'SELECT * FROM `table`': [input_row]})
-        bq_ref = flow_io.BigQuery(project='project',
-                                  dataset='dataset',
-                                  table='table',
-                                  query='SELECT * FROM `table`')
+        bq_ref = resources.BigQuery(project='project',
+                                    dataset='dataset',
+                                    table='table',
+                                    query='SELECT * FROM `table`')
 
         @ray.remote
         class ProcessActor:
@@ -108,10 +108,10 @@ class BigQueryTest(unittest.TestCase):
 
         processor = ProcessActor.remote()
         sink_actors = [
-            ray_io.bigquery.BigQuerySinkActor.remote(processor.process.remote,
-                                                     bq_ref, fake_bq_client)
+            bigquery_io.BigQuerySinkActor.remote(processor.process.remote,
+                                                 bq_ref, fake_bq_client)
         ]
-        source_actor = ray_io.bigquery.BigQuerySourceActor.remote(
+        source_actor = bigquery_io.BigQuerySourceActor.remote(
             sink_actors, bq_ref, fake_bq_client)
         ray.get(source_actor.run.remote())
 
