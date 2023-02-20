@@ -1,5 +1,6 @@
 """Sample for reading and writing to BigQuery."""
 
+import time
 import flowstate as flow
 
 _QUERY = """\
@@ -18,4 +19,6 @@ def process(bq_row):
     return bq_row
 
 
+start = time.time()
 flow.run()
+print('TOTAL SECONDS = ', time.time() - start)

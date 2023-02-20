@@ -25,7 +25,6 @@ dependencies = [
     "opentelemetry-exporter-otlp",
     "opentelemetry-exporter-jaeger",
     "pandas",
-    "pyarrow",
     "ray",
     "redis",
 ]

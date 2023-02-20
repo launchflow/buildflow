@@ -8,7 +8,6 @@ import uuid
 
 from google.cloud import bigquery
 from google.cloud import bigquery_storage_v1
-import pyarrow as pa
 import ray
 
 from flowstate.api import resources
@@ -26,9 +25,11 @@ class BigQuerySourceActor(base.RaySource):
         self,
         ray_sinks: Iterable[base.RaySink],
         stream: str,
+        batch_size: int
     ) -> None:
         super().__init__(ray_sinks)
         self.stream = stream
+        self.batch_size = batch_size
 
     @classmethod
     def source_inputs(cls, io_ref: resources.BigQuery, num_replicas: int):
@@ -67,18 +68,27 @@ class BigQuerySourceActor(base.RaySource):
         logging.warning('Starting %s streams for reading from BigQuery.',
                         len(read_session.streams))
 
-        return [[s.name] for s in read_session.streams]
+        return [[s.name, io_ref.batch_size] for s in read_session.streams]
 
-    async def run(self):
+    def run(self):
         storage_client = bigquery_storage_v1.BigQueryReadClient()
         response = storage_client.read_rows(self.stream)
         refs = []
+        results = []
+        count = 0
         for row in response.rows():
+            count += 1
+            if count >= self.batch_size:
+                batch_results = ray.get(refs)
+                results.extend(batch_results)
+                count = 0
+                refs = []
             py_row = dict(
                 map(lambda item: (item[0], item[1].as_py()), row.items()))
             for ray_sink in self.ray_sinks:
                 refs.append(ray_sink.write.remote(dict(py_row)))
-        return await asyncio.gather(*refs)
+        # TODO: need to add these to results
+        return ray.get(*refs)
 
 
 @ray.remote

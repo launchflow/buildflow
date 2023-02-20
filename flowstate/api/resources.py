@@ -47,6 +47,7 @@ class BigQuery(InputOutput):
     dataset: str = ''
     table: str = ''
     query: Optional[Query] = None
+    batch_size: int = 100
     _io_type: str = IOType.BigQuery.value
 
 
