@@ -1,9 +1,15 @@
 """IO connectors for Bigquery and Ray."""
 
+import asyncio
+import logging
+import time
 from typing import Any, Callable, Dict, Iterable, Union
+import uuid
 
-import ray
 from google.cloud import bigquery
+from google.cloud import bigquery_storage_v1
+import pyarrow as pa
+import ray
 
 from flowstate.api import resources
 from flowstate.runtime.ray_io import base
@@ -19,30 +25,60 @@ class BigQuerySourceActor(base.RaySource):
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        bq_ref: resources.BigQuery,
-        bq_client=None,
+        stream: str,
     ) -> None:
         super().__init__(ray_sinks)
-        if bq_client:
-            self.bq_client = bq_client
-        else:
-            self.bq_client = _get_bigquery_client()
-        self.query = bq_ref.query
-        if not self.query:
-            self.query = (
-                'SELECT * FROM '
-                f'`{bq_ref.project}.{bq_ref.dataset}.{bq_ref.table}`')
+        self.stream = stream
 
-    def run(self):
-        # TODO: it would be nice if we could shard up the reading
-        # of the rows with ray. What if someone instantiates the
-        # actor multiple times?
-        query_job = self.bq_client.query(self.query)
+    @classmethod
+    def source_inputs(cls, io_ref: resources.BigQuery, num_replicas: int):
+        bq_client = _get_bigquery_client()
+        if io_ref.query is None:
+            raise ValueError(
+                'Please provide a query. Reading directly from a table is not '
+                'currently supported.')
+        output_table = f'{io_ref.query.temporary_dataset}.{str(uuid.uuid4())}'
+        query_job = bq_client.query(
+            io_ref.query.query,
+            job_config=bigquery.QueryJobConfig(destination=output_table),
+        )
+
+        while not query_job.done():
+            logging.warning('waiting for BigQuery query to finish.')
+            time.sleep(1)
+
+        table = bq_client.get_table(output_table)
+        read_session = bigquery_storage_v1.types.ReadSession(
+            table=(f'projects/{table.project}/datasets/'
+                   f'{table.dataset_id}/tables/{table.table_id}'),
+            data_format=bigquery_storage_v1.types.DataFormat.ARROW)
+        storage_client = bigquery_storage_v1.BigQueryReadClient()
+        parent = f'projects/{table.project}'
+        read_session = storage_client.create_read_session(
+            parent=parent,
+            read_session=read_session,
+            max_stream_count=num_replicas)
+
+        rows_per_stream = table.num_rows / len(read_session.streams)
+        logging.warning(
+            'Reading in %s rows per stream. Increase the number of replicas '
+            'if this is to large.', rows_per_stream)
+
+        logging.warning('Starting %s streams for reading from BigQuery.',
+                        len(read_session.streams))
+
+        return [[s.name] for s in read_session.streams]
+
+    async def run(self):
+        storage_client = bigquery_storage_v1.BigQueryReadClient()
+        response = storage_client.read_rows(self.stream)
         refs = []
-        for row in query_job.result():
+        for row in response.rows():
+            py_row = dict(
+                map(lambda item: (item[0], item[1].as_py()), row.items()))
             for ray_sink in self.ray_sinks:
-                refs.append(ray_sink.write.remote(row))
-        return ray.get(refs)
+                refs.append(ray_sink.write.remote(dict(py_row)))
+        return await asyncio.gather(*refs)
 
 
 @ray.remote
@@ -52,20 +88,16 @@ class BigQuerySinkActor(base.RaySink):
         self,
         remote_fn: Callable,
         bq_ref: resources.BigQuery,
-        bq_client=None,
     ) -> None:
         super().__init__(remote_fn)
-        if bq_client:
-            self.bq_client = bq_client
-        else:
-            self.bq_client = _get_bigquery_client()
         self.bq_table_id = f'{bq_ref.project}.{bq_ref.dataset}.{bq_ref.table}'
 
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
+        bq_client = _get_bigquery_client()
         to_insert = element
         if isinstance(element, dict):
             to_insert = [element]
-        return self.bq_client.insert_rows(self.bq_table_id, to_insert)
+        return bq_client.insert_rows(self.bq_table_id, to_insert)

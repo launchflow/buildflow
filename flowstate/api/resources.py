@@ -1,6 +1,6 @@
 import dataclasses
 from enum import Enum
-from typing import Any, Dict, List, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar
 
 
 class InputOutput:
@@ -33,10 +33,20 @@ class PubSub(InputOutput):
 
 @dataclasses.dataclass
 class BigQuery(InputOutput):
+
+    @dataclasses.dataclass
+    class Query:
+        # The query to execute.
+        query: str
+        # Where to temporarily store the results of the query. This is required
+        # so we can better parallelize reading in the data.
+        # This should be of the format project.temporary_dataset
+        temporary_dataset: str
+
     project: str = ''
     dataset: str = ''
     table: str = ''
-    query: str = ''
+    query: Optional[Query] = None
     _io_type: str = IOType.BigQuery.value
 
 

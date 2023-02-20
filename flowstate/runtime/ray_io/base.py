@@ -70,3 +70,13 @@ class RaySource:
     def stream(self):
         raise NotImplementedError(
             f'`stream` method not implemented for class {self.__class__}')
+
+    @classmethod
+    def source_inputs(cls, io_ref, num_replicas: int):
+        """Creates the inputs needed to create this source.
+        
+        This can do work that needs to be done before sharding to the ray
+        actors. The best example of this is executing a bigquery query, then
+        the subsequent actors can each read a portion of that query.
+        """
+        return [[io_ref]] * num_replicas
