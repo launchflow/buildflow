@@ -18,6 +18,10 @@ class MyProcessor(flow.Processor):
     def _input():
         return flow.PubSub(subscription=_SUBSCRIPTION)
 
+    def _setup(self):
+        # this is where you would initialize any clients / shared state
+        self.client = ...
+
     def process(self, taxi_info):
         print(taxi_info)
         return taxi_info
