@@ -65,3 +65,7 @@ class RaySource:
 
     def run(self):
         raise ValueError('All Ray sources should implement: `run`')
+
+    @classmethod
+    def actor_inputs(cls, io_ref):
+        return [io_ref]

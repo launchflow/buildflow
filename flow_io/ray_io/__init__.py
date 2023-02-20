@@ -24,15 +24,24 @@ _IO_TYPE_TO_SINK = {
 }
 
 
-def run(remote_fn: Callable):
+def run(remote_fn: Callable, num_actors: int = 1):
     node_state = flow_state.get_node_state(flow_state.get_node_launch_file())
 
     sink_actors = [
         _IO_TYPE_TO_SINK[output_ref.__class__.__name__].remote(
             remote_fn, output_ref) for output_ref in node_state.output_refs
     ]
-    source_actor = _IO_TYPE_TO_SOURCE[
-        node_state.input_ref.__class__.__name__].remote(
-            sink_actors, node_state.input_ref)
 
-    return ray.get(source_actor.run.remote())
+    source_actors = []
+    actor_class = _IO_TYPE_TO_SOURCE[
+            node_state.input_ref.__class__.__name__]
+    actor_inputs = actor_class.actor_inputs(node_state.input_ref)
+    for _ in range(num_actors):
+        actor_class = _IO_TYPE_TO_SOURCE[
+            node_state.input_ref.__class__.__name__]
+        actor_inputs = actor_class.actor_inputs(node_state.input_ref)
+        source_actors.append(actor_class.remote(sink_actors, *actor_inputs))
+
+    run_refs = [actor.run.remote() for actor in source_actors]
+
+    return ray.get(run_refs)

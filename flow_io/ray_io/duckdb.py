@@ -1,6 +1,7 @@
 """IO connectors for DuckDB and Ray."""
 
 import logging
+from multiprocessing import connection
 import time
 from typing import Any, Callable, Dict, Iterable, Union
 
@@ -13,24 +14,47 @@ from flow_io.ray_io import base
 
 
 @ray.remote
+class DuckDBQueryActor:
+
+    def __init__(self, database: str, query: str, table: str) -> None:
+        if not query:
+            query = f'SELECT * FROM {table}'
+        self.query = query
+        self.database = database
+        self.connection = None
+
+    def connect(self):
+        self.connection = duckdb.connect(self.database, read_only=True)
+        self.connection.execute(self.query)
+
+    def get_connection(self):
+        if self.connection is None:
+            raise ValueError('connection not setup.')
+        return self.connection
+
+
+@ray.remote
 class DuckDBSourceActor(base.RaySource):
 
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        duckdb_ref=resources.DuckDB,
+        query_actor: DuckDBQueryActor,
     ) -> None:
         super().__init__(ray_sinks)
-        self.duck_con = duckdb.connect(database=duckdb_ref.database,
-                                       read_only=True)
-        query = duckdb_ref.query
-        if not query:
-            query = f'SELECT * FROM {duckdb_ref.table}'
-        self.duck_con.execute(query=query)
+        self.query_actor = query_actor
+
+    @classmethod
+    def actor_inputs(cls, io_ref):
+        query_actor = DuckDBQueryActor.remote(io_ref.database, io_ref.query,
+                                              io_ref.table)
+        ray.get(query_actor.connect.remote())
+        return [query_actor]
 
     def run(self):
         refs = []
-        df = self.duck_con.fetch_df_chunk()
+        conn = ray.get(self.query_actor.get_connection.remote())
+        df = conn.fetch_df_chunk()
         while not df.empty:
             elements = df.to_dict('records')
             for ray_sink in self.ray_sinks:
