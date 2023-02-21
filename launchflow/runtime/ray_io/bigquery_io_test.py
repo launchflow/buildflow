@@ -10,8 +10,8 @@ from typing import Any, Dict
 import pytest
 import ray
 
-from flowstate.api import resources
-from flowstate.runtime.ray_io import bigquery_io
+from launchflow.api import resources
+from launchflow.runtime.ray_io import bigquery_io
 
 
 @dataclass

@@ -2,7 +2,7 @@
 
 import logging
 import time
-import flowstate as flow
+import launchflow as flow
 
 _QUERY = """\
 SELECT

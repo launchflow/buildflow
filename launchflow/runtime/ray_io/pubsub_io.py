@@ -7,8 +7,8 @@ from typing import Any, Callable, Dict, Iterable, Union
 import ray
 from google.cloud import pubsub_v1
 
-from flowstate.api import resources
-from flowstate.runtime.ray_io import base
+from launchflow.api import resources
+from launchflow.runtime.ray_io import base
 
 
 @ray.remote
