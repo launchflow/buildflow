@@ -1,175 +1,95 @@
 """Tests for redis.py"""
 
-import json
-import os
-import shutil
-import tempfile
+import redis
+import subprocess
 import unittest
 
 import ray
 
-from flowstate import io
-
-
-class FakeRedisClient():
-
-    def __init__(self, stream_file: str) -> None:
-        self.stream_file = stream_file
-        self.stream_data = {}
-        self.stream_ids = {}
-
-    def _load_file(self):
-        with open(self.stream_file, 'r', encoding='UTF-8') as f:
-            try:
-                data = json.load(f)
-                return data['stream_data'], data['stream_ids']
-            except json.JSONDecodeError:
-                return {}, {}
-
-    def _write_file(self, stream_data, stream_ids):
-        data = {
-            'stream_data': stream_data,
-            'stream_ids': stream_ids,
-        }
-        with open(self.stream_file, 'w', encoding='UTF-8') as f:
-            json.dump(data, f)
-
-    def xadd(self, stream, data):
-        stream_data, stream_ids = self._load_file()
-        if stream not in stream_data:
-            stream_ids[stream] = 1
-            stream_data[stream] = {stream_ids[stream]: data}
-        else:
-            stream_data[stream][stream_ids[stream]] = data
-        stream_ids[stream] = stream_ids[stream] + 1
-        self._write_file(stream_data, stream_ids)
-
-    def xread(self, streams):
-        stream_data, _ = self._load_file()
-        to_ret = []
-        for stream, id_data in stream_data.items():
-            if stream not in streams:
-                continue
-            stream_data = []
-            for r_id, data in id_data.items():
-                if int(r_id) < int(streams[stream]):
-                    continue
-                encoded_data = {}
-                for key, value in data.items():
-                    encoded_data[key.encode()] = value.encode()
-                stream_data.append((str(r_id).encode(), encoded_data))
-            to_ret.append([stream.encode(), stream_data])
-        return to_ret
+from flow_io import ray_io
+import flow_io
 
 
 class RedisStream(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        cls.redis_process = subprocess.Popen(
+            'redis-server --port 8765'.split(' '))
         ray.init(num_cpus=1, num_gpus=0)
 
     @classmethod
     def tearDownClass(cls) -> None:
         ray.shutdown()
-
-    def setUp(self) -> None:
-        _, self.temp_file = tempfile.mkstemp()
-        self.temp_dir = tempfile.mkdtemp()
-        self.flow_file = os.path.join(self.temp_dir, 'flow_state.json')
-        self.deployment_file = os.path.join(self.temp_dir, 'deployment.json')
-        os.environ['FLOW_FILE'] = self.flow_file
-        os.environ['FLOW_DEPLOYMENT_FILE'] = self.deployment_file
-        with open(self.flow_file, 'w', encoding='UTF-8') as f:
-            flow_contents = {
-                'nodes': [
-                    {
-                        'nodeSpace': 'flow_io/ray_io'
-                    },
-                    {
-                        'nodeSpace': 'resource/queue/redis/stream/stream1',
-                    },
-                    {
-                        'nodeSpace': 'resource/queue/redis/stream/stream2',
-                    },
-                ],
-                'outgoingEdges': {
-                    'resource/queue/redis/stream/stream1': ['flow_io/ray_io'],
-                    'flow_io/ray_io': ['resource/queue/redis/stream/stream2'],
-                },
-            }
-            json.dump(flow_contents, f)
-        with open(self.deployment_file, 'w', encoding='UTF-8') as f:
-            json.dump(
-                {
-                    'nodeDeployments': {
-                        'resource/queue/redis/stream/stream1': {
-                            'host': 'localhost',
-                            'port': '6879',
-                            'streams': ['input_stream'],
-                            'start_positions': {
-                                'input_stream': 0
-                            },
-                        },
-                        'resource/queue/redis/stream/stream2': {
-                            'host': 'localhost',
-                            'port': '6879',
-                            'streams': ['output_stream']
-                        }
-                    }
-                }, f)
-
-    def tearDown(self):
-        shutil.rmtree(self.temp_dir)
+        cls.redis_process.kill()
 
     def test_end_to_end(self):
 
-        r = FakeRedisClient(self.temp_file)
+        redis_client = redis.Redis(host='localhost', port=8765)
 
-        r.xadd('input_stream', {'field': 'value'})
-        expected = [[
-            'output_stream'.encode(),
-            [('1'.encode(), {
-                'field'.encode(): 'value'.encode()
-            })]
-        ]]
+        redis_client.xadd('input_stream', {'field': 'value'})
 
-        sink = io.sink(redis_client=r)
-        source = io.source(sink.write, redis_client=r, num_reads=1)
-        ray.get(source.run.remote())
+        flow_io.init(
+            config={
+                'input':
+                flow_io.RedisStream(
+                    'localhost',
+                    8765,
+                    streams=['input_stream'],
+                    start_positions={'input_stream': 0},
+                    read_timeout_secs=5,
+                ),
+                'outputs': [
+                    flow_io.RedisStream(
+                        'localhost', 8765, streams=['output_stream'])
+                ]
+            })
 
-        data_written = r.xread({'output_stream': 0})
-        self.assertEqual(expected, data_written)
+        @ray.remote
+        def process(element):
+            return element
+
+        ray_io.run(process.remote)
+
+        data_written = redis_client.xread({'output_stream': 0})
+        self.assertEqual(len(data_written), 1)
+        self.assertEqual(len(data_written[0]), 2)
+        self.assertEqual(data_written[0][1][0][1],
+                         {'field'.encode(): 'value'.encode()})
 
     def test_end_to_end_multi_output(self):
 
-        r = FakeRedisClient(self.temp_file)
+        redis_client = redis.Redis(host='localhost', port=8765)
 
-        r.xadd('input_stream', {'field': 'value'})
-        expected = [[
-            'output_stream'.encode(),
-            [('1'.encode(), {
-                'field'.encode(): 'value'.encode()
-            }), ('2'.encode(), {
-                'field'.encode(): 'value'.encode()
-            })]
-        ]]
+        redis_client.xadd('input_stream', {'field': 'value'})
+
+        flow_io.init(
+            config={
+                'input':
+                flow_io.RedisStream(
+                    'localhost',
+                    8765,
+                    streams=['input_stream'],
+                    start_positions={'input_stream': 0},
+                    read_timeout_secs=5,
+                ),
+                'outputs': [
+                    flow_io.RedisStream(
+                        'localhost', 8765, streams=['output_stream'])
+                ]
+            })
 
         @ray.remote
-        class ProcessActor:
+        def process(element):
+            return element
 
-            def __init__(self, sink):
-                self.sink = sink
+        ray_io.run(process.remote)
 
-            def process(self, elem, carrier):
-                return ray.get(sink.write.remote([elem, elem], carrier))
-
-        sink = io.sink(redis_client=r)
-        processor = ProcessActor.remote(sink)
-        source = io.source(processor.process, redis_client=r, num_reads=1)
-        ray.get(source.run.remote())
-
-        data_written = r.xread({'output_stream': 0})
-        self.assertEqual(expected, data_written)
+        data_written = redis_client.xread({'output_stream': 0})
+        self.assertEqual(data_written[0][1][0][1],
+                         {'field'.encode(): 'value'.encode()})
+        self.assertEqual(data_written[0][1][1][1],
+                         {'field'.encode(): 'value'.encode()})
 
 
 if __name__ == '__main__':

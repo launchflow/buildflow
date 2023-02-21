@@ -2,12 +2,13 @@
 
 import logging
 import time
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Union
 
 import ray
 import redis
 
-from flowstate.runtime.ray_io import base
+from flow_io import resources
+from flow_io.ray_io import base
 
 
 @ray.remote
@@ -15,31 +16,17 @@ class RedisStreamInput(base.RaySource):
 
     def __init__(
         self,
-        ray_inputs: Iterable,
-        node_space: str,
-        host: str,
-        port: int,
-        streams: List[str],
-        start_positions: Optional[Dict[str, str]] = None,
-        # Number of reads to do from redis.
-        # If this is <= 0 it will continually pull data.
-        num_reads: int = -1,
-        # Redis client to use. In general this should only be set for
-        # testing purposes.
-        redis_client=None,
+        ray_sinks: Iterable[base.RaySink],
+        redis_stream_ref: resources.RedisStream,
     ) -> None:
-        super().__init__(ray_inputs, node_space)
-        if redis_client is None:
-            redis_client = redis.Redis(host=host, port=port)
-        self.redis_client = redis_client
-        self.redis_client = redis_client
-        self.num_reads = num_reads
+        super().__init__(ray_sinks)
+        self.redis_client = redis.Redis(host=redis_stream_ref.host,
+                                        port=redis_stream_ref.port)
+        self.timeout_secs = redis_stream_ref.read_timeout_secs
         self.streams = {}
-        if start_positions is None:
-            start_positions = {}
-        for stream in streams:
-            if stream in start_positions:
-                start = start_positions[stream]
+        for stream in redis_stream_ref.streams:
+            if stream in redis_stream_ref.start_positions:
+                start = redis_stream_ref.start_positions[stream]
             else:
                 try:
                     stream_info = self.redis_client.xinfo_stream(stream)
@@ -52,12 +39,14 @@ class RedisStreamInput(base.RaySource):
             self.streams[stream] = start
 
     def run(self):
-        i = 0
         logging.info(
             'Started listening to the following streams at the s'
             'pecified ID: %s', self.streams)
-        while i < self.num_reads or self.num_reads <= 0:
-            i += 1
+        start = time.time()
+        while True:
+            if (self.timeout_secs > 0
+                    and time.time() - start > self.timeout_secs):
+                break
             stream_data = self.redis_client.xread(streams=self.streams)
             for stream in stream_data:
                 stream_name = stream[0]
@@ -69,8 +58,8 @@ class RedisStreamInput(base.RaySource):
                     for key, value in item.items():
                         decoded_item[key.decode()] = value.decode()
                     refs = []
-                    for ray_input in self.ray_inputs:
-                        refs.append(ray_input.remote(decoded_item, {}))
+                    for ray_sink in self.ray_sinks:
+                        refs.append(ray_sink.write.remote(decoded_item))
                     ray.get(refs)
 
             time.sleep(1)
@@ -81,26 +70,18 @@ class RedisStreamOutput(base.RaySink):
 
     def __init__(
         self,
-        node_space: str,
-        host: str,
-        port: int,
-        streams: List[str],
-        start_positions: Optional[Dict[str, str]] = None,
-        redis_client=None,
+        remote_fn: Callable,
+        redis_stream_ref: resources.RedisStream,
     ) -> None:
-        super().__init__(node_space)
-        if redis_client is None:
-            redis_client = redis.Redis(host=host, port=port)
-        self.redis_client = redis_client
-        self.streams = streams
+        super().__init__(remote_fn)
+        self.redis_client = redis.Redis(host=redis_stream_ref.host,
+                                        port=redis_stream_ref.port)
+        self.streams = redis_stream_ref.streams
 
     def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
-        carrier: Dict[str, str],
     ):
-        # TODO: Add tracing
-        del carrier
         to_insert = element
         if isinstance(element, dict):
             to_insert = [element]
