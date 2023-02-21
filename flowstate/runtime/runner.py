@@ -62,7 +62,7 @@ class Runtime:
         # TODO: maybe this should be max_io_replicas? For reading from bigquery
         # the API will use less replicas if it's smaller data.
         self._config = {
-            'num_io_replicas': 100,
+            'num_io_replicas': 1,
         }
 
         if self._initialized:
