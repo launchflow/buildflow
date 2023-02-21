@@ -43,5 +43,5 @@ class EmptySinkActor(base.RaySink):
     ) -> None:
         super().__init__(remote_fn)
 
-    def _write(self, element=Any):
-        return element
+    async def _write(self, elements=Any):
+        return elements
