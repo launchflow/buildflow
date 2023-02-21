@@ -8,8 +8,7 @@ import unittest
 import duckdb
 import ray
 
-from flowstate.api import resources
-from flowstate.runtime.ray_io import duckdb_io
+import flowstate
 
 
 class DuckDBTest(unittest.TestCase):
@@ -31,7 +30,7 @@ class DuckDBTest(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
 
     def test_end_to_end(self):
-        input_con = duckdb_io.connect(self.input_database)
+        input_con = duckdb.connect(self.input_database)
         input_con.execute('CREATE TABLE input_table(number INTEGER)')
         input_con.execute('INSERT INTO input_table VALUES (1), (2), (3)')
         input_con.close()
@@ -51,9 +50,9 @@ class DuckDBTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        io.run(process.remote)
+        flowstate.run(process.remote)
 
-        output_con = duckdb_io.connect(self.output_database)
+        output_con = duckdb.connect(self.output_database)
         output_con.execute('SELECT * FROM output_table')
         rows = output_con.fetchall()
 
@@ -63,7 +62,7 @@ class DuckDBTest(unittest.TestCase):
 
     def test_end_to_end_multi_output(self):
 
-        input_con = duckdb_io.connect(self.input_database)
+        input_con = duckdb.connect(self.input_database)
         input_con.execute('CREATE TABLE input_table(number INTEGER)')
         input_con.execute('INSERT INTO input_table VALUES (1), (2), (3)')
         input_con.close()
@@ -83,9 +82,9 @@ class DuckDBTest(unittest.TestCase):
         def process(elem):
             return [elem, elem]
 
-        io.run(process.remote)
+        flowstate.run(process.remote)
 
-        output_con = duckdb_io.connect(self.output_database)
+        output_con = duckdb.connect(self.output_database)
         output_con.execute('SELECT * FROM output_table')
         rows = output_con.fetchall()
 

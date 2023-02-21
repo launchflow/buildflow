@@ -11,4 +11,4 @@ def run(processor_class: Optional[type] = None):
     if processor_class is not None:
         runtime.register_processor(processor_class, processor_class._input(),
                                    processor_class._output())
-    runtime.run()
+    return runtime.run()

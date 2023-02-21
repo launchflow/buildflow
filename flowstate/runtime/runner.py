@@ -1,5 +1,6 @@
 # import os
-from typing import Dict
+import traceback
+from typing import Dict, Iterable
 import dataclasses
 from flowstate.api import resources, ProcessorAPI
 from flowstate.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
@@ -34,7 +35,7 @@ class _ProcessorRef:
 @ray.remote
 class _ProcessActor(object):
 
-    def __init__(self, processor_class: type):
+    def __init__(self, processor_class):
         self._processor: ProcessorAPI = processor_class()
         print(f'Running processor setup: {self._processor.__class__}')
         self._processor._setup()
@@ -42,6 +43,12 @@ class _ProcessActor(object):
     # TODO: Add support for process_async
     def process(self, *args, **kwargs):
         return self._processor.process(*args, **kwargs)
+
+    def process_batch(self, calls: Iterable):
+        to_ret = []
+        for call in calls:
+            to_ret.append(self.process(call))
+        return to_ret
 
 
 class Runtime:
@@ -52,8 +59,10 @@ class Runtime:
     def __init__(self):
         # TODO: Flesh this class out
         # _ = os.environ['FLOW_CONFIG']
+        # TODO: maybe this should be max_io_replicas? For reading from bigquery
+        # the API will use less replicas if it's smaller data.
         self._config = {
-            'num_io_replicas': 1,
+            'num_io_replicas': 100,
         }
 
         if self._initialized:
@@ -72,33 +81,46 @@ class Runtime:
         print('Starting Flow Runtime')
 
         try:
-            self._run()
+            return self._run()
         except Exception as e:
-            print(f'Flow failed with error: {e}')
-
-        print('Flow completed successfully!')
+            print('Flow failed with error:')
+            traceback.print_exception(e)
 
     def _run(self):
         # TODO: Support multiple processors
         processor_ref = list(self._processors.values())[0]
 
-        processor_actor = _ProcessActor.remote(processor_ref.processor_class)
+        source_actor_class = _IO_TYPE_TO_SOURCE[
+            processor_ref.input_ref.__class__.__name__]
+        sink_actor_class = _IO_TYPE_TO_SINK[
+            processor_ref.output_ref.__class__.__name__]
+        source_inputs = source_actor_class.source_inputs(
+            processor_ref.input_ref, self._config['num_io_replicas'])
+        sources = []
+        for inputs in source_inputs:
+            processor_actor = _ProcessActor.remote(
+                processor_ref.processor_class)
+            sink = sink_actor_class.remote(
+                processor_actor.process_batch.remote, processor_ref.output_ref)
+            sources.append(
+                # TODO: probably need support for unique keys. What if someone
+                # writes to two bigquery tables?
+                source_actor_class.remote(
+                    {str(processor_ref.output_ref): sink},
+                    *inputs))
 
-        all_source_actors = []
-        for _ in range(self._config['num_io_replicas']):
-            sink_actor = _IO_TYPE_TO_SINK[
-                processor_ref.output_ref.__class__.__name__].remote(
-                    processor_actor.process.remote, processor_ref.output_ref)
-            source_actor = _IO_TYPE_TO_SOURCE[
-                processor_ref.input_ref.__class__.__name__].remote(
-                    [sink_actor], processor_ref.input_ref)
-            all_source_actors.append(source_actor)
-
-        source_pool = ActorPool(all_source_actors)
-        return list(
-            source_pool.map(
-                lambda actor, _: actor.run.remote(),
-                [None for _ in range(self._config['num_io_replicas'])]))
+        source_pool = ActorPool(sources)
+        all_actor_outputs = list(
+            source_pool.map(lambda actor, _: actor.run.remote(),
+                            [None for _ in range(len(sources))]))
+        final_output = {}
+        for actor_output in all_actor_outputs:
+            for key, value in actor_output.items():
+                if key in final_output:
+                    final_output[key].extend(value)
+                else:
+                    final_output[key] = value
+        return final_output
 
     def register_processor(self, processor_class: type,
                            input_ref: resources.IO, output_ref: resources.IO):
