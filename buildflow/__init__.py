@@ -1,9 +1,9 @@
 # flake8: noqa
 from typing import Optional
 
-from flowstate.api import *
-from flowstate.runtime.processor import Processor, processor
-from flowstate.runtime.runner import Runtime
+from buildflow.api import *
+from buildflow.runtime.processor import Processor, processor
+from buildflow.runtime.runner import Runtime
 
 
 def run(processor_class: Optional[type] = None):

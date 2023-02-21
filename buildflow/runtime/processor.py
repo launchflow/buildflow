@@ -1,9 +1,9 @@
 import uuid
 from typing import Optional
 
-from flowstate.api.resources import IO, Empty
-from flowstate.runtime import Runtime
-from flowstate.api import ProcessorAPI
+from buildflow.api.resources import IO, Empty
+from buildflow.runtime import Runtime
+from buildflow.api import ProcessorAPI
 
 
 class Processor(ProcessorAPI):

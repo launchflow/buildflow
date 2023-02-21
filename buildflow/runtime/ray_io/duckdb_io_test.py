@@ -8,7 +8,7 @@ import unittest
 import duckdb
 import ray
 
-import flowstate
+import buildflow
 
 
 class DuckDBTest(unittest.TestCase):
@@ -35,13 +35,13 @@ class DuckDBTest(unittest.TestCase):
         input_con.execute('INSERT INTO input_table VALUES (1), (2), (3)')
         input_con.close()
 
-        flowstate.init(
+        buildflow.init(
             config={
                 'input':
-                flowstate.DuckDB(database=self.input_database,
+                buildflow.DuckDB(database=self.input_database,
                                  table='input_table'),
                 'outputs': [
-                    flowstate.DuckDB(database=self.output_database,
+                    buildflow.DuckDB(database=self.output_database,
                                      table='output_table')
                 ]
             })
@@ -50,7 +50,7 @@ class DuckDBTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        flowstate.run(process.remote)
+        buildflow.run(process.remote)
 
         output_con = duckdb.connect(self.output_database)
         output_con.execute('SELECT * FROM output_table')
@@ -67,13 +67,13 @@ class DuckDBTest(unittest.TestCase):
         input_con.execute('INSERT INTO input_table VALUES (1), (2), (3)')
         input_con.close()
 
-        flowstate.init(
+        buildflow.init(
             config={
                 'input':
-                flowstate.DuckDB(database=self.input_database,
+                buildflow.DuckDB(database=self.input_database,
                                  table='input_table'),
                 'outputs': [
-                    flowstate.DuckDB(database=self.output_database,
+                    buildflow.DuckDB(database=self.output_database,
                                      table='output_table')
                 ]
             })
@@ -82,7 +82,7 @@ class DuckDBTest(unittest.TestCase):
         def process(elem):
             return [elem, elem]
 
-        flowstate.run(process.remote)
+        buildflow.run(process.remote)
 
         output_con = duckdb.connect(self.output_database)
         output_con.execute('SELECT * FROM output_table')
