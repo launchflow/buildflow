@@ -4,7 +4,7 @@ from typing import Dict, Iterable
 import dataclasses
 from launchflow.api import resources, ProcessorAPI
 from launchflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
-                                      pubsub_io)
+                                       pubsub_io)
 import ray
 from ray.util import ActorPool
 
