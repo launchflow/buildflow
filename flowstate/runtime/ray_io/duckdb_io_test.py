@@ -8,7 +8,7 @@ import unittest
 import duckdb
 import ray
 
-import launchflow
+import flowstate
 
 
 class DuckDBTest(unittest.TestCase):
@@ -35,14 +35,14 @@ class DuckDBTest(unittest.TestCase):
         input_con.execute('INSERT INTO input_table VALUES (1), (2), (3)')
         input_con.close()
 
-        launchflow.init(
+        flowstate.init(
             config={
                 'input':
-                launchflow.DuckDB(database=self.input_database,
-                                  table='input_table'),
+                flowstate.DuckDB(database=self.input_database,
+                                 table='input_table'),
                 'outputs': [
-                    launchflow.DuckDB(database=self.output_database,
-                                      table='output_table')
+                    flowstate.DuckDB(database=self.output_database,
+                                     table='output_table')
                 ]
             })
 
@@ -50,7 +50,7 @@ class DuckDBTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        launchflow.run(process.remote)
+        flowstate.run(process.remote)
 
         output_con = duckdb.connect(self.output_database)
         output_con.execute('SELECT * FROM output_table')
@@ -67,14 +67,14 @@ class DuckDBTest(unittest.TestCase):
         input_con.execute('INSERT INTO input_table VALUES (1), (2), (3)')
         input_con.close()
 
-        launchflow.init(
+        flowstate.init(
             config={
                 'input':
-                launchflow.DuckDB(database=self.input_database,
-                                  table='input_table'),
+                flowstate.DuckDB(database=self.input_database,
+                                 table='input_table'),
                 'outputs': [
-                    launchflow.DuckDB(database=self.output_database,
-                                      table='output_table')
+                    flowstate.DuckDB(database=self.output_database,
+                                     table='output_table')
                 ]
             })
 
@@ -82,7 +82,7 @@ class DuckDBTest(unittest.TestCase):
         def process(elem):
             return [elem, elem]
 
-        launchflow.run(process.remote)
+        flowstate.run(process.remote)
 
         output_con = duckdb.connect(self.output_database)
         output_con.execute('SELECT * FROM output_table')

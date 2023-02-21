@@ -2,7 +2,7 @@ from typing import Any, Dict, Mapping, Optional, Sequence, TypeVar, Union
 
 from google.cloud import bigquery
 
-from launchflow.api import resources
+from flowstate.api import resources
 
 # This is the type annotation stored in bigquery.Table(...) objects.
 BIGQUERY_SCHEMA = TypeVar('BIGQUERY_SCHEMA',
