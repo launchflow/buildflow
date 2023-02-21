@@ -1,13 +1,13 @@
-# flowstate
+# buildflow
 
-![CI](https://github.com/launchflow/flowstate/actions/workflows/python_ci.yaml/badge.svg)
+![CI](https://github.com/launchflow/buildflow/actions/workflows/python_ci.yaml/badge.svg)
 
-__flowstate__ is a unified __batch__ and __streaming__ framework that turns
+**buildflow** is a unified **batch** and **streaming** framework that turns
 any python function into a scalable data pipeline.
 
 Key Features:
 
-- Fast - Scalable multiprocessing powered by [Ray](https://ray.io) 
+- Fast - Scalable multiprocessing powered by [Ray](https://ray.io)
 - Easy to learn- Get started with 2 lines of code
 - Production Ready - Ready made IO connectors let users focus on processing
   data instead of reading and writing data
@@ -17,13 +17,13 @@ Key Features:
 Install the framework
 
 ```
-pip install flowstate
+pip install buildflow
 ```
 
 Import the framework.
 
 ```python
-import flowstate as flow
+import buildflow as flow
 ```
 
 Add the `flow.processor` decorator to your function to attach IO.
@@ -42,6 +42,7 @@ flow.run()
 ```
 
 ## Examples
+
 Streaming pipeline reading from Google Pub/Sub and writing to BigQuery.
 
 ```python
@@ -60,7 +61,7 @@ flow.run()
 Batch pipeline reading and writing to BigQuery.
 
 ```python
-import flowstate as flow
+import buildflow as flow
 
 QUERY = 'SELECT * FROM `project.dataset.input_table`'
 @flow.processor(
@@ -76,7 +77,7 @@ flow.run()
 Batch pipeline reading from BigQuery and returning output locally.
 
 ```python
-import flowstate as flow
+import buildflow as flow
 
 QUERY = 'SELECT * FROM `table`'
 @flow.processor(input_ref=flow.BigQuery(query=QUERY))

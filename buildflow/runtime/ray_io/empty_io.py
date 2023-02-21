@@ -5,8 +5,8 @@ from typing import Any, Callable, Iterable
 
 import ray
 
-from flowstate.api import resources
-from flowstate.runtime.ray_io import base
+from buildflow.api import resources
+from buildflow.runtime.ray_io import base
 
 
 @ray.remote

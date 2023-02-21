@@ -7,9 +7,9 @@ import unittest
 
 import ray
 
-from flowstate import flow_state
-from flowstate import resources
-from flowstate import io
+from buildflow import flow_state
+from buildflow import resources
+from buildflow import io
 
 
 class EmptyTest(unittest.TestCase):
