@@ -39,17 +39,17 @@ class RaySink:
 
     def _write(
         self,
-        element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        elements: Iterable[Dict[str, Any]],
     ):
         raise NotImplementedError(
             f'`_write` method not implemented for class {self.__class__}')
 
     async def write(
         self,
-        element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        elements: Iterable[Dict[str, Any]],
         context: Dict[str, str] = {},
     ):
-        result = await self.remote_fn(element)
+        result = await self.remote_fn(elements)
 
         if self.data_tracing_enabled:
             add_to_trace(key=self.__class__.__name__,

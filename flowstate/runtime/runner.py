@@ -1,6 +1,6 @@
 # import os
 import traceback
-from typing import Dict
+from typing import Dict, Iterable
 import dataclasses
 from flowstate.api import resources, ProcessorAPI
 from flowstate.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
@@ -44,6 +44,12 @@ class _ProcessActor(object):
     def process(self, *args, **kwargs):
         return self._processor.process(*args, **kwargs)
 
+    def process_batch(self, calls: Iterable):
+        to_ret = []
+        for call in calls:
+            to_ret.append(self._processor.process(call))
+        return to_ret
+
 
 class Runtime:
     # NOTE: This is the singleton class.
@@ -56,7 +62,7 @@ class Runtime:
         # TODO: maybe this should be max_io_replicas? For reading from bigquery
         # the API will use less replicas if it's smaller data.
         self._config = {
-            'num_io_replicas': 10,
+            'num_io_replicas': 1,
         }
 
         if self._initialized:
@@ -95,7 +101,7 @@ class Runtime:
             processor_ref.output_ref.__class__.__name__]
         for source_actor_arg in source_actor_args:
             sink_actor = sink_actor_class.remote(
-                processor_actor.process.remote, processor_ref.output_ref)
+                processor_actor.process_batch.remote, processor_ref.output_ref)
             source_actor = source_actor_class.remote([sink_actor],
                                                      *source_actor_arg)
             all_source_actors.append(source_actor)

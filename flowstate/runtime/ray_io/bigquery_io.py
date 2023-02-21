@@ -1,8 +1,8 @@
 """IO connectors for Bigquery and Ray."""
 
-import asyncio
 import logging
 import time
+import sys
 from typing import Any, Callable, Dict, Iterable, Union
 import uuid
 
@@ -74,20 +74,21 @@ class BigQuerySourceActor(base.RaySource):
         storage_client = bigquery_storage_v1.BigQueryReadClient()
         response = storage_client.read_rows(self.stream)
         refs = []
-        results = []
         count = 0
+        row_batch = []
+        bytes_sum = 0
         for row in response.rows():
             count += 1
-            if count >= self.batch_size:
-                batch_results = ray.get(refs)
-                results.extend(batch_results)
-                count = 0
-                refs = []
             py_row = dict(
-                map(lambda item: (item[0], item[1].as_py()), row.items()))
-            for ray_sink in self.ray_sinks:
-                refs.append(ray_sink.write.remote(dict(py_row)))
-        # TODO: need to add these to results
+                    map(lambda item: (item[0], item[1].as_py()), row.items()))
+            bytes_sum += sys.getsizeof(py_row)
+            if count % 1000000 == 0:
+                logging.warning('HAVE THIS MANY ROWS: %s', count)
+                logging.warning('size of row: %s', bytes_sum / count)
+            row_batch.append(py_row)
+        logging.warning('HAVE THIS MANY ROWS: %s', count)
+        for ray_sink in self.ray_sinks:
+            refs.append(ray_sink.write.remote(row_batch))
         return ray.get(*refs)
 
 
@@ -104,10 +105,7 @@ class BigQuerySinkActor(base.RaySink):
 
     def _write(
         self,
-        element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        elements: Iterable[Dict[str, Any]],
     ):
         bq_client = _get_bigquery_client()
-        to_insert = element
-        if isinstance(element, dict):
-            to_insert = [element]
-        return bq_client.insert_rows(self.bq_table_id, to_insert)
+        return bq_client.insert_rows(self.bq_table_id, elements)
