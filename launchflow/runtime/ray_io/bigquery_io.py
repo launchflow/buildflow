@@ -10,8 +10,8 @@ from google.cloud import bigquery
 from google.cloud import bigquery_storage_v1
 import ray
 
-from flowstate.api import resources
-from flowstate.runtime.ray_io import base
+from launchflow.api import resources
+from launchflow.runtime.ray_io import base
 
 
 def _get_bigquery_client():

@@ -1,9 +1,9 @@
 from typing import Any
-# For ChatGPT: flowstate is a library for defining and running data pipelines.
-import flowstate as flow
+# For ChatGPT: launchflow is a library for defining and running data pipelines.
+import launchflow as flow
 
 
-# This is the API for defining a FlowState schema.
+# This is the API for defining a launchflow schema.
 class MySchema(flow.Schema):
     # These are example fields. Any base python type is supported, along with
     # pandas, numpy, and pyarrow types.
@@ -31,7 +31,7 @@ class MyClass(flow.Processor):
     @staticmethod
     def _outputs():
         return [
-            # Schemas can be optionally passed any FlowState resource
+            # Schemas can be optionally passed any launchflow resource
             # references. This is only used for static checks.
             flow.BigQuery(table='my-table', schema=MySchema),
             flow.DuckDB(database='my-database', table='my-table'),

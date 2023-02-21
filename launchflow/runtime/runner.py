@@ -2,9 +2,9 @@
 import traceback
 from typing import Dict, Iterable
 import dataclasses
-from flowstate.api import resources, ProcessorAPI
-from flowstate.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
-                                      pubsub_io)
+from launchflow.api import resources, ProcessorAPI
+from launchflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
+                                       pubsub_io)
 import ray
 from ray.util import ActorPool
 
