@@ -35,7 +35,7 @@ class _ProcessorRef:
 @ray.remote
 class _ProcessActor(object):
 
-    def __init__(self, processor_class: type):
+    def __init__(self, processor_class):
         self._processor: ProcessorAPI = processor_class()
         print(f'Running processor setup: {self._processor.__class__}')
         self._processor._setup()
@@ -47,7 +47,7 @@ class _ProcessActor(object):
     def process_batch(self, calls: Iterable):
         to_ret = []
         for call in calls:
-            to_ret.append(self._processor.process(call))
+            to_ret.append(self.process(call))
         return to_ret
 
 
@@ -62,7 +62,7 @@ class Runtime:
         # TODO: maybe this should be max_io_replicas? For reading from bigquery
         # the API will use less replicas if it's smaller data.
         self._config = {
-            'num_io_replicas': 1,
+            'num_io_replicas': 100,
         }
 
         if self._initialized:
@@ -90,27 +90,24 @@ class Runtime:
         # TODO: Support multiple processors
         processor_ref = list(self._processors.values())[0]
 
-        processor_actor = _ProcessActor.remote(processor_ref.processor_class)
-
-        all_source_actors = []
         source_actor_class = _IO_TYPE_TO_SOURCE[
             processor_ref.input_ref.__class__.__name__]
-        source_actor_args = source_actor_class.source_inputs(
-            processor_ref.input_ref, self._config['num_io_replicas'])
         sink_actor_class = _IO_TYPE_TO_SINK[
             processor_ref.output_ref.__class__.__name__]
-        for source_actor_arg in source_actor_args:
-            sink_actor = sink_actor_class.remote(
+        source_inputs = source_actor_class.source_inputs(
+            processor_ref.input_ref, self._config['num_io_replicas'])
+        sources = []
+        for inputs in source_inputs:
+            processor_actor = _ProcessActor.remote(
+                processor_ref.processor_class)
+            sink = sink_actor_class.remote(
                 processor_actor.process_batch.remote, processor_ref.output_ref)
-            source_actor = source_actor_class.remote([sink_actor],
-                                                     *source_actor_arg)
-            all_source_actors.append(source_actor)
+            sources.append(source_actor_class.remote([sink], *inputs))
 
-        source_pool = ActorPool(all_source_actors)
+        source_pool = ActorPool(sources)
         return list(
-            source_pool.map(
-                lambda actor, _: actor.run.remote(),
-                [None for _ in range(self._config['num_io_replicas'])]))
+            source_pool.map(lambda actor, _: actor.run.remote(),
+                            [None for _ in range(len(sources))]))
 
     def register_processor(self, processor_class: type,
                            input_ref: resources.IO, output_ref: resources.IO):

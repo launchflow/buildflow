@@ -1,7 +1,7 @@
 """Base class for all Ray IO Connectors"""
 
 import os
-from typing import Any, Callable, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable
 
 from flowstate.runtime import tracer as t
 
@@ -56,7 +56,7 @@ class RaySink:
                          value={'output_data': result},
                          context=context)
 
-        return self._write(result)
+        return await self._write(result)
 
 
 class RaySource:
@@ -73,10 +73,12 @@ class RaySource:
 
     @classmethod
     def source_inputs(cls, io_ref, num_replicas: int):
-        """Creates the inputs needed to create this source.
-        
-        This can do work that needs to be done before sharding to the ray
-        actors. The best example of this is executing a bigquery query, then
-        the subsequent actors can each read a portion of that query.
+        """Creates an instance of the source.
+
+        This will be executed only once per runtime before the flow is actually
+        started. It is a good place to do work that can not be serialized
+        across processes. The best example of this is executing a bigquery
+        query, then the subsequent actors can each read a portion of that
+        query.
         """
-        return [[io_ref]] * num_replicas
+        return [(io_ref,)] * num_replicas

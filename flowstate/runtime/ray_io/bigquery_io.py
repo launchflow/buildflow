@@ -1,9 +1,9 @@
 """IO connectors for Bigquery and Ray."""
 
+import asyncio
 import logging
 import time
-import sys
-from typing import Any, Callable, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable
 import uuid
 
 from google.cloud import bigquery
@@ -25,14 +25,17 @@ class BigQuerySourceActor(base.RaySource):
         self,
         ray_sinks: Iterable[base.RaySink],
         stream: str,
-        batch_size: int
     ) -> None:
         super().__init__(ray_sinks)
         self.stream = stream
-        self.batch_size = batch_size
+        logging.basicConfig(level=logging.INFO)
 
     @classmethod
-    def source_inputs(cls, io_ref: resources.BigQuery, num_replicas: int):
+    def source_inputs(
+        cls,
+        io_ref: resources.BigQuery,
+        num_replicas: int,
+    ):
         bq_client = _get_bigquery_client()
         if io_ref.query is None:
             raise ValueError(
@@ -45,7 +48,7 @@ class BigQuerySourceActor(base.RaySource):
         )
 
         while not query_job.done():
-            logging.warning('waiting for BigQuery query to finish.')
+            logging.info('waiting for BigQuery query to finish.')
             time.sleep(1)
 
         table = bq_client.get_table(output_table)
@@ -60,40 +63,54 @@ class BigQuerySourceActor(base.RaySource):
             read_session=read_session,
             max_stream_count=num_replicas)
 
-        rows_per_stream = table.num_rows / len(read_session.streams)
-        logging.warning(
-            'Reading in %s rows per stream. Increase the number of replicas '
-            'if this is to large.', rows_per_stream)
+        num_streams = len(read_session.streams)
+        rows_per_stream = table.num_rows / num_streams
+        logging.info('Starting %s streams for reading from BigQuery.',
+                     num_streams)
+        logging.info('Reading in %s rows per stream.', rows_per_stream)
+        if num_streams < num_replicas:
+            logging.warning(
+                ('You requested %s replicas, but BigQuery recommends %s '
+                 'streams. Only starting %s replicas.'), num_replicas,
+                num_streams, num_streams)
+        elif num_streams == num_replicas:
+            logging.warning((
+                'Number of streams (%s) matched number of replicas. You '
+                'maybe be able to get more parallelism by increasing replicas.'
+            ), num_streams)
 
-        logging.warning('Starting %s streams for reading from BigQuery.',
-                        len(read_session.streams))
+        bigquery_sources = []
+        for stream in read_session.streams:
+            bigquery_sources.append((stream.name, ))
+        return bigquery_sources
 
-        return [[s.name, io_ref.batch_size] for s in read_session.streams]
-
-    def run(self):
+    async def run(self):
         storage_client = bigquery_storage_v1.BigQueryReadClient()
         response = storage_client.read_rows(self.stream)
-        refs = []
-        count = 0
         row_batch = []
-        bytes_sum = 0
         for row in response.rows():
-            count += 1
             py_row = dict(
-                    map(lambda item: (item[0], item[1].as_py()), row.items()))
-            bytes_sum += sys.getsizeof(py_row)
-            if count % 1000000 == 0:
-                logging.warning('HAVE THIS MANY ROWS: %s', count)
-                logging.warning('size of row: %s', bytes_sum / count)
+                map(lambda item: (item[0], item[1].as_py()), row.items()))
             row_batch.append(py_row)
-        logging.warning('HAVE THIS MANY ROWS: %s', count)
+        refs = []
         for ray_sink in self.ray_sinks:
-            refs.append(ray_sink.write.remote(row_batch))
-        return ray.get(*refs)
+            result = await asyncio.gather(ray_sink.write.remote(row_batch))
+            refs.append(result)
+        return refs
+
+
+@ray.remote
+def insert_rows(bigquery_table_id, elements: Iterable[Dict[str, Any]]):
+    bq_client = _get_bigquery_client()
+    return bq_client.insert_rows(bq_client.get_table(bigquery_table_id),
+                                 elements)
 
 
 @ray.remote
 class BigQuerySinkActor(base.RaySink):
+
+    # TODO: should make this configure able.
+    _BATCH_SIZE = 10000
 
     def __init__(
         self,
@@ -103,9 +120,18 @@ class BigQuerySinkActor(base.RaySink):
         super().__init__(remote_fn)
         self.bq_table_id = f'{bq_ref.project}.{bq_ref.dataset}.{bq_ref.table}'
 
-    def _write(
+    async def insert_rows(self, elements: Iterable[Dict[str, Any]]):
+        bq_client = _get_bigquery_client()
+        return bq_client.insert_rows(bq_client.get_table(self.bq_table_id),
+                                     elements)
+
+    async def _write(
         self,
         elements: Iterable[Dict[str, Any]],
     ):
-        bq_client = _get_bigquery_client()
-        return bq_client.insert_rows(self.bq_table_id, elements)
+        writes = []
+        for i in range(0, len(elements), self._BATCH_SIZE):
+            writes.append(
+                insert_rows.remote(self.bq_table_id,
+                                   elements[i:i + self._BATCH_SIZE]))
+        return await asyncio.gather(*writes)
