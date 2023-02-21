@@ -1,6 +1,5 @@
 """IO connectors for Pub/Sub and Ray."""
 
-import asyncio
 import json
 import time
 from typing import Any, Callable, Dict, Iterable, Union
@@ -17,7 +16,7 @@ class PubSubSourceActor(base.RaySource):
 
     def __init__(
         self,
-        ray_sinks: Iterable[base.RaySink],
+        ray_sinks: Dict[str, base.RaySink],
         pubsub_ref: resources.PubSub,
     ) -> None:
         super().__init__(ray_sinks)
@@ -58,14 +57,7 @@ class PubSubSourceActor(base.RaySource):
                     json_loaded = json.loads(decoded_data)
                     payloads.append(json_loaded)
                     ack_ids.append(received_message.ack_id)
-                for ray_sink in self.ray_sinks:
-                    # TODO: add tracing context
-                    process_ref = ray_sink.write.remote(payloads)
-                    # TODO: support multiple sinks (rn it overwrites dict)
-                    ray_futures.append(process_ref)
-
-                # print('waiting in read')
-                await asyncio.gather(*ray_futures)
+                self.send_to_sinks(payloads)
                 await self.ack_messages(pubsub_client, ack_ids)
 
                 self.num_messages += len(ray_futures)

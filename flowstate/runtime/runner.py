@@ -102,12 +102,25 @@ class Runtime:
                 processor_ref.processor_class)
             sink = sink_actor_class.remote(
                 processor_actor.process_batch.remote, processor_ref.output_ref)
-            sources.append(source_actor_class.remote([sink], *inputs))
+            sources.append(
+                # TODO: probably need support for unique keys. What if someone
+                # writes to two bigquery tables?
+                source_actor_class.remote(
+                    {str(processor_ref.output_ref): sink},
+                    *inputs))
 
         source_pool = ActorPool(sources)
-        return list(
+        all_actor_outputs = list(
             source_pool.map(lambda actor, _: actor.run.remote(),
                             [None for _ in range(len(sources))]))
+        final_output = {}
+        for actor_output in all_actor_outputs:
+            for key, value in actor_output.items():
+                if key in final_output:
+                    final_output[key].extend(value)
+                else:
+                    final_output[key] = value
+        return final_output
 
     def register_processor(self, processor_class: type,
                            input_ref: resources.IO, output_ref: resources.IO):

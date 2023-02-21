@@ -23,7 +23,7 @@ class BigQuerySourceActor(base.RaySource):
 
     def __init__(
         self,
-        ray_sinks: Iterable[base.RaySink],
+        ray_sinks: Dict[str, base.RaySink],
         stream: str,
     ) -> None:
         super().__init__(ray_sinks)
@@ -92,11 +92,7 @@ class BigQuerySourceActor(base.RaySource):
             py_row = dict(
                 map(lambda item: (item[0], item[1].as_py()), row.items()))
             row_batch.append(py_row)
-        refs = []
-        for ray_sink in self.ray_sinks:
-            result = await asyncio.gather(ray_sink.write.remote(row_batch))
-            refs.append(result)
-        return refs
+        return await self.send_to_sinks(row_batch)
 
 
 @ray.remote
