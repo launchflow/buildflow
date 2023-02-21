@@ -39,10 +39,10 @@ class DuckDBTest(unittest.TestCase):
             config={
                 'input':
                 flowstate.DuckDB(database=self.input_database,
-                                  table='input_table'),
+                                 table='input_table'),
                 'outputs': [
                     flowstate.DuckDB(database=self.output_database,
-                                      table='output_table')
+                                     table='output_table')
                 ]
             })
 
@@ -71,10 +71,10 @@ class DuckDBTest(unittest.TestCase):
             config={
                 'input':
                 flowstate.DuckDB(database=self.input_database,
-                                  table='input_table'),
+                                 table='input_table'),
                 'outputs': [
                     flowstate.DuckDB(database=self.output_database,
-                                      table='output_table')
+                                     table='output_table')
                 ]
             })
 

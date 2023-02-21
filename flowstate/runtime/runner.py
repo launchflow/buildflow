@@ -4,7 +4,7 @@ from typing import Dict, Iterable
 import dataclasses
 from flowstate.api import resources, ProcessorAPI
 from flowstate.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
-                                       pubsub_io)
+                                      pubsub_io)
 import ray
 from ray.util import ActorPool
 
@@ -106,8 +106,7 @@ class Runtime:
                 # TODO: probably need support for unique keys. What if someone
                 # writes to two bigquery tables?
                 source_actor_class.remote(
-                    {str(processor_ref.output_ref): sink},
-                    *inputs))
+                    {str(processor_ref.output_ref): sink}, *inputs))
 
         source_pool = ActorPool(sources)
         all_actor_outputs = list(
