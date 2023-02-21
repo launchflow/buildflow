@@ -1,6 +1,6 @@
 from google.cloud import pubsub_v1
 
-import launchflow as flow
+import flowstate as flow
 
 pubsub_project = 'pubsub-test-project'
 ps_client = pubsub_v1.PublisherClient()

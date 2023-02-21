@@ -5,8 +5,8 @@ from typing import Any, Callable, Iterable
 
 import ray
 
-from launchflow.api import resources
-from launchflow.runtime.ray_io import base
+from flowstate.api import resources
+from flowstate.runtime.ray_io import base
 
 
 @ray.remote

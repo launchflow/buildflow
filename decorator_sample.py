@@ -1,4 +1,4 @@
-"""Sample usage of launchflow.
+"""Sample usage of flowstate.
 
 steps to run:
     1. pip install .
@@ -7,7 +7,7 @@ steps to run:
 
 """
 
-import launchflow as flow
+import flowstate as flow
 
 _SUBSCRIPTION = 'projects/daring-runway-374503/subscriptions/tanke-test'
 
