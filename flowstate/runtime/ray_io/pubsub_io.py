@@ -57,7 +57,7 @@ class PubSubSourceActor(base.RaySource):
                     json_loaded = json.loads(decoded_data)
                     payloads.append(json_loaded)
                     ack_ids.append(received_message.ack_id)
-                self.send_to_sinks(payloads)
+                await self.send_to_sinks(payloads)
                 await self.ack_messages(pubsub_client, ack_ids)
 
                 self.num_messages += len(ray_futures)
@@ -79,7 +79,7 @@ class PubsubSinkActor(base.RaySink):
         self.pubslisher_client = pubsub_v1.PublisherClient()
         self.topic = pubsub_ref.topic
 
-    def _write(
+    async def _write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
@@ -91,3 +91,4 @@ class PubsubSinkActor(base.RaySink):
                 self.topic,
                 json.dumps(item).encode('UTF-8'))
             future.result()
+        return
