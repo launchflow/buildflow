@@ -7,9 +7,9 @@ import unittest
 
 import ray
 
-from flow_io import flow_state
-from flow_io import resources
-from flow_io import ray_io
+from flowstate import flow_state
+from flowstate import resources
+from flowstate import io
 
 
 class EmptyTest(unittest.TestCase):
@@ -40,7 +40,7 @@ class EmptyTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        output = ray_io.run(process.remote)
+        output = io.run(process.remote)
 
         # TODO: why are these nested lists?
         self.assertEqual(output, [1, 2, 3])

@@ -3,9 +3,7 @@
 import os
 from typing import Any, Callable, Dict, Iterable, Union
 
-import ray
-
-from flow_io import tracer as t
+from flowstate.runtime import tracer as t
 
 tracer = t.RedisTracer()
 
@@ -33,7 +31,7 @@ def _data_tracing_enabled() -> bool:
 
 
 class RaySink:
-    """Base class for all Ray sinks."""
+    """Base class for all ray sinks."""
 
     def __init__(self, remote_fn: Callable) -> None:
         self.remote_fn = remote_fn
@@ -43,25 +41,32 @@ class RaySink:
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
-        raise ValueError('All Ray sinks should implement: `_write`')
+        raise NotImplementedError(
+            f'`_write` method not implemented for class {self.__class__}')
 
-    def write(
+    async def write(
         self,
         element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
         context: Dict[str, str] = {},
     ):
-        result = ray.get(self.remote_fn(element))
+        result = await self.remote_fn(element)
+
         if self.data_tracing_enabled:
-            add_to_trace(self.node_space, {'output_data': result}, context)
+            add_to_trace(key=self.__class__.__name__,
+                         value={'output_data': result},
+                         context=context)
+
         return self._write(result)
 
 
 class RaySource:
-    """Base class for all Ray sources."""
+    """Base class for all ray sources."""
 
     def __init__(self, ray_sinks: Iterable[RaySink]) -> None:
         self.ray_sinks = ray_sinks
         self.data_tracing_enabled = _data_tracing_enabled()
 
-    def run(self):
-        raise ValueError('All Ray sources should implement: `run`')
+    # NOTE: Batch runs are also modeled as a stream.
+    def stream(self):
+        raise NotImplementedError(
+            f'`stream` method not implemented for class {self.__class__}')

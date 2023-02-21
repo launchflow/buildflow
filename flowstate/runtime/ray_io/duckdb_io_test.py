@@ -8,8 +8,8 @@ import unittest
 import duckdb
 import ray
 
-import flow_io
-from flow_io import ray_io
+from flowstate.api import resources
+from flowstate.runtime.ray_io import duckdb_io
 
 
 class DuckDBTest(unittest.TestCase):
@@ -31,19 +31,19 @@ class DuckDBTest(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
 
     def test_end_to_end(self):
-        input_con = duckdb.connect(self.input_database)
+        input_con = duckdb_io.connect(self.input_database)
         input_con.execute('CREATE TABLE input_table(number INTEGER)')
         input_con.execute('INSERT INTO input_table VALUES (1), (2), (3)')
         input_con.close()
 
-        flow_io.init(
+        flowstate.init(
             config={
                 'input':
-                flow_io.DuckDB(database=self.input_database,
-                               table='input_table'),
+                flowstate.DuckDB(database=self.input_database,
+                                 table='input_table'),
                 'outputs': [
-                    flow_io.DuckDB(database=self.output_database,
-                                   table='output_table')
+                    flowstate.DuckDB(database=self.output_database,
+                                     table='output_table')
                 ]
             })
 
@@ -51,9 +51,9 @@ class DuckDBTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        ray_io.run(process.remote)
+        io.run(process.remote)
 
-        output_con = duckdb.connect(self.output_database)
+        output_con = duckdb_io.connect(self.output_database)
         output_con.execute('SELECT * FROM output_table')
         rows = output_con.fetchall()
 
@@ -63,19 +63,19 @@ class DuckDBTest(unittest.TestCase):
 
     def test_end_to_end_multi_output(self):
 
-        input_con = duckdb.connect(self.input_database)
+        input_con = duckdb_io.connect(self.input_database)
         input_con.execute('CREATE TABLE input_table(number INTEGER)')
         input_con.execute('INSERT INTO input_table VALUES (1), (2), (3)')
         input_con.close()
 
-        flow_io.init(
+        flowstate.init(
             config={
                 'input':
-                flow_io.DuckDB(database=self.input_database,
-                               table='input_table'),
+                flowstate.DuckDB(database=self.input_database,
+                                 table='input_table'),
                 'outputs': [
-                    flow_io.DuckDB(database=self.output_database,
-                                   table='output_table')
+                    flowstate.DuckDB(database=self.output_database,
+                                     table='output_table')
                 ]
             })
 
@@ -83,9 +83,9 @@ class DuckDBTest(unittest.TestCase):
         def process(elem):
             return [elem, elem]
 
-        ray_io.run(process.remote)
+        io.run(process.remote)
 
-        output_con = duckdb.connect(self.output_database)
+        output_con = duckdb_io.connect(self.output_database)
         output_con.execute('SELECT * FROM output_table')
         rows = output_con.fetchall()
 

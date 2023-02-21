@@ -1,8 +1,6 @@
-import ray
 from google.cloud import pubsub_v1
 
-import flow_io
-from flow_io import ray_io
+import flowstate as flow
 
 pubsub_project = 'pubsub-test-project'
 ps_client = pubsub_v1.PublisherClient()
@@ -37,20 +35,18 @@ with subscriber:
 print(' - topic: ', output_topic_path)
 print(' - subscription: ', subscription_path)
 
-flow_io.init(
-    config={
-        'input': flow_io.PubSub(subscription=input_subscription_path),
-        'outputs': [flow_io.PubSub(topic=output_topic_path)]
-    })
 
+class MyProcessor(flow.Processor):
 
-@ray.remote
-class ProcessorActor:
+    def _input():
+        return flow.PubSub(subscription=input_subscription_path)
+
+    def _output():
+        return flow.PubSub(topic=output_topic_path)
 
     def process(self, payload: int):
         payload['val'] += 1
         return payload
 
 
-processor = ProcessorActor.remote()
-ray_io.run(processor.process.remote)
+flow.run(MyProcessor)
