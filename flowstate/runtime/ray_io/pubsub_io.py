@@ -49,18 +49,20 @@ class PubSubSourceActor(base.RaySource):
 
                 ray_futures = []
                 ack_ids = []
+                payloads = []
                 for received_message in response.received_messages:
                     # TODO: maybe we should add the option to include the
                     # attributes. I believe beam provides that as an
                     # option.
                     decoded_data = received_message.message.data.decode()
                     json_loaded = json.loads(decoded_data)
-                    for ray_sink in self.ray_sinks:
-                        # TODO: add tracing context
-                        process_ref = ray_sink.write.remote(json_loaded)
-                        # TODO: support multiple sinks (rn it overwrites dict)
-                        ray_futures.append(process_ref)
-                        ack_ids.append(received_message.ack_id)
+                    payloads.append(json_loaded)
+                    ack_ids.append(received_message.ack_id)
+                for ray_sink in self.ray_sinks:
+                    # TODO: add tracing context
+                    process_ref = ray_sink.write.remote(payloads)
+                    # TODO: support multiple sinks (rn it overwrites dict)
+                    ray_futures.append(process_ref)
 
                 # print('waiting in read')
                 await asyncio.gather(*ray_futures)
