@@ -3,7 +3,7 @@
 steps to run:
     1. pip install .
     2. gcloud auth application-default login
-    3. python sample.py
+    3. python class_sample.py
 """
 
 import buildflow as flow
