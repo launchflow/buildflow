@@ -143,7 +143,7 @@ class Runtime:
                            output_ref: resources.IO,
                            processor_id: Optional[str] = None):
         if processor_id is None:
-            processor_id = processor_class.__name__
+            processor_id = processor_class.__qualname__
         if processor_id in self._processors:
             logging.warning(
                 f'Processor {processor_id} already registered. Overwriting.')
