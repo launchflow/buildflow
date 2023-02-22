@@ -7,8 +7,8 @@ from typing import Any, Callable, Dict, Iterable, Union
 import ray
 import redis
 
-from flow_io import resources
-from flow_io.ray_io import base
+from buildflow import resources
+from buildflow.runtime.ray_io import base
 
 
 @ray.remote
@@ -38,7 +38,7 @@ class RedisStreamInput(base.RaySource):
                     start = 0
             self.streams[stream] = start
 
-    def run(self):
+    async def run(self):
         logging.info(
             'Started listening to the following streams at the s'
             'pecified ID: %s', self.streams)
@@ -51,16 +51,15 @@ class RedisStreamInput(base.RaySource):
             for stream in stream_data:
                 stream_name = stream[0]
                 stream_data = stream[1]
+                items = []
                 for id_item in stream_data:
                     item_id, item = id_item
                     self.streams[stream_name.decode()] = item_id.decode()
                     decoded_item = {}
                     for key, value in item.items():
                         decoded_item[key.decode()] = value.decode()
-                    refs = []
-                    for ray_sink in self.ray_sinks:
-                        refs.append(ray_sink.write.remote(decoded_item))
-                    ray.get(refs)
+                    items.append(decoded_item)
+                await self.send_to_sinks(items)
 
             time.sleep(1)
 
@@ -78,13 +77,14 @@ class RedisStreamOutput(base.RaySink):
                                         port=redis_stream_ref.port)
         self.streams = redis_stream_ref.streams
 
-    def _write(
+    async def _write(
         self,
-        element: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
     ):
-        to_insert = element
-        if isinstance(element, dict):
-            to_insert = [element]
         for stream in self.streams:
-            for item in to_insert:
-                self.redis_client.xadd(stream, item)
+            for item in elements:
+                if isinstance(item, dict):
+                    self.redis_client.xadd(stream, item)
+                else:
+                    for elem in item:
+                        self.redis_client.xadd(stream, elem)

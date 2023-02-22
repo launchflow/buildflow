@@ -1,7 +1,7 @@
 """IO for dags that don't have any input / output configured."""
 
 import logging
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Dict, Iterable, Union
 
 import ray
 
@@ -25,12 +25,8 @@ class EmptySourceActor(base.RaySource):
                 'happen. You can pass inputs like: '
                 '`ray_io.source(..., inputs=[1, 2, 3]`)')
 
-    def run(self):
-        refs = []
-        for i in self.inputs:
-            for ray_sink in self.ray_sinks:
-                refs.append(ray_sink.write.remote(i))
-        return ray.get(refs)
+    async def run(self):
+        return await self.send_to_sinks(self.inputs)
 
 
 @ray.remote
@@ -43,5 +39,15 @@ class EmptySinkActor(base.RaySink):
     ) -> None:
         super().__init__(remote_fn)
 
-    async def _write(self, elements=Any):
-        return elements
+    async def _write(
+        self,
+        elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
+    ):
+        to_return = []
+        for element in elements:
+            if isinstance(element, list):
+                for item in element:
+                    to_return.append(item)
+            else:
+                to_return.append(element)
+        return to_return

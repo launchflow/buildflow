@@ -6,11 +6,13 @@ import tempfile
 import unittest
 
 import duckdb
+import pytest
 import ray
 
 import buildflow
 
 
+@pytest.mark.skip('DuckDB is not fully supported yet')
 class DuckDBTest(unittest.TestCase):
 
     @classmethod

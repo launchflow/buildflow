@@ -1,10 +1,9 @@
-# import os
 import traceback
 from typing import Dict, Iterable
 import dataclasses
 from buildflow.api import resources, ProcessorAPI
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
-                                      pubsub_io)
+                                      redis_stream_io, pubsub_io)
 import ray
 from ray.util import ActorPool
 
@@ -14,6 +13,7 @@ _IO_TYPE_TO_SOURCE = {
     resources.DuckDB.__name__: duckdb_io.DuckDBSourceActor,
     resources.Empty.__name__: empty_io.EmptySourceActor,
     resources.PubSub.__name__: pubsub_io.PubSubSourceActor,
+    resources.RedisStream.__name__: redis_stream_io.RedisStreamInput,
 }
 
 # TODO: Add support for other IO types.
@@ -22,6 +22,7 @@ _IO_TYPE_TO_SINK = {
     resources.DuckDB.__name__: duckdb_io.DuckDBSinkActor,
     resources.Empty.__name__: empty_io.EmptySinkActor,
     resources.PubSub.__name__: pubsub_io.PubsubSinkActor,
+    resources.RedisStream.__name__: redis_stream_io.RedisStreamOutput,
 }
 
 
@@ -81,10 +82,18 @@ class Runtime:
         print('Starting Flow Runtime')
 
         try:
-            return self._run()
+            output = self._run()
+            # Reset the p
+            return output
         except Exception as e:
             print('Flow failed with error:')
             traceback.print_exception(e)
+            raise e
+        finally:
+            # Reset the processors after each run. This may cause issues if
+            # folks call run multiple times within a run. But it feels a more
+            # straight forward.
+            self._processors = {}
 
     def _run(self):
         # TODO: Support multiple processors
@@ -114,11 +123,12 @@ class Runtime:
                             [None for _ in range(len(sources))]))
         final_output = {}
         for actor_output in all_actor_outputs:
-            for key, value in actor_output.items():
-                if key in final_output:
-                    final_output[key].extend(value)
-                else:
-                    final_output[key] = value
+            if actor_output is not None:
+                for key, value in actor_output.items():
+                    if key in final_output:
+                        final_output[key].extend(value)
+                    else:
+                        final_output[key] = value
         return final_output
 
     def register_processor(self, processor_class: type,
