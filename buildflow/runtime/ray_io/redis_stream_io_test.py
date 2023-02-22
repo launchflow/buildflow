@@ -5,12 +5,10 @@ import subprocess
 import unittest
 
 import ray
-
-from flow_io import ray_io
-import flow_io
+import buildflow as flow
 
 
-class RedisStream(unittest.TestCase):
+class RedisStreamTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -29,27 +27,22 @@ class RedisStream(unittest.TestCase):
 
         redis_client.xadd('input_stream', {'field': 'value'})
 
-        flow_io.init(
-            config={
-                'input':
-                flow_io.RedisStream(
-                    'localhost',
-                    8765,
-                    streams=['input_stream'],
-                    start_positions={'input_stream': 0},
-                    read_timeout_secs=5,
-                ),
-                'outputs': [
-                    flow_io.RedisStream(
-                        'localhost', 8765, streams=['output_stream'])
-                ]
-            })
-
-        @ray.remote
+        @flow.processor(
+            input_ref=flow.RedisStream(
+                host='localhost',
+                port=8765,
+                streams=['input_stream'],
+                start_positions={'input_stream': 0},
+                read_timeout_secs=5,
+            ),
+            output_ref=flow.RedisStream(host='localhost',
+                                        port=8765,
+                                        streams=['output_stream']),
+        )
         def process(element):
             return element
 
-        ray_io.run(process.remote)
+        flow.run()
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(len(data_written), 1)
@@ -63,27 +56,22 @@ class RedisStream(unittest.TestCase):
 
         redis_client.xadd('input_stream', {'field': 'value'})
 
-        flow_io.init(
-            config={
-                'input':
-                flow_io.RedisStream(
-                    'localhost',
-                    8765,
-                    streams=['input_stream'],
-                    start_positions={'input_stream': 0},
-                    read_timeout_secs=5,
-                ),
-                'outputs': [
-                    flow_io.RedisStream(
-                        'localhost', 8765, streams=['output_stream'])
-                ]
-            })
-
-        @ray.remote
+        @flow.processor(
+            input_ref=flow.RedisStream(
+                host='localhost',
+                port=8765,
+                streams=['input_stream'],
+                start_positions={'input_stream': 0},
+                read_timeout_secs=5,
+            ),
+            output_ref=flow.RedisStream(host='localhost',
+                                        port=8765,
+                                        streams=['output_stream']),
+        )
         def process(element):
-            return element
+            return [element, element]
 
-        ray_io.run(process.remote)
+        flow.run()
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(data_written[0][1][0][1],

@@ -1,7 +1,7 @@
 """Base class for all Ray IO Connectors"""
 
 import os
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable, Union
 
 from buildflow.runtime import tracer as t
 
@@ -39,14 +39,14 @@ class RaySink:
 
     def _write(
         self,
-        elements: Iterable[Dict[str, Any]],
+        elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
     ):
         raise NotImplementedError(
             f'`_write` method not implemented for class {self.__class__}')
 
     async def write(
         self,
-        elements: Iterable[Dict[str, Any]],
+        elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
         context: Dict[str, str] = {},
     ):
         result = await self.remote_fn(elements)
