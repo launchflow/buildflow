@@ -51,10 +51,10 @@ jobs:
 
       - name: Run Pub/Sub integration test
         run: |
-          cd integration_test/pubsub_to_pubsub
+          cd integration_tests/pubsub_to_pubsub
           ./pubsub_integration.sh
 
       - name: Run Pub/Sub multi-output integration test
         run: |
-          cd integration_test/pubsub_to_pubsub_multi_output
+          cd integration_tests/pubsub_to_pubsub_multi_output
           ./pubsub_integration.sh
