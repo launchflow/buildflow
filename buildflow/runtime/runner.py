@@ -1,4 +1,3 @@
-# import os
 import traceback
 from typing import Dict, Iterable
 import dataclasses
@@ -88,6 +87,7 @@ class Runtime:
             return output
         except Exception as e:
             print('Flow failed with error:')
+            traceback.print_exception(e)
             raise e
         finally:
             # Reset the processors after each run. This may cause issues if
@@ -133,7 +133,6 @@ class Runtime:
 
     def register_processor(self, processor_class: type,
                            input_ref: resources.IO, output_ref: resources.IO):
-        print('DO NOT SUBMIT: ', self._processors)
         if len(self._processors) > 0:
             raise RuntimeError(
                 'The Runner API currently only supports a single processor.')

@@ -1,8 +1,5 @@
 """Rays for ray IO."""
 
-import os
-import shutil
-import tempfile
 import unittest
 
 import ray
