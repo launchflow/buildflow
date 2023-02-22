@@ -1,11 +1,14 @@
-import traceback
-from typing import Dict, Iterable
 import dataclasses
-from buildflow.api import resources, ProcessorAPI
-from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
-                                      redis_stream_io, pubsub_io)
+import logging
+import traceback
+from typing import Dict, Iterable, Optional
+
 import ray
 from ray.util import ActorPool
+
+from buildflow.api import ProcessorAPI, resources
+from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
+                                      pubsub_io, redis_stream_io)
 
 # TODO: Add support for other IO types.
 _IO_TYPE_TO_SOURCE = {
@@ -93,7 +96,10 @@ class Runtime:
             # Reset the processors after each run. This may cause issues if
             # folks call run multiple times within a run. But it feels a more
             # straight forward.
-            self._processors = {}
+            self._reset()
+
+    def _reset(self):
+        self._processors = {}
 
     def _run(self):
         # TODO: Support multiple processors
@@ -131,10 +137,20 @@ class Runtime:
                         final_output[key] = value
         return final_output
 
-    def register_processor(self, processor_class: type,
-                           input_ref: resources.IO, output_ref: resources.IO):
-        if len(self._processors) > 0:
+    def register_processor(self,
+                           processor_class: type,
+                           input_ref: resources.IO,
+                           output_ref: resources.IO,
+                           processor_id: Optional[str] = None):
+        if processor_id is None:
+            processor_id = processor_class.__qualname__
+        if processor_id in self._processors:
+            logging.warning(
+                f'Processor {processor_id} already registered. Overwriting.')
+        # TODO: Support multiple processors
+        elif len(self._processors) > 0:
             raise RuntimeError(
                 'The Runner API currently only supports a single processor.')
-        self._processors[processor_class.__name__] = _ProcessorRef(
-            processor_class, input_ref, output_ref)
+
+        self._processors[processor_id] = _ProcessorRef(processor_class,
+                                                       input_ref, output_ref)

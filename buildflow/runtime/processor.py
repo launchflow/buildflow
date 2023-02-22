@@ -26,6 +26,7 @@ def processor(input_ref: IO, output_ref: Optional[IO] = None):
         output_ref = Empty()
 
     def decorator_function(original_function):
+        processor_id = original_function.__qualname__
         # Dynamically define a new class with the same structure as Processor
         class_name = f'AdHocProcessor_{uuid.uuid4().hex[:8]}'
         _AdHocProcessor = type(
@@ -37,7 +38,10 @@ def processor(input_ref: IO, output_ref: Optional[IO] = None):
                 'process': lambda self, payload: original_function(payload),
                 'process_async': lambda self, payload: payload,
             })
-        runtime.register_processor(_AdHocProcessor, input_ref, output_ref)
+        runtime.register_processor(_AdHocProcessor,
+                                   input_ref,
+                                   output_ref,
+                                   processor_id=processor_id)
 
         def wrapper_function(*args, **kwargs):
             return original_function(*args, **kwargs)
