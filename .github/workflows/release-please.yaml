@@ -1,0 +1,33 @@
+on:
+  push:
+    branches:
+      - main
+name: release-please
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v3
+        with:
+          release-type: python
+          package-name: release-please-action
+
+      - uses: actions/checkout@v3
+        if: ${{ steps.release.outputs.releases_created }}
+
+      - name: Set up Python 3.10
+        if: ${{ steps.release.outputs.releases_created }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Build Python distribution
+        run: |
+          pip install build
+          python -m build
+
+      - name: Publish a Python distribution to PyPI
+        if: ${{ steps.release.outputs.releases_created }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
