@@ -3,7 +3,8 @@ from concurrent.futures import TimeoutError
 
 from google.cloud import pubsub_v1
 
-output_subscriber = 'projects/pubsub-test-project/subscriptions/validation_multi'
+output_subscriber = (
+    'projects/pubsub-test-project/subscriptions/validation_multi')
 expected_data = {'val': 2}
 
 matches = 0
