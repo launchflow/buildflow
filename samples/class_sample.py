@@ -9,7 +9,8 @@ steps to run:
 
 import buildflow as flow
 
-_SUBSCRIPTION = 'projects/daring-runway-374503/subscriptions/tanke-test'
+# TODO: Fill in pub/sub subscription.
+_SUBSCRIPTION = ''
 
 
 class MyProcessor(flow.Processor):
