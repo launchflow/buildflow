@@ -1,126 +1,118 @@
 """Tests for redis.py"""
 
-import json
-import os
-import tempfile
+import dataclasses
 import unittest
-from dataclasses import dataclass
-from typing import Any, Dict
+from unittest import mock
 
-import pytest
-import ray
+from google.cloud import bigquery_storage_v1
 
-from buildflow.api import resources
-from buildflow.runtime.ray_io import bigquery_io
+import buildflow as flow
 
 
-@dataclass
-class FakeQueryJob:
-    rows: Dict[str, Any]
-
-    def result(self):
-        return self.rows
-
-
-class FakeBigQueryClient:
-
-    def __init__(self,
-                 temp_file: str,
-                 bigquery_data: Dict[str, Any] = {}) -> None:
-        self.temp_file = temp_file
-        self.bigquery_data = bigquery_data
-        self._write_file()
-
-    def _write_file(self):
-        with open(self.temp_file, 'w') as f:
-            json.dump(self.bigquery_data, f)
-
-    def load_file(self):
-        with open(self.temp_file, 'r') as f:
-            self.bigquery_data = json.load(f)
-
-    def query(self, query: str):
-        self.load_file()
-        return FakeQueryJob(self.bigquery_data[query])
-
-    def insert_rows(self, bigquery_table: str, rows):
-        self.load_file()
-        self.bigquery_data[bigquery_table] = rows
-        self._write_file()
+@dataclasses.dataclass
+class FakeTable:
+    project: str
+    dataset_id: str
+    table_id: str
+    num_rows: int
 
 
-@pytest.mark.skip(
-    reason='TODO: need to update this to do something with bq client.')
+# NOTE: Async actors don't support local mode / mocks so this really only tests
+# the initial setup of the source.
 class BigQueryTest(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        ray.init(num_cpus=1, num_gpus=0)
+    @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
+    def test_validate_setup_query_no_temp_dataset(
+        self,
+        bq_storage_mock: mock.MagicMock,
+        bq_mock: mock.MagicMock,
+    ):
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        ray.shutdown()
+        bq_storage_client = bq_storage_mock.return_value
+        bq_client_mock = bq_mock.return_value
 
-    def setUp(self):
-        _, self.temp_file = tempfile.mkstemp()
+        query = 'SELECT * FROM TABLE'
 
-    def tearDown(self):
-        os.remove(self.temp_file)
-
-    def test_end_to_end(self):
-        input_row = {'field': 1}
-        expected = [input_row]
-        fake_bq_client = FakeBigQueryClient(
-            self.temp_file, {'SELECT * FROM `table`': [input_row]})
-        bq_ref = resources.BigQuery(project='project',
-                                    dataset='dataset',
-                                    table='table',
-                                    query='SELECT * FROM `table`')
-
-        @ray.remote
+        @flow.processor(
+            input_ref=flow.BigQuery(query=query, billing_project='tmp'),
+            output_ref=flow.BigQuery(table_id='project.table.dataset'))
         def pass_through_fn(elem):
             return elem
 
-        sink_actors = [
-            bigquery_io.BigQuerySinkActor.remote(pass_through_fn.remote,
-                                                 bq_ref, fake_bq_client)
-        ]
-        source_actor = bigquery_io.BigQuerySourceActor.remote(
-            sink_actors, bq_ref, fake_bq_client)
-        ray.get(source_actor.run.remote())
+        flow.run()
 
-        fake_bq_client.load_file()
-        got = fake_bq_client.bigquery_data['project.dataset.table']
-        self.assertEqual(expected, got)
+        bq_client_mock.create_dataset.assert_called_once()
+        bq_client_mock.update_dataset.assert_called_once()
+        bq_client_mock.query.assert_called_once_with(query,
+                                                     job_config=mock.ANY)
+        bq_client_mock.get_table.assert_called_once()
 
-    def test_end_to_end_multi_output(self):
-        input_row = {'field': 1}
-        expected = [input_row, input_row]
-        fake_bq_client = FakeBigQueryClient(
-            self.temp_file, {'SELECT * FROM `table`': [input_row]})
-        bq_ref = resources.BigQuery(project='project',
-                                    dataset='dataset',
-                                    table='table',
-                                    query='SELECT * FROM `table`')
+        bq_storage_client.create_read_session.assert_called_once()
 
-        @ray.remote
-        class ProcessActor:
+    @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
+    def test_validate_setup_query_with_temp_dataset(
+        self,
+        bq_storage_mock: mock.MagicMock,
+        bq_mock: mock.MagicMock,
+    ):
 
-            def process(self, elem):
-                return [elem, elem]
+        bq_storage_client = bq_storage_mock.return_value
 
-        processor = ProcessActor.remote()
-        sink_actors = [
-            bigquery_io.BigQuerySinkActor.remote(processor.process.remote,
-                                                 bq_ref, fake_bq_client)
-        ]
-        source_actor = bigquery_io.BigQuerySourceActor.remote(
-            sink_actors, bq_ref, fake_bq_client)
-        ray.get(source_actor.run.remote())
+        query = 'SELECT * FROM TABLE'
 
-        fake_bq_client.load_file()
-        got = fake_bq_client.bigquery_data['project.dataset.table']
-        self.assertEqual(expected, got)
+        @flow.processor(
+            input_ref=flow.BigQuery(query=query,
+                                    temporary_dataset='p.ds',
+                                    billing_project='tmp'),
+            output_ref=flow.BigQuery(table_id='project.table.dataset'))
+        def pass_through_fn(elem):
+            return elem
+
+        flow.run()
+
+        bq_client_mock = bq_mock.return_value
+        bq_client_mock.create_dataset.assert_not_called()
+        bq_client_mock.update_dataset.assert_not_called()
+        bq_client_mock.query.assert_called_once_with(query,
+                                                     job_config=mock.ANY)
+        bq_client_mock.get_table.assert_called_once()
+
+        bq_storage_client.create_read_session.assert_called_once()
+
+    @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
+    def test_validate_setup_table(
+        self,
+        bq_storage_mock: mock.MagicMock,
+        bq_mock: mock.MagicMock,
+    ):
+
+        bq_storage_client = bq_storage_mock.return_value
+
+        bq_client_mock = bq_mock.return_value
+        bq_client_mock.get_table.return_value = FakeTable('p', 'd', 't', 10)
+
+        @flow.processor(
+            input_ref=flow.BigQuery(table_id='p.d.t', billing_project='tmp'),
+            output_ref=flow.BigQuery(table_id='project.table.dataset'))
+        def pass_through_fn(elem):
+            return elem
+
+        flow.run()
+
+        bq_client_mock.create_dataset.assert_not_called()
+        bq_client_mock.update_dataset.assert_not_called()
+        bq_client_mock.query.assert_not_called()
+        bq_client_mock.get_table.assert_called_once_with('p.d.t')
+
+        bq_storage_client.create_read_session.assert_called_once_with(
+            parent='projects/p',
+            read_session=bigquery_storage_v1.types.ReadSession(
+                table='projects/p/datasets/d/tables/t',
+                data_format=bigquery_storage_v1.types.DataFormat.ARROW),
+            max_stream_count=1)
 
 
 if __name__ == '__main__':

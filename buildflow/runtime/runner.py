@@ -86,8 +86,8 @@ class Runtime:
             # Reset the p
             return output
         except Exception as e:
-            print('Flow failed with error:')
-            traceback.print_exception(e)
+            print('Flow failed with error: ', e)
+            traceback.print_exc()
             raise e
         finally:
             # Reset the processors after each run. This may cause issues if

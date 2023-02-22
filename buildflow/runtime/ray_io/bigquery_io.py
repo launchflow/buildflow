@@ -23,6 +23,10 @@ def _get_bigquery_client(project: str = ''):
     return bigquery.Client(project=project)
 
 
+def _get_bigquery_storage_client():
+    return bigquery_storage_v1.BigQueryReadClient()
+
+
 @ray.remote
 class BigQuerySourceActor(base.RaySource):
 
@@ -81,7 +85,7 @@ class BigQuerySourceActor(base.RaySource):
             table=(f'projects/{table.project}/datasets/'
                    f'{table.dataset_id}/tables/{table.table_id}'),
             data_format=bigquery_storage_v1.types.DataFormat.ARROW)
-        storage_client = bigquery_storage_v1.BigQueryReadClient()
+        storage_client = _get_bigquery_storage_client()
         parent = f'projects/{table.project}'
         read_session = storage_client.create_read_session(
             parent=parent,
@@ -89,28 +93,29 @@ class BigQuerySourceActor(base.RaySource):
             max_stream_count=num_replicas)
 
         num_streams = len(read_session.streams)
-        rows_per_stream = table.num_rows / num_streams
-        logging.info('Starting %s streams for reading from BigQuery.',
-                     num_streams)
-        logging.info('Reading in %s rows per stream.', rows_per_stream)
-        if num_streams < num_replicas:
-            logging.warning(
-                ('You requested %s replicas, but BigQuery recommends %s '
-                 'streams. Only starting %s replicas.'), num_replicas,
-                num_streams, num_streams)
-        elif num_streams == num_replicas:
-            logging.warning((
-                'Number of streams (%s) matched number of replicas. You '
-                'maybe be able to get more parallelism by increasing replicas.'
-            ), num_streams)
+        if num_streams != 0:
+            rows_per_stream = table.num_rows / num_streams
+            logging.info('Starting %s streams for reading from BigQuery.',
+                         num_streams)
+            logging.info('Reading in %s rows per stream.', rows_per_stream)
+            if num_streams < num_replicas:
+                logging.warning(
+                    ('You requested %s replicas, but BigQuery recommends %s '
+                     'streams. Only starting %s replicas.'), num_replicas,
+                    num_streams, num_streams)
+            elif num_streams == num_replicas:
+                logging.warning(
+                    ('Number of streams (%s) matched number of replicas. You '
+                     'maybe be able to get more parallelism by increasing '
+                     'replicas.'), num_streams)
 
         bigquery_sources = []
         for stream in read_session.streams:
-            bigquery_sources.append((stream.name, ))
+            bigquery_sources.append((stream.name,))
         return bigquery_sources
 
     async def run(self):
-        storage_client = bigquery_storage_v1.BigQueryReadClient()
+        storage_client = _get_bigquery_storage_client()
         response = storage_client.read_rows(self.stream)
         row_batch = []
         for row in response.rows():
