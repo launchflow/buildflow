@@ -58,14 +58,6 @@ class Runtime:
     _initialized = False
 
     def __init__(self):
-        # TODO: Flesh this class out
-        # _ = os.environ['FLOW_CONFIG']
-        # TODO: maybe this should be max_io_replicas? For reading from bigquery
-        # the API will use less replicas if it's smaller data.
-        self._config = {
-            'num_io_replicas': 1,
-        }
-
         if self._initialized:
             return
         self._initialized = True
@@ -78,12 +70,12 @@ class Runtime:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def run(self):
+    def run(self, num_replicas: int):
         print('Starting Flow Runtime')
 
         try:
-            output = self._run()
-            # Reset the p
+            output = self._run(num_replicas)
+            print('Flow finished successfully')
             return output
         except Exception as e:
             print('Flow failed with error: ', e)
@@ -95,7 +87,7 @@ class Runtime:
             # straight forward.
             self._processors = {}
 
-    def _run(self):
+    def _run(self, num_replicas: int):
         # TODO: Support multiple processors
         processor_ref = list(self._processors.values())[0]
 
@@ -104,7 +96,7 @@ class Runtime:
         sink_actor_class = _IO_TYPE_TO_SINK[
             processor_ref.output_ref.__class__.__name__]
         source_inputs = source_actor_class.source_inputs(
-            processor_ref.input_ref, self._config['num_io_replicas'])
+            processor_ref.input_ref, num_replicas)
         sources = []
         for inputs in source_inputs:
             processor_actor = _ProcessActor.remote(
