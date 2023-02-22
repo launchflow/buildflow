@@ -38,8 +38,10 @@ def processor(input_ref: IO, output_ref: Optional[IO] = None):
                 'process': lambda self, payload: original_function(payload),
                 'process_async': lambda self, payload: payload,
             })
-        runtime.register_processor(processor_id, _AdHocProcessor, input_ref,
-                                   output_ref)
+        runtime.register_processor(_AdHocProcessor,
+                                   input_ref,
+                                   output_ref,
+                                   processor_id=processor_id)
 
         def wrapper_function(*args, **kwargs):
             return original_function(*args, **kwargs)

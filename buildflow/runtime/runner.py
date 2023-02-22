@@ -1,7 +1,7 @@
 import dataclasses
 import logging
 import traceback
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional
 
 import ray
 from ray.util import ActorPool
@@ -137,8 +137,13 @@ class Runtime:
                         final_output[key] = value
         return final_output
 
-    def register_processor(self, processor_id: str, processor_class: type,
-                           input_ref: resources.IO, output_ref: resources.IO):
+    def register_processor(self,
+                           processor_class: type,
+                           input_ref: resources.IO,
+                           output_ref: resources.IO,
+                           processor_id: Optional[str] = None):
+        if processor_id is None:
+            processor_id = processor_class.__name__
         if processor_id in self._processors:
             logging.warning(
                 f'Processor {processor_id} already registered. Overwriting.')
