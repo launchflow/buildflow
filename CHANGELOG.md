@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/launchflow/buildflow/compare/v0.1.0...v0.1.1) (2023-02-22)
+
+
+### Miscellaneous Chores
+
+* release 2.0.0 ([58d9129](https://github.com/launchflow/buildflow/commit/58d91290ae8f0802fe9c686ec940f2b1574d7993))
+
 ## 0.1.0 (2023-02-22)
 
 
