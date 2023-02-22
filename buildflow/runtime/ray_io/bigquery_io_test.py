@@ -24,20 +24,6 @@ class FakeTable:
 # the initial setup of the source.
 class BigQueryTest(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        ray.init(num_cpus=1, num_gpus=0, local_mode=True)
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        ray.shutdown()
-
-    def setUp(self):
-        _, self.temp_file = tempfile.mkstemp()
-
-    def tearDown(self):
-        os.remove(self.temp_file)
-
     @mock.patch('google.cloud.bigquery.Client')
     @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
     def test_validate_setup_query_no_temp_dataset(
@@ -52,7 +38,7 @@ class BigQueryTest(unittest.TestCase):
         query = 'SELECT * FROM TABLE'
 
         @flow.processor(
-            input_ref=flow.BigQuery(query=query),
+            input_ref=flow.BigQuery(query=query, billing_project='tmp'),
             output_ref=flow.BigQuery(table_id='project.table.dataset'))
         def pass_through_fn(elem):
             return elem
@@ -80,7 +66,9 @@ class BigQueryTest(unittest.TestCase):
         query = 'SELECT * FROM TABLE'
 
         @flow.processor(
-            input_ref=flow.BigQuery(query=query, temporary_dataset='p.ds'),
+            input_ref=flow.BigQuery(query=query,
+                                    temporary_dataset='p.ds',
+                                    billing_project='tmp'),
             output_ref=flow.BigQuery(table_id='project.table.dataset'))
         def pass_through_fn(elem):
             return elem
@@ -110,7 +98,7 @@ class BigQueryTest(unittest.TestCase):
         bq_client_mock.get_table.return_value = FakeTable('p', 'd', 't', 10)
 
         @flow.processor(
-            input_ref=flow.BigQuery(table_id='p.d.t'),
+            input_ref=flow.BigQuery(table_id='p.d.t', billing_project='tmp'),
             output_ref=flow.BigQuery(table_id='project.table.dataset'))
         def pass_through_fn(elem):
             return elem
