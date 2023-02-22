@@ -3,12 +3,12 @@
 steps to run:
     1. pip install .
     2. gcloud auth application-default login
-    3. python sample.py
-
+    3. python decorator_sample.py
 """
 
 import buildflow as flow
 
+# TODO(developer): add a pub/sub subscription.
 _SUBSCRIPTION = 'projects/daring-runway-374503/subscriptions/tanke-test'
 
 

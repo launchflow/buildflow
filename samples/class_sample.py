@@ -3,13 +3,13 @@
 steps to run:
     1. pip install .
     2. gcloud auth application-default login
-    3. python sample.py
-
+    3. python class_sample.py
 """
 
 import buildflow as flow
 
-_SUBSCRIPTION = 'projects/daring-runway-374503/subscriptions/tanke-test'
+# TODO(developer): Fill in with a pub/sub subscription.
+_SUBSCRIPTION = 'TODO'
 
 
 class MyProcessor(flow.Processor):
