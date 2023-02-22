@@ -6,6 +6,7 @@ import time
 from typing import Any, Callable, Dict, Iterable
 import uuid
 
+import google.auth
 from google.cloud import bigquery
 from google.cloud import bigquery_storage_v1
 import ray
@@ -13,9 +14,13 @@ import ray
 from buildflow.api import resources
 from buildflow.runtime.ray_io import base
 
+_DEFAULT_TEMP_DATASET = 'buildflow_temp'
+# 3 days
+_DEFAULT_DATASET_EXPIRATION_MS = 24 * 3 * 60 * 60 * 1000
 
-def _get_bigquery_client():
-    return bigquery.Client()
+
+def _get_bigquery_client(project: str = ''):
+    return bigquery.Client(project=project)
 
 
 @ray.remote
@@ -36,20 +41,40 @@ class BigQuerySourceActor(base.RaySource):
         io_ref: resources.BigQuery,
         num_replicas: int,
     ):
-        bq_client = _get_bigquery_client()
-        if io_ref.query is None:
-            raise ValueError(
-                'Please provide a query. Reading directly from a table is not '
-                'currently supported.')
-        output_table = f'{io_ref.query.temporary_dataset}.{str(uuid.uuid4())}'
-        query_job = bq_client.query(
-            io_ref.query.query,
-            job_config=bigquery.QueryJobConfig(destination=output_table),
-        )
+        if io_ref.billing_project:
+            project = io_ref.billing_project
+        else:
+            _, project = google.auth.default()
+        bq_client = _get_bigquery_client(project)
+        if io_ref.query:
+            if io_ref.temporary_dataset:
+                output_table = (
+                    f'{io_ref.temporary_dataset}.{str(uuid.uuid4())}')
+            else:
+                logging.info(
+                    'temporary dataset was not provided, attempting to create'
+                    ' one.')
+                dataset_name = f'{project}.{_DEFAULT_TEMP_DATASET}'
+                dataset = bq_client.create_dataset(dataset=dataset_name,
+                                                   exists_ok=True)
+                dataset.default_table_expiration_ms = _DEFAULT_DATASET_EXPIRATION_MS  # noqa: E501
+                bq_client.update_dataset(
+                    dataset, fields=['default_table_expiration_ms'])
+                output_table = f'{dataset_name}.{str(uuid.uuid4())}'
+            query_job = bq_client.query(
+                io_ref.query,
+                job_config=bigquery.QueryJobConfig(destination=output_table),
+            )
 
-        while not query_job.done():
-            logging.info('waiting for BigQuery query to finish.')
-            time.sleep(1)
+            while not query_job.done():
+                logging.info('waiting for BigQuery query to finish.')
+                time.sleep(1)
+        elif io_ref.table_id:
+            output_table = io_ref.table_id
+        else:
+            raise ValueError(
+                'At least one of `query` or `table_id` must be set for reading'
+                ' from BigQuery.')
 
         table = bq_client.get_table(output_table)
         read_session = bigquery_storage_v1.types.ReadSession(
@@ -114,7 +139,7 @@ class BigQuerySinkActor(base.RaySink):
         bq_ref: resources.BigQuery,
     ) -> None:
         super().__init__(remote_fn)
-        self.bq_table_id = f'{bq_ref.project}.{bq_ref.dataset}.{bq_ref.table}'
+        self.bq_table_id = bq_ref.table_id
 
     async def insert_rows(self, elements: Iterable[Dict[str, Any]]):
         bq_client = _get_bigquery_client()

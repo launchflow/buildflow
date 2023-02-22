@@ -1,6 +1,6 @@
 import dataclasses
 from enum import Enum
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, TypeVar
 
 
 class InputOutput:
@@ -34,19 +34,18 @@ class PubSub(InputOutput):
 @dataclasses.dataclass
 class BigQuery(InputOutput):
 
-    @dataclasses.dataclass
-    class Query:
-        # The query to execute.
-        query: str
-        # Where to temporarily store the results of the query. This is required
-        # so we can better parallelize reading in the data.
-        # This should be of the format project.temporary_dataset
-        temporary_dataset: str
+    # The BigQuery table to read from.
+    # Should be of the format project.dataset.table
+    table_id: str = ''
+    # The query to read data from.
+    query: str = ''
+    # The temporary dataset to store query results in. If unspecified we will
+    # attempt to create one.
+    temporary_dataset: str = ''
+    # The billing project to use for query usage. If unset we will use the
+    # project configured with application default credentials.
+    billing_project: str = ''
 
-    project: str = ''
-    dataset: str = ''
-    table: str = ''
-    query: Optional[Query] = None
     batch_size: int = 1000
     _io_type: str = IOType.BigQuery.value
 
