@@ -3,14 +3,15 @@
 ![CI](https://github.com/launchflow/buildflow/actions/workflows/python_ci.yaml/badge.svg)
 
 **buildflow** is a unified **batch** and **streaming** framework that turns
-any python function into a scalable data pipeline.
+any python function into a scalable data pipeline that can read from our
+supported IO resources.
 
 Key Features:
 
-- Fast - Scalable multiprocessing powered by [Ray](https://ray.io)
-- Easy to learn- Get started with 2 lines of code
 - Production Ready - Ready made IO connectors let users focus on processing
   data instead of reading and writing data
+- Fast - Scalable multiprocessing powered by [Ray](https://ray.io)
+- Easy to learn- Get started with 2 lines of code
 
 ## Quick Start
 
