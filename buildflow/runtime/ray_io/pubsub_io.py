@@ -36,10 +36,13 @@ class PubSubSourceActor(base.RaySource):
                 json_loaded = json.loads(decoded_data)
                 payloads.append(json_loaded)
                 ack_ids.append(received_message.ack_id)
-            await self._send_tasks_to_sinks_and_await(payloads)
-            # TODO: Add error handling.
-            await pubsub_client.acknowledge(ack_ids=ack_ids,
-                                            subscription=self.subscription)
+            # payloads will be empty if the pull times out (usually because
+            # there's no data to pull).
+            if payloads:
+                await self._send_tasks_to_sinks_and_await(payloads)
+                # TODO: Add error handling.
+                await pubsub_client.acknowledge(ack_ids=ack_ids,
+                                                subscription=self.subscription)
 
 
 @ray.remote
