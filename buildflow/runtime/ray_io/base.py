@@ -92,7 +92,8 @@ class RaySource:
         return [(io_ref, )] * num_replicas
 
     async def _send_tasks_to_sinks_and_await(self, elements):
-        result_keys, task_refs = [], []
+        result_keys = []
+        task_refs = []
         for name, ray_sink in self.ray_sinks.items():
             task_ref = ray_sink.write.remote(elements)
             result_keys.append(name)
