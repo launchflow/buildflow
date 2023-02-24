@@ -7,9 +7,10 @@ steps to run:
 """
 
 import buildflow as flow
+import time
 
 # TODO(developer): Fill in with a pub/sub subscription.
-_SUBSCRIPTION = 'TODO'
+_SUBSCRIPTION = 'projects/daring-runway-374503/subscriptions/taxi-data'
 
 
 class MyProcessor(flow.Processor):
@@ -20,10 +21,9 @@ class MyProcessor(flow.Processor):
 
     def _setup(self):
         # this is where you would initialize any clients / shared state
-        self.client = ...
+        pass
 
     def process(self, taxi_info):
-        print(taxi_info)
         return taxi_info
 
 
