@@ -4,8 +4,6 @@ import asyncio
 import os
 from typing import Any, Callable, Dict, Iterable, Union
 
-import ray
-
 from buildflow.runtime import tracer as t
 
 tracer = t.RedisTracer()
