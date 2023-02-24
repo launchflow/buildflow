@@ -18,6 +18,7 @@ class EmptyTest(unittest.TestCase):
         ray.shutdown()
 
     def test_end_to_end_empty(self):
+
         @flow.processor(input_ref=flow.Empty(inputs=[1, 2, 3]))
         def process(elem):
             return elem
@@ -28,6 +29,7 @@ class EmptyTest(unittest.TestCase):
         self.assertEqual(list(output.values())[0], [1, 2, 3])
 
     def test_end_to_end_empty_multi_output(self):
+
         @flow.processor(input_ref=flow.Empty(inputs=[1, 2, 3]))
         def process(elem):
             return [elem, elem]

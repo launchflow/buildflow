@@ -4,6 +4,7 @@ import dataclasses
 import unittest
 from unittest import mock
 
+import ray
 from google.cloud import bigquery_storage_v1
 
 import buildflow as flow
@@ -20,6 +21,14 @@ class FakeTable:
 # NOTE: Async actors don't support local mode / mocks so this really only tests
 # the initial setup of the source.
 class BigQueryTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        ray.init(num_cpus=1, num_gpus=0)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        ray.shutdown()
 
     @mock.patch('google.cloud.bigquery.Client')
     @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
