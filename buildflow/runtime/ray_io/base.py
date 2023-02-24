@@ -1,10 +1,12 @@
 """Base class for all Ray IO Connectors"""
 
+import asyncio
 import os
 from typing import Any, Callable, Dict, Iterable, Union
 
+import ray
+
 from buildflow.runtime import tracer as t
-import asyncio
 
 tracer = t.RedisTracer()
 
@@ -90,9 +92,10 @@ class RaySource:
         return [(io_ref, )] * num_replicas
 
     async def _send_tasks_to_sinks_and_await(self, elements):
-        results = {}
+        result_keys, task_refs = [], []
         for name, ray_sink in self.ray_sinks.items():
-            result = ray_sink.write.remote(elements)
-            results[name] = result
-        await asyncio.gather(*list(results.values()))
-        return results
+            task_ref = ray_sink.write.remote(elements)
+            result_keys.append(name)
+            task_refs.append(task_ref)
+        result_values = await asyncio.gather(*task_refs)
+        return dict(zip(result_keys, result_values))

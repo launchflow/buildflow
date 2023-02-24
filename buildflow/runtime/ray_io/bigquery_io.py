@@ -122,7 +122,7 @@ class BigQuerySourceActor(base.RaySource):
             py_row = dict(
                 map(lambda item: (item[0], item[1].as_py()), row.items()))
             row_batch.append(py_row)
-        return await self.send_to_sinks(row_batch)
+        return await self._send_tasks_to_sinks_and_await(row_batch)
 
 
 @ray.remote
