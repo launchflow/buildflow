@@ -26,7 +26,7 @@ class EmptySourceActor(base.RaySource):
                 '`ray_io.source(..., inputs=[1, 2, 3]`)')
 
     async def run(self):
-        return await self.send_to_sinks(self.inputs)
+        return await self._send_tasks_to_sinks_and_await(self.inputs)
 
 
 @ray.remote

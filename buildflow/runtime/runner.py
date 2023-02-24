@@ -4,7 +4,6 @@ import traceback
 from typing import Dict, Iterable, Optional
 
 import ray
-from ray.util import ActorPool
 
 from buildflow.api import ProcessorAPI, resources
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
@@ -91,34 +90,43 @@ class Runtime:
             self._reset()
 
     def _reset(self):
+        # TODO: Add support for multiple node types (i.e. endpoints).
         self._processors = {}
 
     def _run(self, num_replicas: int):
         # TODO: Support multiple processors
         processor_ref = list(self._processors.values())[0]
 
+        # TODO: Add comments to explain this code, its pretty dense with
+        # need-to-know info.
         source_actor_class = _IO_TYPE_TO_SOURCE[
             processor_ref.input_ref.__class__.__name__]
         sink_actor_class = _IO_TYPE_TO_SINK[
             processor_ref.output_ref.__class__.__name__]
         source_inputs = source_actor_class.source_inputs(
             processor_ref.input_ref, num_replicas)
-        sources = []
+        source_pool_tasks = []
         for inputs in source_inputs:
             processor_actor = _ProcessActor.remote(
                 processor_ref.processor_class)
             sink = sink_actor_class.remote(
                 processor_actor.process_batch.remote, processor_ref.output_ref)
-            sources.append(
-                # TODO: probably need support for unique keys. What if someone
-                # writes to two bigquery tables?
-                source_actor_class.remote(
-                    {str(processor_ref.output_ref): sink}, *inputs))
+            # TODO: probably need support for unique keys. What if someone
+            # writes to two bigquery tables?
+            source = source_actor_class.remote(
+                {str(processor_ref.output_ref): sink}, *inputs)
+            num_threads = source_actor_class.recommended_num_threads()
+            source_pool_tasks.extend(
+                [source.run.remote() for _ in range(num_threads)])
 
-        source_pool = ActorPool(sources)
-        all_actor_outputs = list(
-            source_pool.map(lambda actor, _: actor.run.remote(),
-                            [None for _ in range(len(sources))]))
+        # We no longer need to use the Actor Pool because there's no input to
+        # the actors (they spawn their own inputs based on the IO refs).
+        # We also need to await each actor's subtask separately because its
+        # now running on multiple threads.
+        all_actor_outputs = ray.get(source_pool_tasks)
+
+        # TODO: Add option to turn this off for prod deployments
+        # Otherwise I think we lose time to sending extra data over the wire.
         final_output = {}
         for actor_output in all_actor_outputs:
             if actor_output is not None:

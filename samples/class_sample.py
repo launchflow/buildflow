@@ -6,10 +6,13 @@ steps to run:
     3. python class_sample.py
 """
 
+from typing import Any, Dict
+
 import buildflow as flow
 
 # TODO(developer): Fill in with a pub/sub subscription.
-_SUBSCRIPTION = 'TODO'
+# 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_NAME}'
+_SUBSCRIPTION = ''
 
 
 class MyProcessor(flow.Processor):
@@ -19,12 +22,11 @@ class MyProcessor(flow.Processor):
         return flow.PubSub(subscription=_SUBSCRIPTION)
 
     def _setup(self):
-        # this is where you would initialize any clients / shared state
         self.client = ...
 
-    def process(self, taxi_info):
-        print(taxi_info)
-        return taxi_info
+    def process(self, message_data: Dict[str, Any]):
+        print(message_data)
+        return message_data
 
 
 flow.run(MyProcessor)

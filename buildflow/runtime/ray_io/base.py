@@ -1,5 +1,6 @@
 """Base class for all Ray IO Connectors"""
 
+import asyncio
 import os
 from typing import Any, Callable, Dict, Iterable, Union
 
@@ -37,7 +38,7 @@ class RaySink:
         self.remote_fn = remote_fn
         self.data_tracing_enabled = _data_tracing_enabled()
 
-    def _write(
+    async def _write(
         self,
         elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
     ):
@@ -66,14 +67,19 @@ class RaySource:
         self.ray_sinks = ray_sinks
         self.data_tracing_enabled = _data_tracing_enabled()
 
-    # NOTE: Batch runs are also modeled as a stream.
     def stream(self):
         raise NotImplementedError(
             f'`stream` method not implemented for class {self.__class__}')
 
+    @staticmethod
+    def recommended_num_threads():
+        # Each class that implements RaySource can use this to suggest a good
+        # number of threads to use for the source.
+        return 1
+
     @classmethod
     def source_inputs(cls, io_ref, num_replicas: int):
-        """Creates an instance of the source.
+        """Creates the inputs for the source replicas.
 
         This will be executed only once per runtime before the flow is actually
         started. It is a good place to do work that can not be serialized
@@ -81,11 +87,14 @@ class RaySource:
         query, then the subsequent actors can each read a portion of that
         query.
         """
-        return [(io_ref,)] * num_replicas
+        return [(io_ref, )] * num_replicas
 
-    async def send_to_sinks(self, elements):
-        results = {}
+    async def _send_tasks_to_sinks_and_await(self, elements):
+        result_keys = []
+        task_refs = []
         for name, ray_sink in self.ray_sinks.items():
-            result = await ray_sink.write.remote(elements)
-            results[name] = result
-        return results
+            task_ref = ray_sink.write.remote(elements)
+            result_keys.append(name)
+            task_refs.append(task_ref)
+        result_values = await asyncio.gather(*task_refs)
+        return dict(zip(result_keys, result_values))

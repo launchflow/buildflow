@@ -59,7 +59,7 @@ class RedisStreamInput(base.RaySource):
                     for key, value in item.items():
                         decoded_item[key.decode()] = value.decode()
                     items.append(decoded_item)
-                await self.send_to_sinks(items)
+                await self._send_tasks_to_sinks_and_await(items)
 
             time.sleep(1)
 
