@@ -51,8 +51,23 @@ Streaming pipeline reading from Google Pub/Sub and writing to BigQuery.
 ```python
 # Turn your function into a stream processor
 @flow.processor(
-   input_ref=flow.PubSub(subscription_id='my_subscription'),
+   input_ref=flow.PubSub(subscription='my_subscription'),
    output_ref=flow.BigQuery(table_id='project.dataset.table'),
+)
+def stream_process(pubsub_message):
+   ...
+
+flow.run()
+
+```
+
+Streaming pipeline reading from / writing to Google Pub/Sub.
+
+```python
+# Turn your function into a stream processor
+@flow.processor(
+   input_ref=flow.PubSub(subscription='my_subscription'),
+   output_ref=flow.PubSub(topic='my_topic'),
 )
 def stream_process(pubsub_message):
    ...
