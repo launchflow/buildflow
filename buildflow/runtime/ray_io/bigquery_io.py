@@ -120,10 +120,15 @@ class BigQuerySourceActor(base.RaySource):
         return [([stream.name for stream in read_session.streams], )]
 
     async def run(self):
-        tasks = []
-        for stream in self.bq_read_session_stream_ids:
-            tasks.append(_load_arrow_table_from_stream.remote(stream))
-        arrow_subtables = await asyncio.gather(*tasks)
+        if len(self.bq_read_session_stream_ids) == 1:
+            stream = self.bq_read_session_stream_ids[0]
+            response = _get_bigquery_storage_client().read_rows(stream)
+            arrow_subtables = [response.to_arrow()]
+        else:
+            tasks = []
+            for stream in self.bq_read_session_stream_ids:
+                tasks.append(_load_arrow_table_from_stream.remote(stream))
+            arrow_subtables = await asyncio.gather(*tasks)
         # TODO: determine if we can remove the async tag from this method.
         # NOTE: This uses ray.get, so it will block / log a warning.
         ray_dataset = ray.data.from_arrow(arrow_subtables)
@@ -131,7 +136,7 @@ class BigQuerySourceActor(base.RaySource):
 
 
 @ray.remote
-def insert_rows(bigquery_table_id, elements: Iterable[Dict[str, Any]]):
+def insert_rows(bigquery_table_id: str, elements: Iterable[Dict[str, Any]]):
     bq_client = _get_bigquery_client()
     return bq_client.insert_rows(bq_client.get_table(bigquery_table_id),
                                  elements)
