@@ -3,16 +3,15 @@
 import asyncio
 import logging
 import time
-from typing import Any, Callable, Dict, Iterable
 import uuid
+from typing import Any, Callable, Dict, Iterable, List, Union
 
 import google.auth
-from google.cloud import bigquery
-from google.cloud import bigquery_storage_v1
+import pyarrow as pa
 import ray
-
 from buildflow.api import resources
 from buildflow.runtime.ray_io import base
+from google.cloud import bigquery, bigquery_storage_v1
 
 _DEFAULT_TEMP_DATASET = 'buildflow_temp'
 # 3 days
@@ -28,19 +27,26 @@ def _get_bigquery_storage_client():
 
 
 @ray.remote
+def _load_arrow_table_from_stream(stream: str) -> pa.Table:
+    storage_client = _get_bigquery_storage_client()
+    response = storage_client.read_rows(stream)
+    return response.to_arrow()
+
+
+@ray.remote
 class BigQuerySourceActor(base.RaySource):
 
     def __init__(
         self,
         ray_sinks: Dict[str, base.RaySink],
-        stream: str,
+        bq_read_session_stream_ids: List[str],
     ) -> None:
         super().__init__(ray_sinks)
-        self.stream = stream
+        self.bq_read_session_stream_ids = bq_read_session_stream_ids
         logging.basicConfig(level=logging.INFO)
 
     @classmethod
-    def source_inputs(
+    def source_args(
         cls,
         io_ref: resources.BigQuery,
         num_replicas: int,
@@ -109,24 +115,28 @@ class BigQuerySourceActor(base.RaySource):
                      'maybe be able to get more parallelism by increasing '
                      'replicas.'), num_streams)
 
-        bigquery_sources = []
-        for stream in read_session.streams:
-            bigquery_sources.append((stream.name, ))
-        return bigquery_sources
+        # The BigQuerySourceActor instance will fan these tasks out and combine
+        # them into a single ray Dataset in the run() method.
+        return [([stream.name for stream in read_session.streams], )]
 
     async def run(self):
-        storage_client = _get_bigquery_storage_client()
-        response = storage_client.read_rows(self.stream)
-        row_batch = []
-        for row in response.rows():
-            py_row = dict(
-                map(lambda item: (item[0], item[1].as_py()), row.items()))
-            row_batch.append(py_row)
-        return await self._send_tasks_to_sinks_and_await(row_batch)
+        if len(self.bq_read_session_stream_ids) == 1:
+            stream = self.bq_read_session_stream_ids[0]
+            response = _get_bigquery_storage_client().read_rows(stream)
+            arrow_subtables = [response.to_arrow()]
+        else:
+            tasks = []
+            for stream in self.bq_read_session_stream_ids:
+                tasks.append(_load_arrow_table_from_stream.remote(stream))
+            arrow_subtables = await asyncio.gather(*tasks)
+        # TODO: determine if we can remove the async tag from this method.
+        # NOTE: This uses ray.get, so it will block / log a warning.
+        ray_dataset = ray.data.from_arrow(arrow_subtables)
+        return await self._send_batch_to_sinks_and_await([ray_dataset])
 
 
 @ray.remote
-def insert_rows(bigquery_table_id, elements: Iterable[Dict[str, Any]]):
+def insert_rows(bigquery_table_id: str, elements: Iterable[Dict[str, Any]]):
     bq_client = _get_bigquery_client()
     return bq_client.insert_rows(bq_client.get_table(bigquery_table_id),
                                  elements)
@@ -148,7 +158,7 @@ class BigQuerySinkActor(base.RaySink):
 
     async def _write(
         self,
-        elements: Iterable[Dict[str, Any]],
+        elements: Union[Iterable[Dict[str, Any]], ray.data.Dataset],
     ):
         writes = []
         for i in range(0, len(elements), self._BATCH_SIZE):

@@ -24,6 +24,13 @@ class PubSubSourceActor(base.RaySource):
         self.subscription = pubsub_ref.subscription
         self.batch_size = 1000
 
+    @staticmethod
+    def recommended_num_threads():
+        # The actor becomes mainly network bound after roughly 4 threads, and
+        # additoinal threads start to hurt cpu utilization.
+        # This number is based on a single actor instance.
+        return 4
+
     async def run(self):
         pubsub_client = SubscriberAsyncClient()
         while True:
@@ -39,7 +46,7 @@ class PubSubSourceActor(base.RaySource):
             # payloads will be empty if the pull times out (usually because
             # there's no data to pull).
             if payloads:
-                await self._send_tasks_to_sinks_and_await(payloads)
+                await self._send_batch_to_sinks_and_await(payloads)
                 # TODO: Add error handling.
                 await pubsub_client.acknowledge(ack_ids=ack_ids,
                                                 subscription=self.subscription)
@@ -56,13 +63,6 @@ class PubsubSinkActor(base.RaySink):
         super().__init__(remote_fn)
         self.pubslisher_client = pubsub_v1.PublisherClient()
         self.topic = pubsub_ref.topic
-
-    @staticmethod
-    def recommended_num_threads():
-        # The actor becomes mainly network bound after roughly 4 threads, and
-        # additoinal threads start to hurt cpu utilization.
-        # This number is based on a single actor instance.
-        return 4
 
     async def _write(
         self,

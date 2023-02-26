@@ -8,25 +8,33 @@ steps to run:
 
 import logging
 import buildflow as flow
+import ray
 
-# TODO(developer: Fill in the table.
-_QUERY = """\
-SELECT
-  *
-FROM
-  `TODO`
-"""
+# TODO(developer: Fill in the table info.
+_INPUT_TABLE_ID = ''
+_OUTPUT_TABLE_ID = ''
 
 
+# This will read in the entire table and create a ray Dataset.
+# Ray Datasets documentation: https://docs.ray.io/en/master/data/dataset.html
+@flow.processor(input_ref=flow.BigQuery(table_id=_INPUT_TABLE_ID),
+                output_ref=flow.BigQuery(table_id=_OUTPUT_TABLE_ID))
+def process_table(dataset: ray.data.Dataset):
+    # TODO: process the dataset.
+    return dataset
+
+
+# NOTE: You can also pass queries to the BigQuery ref.
 @flow.processor(
-    input_ref=flow.BigQuery(query=_QUERY),
-    # TODO(developer(): Fill in the table. This should be in the format:
-    #   project.dataset.table
-    output_ref=flow.BigQuery(table_id='TODO'),
-)
-def process(bq_row):
-    return bq_row
+    input_ref=flow.BigQuery(query=f'SELECT * FROM `{_INPUT_TABLE_ID}`'),
+    output_ref=flow.BigQuery(table_id=_OUTPUT_TABLE_ID))
+def process_query_result(dataset: ray.data.Dataset):
+    print('DATASET: ', dataset)
+    return dataset
 
 
 logging.basicConfig(level=logging.INFO)
-output = flow.run()
+# NOTE: You can increase the number of replicas to load the dataset faster.
+output = flow.run(num_replicas=1)
+
+# NOTE: You can (optionally) do something with the processed output.
