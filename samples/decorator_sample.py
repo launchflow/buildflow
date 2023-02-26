@@ -9,7 +9,8 @@ steps to run:
 import buildflow as flow
 
 # TODO(developer): add a pub/sub subscription.
-_SUBSCRIPTION = 'projects/daring-runway-374503/subscriptions/tanke-test'
+# subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
+_SUBSCRIPTION = ''
 
 
 @flow.processor(input_ref=flow.PubSub(subscription=_SUBSCRIPTION))
@@ -18,4 +19,5 @@ def process(taxi_info):
     return taxi_info
 
 
-flow.run()
+# NOTE: You can increase the number of replicas to process the messages faster.
+flow.run(num_replicas=1)

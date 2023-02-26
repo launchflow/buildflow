@@ -4,7 +4,6 @@ import traceback
 from typing import Dict, Iterable, Optional
 
 import ray
-
 from buildflow.api import ProcessorAPI, resources
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
                                       pubsub_io, redis_stream_io)
@@ -103,10 +102,10 @@ class Runtime:
             processor_ref.input_ref.__class__.__name__]
         sink_actor_class = _IO_TYPE_TO_SINK[
             processor_ref.output_ref.__class__.__name__]
-        source_inputs = source_actor_class.source_inputs(
-            processor_ref.input_ref, num_replicas)
+        source_args = source_actor_class.source_args(processor_ref.input_ref,
+                                                     num_replicas)
         source_pool_tasks = []
-        for inputs in source_inputs:
+        for args in source_args:
             processor_actor = _ProcessActor.remote(
                 processor_ref.processor_class)
             sink = sink_actor_class.remote(
@@ -114,7 +113,7 @@ class Runtime:
             # TODO: probably need support for unique keys. What if someone
             # writes to two bigquery tables?
             source = source_actor_class.remote(
-                {str(processor_ref.output_ref): sink}, *inputs)
+                {str(processor_ref.output_ref): sink}, *args)
             num_threads = source_actor_class.recommended_num_threads()
             source_pool_tasks.extend(
                 [source.run.remote() for _ in range(num_threads)])

@@ -67,18 +67,18 @@ class RaySource:
         self.ray_sinks = ray_sinks
         self.data_tracing_enabled = _data_tracing_enabled()
 
-    def stream(self):
+    async def run(self):
         raise NotImplementedError(
-            f'`stream` method not implemented for class {self.__class__}')
+            f'`run` method not implemented for class {self.__class__}')
 
     @staticmethod
     def recommended_num_threads():
         # Each class that implements RaySource can use this to suggest a good
-        # number of threads to use for the source.
+        # number of threads to use when creating the source in the runtime.
         return 1
 
     @classmethod
-    def source_inputs(cls, io_ref, num_replicas: int):
+    def source_args(cls, io_ref, num_replicas: int):
         """Creates the inputs for the source replicas.
 
         This will be executed only once per runtime before the flow is actually
@@ -89,7 +89,7 @@ class RaySource:
         """
         return [(io_ref, )] * num_replicas
 
-    async def _send_tasks_to_sinks_and_await(self, elements):
+    async def _send_batch_to_sinks_and_await(self, elements):
         result_keys = []
         task_refs = []
         for name, ray_sink in self.ray_sinks.items():
