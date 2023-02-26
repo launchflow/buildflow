@@ -8,12 +8,15 @@ steps to run:
 
 import buildflow as flow
 
-# TODO(developer): add a pub/sub subscription.
+# TODO(developer): add a pub/sub info.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
-_SUBSCRIPTION = ''
+_INPUT_SUBSCRIPTION = ''
+# topic format: 'projects/{PROJECT_ID}/topic/{SUBSCRIPTION_ID}'
+_OUTPUT_TOPIC = ''
 
 
-@flow.processor(input_ref=flow.PubSub(subscription=_SUBSCRIPTION))
+@flow.processor(input_ref=flow.PubSub(subscription=_INPUT_SUBSCRIPTION),
+                output_ref=flow.PubSub(topic=_OUTPUT_TOPIC))
 def process(taxi_info):
     print(taxi_info)
     return taxi_info
