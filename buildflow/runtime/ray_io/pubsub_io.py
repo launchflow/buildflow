@@ -29,7 +29,7 @@ class PubSubSourceActor(base.RaySource):
         # The actor becomes mainly network bound after roughly 4 threads, and
         # additoinal threads start to hurt cpu utilization.
         # This number is based on a single actor instance.
-        return 4
+        return 8
 
     async def run(self):
         pubsub_client = SubscriberAsyncClient()

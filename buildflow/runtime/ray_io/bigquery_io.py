@@ -4,25 +4,27 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import Any, Callable, Dict, Iterable, List, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 import google.auth
 import pyarrow as pa
 import ray
+from buildflow import utils
 from buildflow.api import resources
 from buildflow.runtime.ray_io import base
 from google.cloud import bigquery, bigquery_storage_v1
 
 _DEFAULT_TEMP_DATASET = 'buildflow_temp'
+_DEFAULT_TEMP_BUCKET = 'buildflow_temp'
 # 3 days
 _DEFAULT_DATASET_EXPIRATION_MS = 24 * 3 * 60 * 60 * 1000
 
 
-def _get_bigquery_client(project: str = ''):
+def _get_bigquery_client(project: Optional[str] = None) -> bigquery.Client:
     return bigquery.Client(project=project)
 
 
-def _get_bigquery_storage_client():
+def _get_bigquery_storage_client() -> bigquery_storage_v1.BigQueryReadClient:
     return bigquery_storage_v1.BigQueryReadClient()
 
 
@@ -57,9 +59,8 @@ class BigQuerySourceActor(base.RaySource):
             _, project = google.auth.default()
         bq_client = _get_bigquery_client(project)
         if io_ref.query:
-            if io_ref.temporary_dataset:
-                output_table = (
-                    f'{io_ref.temporary_dataset}.{str(uuid.uuid4())}')
+            if io_ref.temp_dataset:
+                output_table = (f'{io_ref.temp_dataset}.{str(uuid.uuid4())}')
             else:
                 logging.info(
                     'temporary dataset was not provided, attempting to create'
@@ -143,10 +144,32 @@ def insert_rows(bigquery_table_id: str, elements: Iterable[Dict[str, Any]]):
 
 
 @ray.remote
+def load_job(bigquery_table_id: str, dataset: ray.data.Dataset,
+             gcs_bucket: str):
+    gcs_glob_uri = f'{gcs_bucket}/*'
+    # Upload the dataset to GCS as a parquet file.
+    dataset.write_parquet(gcs_bucket)
+    # Load the parquet file into BigQuery.
+    bq_client = _get_bigquery_client()
+    job_config = bigquery.LoadJobConfig(
+        source_format=bigquery.SourceFormat.PARQUET,
+        create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+    )
+    load_job = bq_client.load_table_from_uri(gcs_glob_uri,
+                                             bigquery_table_id,
+                                             job_config=job_config)
+    # Wait for the job to complete.
+    # TODO: add error handling
+    load_job.result()
+    return
+
+
+@ray.remote
 class BigQuerySinkActor(base.RaySink):
 
     # TODO: should make this configure able.
-    _BATCH_SIZE = 10000
+    _BATCH_SIZE = 10_000_000
 
     def __init__(
         self,
@@ -156,15 +179,26 @@ class BigQuerySinkActor(base.RaySink):
         super().__init__(remote_fn)
         self.bq_table_id = bq_ref.table_id
 
+        self.temp_gcs_bucket = bq_ref.temp_gcs_bucket
+        if not self.temp_gcs_bucket:
+            self.temp_gcs_bucket = _DEFAULT_TEMP_BUCKET
+
     async def _write(
         self,
-        elements: Union[Iterable[Dict[str, Any]], ray.data.Dataset],
+        elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
     ):
-        writes = []
-        for i in range(0, len(elements), self._BATCH_SIZE):
-            batch = elements[i:i + self._BATCH_SIZE]
-            writes.append(insert_rows.remote(self.bq_table_id, batch))
-        return await asyncio.gather(*writes)
+        tasks = []
+        if isinstance(elements, ray.data.Dataset):
+            gcs_bucket = f'gs://{_DEFAULT_TEMP_BUCKET}/{utils.uuid()}'
+            # TODO: Add sharding for larger Datasets.
+            tasks.append(
+                load_job.remote(self.bq_table_id, elements, gcs_bucket))
+        else:
+            for i in range(0, len(elements), self._BATCH_SIZE):
+                batch = elements[i:i + self._BATCH_SIZE]
+                tasks.append(insert_rows.remote(self.bq_table_id, batch))
+
+        return await asyncio.gather(*tasks)
 
 
 # TODO: implement the sink using the BigQueryWriteAsyncClient with proto

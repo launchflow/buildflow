@@ -4,6 +4,7 @@ from typing import Optional
 from buildflow.api import *
 from buildflow.runtime.processor import Processor, processor
 from buildflow.runtime.runner import Runtime
+from buildflow.utils import *
 
 
 def run(processor_class: Optional[type] = None, num_replicas: int = 1):

@@ -41,10 +41,13 @@ class BigQuery(InputOutput):
     query: str = ''
     # The temporary dataset to store query results in. If unspecified we will
     # attempt to create one.
-    temporary_dataset: str = ''
+    temp_dataset: str = ''
     # The billing project to use for query usage. If unset we will use the
     # project configured with application default credentials.
     billing_project: str = ''
+    # The temporary gcs bucket uri to store temp data in. If unspecified we
+    # will attempt to create one.
+    temp_gcs_bucket: str = ''
 
     batch_size: int = 1000
     _io_type: str = IOType.BigQuery.value
