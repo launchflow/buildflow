@@ -1,6 +1,7 @@
 """IO connectors for Bigquery and Ray."""
 
 import asyncio
+import json
 import logging
 import time
 import uuid
@@ -12,12 +13,16 @@ import ray
 from buildflow import utils
 from buildflow.api import resources
 from buildflow.runtime.ray_io import base
-from google.cloud import bigquery, bigquery_storage_v1
+from google.cloud import bigquery, bigquery_storage_v1, storage
 
 _DEFAULT_TEMP_DATASET = 'buildflow_temp'
 _DEFAULT_TEMP_BUCKET = 'buildflow_temp'
 # 3 days
 _DEFAULT_DATASET_EXPIRATION_MS = 24 * 3 * 60 * 60 * 1000
+
+
+def _get_storage_client() -> storage.Client:
+    return storage.Client()
 
 
 def _get_bigquery_client(project: Optional[str] = None) -> bigquery.Client:
@@ -136,40 +141,52 @@ class BigQuerySourceActor(base.RaySource):
         return await self._send_batch_to_sinks_and_await([ray_dataset])
 
 
-@ray.remote
-def insert_rows(bigquery_table_id: str, elements: Iterable[Dict[str, Any]]):
-    bq_client = _get_bigquery_client()
-    return bq_client.insert_rows(bq_client.get_table(bigquery_table_id),
-                                 elements)
-
-
-@ray.remote
-def load_job(bigquery_table_id: str, dataset: ray.data.Dataset,
-             gcs_bucket: str):
-    gcs_glob_uri = f'{gcs_bucket}/*'
-    # Upload the dataset to GCS as a parquet file.
-    dataset.write_parquet(gcs_bucket)
-    # Load the parquet file into BigQuery.
+def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
+                          source_format: bigquery.SourceFormat):
     bq_client = _get_bigquery_client()
     job_config = bigquery.LoadJobConfig(
-        source_format=bigquery.SourceFormat.PARQUET,
+        source_format=source_format,
+        autodetect=True,
         create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
     )
     load_job = bq_client.load_table_from_uri(gcs_glob_uri,
                                              bigquery_table_id,
                                              job_config=job_config)
-    # Wait for the job to complete.
     # TODO: add error handling
     load_job.result()
     return
 
 
 @ray.remote
+def json_rows_load_job(json_rows: Iterable[Dict[str, Any]],
+                       bigquery_table_id: str, gcs_bucket: str) -> str:
+    storage_client = _get_storage_client()
+    bucket = storage_client.bucket(gcs_bucket)
+    job_uuid = utils.uuid()
+    json_file_contents = '\n'.join(json.dumps(row) for row in json_rows)
+    batch_blob = bucket.blob(f'{job_uuid}/{job_uuid}.json')
+    batch_blob.upload_from_string(json_file_contents)
+    gcs_glob_uri = f'gs://{gcs_bucket}/{job_uuid}/*'
+    return run_load_job_and_wait(bigquery_table_id, gcs_glob_uri,
+                                 bigquery.SourceFormat.NEWLINE_DELIMITED_JSON)
+
+
+@ray.remote
+def ray_dataset_load_job(dataset: ray.data.Dataset, bigquery_table_id: str,
+                         gcs_bucket: str) -> str:
+    gcs_output_dir = f'gs://{gcs_bucket}/{utils.uuid()}'
+    dataset.write_parquet(gcs_output_dir)
+    gcs_glob_uri = f'{gcs_output_dir}/*'
+    return run_load_job_and_wait(bigquery_table_id, gcs_glob_uri,
+                                 bigquery.SourceFormat.PARQUET)
+
+
+@ray.remote
 class BigQuerySinkActor(base.RaySink):
 
     # TODO: should make this configure able.
-    _BATCH_SIZE = 10_000_000
+    _BATCH_SIZE = 100_000
 
     def __init__(
         self,
@@ -189,15 +206,15 @@ class BigQuerySinkActor(base.RaySink):
     ):
         tasks = []
         if isinstance(elements, ray.data.Dataset):
-            gcs_bucket = f'gs://{_DEFAULT_TEMP_BUCKET}/{utils.uuid()}'
-            # TODO: Add sharding for larger Datasets.
             tasks.append(
-                load_job.remote(self.bq_table_id, elements, gcs_bucket))
+                ray_dataset_load_job.remote(elements, self.bq_table_id,
+                                            self.temp_gcs_bucket))
         else:
             for i in range(0, len(elements), self._BATCH_SIZE):
                 batch = elements[i:i + self._BATCH_SIZE]
-                tasks.append(insert_rows.remote(self.bq_table_id, batch))
-
+                tasks.append(
+                    json_rows_load_job.remote(batch, self.bq_table_id,
+                                              self.temp_gcs_bucket))
         return await asyncio.gather(*tasks)
 
 
