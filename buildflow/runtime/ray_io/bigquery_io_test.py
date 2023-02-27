@@ -4,10 +4,9 @@ import dataclasses
 import unittest
 from unittest import mock
 
-import ray
-from google.cloud import bigquery_storage_v1
-
 import buildflow as flow
+from buildflow.runtime.ray_io import bigquery_io
+from google.cloud import bigquery_storage_v1
 
 
 @dataclasses.dataclass
@@ -19,16 +18,8 @@ class FakeTable:
 
 
 # NOTE: Async actors don't support local mode / mocks so this really only tests
-# the initial setup of the source.
+# the initial setup of the source by calling the source_args() source method.
 class BigQueryTest(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        ray.init(num_cpus=1, num_gpus=0)
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        ray.shutdown()
 
     @mock.patch('google.cloud.bigquery.Client')
     @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
@@ -43,13 +34,8 @@ class BigQueryTest(unittest.TestCase):
 
         query = 'SELECT * FROM TABLE'
 
-        @flow.processor(
-            input_ref=flow.BigQuery(query=query, billing_project='tmp'),
-            output_ref=flow.BigQuery(table_id='project.table.dataset'))
-        def pass_through_fn(elem):
-            return elem
-
-        flow.run()
+        bigquery_io.BigQuerySourceActor.source_args(
+            flow.BigQuery(query=query, billing_project='tmp'), 1)
 
         bq_client_mock.create_dataset.assert_called_once()
         bq_client_mock.update_dataset.assert_called_once()
@@ -71,15 +57,10 @@ class BigQueryTest(unittest.TestCase):
 
         query = 'SELECT * FROM TABLE'
 
-        @flow.processor(
-            input_ref=flow.BigQuery(query=query,
-                                    temporary_dataset='p.ds',
-                                    billing_project='tmp'),
-            output_ref=flow.BigQuery(table_id='project.table.dataset'))
-        def pass_through_fn(elem):
-            return elem
-
-        flow.run()
+        bigquery_io.BigQuerySourceActor.source_args(
+            flow.BigQuery(query=query,
+                          temporary_dataset='p.ds',
+                          billing_project='tmp'), 1)
 
         bq_client_mock = bq_mock.return_value
         bq_client_mock.create_dataset.assert_not_called()
@@ -103,13 +84,8 @@ class BigQueryTest(unittest.TestCase):
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.return_value = FakeTable('p', 'd', 't', 10)
 
-        @flow.processor(
-            input_ref=flow.BigQuery(table_id='p.d.t', billing_project='tmp'),
-            output_ref=flow.BigQuery(table_id='project.table.dataset'))
-        def pass_through_fn(elem):
-            return elem
-
-        flow.run()
+        bigquery_io.BigQuerySourceActor.source_args(
+            flow.BigQuery(table_id='p.d.t', billing_project='tmp'), 1)
 
         bq_client_mock.create_dataset.assert_not_called()
         bq_client_mock.update_dataset.assert_not_called()
