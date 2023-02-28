@@ -4,6 +4,7 @@ import asyncio
 import os
 from typing import Any, Callable, Dict, Iterable, Union
 
+import ray
 from buildflow.runtime import tracer as t
 
 tracer = t.RedisTracer()
@@ -40,24 +41,25 @@ class RaySink:
 
     async def _write(
         self,
-        elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
+        elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
     ):
         raise NotImplementedError(
             f'`_write` method not implemented for class {self.__class__}')
 
     async def write(
         self,
-        elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
+        elements: Iterable[Union[ray.data.Dataset, Iterable[Dict[str, Any]]]],
         context: Dict[str, str] = {},
     ):
-        result = await self.remote_fn(elements)
+        results = await self.remote_fn(elements)
 
         if self.data_tracing_enabled:
             add_to_trace(key=self.__class__.__name__,
-                         value={'output_data': result},
+                         value={'output_data': results},
                          context=context)
 
-        return await self._write(result)
+        tasks = [self._write(result) for result in results]
+        return await asyncio.gather(*tasks)
 
 
 class RaySource:

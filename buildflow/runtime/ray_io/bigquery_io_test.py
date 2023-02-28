@@ -59,7 +59,7 @@ class BigQueryTest(unittest.TestCase):
 
         bigquery_io.BigQuerySourceActor.source_args(
             flow.BigQuery(query=query,
-                          temporary_dataset='p.ds',
+                          temp_dataset='p.ds',
                           billing_project='tmp'), 1)
 
         bq_client_mock = bq_mock.return_value

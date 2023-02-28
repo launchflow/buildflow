@@ -26,6 +26,8 @@ class MyProcessor(flow.Processor):
         self.t0 = time.time()
         self.num_messages = 0
 
+    # NOTE: this isn't the most accurate metric since it does not include time
+    # spent in the source / sink, but its a good proxy.
     def print_messages_per_sec(self):
         elapsed = time.time() - self.t0
         print(f'{self.num_messages / elapsed} messages / sec')

@@ -20,7 +20,7 @@ _OUTPUT_TABLE_ID = ''
 @flow.processor(input_ref=flow.BigQuery(table_id=_INPUT_TABLE_ID),
                 output_ref=flow.BigQuery(table_id=_OUTPUT_TABLE_ID))
 def process_table(dataset: ray.data.Dataset):
-    # TODO: process the dataset.
+    # TODO: process the dataset (bq table).
     return dataset
 
 
@@ -29,7 +29,7 @@ def process_table(dataset: ray.data.Dataset):
     input_ref=flow.BigQuery(query=f'SELECT * FROM `{_INPUT_TABLE_ID}`'),
     output_ref=flow.BigQuery(table_id=_OUTPUT_TABLE_ID))
 def process_query_result(dataset: ray.data.Dataset):
-    print('DATASET: ', dataset)
+    # TODO: process the dataset (bq query result).
     return dataset
 
 
