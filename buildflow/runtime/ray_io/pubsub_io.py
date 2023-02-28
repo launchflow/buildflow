@@ -66,7 +66,7 @@ class PubsubSinkActor(base.RaySink):
 
     async def _write(
         self,
-        elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
+        elements: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
 
         def publish_dict(item):
@@ -75,10 +75,9 @@ class PubsubSinkActor(base.RaySink):
                 json.dumps(item).encode('UTF-8'))
             future.result()
 
-        for element in elements:
-            if isinstance(element, dict):
-                publish_dict(element)
-            else:
-                for item in element:
-                    publish_dict(item)
+        if isinstance(elements, dict):
+            publish_dict(elements)
+        else:
+            for elem in elements:
+                publish_dict(elem)
         return
