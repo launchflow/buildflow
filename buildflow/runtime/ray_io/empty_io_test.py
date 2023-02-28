@@ -37,7 +37,7 @@ class EmptyTest(unittest.TestCase):
         output = flow.run()
 
         self.assertEqual(len(output), 1)
-        self.assertEqual(list(output.values())[0], [1, 1, 2, 2, 3, 3])
+        self.assertEqual(list(output.values())[0], [[1, 1], [2, 2], [3, 3]])
 
 
 if __name__ == '__main__':

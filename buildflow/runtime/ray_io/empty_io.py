@@ -41,13 +41,6 @@ class EmptySinkActor(base.RaySink):
 
     async def _write(
         self,
-        elements: Iterable[Union[Dict[str, Any], Iterable[Dict[str, Any]]]],
+        elements: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
     ):
-        to_return = []
-        for element in elements:
-            if isinstance(element, list):
-                for item in element:
-                    to_return.append(item)
-            else:
-                to_return.append(element)
-        return to_return
+        return elements
