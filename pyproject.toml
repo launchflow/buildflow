@@ -9,7 +9,7 @@ authors = [
     { name = "Caleb Van Dyke", email = "caleb@launchflow.com" },
     { name = "Josh Tanke", email = "josh@launchflow.com" },
 ]
-description = "flow cli application"
+description = "System-level framework that lets you build your backend entirely using python"
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
