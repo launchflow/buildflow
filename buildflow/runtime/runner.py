@@ -4,7 +4,7 @@ import traceback
 from typing import Dict, Iterable, Optional
 
 import ray
-from buildflow.api import ProcessorAPI, resources
+from buildflow.api import ProcessorAPI, StorageAPI, resources
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
                                       pubsub_io, redis_stream_io)
 
@@ -63,7 +63,8 @@ class Runtime:
             return
         self._initialized = True
 
-        self._processors: Dict[str, _ProcessorRef] = {}
+        self._processor_refs: Dict[str, _ProcessorRef] = {}
+        self._storage_refs: Dict[str, StorageAPI] = {}
 
     # This method is used to make this class a singleton
     def __new__(cls, *args, **kwargs):
@@ -90,11 +91,12 @@ class Runtime:
 
     def _reset(self):
         # TODO: Add support for multiple node types (i.e. endpoints).
-        self._processors = {}
+        self._processor_refs = {}
+        self._storage_refs = {}
 
     def _run(self, num_replicas: int):
         # TODO: Support multiple processors
-        processor_ref = list(self._processors.values())[0]
+        processor_ref = list(self._processor_refs.values())[0]
 
         # TODO: Add comments to explain this code, its pretty dense with
         # need-to-know info.
@@ -143,13 +145,24 @@ class Runtime:
                            processor_id: Optional[str] = None):
         if processor_id is None:
             processor_id = processor_class.__qualname__
-        if processor_id in self._processors:
+        if processor_id in self._processor_refs:
             logging.warning(
                 f'Processor {processor_id} already registered. Overwriting.')
         # TODO: Support multiple processors
-        elif len(self._processors) > 0:
+        elif len(self._processor_refs) > 0:
             raise RuntimeError(
                 'The Runner API currently only supports a single processor.')
 
-        self._processors[processor_id] = _ProcessorRef(processor_class,
-                                                       input_ref, output_ref)
+        self._processor_refs[processor_id] = _ProcessorRef(
+            processor_class, input_ref, output_ref)
+
+    def register_storage(self, storage_class: StorageAPI, storage_id: str):
+        self._storage_refs[storage_id] = storage_class
+
+
+def run(processor_class: Optional[type] = None, num_replicas: int = 1):
+    runtime = Runtime()
+    if processor_class is not None:
+        runtime.register_processor(processor_class, processor_class._input(),
+                                   processor_class._output())
+    return runtime.run(num_replicas)

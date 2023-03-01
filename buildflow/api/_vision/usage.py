@@ -1,19 +1,24 @@
 # Goal: An entire backend system can be defined in a single file
 
+import dataclasses
+
 import buildflow as flow
-import psycopg2
 import ray
 import sqlalchemy
 from fastapi import FastAPI
 
 
-class FooSchema(flow.Schema):
-    # The primary key is used to identify the object in the Storage API.
+@dataclasses.dataclass
+class FooSchema:
     foo_name: str
-    foo_id: flow.PrimaryKey(str) = flow.uuid()
+    # The ID type is used to identify the object in the Storage API.
+    foo_id: flow.ID()
+    # Users can also define their own primary keys
+    foo_pk: flow.PrimaryKey(str)
 
 
-class BarSchema(flow.Schema):
+@dataclasses.dataclass
+class BarSchema:
     bar_name: str
 
 
@@ -31,21 +36,24 @@ def my_async_processor(foo: FooSchema) -> BarSchema:
     return foo
 
 
-# The last arg is the sqlalchemy orm returned by the storage decorator
-@flow.storage(storage_ref=flow.Postgres(...), use_orm=True)
-def write_to_storage(foo_name: str,
-                     session: sqlalchemy.Session = flow.GetSession()):
+# The last arg is the sqlalchemy orm injected by the storage decorator
+@flow.storage(provider=flow.Postgres(...), schema=FooSchema)
+def write_to_storage(foo_name: str, session: sqlalchemy.Session) -> int:
     foo = FooSchema(foo_name=foo_name)
-    session.add(foo).commit()
+    session.add(foo)
+    session.commit()
     my_async_processor(foo)
     return foo.foo_id
 
 
-# The last arg is the postgres client returned by the storage decorator
-@flow.storage(storage_ref=flow.Postgres(...))
-def get_from_storage(foo_id: int,
-                     conn: psycopg2.connection = flow.GetConnection()):
-    return conn.execute(f'select * from foo where foo_id={foo_id}')
+# The last arg is the sqlalchemy orm injected by the storage decorator
+@flow.storage(provider=flow.Postgres(...), schema=FooSchema)
+def get_from_storage(foo_name: str, session: sqlalchemy.Session) -> int:
+    foo = FooSchema(foo_name=foo_name)
+    session.add(foo)
+    session.commit()
+    my_async_processor(foo)
+    return foo.foo_id
 
 
 # Example usage in a FastAPI app
