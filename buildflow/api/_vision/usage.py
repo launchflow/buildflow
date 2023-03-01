@@ -11,10 +11,9 @@ from fastapi import FastAPI
 @dataclasses.dataclass
 class FooSchema:
     foo_name: str
-    # The ID type is used to identify the object in the Storage API.
+    # The ID type is an autoincrementing primary key used to identify the
+    # object in the Storage API.
     foo_id: flow.ID()
-    # Users can also define their own primary keys
-    foo_pk: flow.PrimaryKey(str)
 
 
 @dataclasses.dataclass
@@ -47,13 +46,9 @@ def write_to_storage(foo_name: str, session: sqlalchemy.Session) -> int:
 
 
 # The last arg is the sqlalchemy orm injected by the storage decorator
-@flow.storage(provider=flow.Postgres(...), schema=FooSchema)
-def get_from_storage(foo_name: str, session: sqlalchemy.Session) -> int:
-    foo = FooSchema(foo_name=foo_name)
-    session.add(foo)
-    session.commit()
-    my_async_processor(foo)
-    return foo.foo_id
+@flow.storage(provider=flow.Postgres(...))
+def get_from_storage(foo_id: int, session: sqlalchemy.Session) -> FooSchema:
+    return session.get(FooSchema, foo_id)
 
 
 # Example usage in a FastAPI app
@@ -61,7 +56,7 @@ app = FastAPI()
 
 
 @app.put('/foo')
-def put_foo(foo_name: str) -> FooSchema:
+def put_foo(foo_name: str) -> int:
     return write_to_storage(foo_name)
 
 

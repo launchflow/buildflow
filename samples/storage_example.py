@@ -1,3 +1,13 @@
+"""Sample usage of the storage API.
+
+steps to run:
+    1. pip install .
+    2. docker pull postgres
+    3. docker run --name postgresDB -p 5455:5432 -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=postgres -d postgres
+    4. python storage_example.py
+"""
+
 import dataclasses
 from typing import List
 from datetime import datetime

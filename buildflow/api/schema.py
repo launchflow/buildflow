@@ -10,6 +10,7 @@ BIGQUERY_SCHEMA = TypeVar('BIGQUERY_SCHEMA',
                                                         Mapping[str, Any]]]])
 
 
+# TODO: Replace this with dataclasses and use type DataclassProtocol.
 class Schema:
     """Super class for all schema types."""
     _resource_type: resources.IO
