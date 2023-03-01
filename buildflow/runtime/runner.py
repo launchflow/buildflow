@@ -5,7 +5,6 @@ import json
 import os
 import requests
 import sys
-import tempfile
 import traceback
 from typing import Dict, Iterable, Optional
 
