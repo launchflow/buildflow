@@ -8,9 +8,9 @@ import sys
 import tempfile
 import traceback
 from typing import Dict, Iterable, Optional
-import uuid
 
 import ray
+from buildflow import utils
 from buildflow.api import ProcessorAPI, resources
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
                                       pubsub_io, redis_stream_io)
@@ -72,7 +72,7 @@ def _load_session_id():
                 session_info = json.load(f)
                 return session_info['id']
         else:
-            session_id = str(uuid.uuid4())
+            session_id = utils.uuid()
             with open(_SESSION_FILE, 'w') as f:
                 json.dump({'id': session_id}, f)
             return session_id
