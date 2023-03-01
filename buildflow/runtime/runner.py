@@ -41,8 +41,13 @@ class _ProcessorRef:
     output_ref: type
 
 
-_SESSION_DIR = os.path.join(tempfile.gettempdir(), 'buildflow')
+_SESSION_DIR = os.path.join(os.path.expanduser('~'), '.config', 'buildflow')
 _SESSION_FILE = os.path.join(_SESSION_DIR, 'build_flow_usage.json')
+
+
+@dataclasses.dataclass
+class Session:
+    id: str
 
 
 @ray.remote
@@ -64,18 +69,18 @@ class _ProcessActor(object):
         return to_ret
 
 
-def _load_session_id():
+def _load_session():
     try:
         os.makedirs(_SESSION_DIR, exist_ok=True)
         if os.path.exists(_SESSION_FILE):
             with open(_SESSION_FILE, 'r') as f:
                 session_info = json.load(f)
-                return session_info['id']
+                return Session(**session_info)
         else:
-            session_id = utils.uuid()
+            session = Session(id=utils.uuid())
             with open(_SESSION_FILE, 'w') as f:
-                json.dump({'id': session_id}, f)
-            return session_id
+                json.dump(dataclasses.asdict(session), f)
+            return session
     except Exception as e:
         logging.debug('failed to load session id with error: %s', e)
 
@@ -92,10 +97,10 @@ class Runtime:
             return
         self._initialized = True
         self._processors: Dict[str, _ProcessorRef] = {}
-        self._session_id = _load_session_id()
+        self._session = _load_session()
         parser = argparse.ArgumentParser()
         parser.add_argument('--disable_usage_stats',
-                            action='store_false',
+                            action='store_true',
                             default=False)
         args, _ = parser.parse_known_args(sys.argv)
         if args.disable_usage_stats:
@@ -114,9 +119,9 @@ class Runtime:
                 '`--disable_usage_stats`.')
             response = requests.post(
                 'https://apis.launchflow.com/buildflow_usage',
-                data=json.dumps({'id': self._session_id}))
+                data=json.dumps(dataclasses.asdict(self._session)))
             if response.status_code == 200:
-                logging.debug('recorded run in session %s', self._session_id)
+                logging.debug('recorded run in session %s', self._session)
             else:
                 logging.debug('failed to record usage stats.')
         print('Starting Flow Runtime')
