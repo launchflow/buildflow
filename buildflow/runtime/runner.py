@@ -1,9 +1,15 @@
+import argparse
 import dataclasses
 import logging
+import json
+import os
+import requests
+import sys
 import traceback
 from typing import Dict, Iterable, Optional
 
 import ray
+from buildflow import utils
 from buildflow.api import ProcessorAPI, resources
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
                                       pubsub_io, redis_stream_io)
@@ -34,6 +40,15 @@ class _ProcessorRef:
     output_ref: type
 
 
+_SESSION_DIR = os.path.join(os.path.expanduser('~'), '.config', 'buildflow')
+_SESSION_FILE = os.path.join(_SESSION_DIR, 'build_flow_usage.json')
+
+
+@dataclasses.dataclass
+class Session:
+    id: str
+
+
 @ray.remote
 class _ProcessActor(object):
 
@@ -53,17 +68,42 @@ class _ProcessActor(object):
         return to_ret
 
 
+def _load_session():
+    try:
+        os.makedirs(_SESSION_DIR, exist_ok=True)
+        if os.path.exists(_SESSION_FILE):
+            with open(_SESSION_FILE, 'r') as f:
+                session_info = json.load(f)
+                return Session(**session_info)
+        else:
+            session = Session(id=utils.uuid())
+            with open(_SESSION_FILE, 'w') as f:
+                json.dump(dataclasses.asdict(session), f)
+            return session
+    except Exception as e:
+        logging.debug('failed to load session id with error: %s', e)
+
+
 class Runtime:
     # NOTE: This is the singleton class.
     _instance = None
     _initialized = False
+    _session_id = None
+    _enable_usage = True
 
     def __init__(self):
         if self._initialized:
             return
         self._initialized = True
-
         self._processors: Dict[str, _ProcessorRef] = {}
+        self._session = _load_session()
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--disable_usage_stats',
+                            action='store_true',
+                            default=False)
+        args, _ = parser.parse_known_args(sys.argv)
+        if args.disable_usage_stats:
+            self._enable_usage = False
 
     # This method is used to make this class a singleton
     def __new__(cls, *args, **kwargs):
@@ -72,6 +112,17 @@ class Runtime:
         return cls._instance
 
     def run(self, num_replicas: int):
+        if self._enable_usage:
+            print(
+                'Usage stats collection is enabled. To disable add the flag: '
+                '`--disable_usage_stats`.')
+            response = requests.post(
+                'https://apis.launchflow.com/buildflow_usage',
+                data=json.dumps(dataclasses.asdict(self._session)))
+            if response.status_code == 200:
+                logging.debug('recorded run in session %s', self._session)
+            else:
+                logging.debug('failed to record usage stats.')
         print('Starting Flow Runtime')
 
         try:
