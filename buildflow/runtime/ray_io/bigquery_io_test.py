@@ -4,7 +4,7 @@ import dataclasses
 import unittest
 from unittest import mock
 
-import buildflow as flow
+import buildflow
 from buildflow.runtime.ray_io import bigquery_io
 from google.cloud import bigquery_storage_v1
 
@@ -35,7 +35,7 @@ class BigQueryTest(unittest.TestCase):
         query = 'SELECT * FROM TABLE'
 
         bigquery_io.BigQuerySourceActor.source_args(
-            flow.BigQuery(query=query, billing_project='tmp'), 1)
+            buildflow.BigQuery(query=query, billing_project='tmp'), 1)
 
         bq_client_mock.create_dataset.assert_called_once()
         bq_client_mock.update_dataset.assert_called_once()
@@ -58,9 +58,9 @@ class BigQueryTest(unittest.TestCase):
         query = 'SELECT * FROM TABLE'
 
         bigquery_io.BigQuerySourceActor.source_args(
-            flow.BigQuery(query=query,
-                          temp_dataset='p.ds',
-                          billing_project='tmp'), 1)
+            buildflow.BigQuery(query=query,
+                               temp_dataset='p.ds',
+                               billing_project='tmp'), 1)
 
         bq_client_mock = bq_mock.return_value
         bq_client_mock.create_dataset.assert_not_called()
@@ -85,7 +85,7 @@ class BigQueryTest(unittest.TestCase):
         bq_client_mock.get_table.return_value = FakeTable('p', 'd', 't', 10)
 
         bigquery_io.BigQuerySourceActor.source_args(
-            flow.BigQuery(table_id='p.d.t', billing_project='tmp'), 1)
+            buildflow.BigQuery(table_id='p.d.t', billing_project='tmp'), 1)
 
         bq_client_mock.create_dataset.assert_not_called()
         bq_client_mock.update_dataset.assert_not_called()

@@ -1,6 +1,6 @@
 from google.cloud import pubsub_v1
 
-import buildflow as flow
+import buildflow
 
 pubsub_project = 'pubsub-test-project'
 ps_client = pubsub_v1.PublisherClient()
@@ -38,13 +38,16 @@ print(' - topic: ', output_topic_path)
 print(' - subscription: ', subscription_path)
 
 
-class MyProcessor(flow.Processor):
+flow = buildflow.Flow()
+
+
+class MyProcessor(buildflow.Processor):
 
     def _input():
-        return flow.PubSub(subscription=input_subscription_path)
+        return buildflow.PubSub(subscription=input_subscription_path)
 
     def _output():
-        return flow.PubSub(topic=output_topic_path)
+        return buildflow.PubSub(topic=output_topic_path)
 
     def process(self, payload: int):
         payload['val'] += 1

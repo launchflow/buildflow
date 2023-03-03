@@ -19,8 +19,9 @@ class Processor(ProcessorAPI):
         return payload
 
 
-def processor(input_ref: IO, output_ref: Optional[IO] = None):
-    runtime = Runtime()
+def processor(runtime: Runtime,
+              input_ref: IO,
+              output_ref: Optional[IO] = None):
 
     if output_ref is None:
         output_ref = Empty()

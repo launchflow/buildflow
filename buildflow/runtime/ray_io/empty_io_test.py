@@ -2,39 +2,35 @@
 
 import unittest
 
-import ray
+import pytest
 
-import buildflow as flow
+import buildflow
 
 
+@pytest.mark.usefixtures('ray_fix')
 class EmptyTest(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        ray.init(num_cpus=1, num_gpus=0)
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        ray.shutdown()
+    def setUp(self) -> None:
+        self.flow = buildflow.Flow()
 
     def test_end_to_end_empty(self):
 
-        @flow.processor(input_ref=flow.Empty(inputs=[1, 2, 3]))
+        @self.flow.processor(input_ref=buildflow.Empty(inputs=[1, 2, 3]))
         def process(elem):
             return elem
 
-        output = flow.run()
+        output = self.flow.run()
 
         self.assertEqual(len(output), 1)
         self.assertEqual(list(output.values())[0], [1, 2, 3])
 
     def test_end_to_end_empty_multi_output(self):
 
-        @flow.processor(input_ref=flow.Empty(inputs=[1, 2, 3]))
+        @self.flow.processor(input_ref=buildflow.Empty(inputs=[1, 2, 3]))
         def process(elem):
             return [elem, elem]
 
-        output = flow.run()
+        output = self.flow.run()
 
         self.assertEqual(len(output), 1)
         self.assertEqual(list(output.values())[0], [[1, 1], [2, 2], [3, 3]])

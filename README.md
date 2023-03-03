@@ -21,17 +21,20 @@ Install the framework
 pip install buildflow
 ```
 
-Import the framework.
+Import the framework and create a flow.
 
 ```python
-import buildflow as flow
+from buildflow import Flow
+import buildflow
+
+flow = Flow()
 ```
 
 Add the `flow.processor` decorator to your function to attach IO.
 
 ```python
 QUERY = 'SELECT * FROM `table`'
-@flow.processor(input_ref=flow.BigQuery(query=QUERY))
+@flow.processor(input_ref=buildflow.BigQuery(query=QUERY))
 def process(bigquery_row):
     ...
 ```
@@ -51,8 +54,8 @@ Streaming pipeline reading from Google Pub/Sub and writing to BigQuery.
 ```python
 # Turn your function into a stream processor
 @flow.processor(
-   input_ref=flow.PubSub(subscription='my_subscription'),
-   output_ref=flow.BigQuery(table_id='project.dataset.table'),
+   input_ref=buildflow.PubSub(subscription='my_subscription'),
+   output_ref=buildflow.BigQuery(table_id='project.dataset.table'),
 )
 def stream_process(pubsub_message):
    ...
@@ -66,8 +69,8 @@ Streaming pipeline reading from / writing to Google Pub/Sub.
 ```python
 # Turn your function into a stream processor
 @flow.processor(
-   input_ref=flow.PubSub(subscription='my_subscription'),
-   output_ref=flow.PubSub(topic='my_topic'),
+   input_ref=buildflow.PubSub(subscription='my_subscription'),
+   output_ref=buildflow.PubSub(topic='my_topic'),
 )
 def stream_process(pubsub_message):
    ...
@@ -79,12 +82,10 @@ flow.run()
 Batch pipeline reading and writing to BigQuery.
 
 ```python
-import buildflow as flow
-
 QUERY = 'SELECT * FROM `project.dataset.input_table`'
 @flow.processor(
-    input_ref=flow.BigQuery(query=QUERY),
-    output_ref=flow.BigQuery(table_id='project.dataset.output_table'),
+    input_ref=buildflow.BigQuery(query=QUERY),
+    output_ref=buildflow.BigQuery(table_id='project.dataset.output_table'),
 )
 def process(bigquery_row):
     ...
@@ -95,10 +96,8 @@ flow.run()
 Batch pipeline reading from BigQuery and returning output locally.
 
 ```python
-import buildflow as flow
-
 QUERY = 'SELECT * FROM `table`'
-@flow.processor(input_ref=flow.BigQuery(query=QUERY))
+@flow.processor(input_ref=buildflow.BigQuery(query=QUERY))
 def process(bigquery_row):
     ...
 

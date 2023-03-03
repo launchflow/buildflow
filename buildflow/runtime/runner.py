@@ -85,16 +85,8 @@ def _load_session():
 
 
 class Runtime:
-    # NOTE: This is the singleton class.
-    _instance = None
-    _initialized = False
-    _session_id = None
-    _enable_usage = True
 
     def __init__(self):
-        if self._initialized:
-            return
-        self._initialized = True
         self._processors: Dict[str, _ProcessorRef] = {}
         self._session = _load_session()
         parser = argparse.ArgumentParser()
@@ -102,14 +94,9 @@ class Runtime:
                             action='store_true',
                             default=False)
         args, _ = parser.parse_known_args(sys.argv)
+        self._enable_usage = True
         if args.disable_usage_stats:
             self._enable_usage = False
-
-    # This method is used to make this class a singleton
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     def run(self, num_replicas: int):
         if self._enable_usage:

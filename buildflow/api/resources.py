@@ -24,14 +24,14 @@ class IOType(Enum):
     Empty = 'EMPTY'
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class PubSub(InputOutput):
     topic: str = ''
     subscription: str = ''
     _io_type: str = IOType.Pubsub.value
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class BigQuery(InputOutput):
 
     # The BigQuery table to read from.
@@ -53,7 +53,7 @@ class BigQuery(InputOutput):
     _io_type: str = IOType.BigQuery.value
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class RedisStream(InputOutput):
     host: str
     port: str
@@ -64,7 +64,7 @@ class RedisStream(InputOutput):
     _io_type: str = IOType.RedisStream.value
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class DuckDB(InputOutput):
     database: str
     table: str = ''
@@ -72,7 +72,7 @@ class DuckDB(InputOutput):
     _io_type: str = IOType.DuckDB.value
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Empty(InputOutput):
     inputs: List[Any] = dataclasses.field(default_factory=list)
     _io_type: str = IOType.Empty.value

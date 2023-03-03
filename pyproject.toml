@@ -9,7 +9,7 @@ authors = [
     { name = "Caleb Van Dyke", email = "caleb@launchflow.com" },
     { name = "Josh Tanke", email = "josh@launchflow.com" },
 ]
-description = "System-level framework that lets you build your backend entirely using python"
+description = "buildflow is a unified **batch** and **streaming** framework that turns any python function into a scalable data pipeline that can read from our supported IO resources."
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [

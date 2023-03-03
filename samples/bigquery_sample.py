@@ -7,18 +7,22 @@ steps to run:
 """
 
 import logging
-import buildflow as flow
+from buildflow import Flow
+import buildflow
 import ray
 
-# TODO(developer: Fill in the table info.
+# TODO(developer): Fill in the table info.
 _INPUT_TABLE_ID = ''
 _OUTPUT_TABLE_ID = ''
 
 
+flow = Flow()
+
+
 # This will read in the entire table and create a ray Dataset.
 # Ray Datasets documentation: https://docs.ray.io/en/master/data/dataset.html
-@flow.processor(input_ref=flow.BigQuery(table_id=_INPUT_TABLE_ID),
-                output_ref=flow.BigQuery(table_id=_OUTPUT_TABLE_ID))
+@flow.processor(input_ref=buildflow.BigQuery(table_id=_INPUT_TABLE_ID),
+                output_ref=buildflow.BigQuery(table_id=_OUTPUT_TABLE_ID))
 def process_table(dataset: ray.data.Dataset):
     # TODO: process the dataset (bq table).
     return dataset
@@ -26,8 +30,8 @@ def process_table(dataset: ray.data.Dataset):
 
 # NOTE: You can also pass queries to the BigQuery ref.
 @flow.processor(
-    input_ref=flow.BigQuery(query=f'SELECT * FROM `{_INPUT_TABLE_ID}`'),
-    output_ref=flow.BigQuery(table_id=_OUTPUT_TABLE_ID))
+    input_ref=buildflow.BigQuery(query=f'SELECT * FROM `{_INPUT_TABLE_ID}`'),
+    output_ref=buildflow.BigQuery(table_id=_OUTPUT_TABLE_ID))
 def process_query_result(dataset: ray.data.Dataset):
     # TODO: process the dataset (bq query result).
     return dataset
