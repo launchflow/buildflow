@@ -22,7 +22,7 @@ class EmptyTest(unittest.TestCase):
         output = self.flow.run()
 
         self.assertEqual(len(output), 1)
-        self.assertEqual(list(output.values())[0], [1, 2, 3])
+        self.assertEqual(output, {'process': {'local': [1, 2, 3]}})
 
     def test_end_to_end_empty_multi_output(self):
 
@@ -33,7 +33,48 @@ class EmptyTest(unittest.TestCase):
         output = self.flow.run()
 
         self.assertEqual(len(output), 1)
-        self.assertEqual(list(output.values())[0], [[1, 1], [2, 2], [3, 3]])
+        self.assertEqual(output,
+                         {'process': {
+                             'local': [[1, 1], [2, 2], [3, 3]]
+                         }})
+
+    def test_end_to_end_with_class(self):
+
+        class MyProcessor(buildflow.Processor):
+
+            @staticmethod
+            def _input():
+                return buildflow.Empty([1, 2, 3])
+
+            def process(self, num: int):
+                return num
+
+        output = self.flow.run(MyProcessor)
+
+        self.assertEqual(len(output), 1)
+        self.assertEqual(output, {'MyProcessor': {'local': [1, 2, 3]}})
+
+    def test_end_to_end_empty_multiple_processors(self):
+
+        @self.flow.processor(input_ref=buildflow.Empty(inputs=[1, 2, 3]))
+        def process1(elem):
+            return elem
+
+        @self.flow.processor(input_ref=buildflow.Empty(inputs=[4, 5, 6]))
+        def process2(elem):
+            return elem
+
+        output = self.flow.run()
+
+        self.assertEqual(len(output), 2)
+        self.assertEqual(output, {
+            'process1': {
+                'local': [1, 2, 3]
+            },
+            'process2': {
+                'local': [4, 5, 6]
+            }
+        })
 
 
 if __name__ == '__main__':

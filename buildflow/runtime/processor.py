@@ -27,7 +27,7 @@ def processor(runtime: Runtime,
         output_ref = Empty()
 
     def decorator_function(original_function):
-        processor_id = original_function.__qualname__
+        processor_id = original_function.__name__
         # Dynamically define a new class with the same structure as Processor
         class_name = f'AdHocProcessor_{uuid.uuid4().hex[:8]}'
         _AdHocProcessor = type(
