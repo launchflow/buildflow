@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.1](https://github.com/launchflow/buildflow/compare/v0.0.1...v0.0.1) (2023-03-03)
+
+
+### Bug Fixes
+
+* add usage stats to detect how often users are calling flow.run ([1ce6279](https://github.com/launchflow/buildflow/commit/1ce6279d43171413330c1aa00ca032290da47260))
+* update API to user a top level flow object ([38bd595](https://github.com/launchflow/buildflow/commit/38bd5952ddf6346f83fc78aa6a1b1585e3eaddc8))
+* update description of package ([36fb28c](https://github.com/launchflow/buildflow/commit/36fb28c78a5a7df719b5b50685c50395701b42b0))
+
+
+### Miscellaneous Chores
+
+* release 0.0.1 ([571bd84](https://github.com/launchflow/buildflow/commit/571bd84fef1a628f6b81bfda8c76fdb8ad579dcb))
+
 ## [0.0.1](https://github.com/launchflow/buildflow/compare/v0.0.1...v0.0.1) (2023-02-26)
 
 
