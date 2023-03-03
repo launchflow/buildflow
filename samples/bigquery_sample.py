@@ -11,7 +11,7 @@ from buildflow import Flow
 import buildflow
 import ray
 
-# TODO(developer: Fill in the table info.
+# TODO(developer): Fill in the table info.
 _INPUT_TABLE_ID = ''
 _OUTPUT_TABLE_ID = ''
 
