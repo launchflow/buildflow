@@ -9,18 +9,22 @@ steps to run:
 import time
 from typing import Any, Dict
 
-import buildflow as flow
+from buildflow import Flow
+import buildflow
 
 # TODO(developer): Fill in with a pub/sub subscription.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
 _SUBSCRIPTION = ''
 
 
-class MyProcessor(flow.Processor):
+flow = Flow()
+
+
+class MyProcessor(buildflow.Processor):
 
     @staticmethod
     def _input():
-        return flow.PubSub(subscription=_SUBSCRIPTION)
+        return buildflow.PubSub(subscription=_SUBSCRIPTION)
 
     def _setup(self):
         self.t0 = time.time()

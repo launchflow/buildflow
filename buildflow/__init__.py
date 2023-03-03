@@ -2,6 +2,7 @@
 from typing import Optional
 
 from buildflow.api import *
+from buildflow.runtime.flow import Flow
 from buildflow.runtime.processor import Processor, processor
 from buildflow.runtime.runner import Runtime
 from buildflow.utils import *

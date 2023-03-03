@@ -6,7 +6,8 @@ steps to run:
     3. python decorator_sample.py
 """
 
-import buildflow as flow
+import buildflow
+from buildflow import Flow
 
 # TODO(developer): add a pub/sub info.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
@@ -15,12 +16,15 @@ _INPUT_SUBSCRIPTION = ''
 _OUTPUT_TOPIC = ''
 
 
-@flow.processor(input_ref=flow.PubSub(subscription=_INPUT_SUBSCRIPTION),
-                output_ref=flow.PubSub(topic=_OUTPUT_TOPIC))
+flow = Flow()
+
+
+@flow.processor(input_ref=buildflow.PubSub(subscription=_INPUT_SUBSCRIPTION),
+                output_ref=buildflow.PubSub(topic=_OUTPUT_TOPIC))
 def process(taxi_info):
     print(taxi_info)
     return taxi_info
 
 
 # NOTE: You can increase the number of replicas to process the messages faster.
-flow.run(num_replicas=1)
+buildflow.run(num_replicas=1)
