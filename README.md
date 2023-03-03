@@ -101,5 +101,6 @@ QUERY = 'SELECT * FROM `table`'
 def process(bigquery_row):
     ...
 
-processed_rows = flow.run()
+output = flow.run()
+process_rows = output['process']['local']
 ```
