@@ -1,9 +1,9 @@
-import uuid
 from typing import Optional
 
-from buildflow.api.resources import IO, Empty
-from buildflow.runtime import Runtime
+from buildflow import utils
 from buildflow.api import ProcessorAPI
+from buildflow.api.io import IO, Empty
+from buildflow.runtime import Runtime
 
 
 class Processor(ProcessorAPI):
@@ -29,7 +29,7 @@ def processor(runtime: Runtime,
     def decorator_function(original_function):
         processor_id = original_function.__name__
         # Dynamically define a new class with the same structure as Processor
-        class_name = f'AdHocProcessor_{uuid.uuid4().hex[:8]}'
+        class_name = f'AdHocProcessor_{utils.uuid(max_len=8)}'
         _AdHocProcessor = type(
             class_name, (object, ), {
                 '_input': staticmethod(lambda: input_ref),
@@ -37,7 +37,6 @@ def processor(runtime: Runtime,
                 '_outputs': staticmethod(lambda: []),
                 '_setup': lambda self: None,
                 'process': lambda self, payload: original_function(payload),
-                'process_async': lambda self, payload: payload,
             })
         runtime.register_processor(_AdHocProcessor,
                                    input_ref,

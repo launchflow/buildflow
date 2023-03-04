@@ -1,6 +1,6 @@
 from typing import Any, Iterable
 
-from buildflow.api.resources import IO
+from buildflow.api.io import IO
 
 
 class ProcessorAPI:
@@ -27,8 +27,3 @@ class ProcessorAPI:
     # This lifecycle method is called once per payload.
     def process(self, payload: Any):
         raise NotImplementedError('process not implemented')
-
-    # TODO: Implement the runtime logic for this async method.
-    # This lifecycle method is called once per payload.
-    async def process_async(self, payload: Any):
-        raise NotImplementedError('process_async not implemented')

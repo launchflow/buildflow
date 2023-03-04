@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Iterable, Union
 import ray
 from google.cloud import pubsub_v1
 
-from buildflow.api import resources
+from buildflow.api import io
 from buildflow.runtime.ray_io import base
 
 from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
@@ -18,7 +18,7 @@ class PubSubSourceActor(base.RaySource):
     def __init__(
         self,
         ray_sinks: Dict[str, base.RaySink],
-        pubsub_ref: resources.PubSub,
+        pubsub_ref: io.PubSub,
     ) -> None:
         super().__init__(ray_sinks)
         self.subscription = pubsub_ref.subscription
@@ -58,7 +58,7 @@ class PubsubSinkActor(base.RaySink):
     def __init__(
         self,
         remote_fn: Callable,
-        pubsub_ref: resources.PubSub,
+        pubsub_ref: io.PubSub,
     ) -> None:
         super().__init__(remote_fn)
         self.pubslisher_client = pubsub_v1.PublisherClient()

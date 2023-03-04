@@ -10,26 +10,26 @@ from typing import Dict, Iterable, Optional
 
 import ray
 from buildflow import utils
-from buildflow.api import ProcessorAPI, resources
+from buildflow.api import ProcessorAPI, io
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
                                       pubsub_io, redis_stream_io)
 
 # TODO: Add support for other IO types.
 _IO_TYPE_TO_SOURCE = {
-    resources.BigQuery.__name__: bigquery_io.BigQuerySourceActor,
-    resources.DuckDB.__name__: duckdb_io.DuckDBSourceActor,
-    resources.Empty.__name__: empty_io.EmptySourceActor,
-    resources.PubSub.__name__: pubsub_io.PubSubSourceActor,
-    resources.RedisStream.__name__: redis_stream_io.RedisStreamInput,
+    io.BigQuery.__name__: bigquery_io.BigQuerySourceActor,
+    io.DuckDB.__name__: duckdb_io.DuckDBSourceActor,
+    io.Empty.__name__: empty_io.EmptySourceActor,
+    io.PubSub.__name__: pubsub_io.PubSubSourceActor,
+    io.RedisStream.__name__: redis_stream_io.RedisStreamInput,
 }
 
 # TODO: Add support for other IO types.
 _IO_TYPE_TO_SINK = {
-    resources.BigQuery.__name__: bigquery_io.BigQuerySinkActor,
-    resources.DuckDB.__name__: duckdb_io.DuckDBSinkActor,
-    resources.Empty.__name__: empty_io.EmptySinkActor,
-    resources.PubSub.__name__: pubsub_io.PubsubSinkActor,
-    resources.RedisStream.__name__: redis_stream_io.RedisStreamOutput,
+    io.BigQuery.__name__: bigquery_io.BigQuerySinkActor,
+    io.DuckDB.__name__: duckdb_io.DuckDBSinkActor,
+    io.Empty.__name__: empty_io.EmptySinkActor,
+    io.PubSub.__name__: pubsub_io.PubsubSinkActor,
+    io.RedisStream.__name__: redis_stream_io.RedisStreamOutput,
 }
 
 
@@ -57,7 +57,6 @@ class _ProcessActor(object):
         print(f'Running processor setup: {self._processor.__class__}')
         self._processor._setup()
 
-    # TODO: Add support for process_async
     def process(self, *args, **kwargs):
         return self._processor.process(*args, **kwargs)
 
@@ -152,7 +151,7 @@ class Runtime:
                 # TODO: probably need support for unique keys. What if someone
                 # writes to two bigquery tables?
                 key = str(processor_ref.output_ref)
-                if isinstance(processor_ref.output_ref, resources.Empty):
+                if isinstance(processor_ref.output_ref, io.Empty):
                     key = 'local'
                 source = source_actor_class.remote({key: sink}, *args)
                 num_threads = source_actor_class.recommended_num_threads()
@@ -185,8 +184,8 @@ class Runtime:
 
     def register_processor(self,
                            processor_class: type,
-                           input_ref: resources.IO,
-                           output_ref: resources.IO,
+                           input_ref: io.IO,
+                           output_ref: io.IO,
                            processor_id: Optional[str] = None):
         if processor_id is None:
             processor_id = processor_class.__name__

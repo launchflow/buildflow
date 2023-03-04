@@ -8,7 +8,7 @@ import duckdb
 import pandas as pd
 import ray
 
-from buildflow.api import resources
+from buildflow.api import io
 from buildflow.runtime.ray_io import base
 
 
@@ -18,7 +18,7 @@ class DuckDBSourceActor(base.RaySource):
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        duckdb_ref=resources.DuckDB,
+        duckdb_ref=io.DuckDB,
     ) -> None:
         super().__init__(ray_sinks)
         self.duck_con = duckdb.connect(database=duckdb_ref.database,
@@ -50,7 +50,7 @@ class DuckDBSinkActor(base.RaySink):
     def __init__(
         self,
         remote_fn: Callable,
-        duckdb_ref: resources.DuckDB,
+        duckdb_ref: io.DuckDB,
     ) -> None:
         super().__init__(remote_fn)
         self.database = duckdb_ref.database

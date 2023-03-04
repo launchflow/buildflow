@@ -22,6 +22,14 @@ class IOType(Enum):
     RedisStream = 'REDIS_STREAM'
     DuckDB = 'DUCKDB'
     Empty = 'EMPTY'
+    HTTPEndpoint = 'HTTP_ENDPOINT'
+
+
+@dataclasses.dataclass(frozen=True)
+class HTTPEndpoint(InputOutput):
+    host: str
+    port: int
+    _io_type: str = IOType.HTTPEndpoint.value
 
 
 @dataclasses.dataclass(frozen=True)
@@ -84,4 +92,5 @@ _IO_MAPPING = {
     IOType.RedisStream.value: RedisStream,
     IOType.DuckDB.value: DuckDB,
     IOType.Empty.value: Empty,
+    IOType.HTTPEndpoint.value: HTTPEndpoint,
 }
