@@ -3,7 +3,6 @@ from buildflow.api.processor import ProcessorAPI
 
 class ProviderAPI:
 
-    # This static method defines the reference the managed Processor.
-    @staticmethod
-    def _processor() -> ProcessorAPI:
+    # This instance method defines the reference to the managed Processor.
+    def _processor(self) -> ProcessorAPI:
         raise NotImplementedError('_processor not implemented')
