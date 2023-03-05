@@ -46,8 +46,8 @@ class GCSFileEventStream(Template):
 
 
 @dataclasses.dataclass(frozen=True)
-class Cron(Template):
-    schedule: str
+class CloudScheduler(Template):
+    cron_schedule: str
     source: IO
     sink: IO
     

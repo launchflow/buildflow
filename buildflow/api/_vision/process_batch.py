@@ -29,7 +29,7 @@ class output_schema:
     output_ref=BigQuery(table_id='project.dataset.table2',
                         schema=output_schema),
 )
-def scheduled_batch(dataset: Dataset) -> Dataset:
+def batch_process_bigquery(dataset: Dataset) -> Dataset:
     return dataset.groupby('key').map_groups(process_group,
                                              batch_format='pandas')
 

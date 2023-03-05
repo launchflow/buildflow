@@ -9,7 +9,7 @@ from ray.data import Dataset
 
 from buildflow import Flow
 from buildflow.io import BigQuery, HTTPEndpoint, PubSub
-from buildflow.templates import CloudRun, Cron, GCSFileEventStream
+from buildflow.templates import CloudRun, CloudScheduler, GCSFileEventStream
 
 flow = Flow()
 
@@ -25,11 +25,11 @@ def cloud_run_processor(payload: Any) -> Any:
     pass
 
 
-# Cron creates a Cloud Scheduler instance to run the processor based on the
-# cron scheduler.
+# CloudScheduler creates a Cloud Scheduler instance to run the processor based on the
+# cron schedule.
 # Compare to the BigQuery example in process_batch.py.
-@flow.processor(template=Cron(
-    schedule='0 0 * * *',
+@flow.processor(template=CloudScheduler(
+    cron_schedule='0 0 * * *',
     source=BigQuery(table_id='project.dataset.table1'),
     sink=BigQuery(table_id='project.dataset.table2'),
 ))
