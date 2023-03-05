@@ -9,10 +9,10 @@ from buildflow.runtime import Runtime
 class Processor(ProcessorAPI):
 
     @staticmethod
-    def _output() -> IO:
+    def sink() -> IO:
         return Empty()
 
-    def _setup(self):
+    def setup(self):
         pass
 
     def process(self, payload):
@@ -32,10 +32,10 @@ def processor(runtime: Runtime,
         class_name = f'AdHocProcessor_{utils.uuid(max_len=8)}'
         _AdHocProcessor = type(
             class_name, (object, ), {
-                '_input': staticmethod(lambda: input_ref),
-                '_output': staticmethod(lambda: output_ref),
-                '_outputs': staticmethod(lambda: []),
-                '_setup': lambda self: None,
+                'source': staticmethod(lambda: input_ref),
+                'sink': staticmethod(lambda: output_ref),
+                'sinks': staticmethod(lambda: []),
+                'setup': lambda self: None,
                 'process': lambda self, payload: original_function(payload),
             })
         runtime.register_processor(_AdHocProcessor,

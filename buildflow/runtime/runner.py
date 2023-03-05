@@ -55,7 +55,7 @@ class _ProcessActor(object):
     def __init__(self, processor_class):
         self._processor: ProcessorAPI = processor_class()
         print(f'Running processor setup: {self._processor.__class__}')
-        self._processor._setup()
+        self._processor.setup()
 
     def process(self, *args, **kwargs):
         return self._processor.process(*args, **kwargs)

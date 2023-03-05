@@ -22,10 +22,10 @@ flow = Flow()
 class MyProcessor(buildflow.Processor):
 
     @staticmethod
-    def _input():
+    def source():
         return buildflow.PubSub(subscription=_SUBSCRIPTION)
 
-    def _setup(self):
+    def setup(self):
         self.t0 = time.time()
         self.num_messages = 0
 

@@ -27,8 +27,8 @@ class IOType(Enum):
 
 @dataclasses.dataclass(frozen=True)
 class HTTPEndpoint(InputOutput):
-    host: str
-    port: int
+    host: str = 'localhost'
+    port: int = 3569
     _io_type: str = IOType.HTTPEndpoint.value
 
 

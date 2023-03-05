@@ -40,6 +40,6 @@ class Flow(flow.FlowAPI):
             num_replicas: int = 1):
         if processor_class is not None:
             self.runtime.register_processor(processor_class,
-                                            processor_class._input(),
-                                            processor_class._output())
+                                            processor_class.source(),
+                                            processor_class.sink())
         return self.runtime.run(num_replicas)

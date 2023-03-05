@@ -19,17 +19,17 @@ class MyClass(flow.Processor):
     # This static method defines the input reference for the processor. It
     # cannot be changed at runtime.
     @staticmethod
-    def _input():
+    def source():
         return flow.PubSub(subscription='my-subscription')
 
     # This static method defines the output reference for the processor.
     @staticmethod
-    def _output():
+    def sink():
         return flow.BigQuery(table='my-table')
 
     # You can also define multiple outputs.
     @staticmethod
-    def _outputs():
+    def sinks():
         return [
             # Schemas can be optionally passed any buildflow resource
             # references. This is only used for static checks.
@@ -39,7 +39,7 @@ class MyClass(flow.Processor):
 
     # This lifecycle method initializes the processor for external connections
     # and shared state with other processors in the task group.
-    def _setup(self):
+    def setup(self):
         # initialize any shared state you might need to use while processing
         self._state = ...
         # initialize any clients you might need to use while processing

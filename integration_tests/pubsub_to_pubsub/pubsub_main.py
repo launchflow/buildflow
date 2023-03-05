@@ -41,10 +41,10 @@ flow = buildflow.Flow()
 
 class MyProcessor(buildflow.Processor):
 
-    def _input():
+    def source():
         return buildflow.PubSub(subscription=input_subscription_path)
 
-    def _output():
+    def sink():
         return buildflow.PubSub(topic=output_topic_path)
 
     def process(self, payload: int):

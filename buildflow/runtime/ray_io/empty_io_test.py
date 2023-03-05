@@ -43,7 +43,7 @@ class EmptyTest(unittest.TestCase):
         class MyProcessor(buildflow.Processor):
 
             @staticmethod
-            def _input():
+            def source():
                 return buildflow.Empty([1, 2, 3])
 
             def process(self, num: int):

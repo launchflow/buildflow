@@ -5,20 +5,22 @@
 
 from typing import Any, TextIO
 
-# NOTE: These providers are implemented in the launchflow package.
-# Users can implement the ProviderAPI to create their own providers.
-from launchflow.providers import CloudRun, Cron, FileUpload
 from ray.data import Dataset
 
 from buildflow import Flow
-from buildflow.io import BigQuery
+from buildflow.io import BigQuery, HTTPEndpoint, PubSub
+from buildflow.templates import CloudRun, Cron, GCSFileEventStream
 
 flow = Flow()
 
 
 # CloudRun creates a Cloud Run endpoint to host the processor.
 # Compare to the HTTP Endpoint example in process_endpoint.py.
-@flow.processor(provider=CloudRun(project='project', public_access=True))
+@flow.processor(template=CloudRun(
+        project='project',
+        public_access=True,
+        endpoint=HTTPEndpoint(),
+))
 def cloud_run_processor(payload: Any) -> Any:
     pass
 
@@ -26,21 +28,22 @@ def cloud_run_processor(payload: Any) -> Any:
 # Cron creates a Cloud Scheduler instance to run the processor based on the
 # cron scheduler.
 # Compare to the BigQuery example in process_batch.py.
-@flow.processor(provider=Cron(
+@flow.processor(template=Cron(
     schedule='0 0 * * *',
-    input_ref=BigQuery(table_id='project.dataset.table1'),
-    output_ref=BigQuery(table_id='project.dataset.table2'),
+    source=BigQuery(table_id='project.dataset.table1'),
+    sink=BigQuery(table_id='project.dataset.table2'),
 ))
 def scheduled_batch_processor(dataset: Dataset) -> Dataset:
     pass
 
 
-# FileUpload creates a PubSub source that emits a message for each file upload
+# GCSFileEventStream creates a PubSub source that emits a message for each file upload
 # that matches the glob pattern.
 # Compare to the PubSub example in process_stream.py.
-@flow.processor(provider=FileUpload(
-    glob='gs://my-bucket/*',
-    output_ref=BigQuery(table_id='project.dataset.table2'),
+@flow.processor(template=GCSFileEventStream(
+    glob_pattern='gs://my-bucket/*',
+    pubsub=PubSub(topic='projects/project/topics/my-topic'),
+    sink=BigQuery(table_id='project.dataset.table2'),
 ))
 def file_event_processor(file: TextIO) -> Any:
     pass
