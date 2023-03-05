@@ -9,7 +9,7 @@ from buildflow.api.processor import ProcessorAPI
 class Template:
     """Super class for all template types."""
     _template_type: str
-  
+
     @classmethod
     def from_config(cls, node_info: Dict[str, Any]):
         template_type = node_info['_template_type']
