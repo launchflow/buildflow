@@ -9,7 +9,7 @@ from buildflow.api.processor import ProcessorAPI
 class Template:
     """Super class for all template types."""
     _template_type: str
-    
+  
     @classmethod
     def from_config(cls, node_info: Dict[str, Any]):
         template_type = node_info['_template_type']
@@ -20,11 +20,10 @@ class Template:
         raise NotImplementedError('processor not implemented')
 
 
-
 class TemplateType(Enum):
     CloudRun = 'CLOUD_RUN'
     GCSFileEventStream = 'GCS_FILE_EVENT_STREAM'
-    Cron = 'CRON'
+    CloudScheduler = 'CLOUD_SCHEDULER'
 
 
 @dataclasses.dataclass(frozen=True)
@@ -32,7 +31,7 @@ class CloudRun(Template):
     project_id: str
     public_access: bool
     endpoint: HTTPEndpoint
-    
+
     _template_type: str = TemplateType.CloudRun.value
 
 
@@ -41,7 +40,7 @@ class GCSFileEventStream(Template):
     glob_pattern: str
     pubsub: PubSub
     sink: IO
-    
+
     _template_type: str = TemplateType.GCSFileEventStream.value
 
 
@@ -50,12 +49,12 @@ class CloudScheduler(Template):
     cron_schedule: str
     source: IO
     sink: IO
-    
-    _template_type: str = TemplateType.Cron.value
+
+    _template_type: str = TemplateType.CloudScheduler.value
 
 
 _TEMPLATE_MAPPING = {
     TemplateType.CloudRun.value: CloudRun,
     TemplateType.GCSFileEventStream.value: GCSFileEventStream,
-    TemplateType.Cron.value: Cron,
+    TemplateType.CloudScheduler.value: CloudScheduler,
 }
