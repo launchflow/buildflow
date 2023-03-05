@@ -25,8 +25,8 @@ def cloud_run_processor(payload: Any) -> Any:
     pass
 
 
-# CloudScheduler creates a Cloud Scheduler instance to run the processor based on the
-# cron schedule.
+# CloudScheduler creates a Cloud Scheduler instance to run the processor based
+# on the cron schedule.
 # Compare to the BigQuery example in process_batch.py.
 @flow.processor(template=CloudScheduler(
     cron_schedule='0 0 * * *',
@@ -37,8 +37,8 @@ def scheduled_batch_processor(dataset: Dataset) -> Dataset:
     pass
 
 
-# GCSFileEventStream creates a PubSub source that emits a message for each file upload
-# that matches the glob pattern.
+# GCSFileEventStream creates a PubSub source that emits a message for each file
+# upload that matches the glob pattern.
 # Compare to the PubSub example in process_stream.py.
 @flow.processor(template=GCSFileEventStream(
     glob_pattern='gs://my-bucket/*',
