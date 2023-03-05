@@ -17,9 +17,9 @@ flow = Flow()
 # CloudRun creates a Cloud Run endpoint to host the processor.
 # Compare to the HTTP Endpoint example in process_endpoint.py.
 @flow.processor(template=CloudRun(
-        project='project',
+        project='my_project',
         public_access=True,
-        endpoint=HTTPEndpoint(),
+        endpoint=HTTPEndpoint(host='localhost', port=3569),
 ))
 def cloud_run_processor(payload: Any) -> Any:
     pass
