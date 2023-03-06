@@ -1,5 +1,5 @@
-# Providers implement the ProcessorAPI interface, and can perform additional
-# setup steps before consuming the payload. For example, the CloudRun provider
+# Templates implement the ProcessorAPI interface, and can perform additional
+# setup steps before consuming the payload. For example, the CloudRun template
 # implements the ProcessorAPI interface, and also deploys the processor to
 # CloudRun before consuming the payload.
 
@@ -17,9 +17,9 @@ flow = Flow()
 # CloudRun creates a Cloud Run endpoint to host the processor.
 # Compare to the HTTP Endpoint example in process_endpoint.py.
 @flow.processor(template=CloudRun(
-        project='my_project',
-        public_access=True,
-        endpoint=HTTPEndpoint(host='localhost', port=3569),
+    project='my_project',
+    public_access=True,
+    endpoint=HTTPEndpoint(host='localhost', port=3569),
 ))
 def cloud_run_processor(payload: Any) -> Any:
     pass
