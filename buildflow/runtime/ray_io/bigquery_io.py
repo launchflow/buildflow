@@ -159,6 +159,15 @@ def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
 
 
 @ray.remote
+def json_rows_streaming(json_rows: Iterable[Dict[str, Any]],
+                        bigquery_table_id: str) -> None:
+    bq_client = _get_bigquery_client()
+    errors = bq_client.insert_rows_json(bigquery_table_id, json_rows)
+    if errors:
+        raise RuntimeError(f'BigQuery streaming insert failed: {errors}')
+
+
+@ray.remote
 def json_rows_load_job(json_rows: Iterable[Dict[str, Any]],
                        bigquery_table_id: str, gcs_bucket: str) -> str:
     storage_client = _get_storage_client()
@@ -192,6 +201,7 @@ class BigQuerySinkActor(base.RaySink):
         self,
         remote_fn: Callable,
         bq_ref: resources.BigQuery,
+        use_streaming: bool = True,
     ) -> None:
         super().__init__(remote_fn)
         self.bq_table_id = bq_ref.table_id
@@ -199,6 +209,8 @@ class BigQuerySinkActor(base.RaySink):
         self.temp_gcs_bucket = bq_ref.temp_gcs_bucket
         if not self.temp_gcs_bucket:
             self.temp_gcs_bucket = _DEFAULT_TEMP_BUCKET
+
+        self.use_streaming = use_streaming
 
     async def _write(
         self,
@@ -212,9 +224,13 @@ class BigQuerySinkActor(base.RaySink):
         else:
             for i in range(0, len(elements), self._BATCH_SIZE):
                 batch = elements[i:i + self._BATCH_SIZE]
-                tasks.append(
-                    json_rows_load_job.remote(batch, self.bq_table_id,
-                                              self.temp_gcs_bucket))
+                if self.use_streaming:
+                    tasks.append(
+                        json_rows_streaming.remote(batch, self.bq_table_id))
+                else:
+                    tasks.append(
+                        json_rows_load_job.remote(batch, self.bq_table_id,
+                                                  self.temp_gcs_bucket))
         return await asyncio.gather(*tasks)
 
 

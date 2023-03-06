@@ -14,8 +14,9 @@ import buildflow
 
 # TODO(developer): Fill in with a pub/sub subscription.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
-_SUBSCRIPTION = ''
+_SUBSCRIPTION = 'projects/daring-runway-374503/subscriptions/taxi-data-2'
 
+_TABLE_ID = 'daring-runway-374503.dataflow_benchmark.buildflow'
 
 flow = Flow()
 
@@ -25,6 +26,10 @@ class MyProcessor(buildflow.Processor):
     @staticmethod
     def _input():
         return buildflow.PubSub(subscription=_SUBSCRIPTION)
+
+    @staticmethod
+    def _output():
+        return buildflow.BigQuery(table_id=_TABLE_ID)
 
     def _setup(self):
         self.t0 = time.time()
