@@ -23,7 +23,7 @@ class Response:
 
 
 # Compare to the CloudRun example in launchflow_provider.py.
-@flow.processor(input_ref=HTTPEndpoint(host='localhost', port=3569))
+@flow.processor(source=HTTPEndpoint(host='localhost', port=3569))
 def serve_model(payload: Request) -> Response:
     model_input = preprocess(payload)
     model_output = model.predict(model_input)

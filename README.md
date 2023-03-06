@@ -34,7 +34,7 @@ Add the `flow.processor` decorator to your function to attach IO.
 
 ```python
 QUERY = 'SELECT * FROM `table`'
-@flow.processor(input_ref=buildflow.BigQuery(query=QUERY))
+@flow.processor(source=buildflow.BigQuery(query=QUERY))
 def process(bigquery_row):
     ...
 ```
@@ -54,8 +54,8 @@ Streaming pipeline reading from Google Pub/Sub and writing to BigQuery.
 ```python
 # Turn your function into a stream processor
 @flow.processor(
-   input_ref=buildflow.PubSub(subscription='my_subscription'),
-   output_ref=buildflow.BigQuery(table_id='project.dataset.table'),
+   source=buildflow.PubSub(subscription='my_subscription'),
+   sink=buildflow.BigQuery(table_id='project.dataset.table'),
 )
 def stream_process(pubsub_message):
    ...
@@ -69,8 +69,8 @@ Streaming pipeline reading from / writing to Google Pub/Sub.
 ```python
 # Turn your function into a stream processor
 @flow.processor(
-   input_ref=buildflow.PubSub(subscription='my_subscription'),
-   output_ref=buildflow.PubSub(topic='my_topic'),
+   source=buildflow.PubSub(subscription='my_subscription'),
+   sink=buildflow.PubSub(topic='my_topic'),
 )
 def stream_process(pubsub_message):
    ...
@@ -84,8 +84,8 @@ Batch pipeline reading and writing to BigQuery.
 ```python
 QUERY = 'SELECT * FROM `project.dataset.input_table`'
 @flow.processor(
-    input_ref=buildflow.BigQuery(query=QUERY),
-    output_ref=buildflow.BigQuery(table_id='project.dataset.output_table'),
+    source=buildflow.BigQuery(query=QUERY),
+    sink=buildflow.BigQuery(table_id='project.dataset.output_table'),
 )
 def process(bigquery_row):
     ...
@@ -97,7 +97,7 @@ Batch pipeline reading from BigQuery and returning output locally.
 
 ```python
 QUERY = 'SELECT * FROM `table`'
-@flow.processor(input_ref=buildflow.BigQuery(query=QUERY))
+@flow.processor(source=buildflow.BigQuery(query=QUERY))
 def process(bigquery_row):
     ...
 

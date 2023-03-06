@@ -36,8 +36,8 @@ _IO_TYPE_TO_SINK = {
 @dataclasses.dataclass
 class _ProcessorRef:
     processor_class: type
-    input_ref: type
-    output_ref: type
+    source: type
+    sink: type
 
 
 _SESSION_DIR = os.path.join(os.path.expanduser('~'), '.config', 'buildflow')
@@ -136,22 +136,21 @@ class Runtime:
             # TODO: Add comments to explain this code, its pretty dense with
             # need-to-know info.
             source_actor_class = _IO_TYPE_TO_SOURCE[
-                processor_ref.input_ref.__class__.__name__]
+                processor_ref.source.__class__.__name__]
             sink_actor_class = _IO_TYPE_TO_SINK[
-                processor_ref.output_ref.__class__.__name__]
+                processor_ref.sink.__class__.__name__]
             source_args = source_actor_class.source_args(
-                processor_ref.input_ref, num_replicas)
+                processor_ref.source, num_replicas)
             source_pool_tasks = []
             for args in source_args:
                 processor_actor = _ProcessActor.remote(
                     processor_ref.processor_class)
                 sink = sink_actor_class.remote(
-                    processor_actor.process_batch.remote,
-                    processor_ref.output_ref)
+                    processor_actor.process_batch.remote, processor_ref.sink)
                 # TODO: probably need support for unique keys. What if someone
                 # writes to two bigquery tables?
-                key = str(processor_ref.output_ref)
-                if isinstance(processor_ref.output_ref, io.Empty):
+                key = str(processor_ref.sink)
+                if isinstance(processor_ref.sink, io.Empty):
                     key = 'local'
                 source = source_actor_class.remote({key: sink}, *args)
                 num_threads = source_actor_class.recommended_num_threads()
@@ -184,8 +183,8 @@ class Runtime:
 
     def register_processor(self,
                            processor_class: type,
-                           input_ref: io.IO,
-                           output_ref: io.IO,
+                           source: io.IO,
+                           sink: io.IO,
                            processor_id: Optional[str] = None):
         if processor_id is None:
             processor_id = processor_class.__name__
@@ -193,5 +192,5 @@ class Runtime:
             logging.warning(
                 f'Processor {processor_id} already registered. Overwriting.')
 
-        self._processors[processor_id] = _ProcessorRef(processor_class,
-                                                       input_ref, output_ref)
+        self._processors[processor_id] = _ProcessorRef(processor_class, source,
+                                                       sink)

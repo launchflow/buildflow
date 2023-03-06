@@ -25,9 +25,8 @@ class output_schema:
 
 # Compare to the Cron example in launchflow_provider.py.
 @flow.processor(
-    input_ref=BigQuery(table_id='project.dataset.table1', schema=input_schema),
-    output_ref=BigQuery(table_id='project.dataset.table2',
-                        schema=output_schema),
+    source=BigQuery(table_id='project.dataset.table1', schema=input_schema),
+    sink=BigQuery(table_id='project.dataset.table2', schema=output_schema),
 )
 def batch_process_bigquery(dataset: Dataset) -> Dataset:
     return dataset.groupby('key').map_groups(process_group,

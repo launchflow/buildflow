@@ -15,12 +15,11 @@ _INPUT_SUBSCRIPTION = ''
 # topic format: 'projects/{PROJECT_ID}/topic/{SUBSCRIPTION_ID}'
 _OUTPUT_TOPIC = ''
 
-
 flow = Flow()
 
 
-@flow.processor(input_ref=buildflow.PubSub(subscription=_INPUT_SUBSCRIPTION),
-                output_ref=buildflow.PubSub(topic=_OUTPUT_TOPIC))
+@flow.processor(source=buildflow.PubSub(subscription=_INPUT_SUBSCRIPTION),
+                sink=buildflow.PubSub(topic=_OUTPUT_TOPIC))
 def process(taxi_info):
     print(taxi_info)
     return taxi_info

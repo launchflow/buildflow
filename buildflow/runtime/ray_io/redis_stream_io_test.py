@@ -33,16 +33,16 @@ class RedisStreamTest(unittest.TestCase):
         redis_client.xadd('input_stream', {'field': 'value'})
 
         @self.flow.processor(
-            input_ref=buildflow.RedisStream(
+            source=buildflow.RedisStream(
                 host='localhost',
                 port=8765,
                 streams=['input_stream'],
                 start_positions={'input_stream': 0},
                 read_timeout_secs=5,
             ),
-            output_ref=buildflow.RedisStream(host='localhost',
-                                             port=8765,
-                                             streams=['output_stream']),
+            sink=buildflow.RedisStream(host='localhost',
+                                       port=8765,
+                                       streams=['output_stream']),
         )
         def process(element):
             return element
@@ -62,16 +62,16 @@ class RedisStreamTest(unittest.TestCase):
         redis_client.xadd('input_stream', {'field': 'value'})
 
         @self.flow.processor(
-            input_ref=buildflow.RedisStream(
+            source=buildflow.RedisStream(
                 host='localhost',
                 port=8765,
                 streams=['input_stream'],
                 start_positions={'input_stream': 0},
                 read_timeout_secs=5,
             ),
-            output_ref=buildflow.RedisStream(host='localhost',
-                                             port=8765,
-                                             streams=['output_stream']),
+            sink=buildflow.RedisStream(host='localhost',
+                                       port=8765,
+                                       streams=['output_stream']),
         )
         def process(element):
             return [element, element]

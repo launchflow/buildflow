@@ -20,8 +20,8 @@ class OutputMessage:
 
 # Compare to the FileUpload example in launchflow_provider.py.
 @flow.processor(
-    input_ref=PubSub(topic='projects/my-project/topics/my-topic1'),
-    output_ref=PubSub(topic='projects/my-project/topics/my-topic2'),
+    source=PubSub(topic='projects/my-project/topics/my-topic1'),
+    sink=PubSub(topic='projects/my-project/topics/my-topic2'),
 )
 def process_stream(message: InputMessage) -> OutputMessage:
     # TODO: Add logic to process the message.
