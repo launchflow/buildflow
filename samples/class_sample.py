@@ -16,7 +16,6 @@ import buildflow
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
 _SUBSCRIPTION = ''
 
-
 flow = Flow()
 
 

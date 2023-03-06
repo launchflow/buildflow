@@ -79,11 +79,14 @@ class RedisStreamOutput(base.RaySink):
 
     async def _write(
         self,
-        elements: Union[Dict[str, Any], Iterable[Dict[str, Any]]],
+        elements: Union[Iterable[Iterable[Dict[str, Any]]],
+                        Iterable[Dict[str, Any]]],
     ):
         for stream in self.streams:
-            if isinstance(elements, dict):
-                self.redis_client.xadd(stream, elements)
-            else:
-                for elem in elements:
+
+            for elem in elements:
+                if isinstance(elem, dict):
                     self.redis_client.xadd(stream, elem)
+                else:
+                    for subelem in elem:
+                        self.redis_client.xadd(stream, subelem)

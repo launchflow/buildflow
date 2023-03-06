@@ -41,25 +41,29 @@ class RaySink:
 
     async def _write(
         self,
-        elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
+        elements: Union[ray.data.Dataset, Iterable[Any]],
     ):
         raise NotImplementedError(
             f'`_write` method not implemented for class {self.__class__}')
 
     async def write(
         self,
-        elements: Iterable[Union[ray.data.Dataset, Iterable[Dict[str, Any]]]],
+        elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
         context: Dict[str, str] = {},
     ):
-        results = await self.remote_fn(elements)
+        if isinstance(elements, ray.data.Dataset):
+            # If the elements are a ray dataset, we need to wrap in a list
+            # since the remote function expects a list of elements.
+            results = await self.remote_fn([elements])[0]
+        else:
+            results = await self.remote_fn(elements)
 
         if self.data_tracing_enabled:
             add_to_trace(key=self.__class__.__name__,
                          value={'output_data': results},
                          context=context)
 
-        tasks = [self._write(result) for result in results]
-        return await asyncio.gather(*tasks)
+        return await self._write(results)
 
 
 class RaySource:
@@ -95,6 +99,7 @@ class RaySource:
         result_keys = []
         task_refs = []
         for name, ray_sink in self.ray_sinks.items():
+            # Processes the elements as a single batch
             task_ref = ray_sink.write.remote(elements)
             result_keys.append(name)
             task_refs.append(task_ref)
