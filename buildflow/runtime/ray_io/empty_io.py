@@ -1,7 +1,7 @@
 """IO for dags that don't have any input / output configured."""
 
 import logging
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Iterable
 
 import ray
 
@@ -41,6 +41,6 @@ class EmptySinkActor(base.RaySink):
 
     async def _write(
         self,
-        elements: Iterable[Dict[str, Any]],
+        elements: Iterable[Any],
     ):
         return elements

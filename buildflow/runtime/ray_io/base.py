@@ -41,7 +41,7 @@ class RaySink:
 
     async def _write(
         self,
-        elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
+        elements: Union[ray.data.Dataset, Iterable[Any]],
     ):
         raise NotImplementedError(
             f'`_write` method not implemented for class {self.__class__}')
