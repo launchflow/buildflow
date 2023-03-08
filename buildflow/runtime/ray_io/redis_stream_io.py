@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Iterable, Union
 import ray
 import redis
 
-from buildflow import resources
+from buildflow import io
 from buildflow.runtime.ray_io import base
 
 
@@ -17,7 +17,7 @@ class RedisStreamInput(base.RaySource):
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        redis_stream_ref: resources.RedisStream,
+        redis_stream_ref: io.RedisStream,
     ) -> None:
         super().__init__(ray_sinks)
         self.redis_client = redis.Redis(host=redis_stream_ref.host,
@@ -70,7 +70,7 @@ class RedisStreamOutput(base.RaySink):
     def __init__(
         self,
         remote_fn: Callable,
-        redis_stream_ref: resources.RedisStream,
+        redis_stream_ref: io.RedisStream,
     ) -> None:
         super().__init__(remote_fn)
         self.redis_client = redis.Redis(host=redis_stream_ref.host,

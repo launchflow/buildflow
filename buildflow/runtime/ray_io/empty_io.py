@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterable
 
 import ray
 
-from buildflow.api import resources
+from buildflow.api import io
 from buildflow.runtime.ray_io import base
 
 
@@ -15,7 +15,7 @@ class EmptySourceActor(base.RaySource):
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        empty_ref: resources.Empty,
+        empty_ref: io.Empty,
     ) -> None:
         super().__init__(ray_sinks)
         self.inputs = empty_ref.inputs
@@ -35,7 +35,7 @@ class EmptySinkActor(base.RaySink):
     def __init__(
         self,
         remote_fn: Callable,
-        empty_ref: resources.Empty,
+        empty_ref: io.Empty,
     ) -> None:
         super().__init__(remote_fn)
 

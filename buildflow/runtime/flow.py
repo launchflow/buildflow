@@ -32,14 +32,14 @@ class Flow(flow.FlowAPI):
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def processor(self, input_ref: Any, output_ref: Optional[Any] = None):
-        return processor(self.runtime, input_ref, output_ref)
+    def processor(self, source: Any, sink: Optional[Any] = None):
+        return processor(self.runtime, source, sink)
 
     def run(self,
             processor_class: Optional[type] = None,
             num_replicas: int = 1):
         if processor_class is not None:
             self.runtime.register_processor(processor_class,
-                                            processor_class._input(),
-                                            processor_class._output())
+                                            processor_class.source(),
+                                            processor_class.sink())
         return self.runtime.run(num_replicas)

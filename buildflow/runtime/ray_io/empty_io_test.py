@@ -15,7 +15,7 @@ class EmptyTest(unittest.TestCase):
 
     def test_end_to_end_empty(self):
 
-        @self.flow.processor(input_ref=buildflow.Empty(inputs=[1, 2, 3]))
+        @self.flow.processor(source=buildflow.Empty(inputs=[1, 2, 3]))
         def process(elem):
             return elem
 
@@ -26,7 +26,7 @@ class EmptyTest(unittest.TestCase):
 
     def test_end_to_end_empty_multi_output(self):
 
-        @self.flow.processor(input_ref=buildflow.Empty(inputs=[1, 2, 3]))
+        @self.flow.processor(source=buildflow.Empty(inputs=[1, 2, 3]))
         def process(elem):
             return [elem, elem]
 
@@ -43,7 +43,7 @@ class EmptyTest(unittest.TestCase):
         class MyProcessor(buildflow.Processor):
 
             @staticmethod
-            def _input():
+            def source():
                 return buildflow.Empty([1, 2, 3])
 
             def process(self, num: int):
@@ -56,11 +56,11 @@ class EmptyTest(unittest.TestCase):
 
     def test_end_to_end_empty_multiple_processors(self):
 
-        @self.flow.processor(input_ref=buildflow.Empty(inputs=[1, 2, 3]))
+        @self.flow.processor(source=buildflow.Empty(inputs=[1, 2, 3]))
         def process1(elem):
             return elem
 
-        @self.flow.processor(input_ref=buildflow.Empty(inputs=[4, 5, 6]))
+        @self.flow.processor(source=buildflow.Empty(inputs=[4, 5, 6]))
         def process2(elem):
             return elem
 

@@ -22,10 +22,10 @@ flow = Flow()
 class MyProcessor(buildflow.Processor):
 
     @staticmethod
-    def _input():
+    def source():
         return buildflow.PubSub(subscription=_SUBSCRIPTION)
 
-    def _setup(self):
+    def setup(self):
         self.t0 = time.time()
         self.num_messages = 0
 
@@ -39,10 +39,11 @@ class MyProcessor(buildflow.Processor):
 
     def process(self, message_data: Dict[str, Any]):
         self.num_messages += 1
-        if self.num_messages >= 1_000:
+        if self.num_messages >= 20_000:
             self.print_messages_per_sec()
         return message_data
 
 
 # NOTE: You can increase the number of replicas to process the messages faster.
+# 1 replica == 1 process. Each replica is multithreaded by default.
 flow.run(MyProcessor, num_replicas=1)

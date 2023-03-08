@@ -4,14 +4,13 @@ import asyncio
 import json
 import logging
 import time
-import uuid
 from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 import google.auth
 import pyarrow as pa
 import ray
 from buildflow import utils
-from buildflow.api import resources
+from buildflow.api import io
 from buildflow.runtime.ray_io import base
 from google.cloud import bigquery, bigquery_storage_v1, storage
 
@@ -55,7 +54,7 @@ class BigQuerySourceActor(base.RaySource):
     @classmethod
     def source_args(
         cls,
-        io_ref: resources.BigQuery,
+        io_ref: io.BigQuery,
         num_replicas: int,
     ):
         if io_ref.billing_project:
@@ -65,7 +64,7 @@ class BigQuerySourceActor(base.RaySource):
         bq_client = _get_bigquery_client(project)
         if io_ref.query:
             if io_ref.temp_dataset:
-                output_table = (f'{io_ref.temp_dataset}.{str(uuid.uuid4())}')
+                output_table = (f'{io_ref.temp_dataset}.{utils.uuid()}')
             else:
                 logging.info(
                     'temporary dataset was not provided, attempting to create'
@@ -76,7 +75,7 @@ class BigQuerySourceActor(base.RaySource):
                 dataset.default_table_expiration_ms = _DEFAULT_DATASET_EXPIRATION_MS  # noqa: E501
                 bq_client.update_dataset(
                     dataset, fields=['default_table_expiration_ms'])
-                output_table = f'{dataset_name}.{str(uuid.uuid4())}'
+                output_table = f'{dataset_name}.{utils.uuid()}'
             query_job = bq_client.query(
                 io_ref.query,
                 job_config=bigquery.QueryJobConfig(destination=output_table),
@@ -200,7 +199,7 @@ class BigQuerySinkActor(base.RaySink):
     def __init__(
         self,
         remote_fn: Callable,
-        bq_ref: resources.BigQuery,
+        bq_ref: io.BigQuery,
         use_streaming: bool = True,
     ) -> None:
         super().__init__(remote_fn)
