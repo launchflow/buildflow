@@ -18,17 +18,14 @@ class MyClass(flow.Processor):
 
     # This static method defines the input reference for the processor. It
     # cannot be changed at runtime.
-    @staticmethod
     def source():
         return flow.PubSub(subscription='my-subscription')
 
     # This static method defines the output reference for the processor.
-    @staticmethod
     def sink():
         return flow.BigQuery(table='my-table')
 
     # You can also define multiple outputs.
-    @staticmethod
     def sinks():
         return [
             # Schemas can be optionally passed any buildflow resource

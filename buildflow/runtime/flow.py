@@ -1,8 +1,8 @@
-from typing import Any, Optional
+from typing import Optional
 
-from buildflow.api import flow
-from buildflow.runtime.runner import Runtime
+from buildflow.api import ProcessorAPI, flow, IO
 from buildflow.runtime.processor import processor
+from buildflow.runtime.runner import Runtime
 
 
 class Flow(flow.FlowAPI):
@@ -32,14 +32,12 @@ class Flow(flow.FlowAPI):
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def processor(self, source: Any, sink: Optional[Any] = None):
+    def processor(self, source: IO, sink: Optional[IO] = None):
         return processor(self.runtime, source, sink)
 
     def run(self,
-            processor_class: Optional[type] = None,
+            processor_instance: Optional[ProcessorAPI] = None,
             num_replicas: int = 1):
-        if processor_class is not None:
-            self.runtime.register_processor(processor_class,
-                                            processor_class.source(),
-                                            processor_class.sink())
+        if processor_instance is not None:
+            self.runtime.register_processor(processor_instance)
         return self.runtime.run(num_replicas)

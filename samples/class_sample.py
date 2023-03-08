@@ -21,8 +21,7 @@ flow = Flow()
 
 class MyProcessor(buildflow.Processor):
 
-    @staticmethod
-    def source():
+    def source(self):
         return buildflow.PubSub(subscription=_SUBSCRIPTION)
 
     def setup(self):
@@ -46,4 +45,4 @@ class MyProcessor(buildflow.Processor):
 
 # NOTE: You can increase the number of replicas to process the messages faster.
 # 1 replica == 1 process. Each replica is multithreaded by default.
-flow.run(MyProcessor, num_replicas=1)
+flow.run(MyProcessor(), num_replicas=1)

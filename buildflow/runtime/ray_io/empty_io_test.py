@@ -42,14 +42,13 @@ class EmptyTest(unittest.TestCase):
 
         class MyProcessor(buildflow.Processor):
 
-            @staticmethod
-            def source():
+            def source(self):
                 return buildflow.Empty([1, 2, 3])
 
             def process(self, num: int):
                 return num
 
-        output = self.flow.run(MyProcessor)
+        output = self.flow.run(MyProcessor())
 
         self.assertEqual(len(output), 1)
         self.assertEqual(output, {'MyProcessor': {'local': [1, 2, 3]}})

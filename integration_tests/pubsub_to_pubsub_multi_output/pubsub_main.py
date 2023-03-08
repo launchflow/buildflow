@@ -37,7 +37,6 @@ with subscriber:
 print(' - topic: ', output_topic_path)
 print(' - subscription: ', subscription_path)
 
-
 flow = buildflow.Flow()
 
 
@@ -54,4 +53,4 @@ class MyProcessor(buildflow.Processor):
         return [payload, payload]
 
 
-flow.run(MyProcessor)
+flow.run(MyProcessor())

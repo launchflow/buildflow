@@ -1,16 +1,18 @@
 import argparse
+import copy
 import dataclasses
-import logging
 import json
+import logging
 import os
-import requests
 import sys
 import traceback
 from typing import Dict, Iterable, Optional
 
 import ray
+import requests
+
 from buildflow import utils
-from buildflow.api import ProcessorAPI, io
+from buildflow.api import IO, ProcessorAPI, io
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
                                       pubsub_io, redis_stream_io)
 
@@ -35,9 +37,12 @@ _IO_TYPE_TO_SINK = {
 
 @dataclasses.dataclass
 class _ProcessorRef:
-    processor_class: type
-    source: type
-    sink: type
+    processor_instance: ProcessorAPI
+    source: IO
+    sink: IO
+
+    def get_processor_replica(self):
+        return copy.deepcopy(self.processor_instance)
 
 
 _SESSION_DIR = os.path.join(os.path.expanduser('~'), '.config', 'buildflow')
@@ -52,9 +57,10 @@ class Session:
 @ray.remote
 class _ProcessActor(object):
 
-    def __init__(self, processor_class):
-        self._processor: ProcessorAPI = processor_class()
+    def __init__(self, processor_instance: ProcessorAPI):
+        self._processor = processor_instance
         print(f'Running processor setup: {self._processor.__class__}')
+        # NOTE: This is where the setup lifecycle method is called.
         self._processor.setup()
 
     def process(self, *args, **kwargs):
@@ -132,7 +138,6 @@ class Runtime:
     def _run(self, num_replicas: int):
         running_tasks = {}
         for proc_id, processor_ref in self._processors.items():
-
             # TODO: Add comments to explain this code, its pretty dense with
             # need-to-know info.
             source_actor_class = _IO_TYPE_TO_SOURCE[
@@ -144,7 +149,7 @@ class Runtime:
             source_pool_tasks = []
             for args in source_args:
                 processor_actor = _ProcessActor.remote(
-                    processor_ref.processor_class)
+                    processor_ref.get_processor_replica())
                 sink = sink_actor_class.remote(
                     processor_actor.process_batch.remote, processor_ref.sink)
                 # TODO: probably need support for unique keys. What if someone
@@ -182,15 +187,15 @@ class Runtime:
         return final_output
 
     def register_processor(self,
-                           processor_class: type,
-                           source: io.IO,
-                           sink: io.IO,
+                           processor_instance: ProcessorAPI,
                            processor_id: Optional[str] = None):
         if processor_id is None:
-            processor_id = processor_class.__name__
+            processor_id = processor_instance.__class__.__name__
         if processor_id in self._processors:
             logging.warning(
                 f'Processor {processor_id} already registered. Overwriting.')
 
-        self._processors[processor_id] = _ProcessorRef(processor_class, source,
-                                                       sink)
+        # NOTE: This is where the source / sink lifecycle methods are executed.
+        self._processors[processor_id] = _ProcessorRef(
+            processor_instance, processor_instance.source(),
+            processor_instance.sink())
