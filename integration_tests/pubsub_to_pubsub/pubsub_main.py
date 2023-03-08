@@ -35,16 +35,15 @@ with subscriber:
 print(' - topic: ', output_topic_path)
 print(' - subscription: ', subscription_path)
 
-
 flow = buildflow.Flow()
 
 
 class MyProcessor(buildflow.Processor):
 
-    def source():
+    def source(self):
         return buildflow.PubSub(subscription=input_subscription_path)
 
-    def sink():
+    def sink(self):
         return buildflow.PubSub(topic=output_topic_path)
 
     def process(self, payload: int):
@@ -52,4 +51,4 @@ class MyProcessor(buildflow.Processor):
         return payload
 
 
-flow.run(MyProcessor)
+flow.run(MyProcessor())

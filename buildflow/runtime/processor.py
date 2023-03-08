@@ -8,8 +8,7 @@ from buildflow.runtime import Runtime
 
 class Processor(ProcessorAPI):
 
-    @staticmethod
-    def sink() -> IO:
+    def sink(self) -> IO:
         return Empty()
 
     def setup(self):
@@ -30,15 +29,14 @@ def processor(runtime: Runtime, source: IO, sink: Optional[IO] = None):
         class_name = f'AdHocProcessor_{utils.uuid(max_len=8)}'
         _AdHocProcessor = type(
             class_name, (object, ), {
-                'source': staticmethod(lambda: source),
-                'sink': staticmethod(lambda: sink),
-                'sinks': staticmethod(lambda: []),
+                'source': lambda self: source,
+                'sink': lambda self: sink,
+                'sinks': lambda self: [],
                 'setup': lambda self: None,
                 'process': lambda self, payload: original_function(payload),
             })
-        runtime.register_processor(_AdHocProcessor,
-                                   source,
-                                   sink,
+        processor_instance = _AdHocProcessor()
+        runtime.register_processor(processor_instance,
                                    processor_id=processor_id)
 
         def wrapper_function(*args, **kwargs):

@@ -52,6 +52,11 @@ All samples can be found [here](https://github.com/launchflow/buildflow/tree/mai
 Streaming pipeline reading from Google Pub/Sub and writing to BigQuery.
 
 ```python
+import buildflow
+from buildflow import Flow
+
+flow = Flow()
+
 # Turn your function into a stream processor
 @flow.processor(
    source=buildflow.PubSub(subscription='my_subscription'),
@@ -67,6 +72,11 @@ flow.run()
 Streaming pipeline reading from / writing to Google Pub/Sub.
 
 ```python
+import buildflow
+from buildflow import Flow
+
+flow = Flow()
+
 # Turn your function into a stream processor
 @flow.processor(
    source=buildflow.PubSub(subscription='my_subscription'),
@@ -82,6 +92,11 @@ flow.run()
 Batch pipeline reading and writing to BigQuery.
 
 ```python
+import buildflow
+from buildflow import Flow
+
+flow = Flow()
+
 QUERY = 'SELECT * FROM `project.dataset.input_table`'
 @flow.processor(
     source=buildflow.BigQuery(query=QUERY),
@@ -96,6 +111,11 @@ flow.run()
 Batch pipeline reading from BigQuery and returning output locally.
 
 ```python
+import buildflow
+from buildflow import Flow
+
+flow = Flow()
+
 QUERY = 'SELECT * FROM `table`'
 @flow.processor(source=buildflow.BigQuery(query=QUERY))
 def process(bigquery_row):

@@ -5,19 +5,16 @@ from buildflow.api.io import IO
 
 class ProcessorAPI:
 
-    # This static method defines the input reference for the processor.
-    @staticmethod
-    def source() -> IO:
+    # This lifecycle method defines the input reference for the processor.
+    def source(self) -> IO:
         raise NotImplementedError('source not implemented')
 
-    # This static method defines the output reference for the processor.
-    @staticmethod
-    def sink() -> IO:
+    # This lifecycle method defines the output reference for the processor.
+    def sink(self) -> IO:
         raise NotImplementedError('sink not implemented')
 
     # You can also define multiple outputs.
-    @staticmethod
-    def sinks() -> Iterable[IO]:
+    def sinks(self) -> Iterable[IO]:
         raise NotImplementedError('sinks not implemented')
 
     # This lifecycle method initializes any shared state.
