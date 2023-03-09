@@ -1,6 +1,7 @@
 # buildflow
 
 ![CI](https://github.com/launchflow/buildflow/actions/workflows/python_ci.yaml/badge.svg)
+![Discord Shield](https://discordapp.com/api/guilds/1082821064180117575/widget.png?style=shield)
 
 **buildflow** is a unified **batch** and **streaming** framework that turns
 any python function into a scalable data pipeline that can read from our
