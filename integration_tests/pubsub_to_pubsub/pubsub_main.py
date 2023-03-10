@@ -37,7 +37,7 @@ print(' - topic: ', output_topic_path)
 print(' - subscription: ', subscription_path)
 
 
-@dataclasses
+@dataclasses.dataclass
 class Output:
     val: int
 
