@@ -27,7 +27,6 @@ class PubSub(InputOutput):
     subscription: str = ''
 
     def setup(self):
-        # First attempt to create the pub/sub topic.
         if self.topic:
             publisher_client = pubsub.PublisherClient()
             try:
