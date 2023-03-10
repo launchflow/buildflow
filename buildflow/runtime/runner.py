@@ -119,7 +119,6 @@ class Runtime:
 
         try:
             output = self._run(num_replicas)
-            print('Flow finished successfully')
             return output
         except Exception as e:
             print('Flow failed with error: ', e)
@@ -137,6 +136,7 @@ class Runtime:
 
     def _run(self, num_replicas: int):
         running_tasks = {}
+        source_actors = {}
         for proc_id, processor_ref in self._processors.items():
             # TODO: Add comments to explain this code, its pretty dense with
             # need-to-know info.
@@ -158,6 +158,7 @@ class Runtime:
                 if isinstance(processor_ref.sink, io.Empty):
                     key = 'local'
                 source = source_actor_class.remote({key: sink}, *args)
+                source_actors[proc_id] = source
                 num_threads = source_actor_class.recommended_num_threads()
                 source_pool_tasks.extend(
                     [source.run.remote() for _ in range(num_threads)])
@@ -170,7 +171,16 @@ class Runtime:
 
         final_output = {}
         for proc_id, tasks in running_tasks.items():
-            all_actor_outputs = ray.get(tasks)
+            try:
+                all_actor_outputs = ray.get(tasks)
+            except KeyboardInterrupt:
+                print('Shutting down processors...')
+                source = source_actors[proc_id]
+                should_block = ray.get(source.shutdown.remote())
+                if should_block:
+                    ray.get(tasks)
+                print('...Sucessfully shut down processors.')
+                return
 
             # TODO: Add option to turn this off for prod deployments
             # Otherwise I think we lose time to sending extra data over the

@@ -105,3 +105,12 @@ class RaySource:
             task_refs.append(task_ref)
         result_values = await asyncio.gather(*task_refs)
         return dict(zip(result_keys, result_values))
+
+    def shutdown(self):
+        """Performs any shutdown work that is needed for the actor.
+
+        Returns true if the program should block on any tasks create by this
+        actor before allowing the program to finish. This is used by pub/sub
+        to ensure we have acked all of our pending messages before exiting.
+        """
+        return False

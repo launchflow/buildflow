@@ -159,7 +159,8 @@ def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
 
 @ray.remote
 def json_rows_streaming(json_rows: Iterable[Dict[str, Any]],
-                        bigquery_table_id: str) -> None:
+                        bigquery_table_id: str,
+                        project: str) -> None:
     bq_client = _get_bigquery_client()
     errors = bq_client.insert_rows_json(bigquery_table_id, json_rows)
     if errors:
@@ -204,6 +205,10 @@ class BigQuerySinkActor(base.RaySink):
     ) -> None:
         super().__init__(remote_fn)
         self.bq_table_id = bq_ref.table_id
+        if bq_ref.billing_project:
+            self.project = bq_ref.billing_project
+        else:
+            self.project = self.bq_table_id.split('.')[0]
 
         self.temp_gcs_bucket = bq_ref.temp_gcs_bucket
         if not self.temp_gcs_bucket:
@@ -225,7 +230,8 @@ class BigQuerySinkActor(base.RaySink):
                 batch = elements[i:i + self._BATCH_SIZE]
                 if self.use_streaming:
                     tasks.append(
-                        json_rows_streaming.remote(batch, self.bq_table_id))
+                        json_rows_streaming.remote(batch, self.bq_table_id,
+                                                   self.project))
                 else:
                     tasks.append(
                         json_rows_load_job.remote(batch, self.bq_table_id,
