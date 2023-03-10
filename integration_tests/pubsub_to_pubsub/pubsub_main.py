@@ -39,7 +39,7 @@ print(' - subscription: ', subscription_path)
 
 @dataclasses.dataclass
 class Output:
-    val: int
+    output_val: int
 
 
 flow = buildflow.Flow()
@@ -53,7 +53,7 @@ class MyProcessor(buildflow.Processor):
     def sink(self):
         return buildflow.PubSub(topic=output_topic_path)
 
-    def process(self, payload: int):
+    def process(self, payload: int) -> Output:
         return Output(payload['val'] + 1)
 
 

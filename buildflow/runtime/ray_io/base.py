@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Iterable, Union
 
 import ray
 from buildflow.runtime import tracer as t
+from buildflow import utils
 
 tracer = t.RedisTracer()
 
@@ -64,12 +65,12 @@ class RaySink:
                     middle_result = []
                     for elem in result:
                         if dataclasses.is_dataclass(elem):
-                            middle_result.append(dataclasses.asdict(elem))
+                            middle_result.append(utils.asdict(elem))
                         else:
                             middle_result.append(elem)
                     results.append(middle_result)
                 elif dataclasses.is_dataclass(result):
-                    results.append(dataclasses.asdict(result))
+                    results.append(utils.asdict(result))
                 else:
                     results.append(result)
 

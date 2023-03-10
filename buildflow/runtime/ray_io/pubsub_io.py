@@ -78,7 +78,7 @@ class PubsubSinkActor(base.RaySink):
                         Iterable[Iterable[Dict[str, Any]]]],
     ):
 
-        def publish_dict(item):
+        def publish_element(item):
             future = self.pubslisher_client.publish(
                 self.topic,
                 json.dumps(item).encode('UTF-8'))
@@ -86,8 +86,8 @@ class PubsubSinkActor(base.RaySink):
 
         for elem in elements:
             if isinstance(elem, dict):
-                publish_dict(elem)
+                publish_element(elem)
             else:
                 for subelem in elem:
-                    publish_dict(subelem)
+                    publish_element(subelem)
         return
