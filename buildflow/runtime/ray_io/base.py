@@ -1,11 +1,13 @@
 """Base class for all Ray IO Connectors"""
 
 import asyncio
+import dataclasses
 import os
 from typing import Any, Callable, Dict, Iterable, Union
 
 import ray
 from buildflow.runtime import tracer as t
+from buildflow import utils
 
 tracer = t.RedisTracer()
 
@@ -56,7 +58,21 @@ class RaySink:
             # since the remote function expects a list of elements.
             results = await self.remote_fn([elements])[0]
         else:
-            results = await self.remote_fn(elements)
+            temp_results = await self.remote_fn(elements)
+            results = []
+            for result in temp_results:
+                if isinstance(result, (tuple, list)):
+                    middle_result = []
+                    for elem in result:
+                        if dataclasses.is_dataclass(elem):
+                            middle_result.append(utils.asdict(elem))
+                        else:
+                            middle_result.append(elem)
+                    results.append(middle_result)
+                elif dataclasses.is_dataclass(result):
+                    results.append(utils.asdict(result))
+                else:
+                    results.append(result)
 
         if self.data_tracing_enabled:
             add_to_trace(key=self.__class__.__name__,

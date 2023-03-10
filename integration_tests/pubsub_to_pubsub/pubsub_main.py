@@ -1,3 +1,4 @@
+import dataclasses
 from google.cloud import pubsub_v1
 
 import buildflow
@@ -35,6 +36,12 @@ with subscriber:
 print(' - topic: ', output_topic_path)
 print(' - subscription: ', subscription_path)
 
+
+@dataclasses.dataclass
+class Output:
+    output_val: int
+
+
 flow = buildflow.Flow()
 
 
@@ -46,9 +53,8 @@ class MyProcessor(buildflow.Processor):
     def sink(self):
         return buildflow.PubSub(topic=output_topic_path)
 
-    def process(self, payload: int):
-        payload['val'] += 1
-        return payload
+    def process(self, payload: int) -> Output:
+        return Output(payload['val'] + 1)
 
 
 flow.run(MyProcessor())
