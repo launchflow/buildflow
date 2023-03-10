@@ -23,6 +23,8 @@ class PubSubSourceActor(base.RaySource):
         super().__init__(ray_sinks)
         self.subscription = pubsub_ref.subscription
         self.batch_size = 1000
+        self.running = True
+        self._pending_ack_ids = []
 
     @staticmethod
     def recommended_num_threads():
@@ -33,7 +35,7 @@ class PubSubSourceActor(base.RaySource):
 
     async def run(self):
         pubsub_client = SubscriberAsyncClient()
-        while True:
+        while self.running:
             response = await pubsub_client.pull(subscription=self.subscription,
                                                 max_messages=self.batch_size)
             ack_ids = []
@@ -43,6 +45,8 @@ class PubSubSourceActor(base.RaySource):
                 json_loaded = json.loads(decoded_data)
                 payloads.append(json_loaded)
                 ack_ids.append(received_message.ack_id)
+                self._pending_ack_ids.append(ack_ids)
+
             # payloads will be empty if the pull times out (usually because
             # there's no data to pull).
             if payloads:
@@ -50,6 +54,10 @@ class PubSubSourceActor(base.RaySource):
                 # TODO: Add error handling.
                 await pubsub_client.acknowledge(ack_ids=ack_ids,
                                                 subscription=self.subscription)
+
+    def shutdown(self):
+        self.running = False
+        return True
 
 
 @ray.remote
