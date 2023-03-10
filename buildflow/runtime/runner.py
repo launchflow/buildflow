@@ -117,6 +117,12 @@ class Runtime:
                 logging.debug('failed to record usage stats.')
         print('Starting Flow Runtime')
 
+        print('Setting up resources...')
+        for proc in self._processors.values():
+            proc.source.setup()
+            proc.sink.setup()
+        print('...Finished setting up resources')
+
         try:
             output = self._run(num_replicas)
             return output

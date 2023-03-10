@@ -1,10 +1,15 @@
 import dataclasses
 from typing import Any, Dict, List, TypeVar
 
+from google.api_core import exceptions
+from google.cloud import pubsub
+
 
 class InputOutput:
     """Super class for all input and output types."""
-    pass
+
+    def setup(self):
+        """Perform any setup that is needed to connect to a resource."""
 
 
 IO = TypeVar('IO', bound=InputOutput)
@@ -20,6 +25,46 @@ class HTTPEndpoint(InputOutput):
 class PubSub(InputOutput):
     topic: str = ''
     subscription: str = ''
+
+    def setup(self):
+        # First attempt to create the pub/sub topic.
+        if self.topic:
+            publisher_client = pubsub.PublisherClient()
+            try:
+                publisher_client.get_topic(topic=self.topic)
+            except exceptions.NotFound:
+                print(f'topic {self.topic} not found attempting to create')
+                try:
+                    print(f'Creating topic: {self.topic}')
+                    publisher_client.create_topic(name=self.topic)
+                except exceptions.PermissionDenied:
+                    raise ValueError(
+                        f'Failed to create topic: {self.topic}. Please ensure '
+                        'you have permission to read the existing topic or '
+                        'permission to create a new topic if needed.')
+        if self.subscription:
+            subscriber_client = pubsub.SubscriberClient()
+            try:
+                subscriber_client.get_subscription(
+                    subscription=self.subscription)
+            except exceptions.NotFound:
+                if not self.topic:
+                    raise ValueError(
+                        f'subscription: {self.subscription} was not found, '
+                        'please provide the topic so we can create the '
+                        'subscriber or ensure you have read access to the '
+                        'subscribe.')
+                try:
+                    print(f'Creating subscription: {self.subscription}')
+                    subscriber_client.create_subscription(
+                        name=self.subscription, topic=self.topic)
+                except exceptions.PermissionDenied:
+                    raise ValueError(
+                        f'Failed to create subscription: {self.subscription}. '
+                        'Please ensure you have permission to read the '
+                        'existing subscription or permission to create a new '
+                        'subscription if needed.'
+                    )
 
 
 @dataclasses.dataclass(frozen=True)
