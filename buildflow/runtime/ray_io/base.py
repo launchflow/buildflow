@@ -1,6 +1,7 @@
 """Base class for all Ray IO Connectors"""
 
 import asyncio
+import dataclasses
 import os
 from typing import Any, Callable, Dict, Iterable, Union
 
@@ -56,7 +57,24 @@ class RaySink:
             # since the remote function expects a list of elements.
             results = await self.remote_fn([elements])[0]
         else:
-            results = await self.remote_fn(elements)
+            temp_results = await self.remote_fn(elements)
+            results = []
+            for result in temp_results:
+                print('DO NOT SUBMIT: ', result)
+                if isinstance(result, (tuple, list)):
+                    middle_result = []
+                    for elem in result:
+                        if dataclasses.is_dataclass(elem):
+                            middle_result.append(dataclasses.asdict(elem))
+                        else:
+                            middle_result.append(elem)
+                    results.append(middle_result)
+                elif dataclasses.is_dataclass(result):
+                    print('DO NOT SUBMIT: ', dataclasses.asdict(result))
+                    results.append(dataclasses.asdict(result))
+                else:
+                    results.append(result)
+            print('DO NOT SUBMIT: ', results)
 
         if self.data_tracing_enabled:
             add_to_trace(key=self.__class__.__name__,
