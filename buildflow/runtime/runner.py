@@ -179,7 +179,7 @@ class Runtime:
                 should_block = ray.get(source.shutdown.remote())
                 if should_block:
                     ray.get(tasks)
-                print('... Sucessfully shut down processors.')
+                print('...Sucessfully shut down processors.')
                 return
 
             # TODO: Add option to turn this off for prod deployments
