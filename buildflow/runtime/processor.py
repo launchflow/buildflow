@@ -1,3 +1,4 @@
+import inspect
 from typing import Optional
 
 from buildflow import utils
@@ -17,6 +18,9 @@ class Processor(ProcessorAPI):
     def process(self, payload):
         return payload
 
+    def processor_arg_spec(self):
+        return inspect.getfullargspec(self.process)
+
 
 def processor(runtime: Runtime, source: IO, sink: Optional[IO] = None):
 
@@ -29,11 +33,18 @@ def processor(runtime: Runtime, source: IO, sink: Optional[IO] = None):
         class_name = f'AdHocProcessor_{utils.uuid(max_len=8)}'
         _AdHocProcessor = type(
             class_name, (object, ), {
-                'source': lambda self: source,
-                'sink': lambda self: sink,
-                'sinks': lambda self: [],
-                'setup': lambda self: None,
-                'process': lambda self, payload: original_function(payload),
+                'source':
+                lambda self: source,
+                'sink':
+                lambda self: sink,
+                'sinks':
+                lambda self: [],
+                'setup':
+                lambda self: None,
+                'process':
+                lambda self, payload: original_function(payload),
+                'processor_arg_spec':
+                lambda self: inspect.getfullargspec(original_function),
             })
         processor_instance = _AdHocProcessor()
         runtime.register_processor(processor_instance,

@@ -119,8 +119,15 @@ class Runtime:
 
         print('Setting up resources...')
         for proc in self._processors.values():
-            proc.source.setup()
-            proc.sink.setup()
+
+            proc.source.setup(
+                source=True,
+                sink=False,
+                process_arg_spec=proc.processor_instance.processor_arg_spec())
+            proc.sink.setup(
+                source=False,
+                sink=True,
+                process_arg_spec=proc.processor_instance.processor_arg_spec())
         print('...Finished setting up resources')
 
         try:

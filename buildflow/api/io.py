@@ -1,15 +1,25 @@
 import dataclasses
+import inspect
 from typing import Any, Dict, List, TypeVar
 
 from google.api_core import exceptions
+from google.cloud import bigquery
 from google.cloud import pubsub
+
+from buildflow.api.schemas import bigquery as bq_schemas
 
 
 class InputOutput:
     """Super class for all input and output types."""
 
-    def setup(self):
-        """Perform any setup that is needed to connect to a resource."""
+    def setup(self, source: bool, sink: bool,
+              process_arg_spec: inspect.FullArgSpec):
+        """Perform any setup that is needed to connect to a resource.
+
+        Args:
+            source: Whether or not this is being used as an input.
+            sink: Whther or not this is being used as an output.
+        """
 
 
 IO = TypeVar('IO', bound=InputOutput)
@@ -26,7 +36,8 @@ class PubSub(InputOutput):
     topic: str = ''
     subscription: str = ''
 
-    def setup(self):
+    def setup(self, source: bool, sink: bool,
+              process_arg_spec: inspect.FullArgSpec):
         if self.topic:
             publisher_client = pubsub.PublisherClient()
             try:
@@ -62,14 +73,13 @@ class PubSub(InputOutput):
                         f'Failed to create subscription: {self.subscription}. '
                         'Please ensure you have permission to read the '
                         'existing subscription or permission to create a new '
-                        'subscription if needed.'
-                    )
+                        'subscription if needed.')
 
 
 @dataclasses.dataclass(frozen=True)
 class BigQuery(InputOutput):
 
-    # The BigQuery table to read from.
+    # The BigQuery table to read or write from.
     # Should be of the format project.dataset.table
     table_id: str = ''
     # The query to read data from.
@@ -83,6 +93,67 @@ class BigQuery(InputOutput):
     # The temporary gcs bucket uri to store temp data in. If unspecified we
     # will attempt to create one.
     temp_gcs_bucket: str = ''
+
+    def setup(self, source: bool, sink: bool,
+              process_arg_spec: inspect.FullArgSpec):
+        client = bigquery.Client()
+        if source:
+            if self.table_id:
+                try:
+                    client.get_table(table=self.table_id)
+                except Exception:
+                    raise ValueError(
+                        f'Failed to retrieve BigQuery table: {self.table_id} '
+                        'for reading. Please ensure this table exists and you '
+                        'have access.')
+            if self.query:
+                try:
+                    client.query(
+                        self.query,
+                        job_config=bigquery.QueryJobConfig(dry_run=True))
+                except Exception as e:
+                    raise ValueError(
+                        f'Failed to test BigQuery query. Failed with: {e}')
+        if sink:
+            if 'return' in process_arg_spec.annotations:
+                return_type = process_arg_spec.annotations['return']
+                if not dataclasses.is_dataclass(return_type):
+                    print('Output type was not a dataclass cannot validate '
+                          'schema.')
+                schema = bq_schemas.dataclass_to_bq_schema(
+                    dataclasses.fields(process_arg_spec.annotations['return']))
+                schema.sort(key=lambda sf: sf.name)
+                try:
+                    table = client.get_table(table=self.table_id)
+                except exceptions.NotFound:
+                    dataset_ref = '.'.join(self.table_id.split('.')[0:2])
+                    client.create_dataset(dataset_ref, exists_ok=True)
+                    table = client.create_table(
+                        bigquery.Table(self.table_id, schema))
+                except Exception:
+                    raise ValueError(
+                        f'Failed to retrieve BigQuery table: {self.table_id} '
+                        'for writing. Please ensure this table exists and you '
+                        'have access.')
+                bq_schema = table.schema
+                bq_schema.sort(key=lambda sf: sf.name)
+                if schema != bq_schema:
+                    only_in_bq = set(bq_schema) - set(schema)
+                    only_in_pytype = set(schema) - set(bq_schema)
+                    error_str = ['Output schema did not match table schema.']
+                    if only_in_bq:
+                        error_str.append(
+                            'Fields found only in BQ schema:\n'
+                            f'{bq_schemas.schema_fields_to_str(only_in_bq)}')
+                    if only_in_pytype:
+                        error_str.append(
+                            'Fields found only in PyType schema:\n'
+                            f'{bq_schemas.schema_fields_to_str(only_in_pytype)}'  # noqa: E501
+                        )
+                    raise ValueError('\n'.join(error_str))
+            else:
+                print(
+                    'No output type provided. Cannot validate BigQuery table.')
 
 
 @dataclasses.dataclass(frozen=True)

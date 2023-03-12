@@ -24,3 +24,7 @@ class ProcessorAPI:
     # This lifecycle method is called once per payload.
     def process(self, payload: Any):
         raise NotImplementedError('process not implemented')
+
+    # Returns the arg spec of the process method.
+    def processor_arg_spec(self):
+        raise NotImplementedError('process not implemented')
