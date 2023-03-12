@@ -26,6 +26,7 @@ dependencies = [
     "opentelemetry-exporter-jaeger",
     "pandas",
     "pyarrow",
+    "pyyaml",
     "ray",
     "redis",
 ]
