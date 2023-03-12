@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.5](https://github.com/launchflow/buildflow/compare/v0.0.4...v0.0.5) (2023-03-12)
+
+
+### Bug Fixes
+
+* add ability to output dataclasses ([4d9509c](https://github.com/launchflow/buildflow/commit/4d9509c00bdbbbacaed37fc8a9386449d421532d))
+* add pubsub resource setup ([72d16a3](https://github.com/launchflow/buildflow/commit/72d16a30ce235ee5097276cd161043e553b509d6))
+* add resource setup for bigquery ([6a770bd](https://github.com/launchflow/buildflow/commit/6a770bd9e7687f06b4aeb680ef83177e75f334b3))
+* attempt to gracefully shutdown processors when interupt signal is found ([652463d](https://github.com/launchflow/buildflow/commit/652463d01464a5fc9d08c5856b04ef33f148f46e))
+
 ## [0.0.4](https://github.com/launchflow/buildflow/compare/v0.0.3...v0.0.4) (2023-03-09)
 
 
