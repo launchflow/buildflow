@@ -125,32 +125,35 @@ class BigQuery(InputOutput):
                 schema.sort(key=lambda sf: sf.name)
                 try:
                     table = client.get_table(table=self.table_id)
+                    bq_schema = table.schema
+                    bq_schema.sort(key=lambda sf: sf.name)
+                    if schema != bq_schema:
+                        only_in_bq = set(bq_schema) - set(schema)
+                        only_in_pytype = set(schema) - set(bq_schema)
+                        error_str = [
+                            'Output schema did not match table schema.'
+                        ]
+                        if only_in_bq:
+                            error_str.append(
+                                'Fields found only in BQ schema:\n'
+                                f'{bq_schemas.schema_fields_to_str(only_in_bq)}'  # noqa: E501
+                            )
+                        if only_in_pytype:
+                            error_str.append(
+                                'Fields found only in PyType schema:\n'
+                                f'{bq_schemas.schema_fields_to_str(only_in_pytype)}'  # noqa: E501
+                            )
+                        raise ValueError('\n'.join(error_str))
                 except exceptions.NotFound:
                     dataset_ref = '.'.join(self.table_id.split('.')[0:2])
                     client.create_dataset(dataset_ref, exists_ok=True)
                     table = client.create_table(
                         bigquery.Table(self.table_id, schema))
-                except Exception:
+                except exceptions.PermissionDenied:
                     raise ValueError(
                         f'Failed to retrieve BigQuery table: {self.table_id} '
                         'for writing. Please ensure this table exists and you '
                         'have access.')
-                bq_schema = table.schema
-                bq_schema.sort(key=lambda sf: sf.name)
-                if schema != bq_schema:
-                    only_in_bq = set(bq_schema) - set(schema)
-                    only_in_pytype = set(schema) - set(bq_schema)
-                    error_str = ['Output schema did not match table schema.']
-                    if only_in_bq:
-                        error_str.append(
-                            'Fields found only in BQ schema:\n'
-                            f'{bq_schemas.schema_fields_to_str(only_in_bq)}')
-                    if only_in_pytype:
-                        error_str.append(
-                            'Fields found only in PyType schema:\n'
-                            f'{bq_schemas.schema_fields_to_str(only_in_pytype)}'  # noqa: E501
-                        )
-                    raise ValueError('\n'.join(error_str))
             else:
                 print(
                     'No output type provided. Cannot validate BigQuery table.')
