@@ -45,7 +45,7 @@ class _ProcessActor(object):
         self._processor.setup()
 
     def process(self, *args, **kwargs):
-        return self._processor.process(*args, **kwargs)
+        return self._processor._process(*args, **kwargs)
 
     def process_batch(self, calls: Iterable):
         to_ret = []
@@ -136,6 +136,7 @@ class Runtime:
                 processor_actor.process_batch.remote,
                 processor_ref.source.is_streaming())
             source_actor = processor_ref.source.actor({key: sink_actor})
+            source_actors[proc_id] = source_actor
             num_threads = processor_ref.source.recommended_num_threads()
             source_pool_tasks = [
                 source_actor.run.remote() for _ in range(num_threads)

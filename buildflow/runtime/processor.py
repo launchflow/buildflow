@@ -16,6 +16,9 @@ class Processor(ProcessorAPI):
     def setup(self):
         pass
 
+    def _process(self, payload):
+        return self.process(self.source().preprocess(payload))
+
     def process(self, payload):
         return payload
 
@@ -48,6 +51,9 @@ def processor(runtime: Runtime,
                 lambda self, payload: original_function(payload),
                 'processor_arg_spec':
                 lambda self: inspect.getfullargspec(original_function),
+                '_process':
+                lambda self, payload: original_function(
+                    self.source().preprocess(payload))
             })
         processor_instance = _AdHocProcessor()
         runtime.register_processor(processor_instance,

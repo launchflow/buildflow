@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 
 class Source:
@@ -11,6 +11,9 @@ class Source:
     def actor(self, ray_sinks):
         """Returns the actor associated with the source."""
         pass
+
+    def preprocess(self, element: Any) -> Any:
+        return element
 
     @classmethod
     def recommended_num_threads(cls):
