@@ -11,7 +11,7 @@ from buildflow.runtime.ray_io import pubsub_utils
 
 
 @dataclasses.dataclass
-class GCSFileUpdate:
+class GCSFileEvent:
     # Metadata about that action taken.
     metadata: Dict[str, Any]
 
@@ -121,8 +121,8 @@ class GCSFileNotifications(io.Source):
                         f'{self.bucket_name}. Please ensure you have '
                         'permission to modify the bucket.')
 
-    def preprocess(self, message: pubsub_io.PubsubMessage) -> GCSFileUpdate:
-        return GCSFileUpdate(metadata=message.attributes)
+    def preprocess(self, message: pubsub_io.PubsubMessage) -> GCSFileEvent:
+        return GCSFileEvent(metadata=message.attributes)
 
     def actor(self, ray_sinks):
         return pubsub_io.PubSubSourceActor.remote(
