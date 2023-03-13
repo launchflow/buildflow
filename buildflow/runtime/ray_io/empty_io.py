@@ -1,12 +1,28 @@
 """IO for dags that don't have any input / output configured."""
 
+import dataclasses
 import logging
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, List
 
 import ray
 
 from buildflow.api import io
 from buildflow.runtime.ray_io import base
+
+
+@dataclasses.dataclass
+class EmptySource(io.Source):
+    inputs: List[Any]
+
+    def actor(self, ray_sinks):
+        return EmptySourceActor.remote(ray_sinks, self)
+
+
+@dataclasses.dataclass
+class EmptySink(io.Sink):
+
+    def actor(self, remote_fn: Callable, is_streaming: bool):
+        return EmptySinkActor.remote(remote_fn)
 
 
 @ray.remote
@@ -15,7 +31,7 @@ class EmptySourceActor(base.RaySource):
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        empty_ref: io.Empty,
+        empty_ref: EmptySource,
     ) -> None:
         super().__init__(ray_sinks)
         self.inputs = empty_ref.inputs
@@ -31,13 +47,6 @@ class EmptySourceActor(base.RaySource):
 
 @ray.remote
 class EmptySinkActor(base.RaySink):
-
-    def __init__(
-        self,
-        remote_fn: Callable,
-        empty_ref: io.Empty,
-    ) -> None:
-        super().__init__(remote_fn)
 
     async def _write(
         self,
