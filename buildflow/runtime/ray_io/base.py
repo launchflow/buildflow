@@ -111,6 +111,10 @@ class RaySource:
         """
         return [(io_ref, )] * num_replicas
 
+    @staticmethod
+    def preprocess(payload):
+        return payload
+
     async def _send_batch_to_sinks_and_await(self, elements):
         result_keys = []
         task_refs = []

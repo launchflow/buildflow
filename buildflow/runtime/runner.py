@@ -14,7 +14,8 @@ import requests
 from buildflow import utils
 from buildflow.api import IO, ProcessorAPI, io
 from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
-                                      pubsub_io, redis_stream_io)
+                                      pubsub_io, redis_stream_io,
+                                      gcs_events_io)
 
 # TODO: Add support for other IO types.
 _IO_TYPE_TO_SOURCE = {
@@ -23,6 +24,8 @@ _IO_TYPE_TO_SOURCE = {
     io.Empty.__name__: empty_io.EmptySourceActor,
     io.PubSub.__name__: pubsub_io.PubSubSourceActor,
     io.RedisStream.__name__: redis_stream_io.RedisStreamInput,
+    io.GCSFileEventStream.__name__:
+    gcs_events_io.GCSFileEventStreamSourceActor,
 }
 
 # TODO: Add support for other IO types.

@@ -1,10 +1,10 @@
 import dataclasses
 import inspect
+import logging
 from typing import Any, Dict, List, TypeVar
 
 from google.api_core import exceptions
-from google.cloud import bigquery
-from google.cloud import pubsub
+from google.cloud import bigquery, pubsub, storage
 
 from buildflow.api.schemas import bigquery as bq_schemas
 
@@ -179,3 +179,101 @@ class DuckDB(InputOutput):
 @dataclasses.dataclass(frozen=True)
 class Empty(InputOutput):
     inputs: List[Any] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass(frozen=False)
+class GCSFileEventStream(InputOutput):
+    bucket_name: str
+    project_id: str
+    pubsub_topic: str = ''
+    pubsub_subscription: str = ''
+
+    def __post_init__(self):
+        if not self.pubsub_topic:
+            self.pubsub_topic = f'projects/{self.project_id}/topics/{self.bucket_name}_notifications'  # noqa: E501
+            logging.info(
+                f'No pubsub topic provided. Defaulting to {self.pubsub_topic}.'
+            )
+        if not self.pubsub_subscription:
+            self.pubsub_subscription = f'projects/{self.project_id}/subscriptions/{self.bucket_name}_subscriber'  # noqa: E501
+            logging.info('No pubsub subscription provided. Defaulting to '
+                         f'{self.pubsub_subscription}.')
+
+    def setup(self, source: bool, sink: bool,
+              process_arg_spec: inspect.FullArgSpec):
+        # Create the topic if it doesn't exist.
+        publisher_client = pubsub.PublisherClient()
+        try:
+            publisher_client.get_topic(topic=self.pubsub_topic)
+        except exceptions.NotFound:
+            print(f'topic {self.pubsub_topic} not found attempting to create')
+            try:
+                print(f'Creating topic: {self.pubsub_topic}')
+                publisher_client.create_topic(name=self.pubsub_topic)
+            except exceptions.PermissionDenied:
+                raise ValueError(
+                    f'Failed to create topic: {self.pubsub_topic}. Please '
+                    'ensure you have permission to read the existing topic or '
+                    'permission to create a new topic if needed.')
+        subscriber_client = pubsub.SubscriberClient()
+        try:
+            subscriber_client.get_subscription(
+                subscription=self.pubsub_subscription)
+        except exceptions.NotFound:
+            try:
+                print(f'Creating subscription: {self.pubsub_subscription}')
+                subscriber_client.create_subscription(
+                    name=self.pubsub_subscription, topic=self.pubsub_topic)
+            except exceptions.PermissionDenied:
+                raise ValueError(
+                    f'Failed to create subscription: '
+                    f'{self.pubsub_subscription}. Please ensure you have '
+                    'permission to read the existing subscription or '
+                    'permission to create a new subscription if needed.')
+        # Create the bucket notifications if they don't exist.
+        storage_client = storage.Client()
+        bucket = None
+        try:
+            bucket = storage_client.get_bucket(self.bucket_name)
+        except exceptions.NotFound:
+            print(f'bucket {self.bucket_name} not found attempting to create')
+            try:
+                print(f'Creating bucket: {self.bucket_name}')
+                bucket = storage_client.create_bucket(self.bucket_name,
+                                                      project=self.project_id)
+            except exceptions.PermissionDenied:
+                raise ValueError(
+                    f'Failed to create bucket: {self.bucket_name}. Please '
+                    'ensure you have permission to read the existing bucket '
+                    'or permission to create a new bucket if needed.')
+
+        notification_found = False
+        try:
+            _, _, _, topic_name = self.pubsub_topic.split('/')
+            # gotcha 1: have to list through notifications to get the topic
+            notifications = bucket.list_notifications()
+            for notification in notifications:
+                if (notification.topic_name == topic_name
+                        and notification.bucket.name == self.bucket_name):
+                    notification_found = True
+                    break
+
+        except exceptions.PermissionDenied:
+            raise ValueError(
+                'Failed to create bucket notification for bucket: '
+                f'{self.bucket_name}. Please ensure you have permission '
+                'to modify the bucket.')
+        if not notification_found:
+            print(f'bucket notification for bucket {self.bucket_name} not '
+                  'found attempting to create')
+            try:
+                print(f'Creating notification for bucket {self.bucket_name}')
+                _, project, _, topic = self.pubsub_topic.split('/')
+                # gotcha 2: you cant pass the full topic path
+                bucket.notification(topic_name=topic,
+                                    topic_project=project).create()
+            except exceptions.PermissionDenied:
+                raise ValueError(
+                    'Failed to create bucket notification for bucket: '
+                    f'{self.bucket_name}. Please ensure you have permission '
+                    'to modify the bucket.')
