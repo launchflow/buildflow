@@ -12,34 +12,15 @@ import ray
 import requests
 
 from buildflow import utils
-from buildflow.api import IO, ProcessorAPI, io
-from buildflow.runtime.ray_io import (bigquery_io, duckdb_io, empty_io,
-                                      pubsub_io, redis_stream_io)
-
-# TODO: Add support for other IO types.
-_IO_TYPE_TO_SOURCE = {
-    io.BigQuery.__name__: bigquery_io.BigQuerySourceActor,
-    io.DuckDB.__name__: duckdb_io.DuckDBSourceActor,
-    io.Empty.__name__: empty_io.EmptySourceActor,
-    io.PubSub.__name__: pubsub_io.PubSubSourceActor,
-    io.RedisStream.__name__: redis_stream_io.RedisStreamInput,
-}
-
-# TODO: Add support for other IO types.
-_IO_TYPE_TO_SINK = {
-    io.BigQuery.__name__: bigquery_io.BigQuerySinkActor,
-    io.DuckDB.__name__: duckdb_io.DuckDBSinkActor,
-    io.Empty.__name__: empty_io.EmptySinkActor,
-    io.PubSub.__name__: pubsub_io.PubsubSinkActor,
-    io.RedisStream.__name__: redis_stream_io.RedisStreamOutput,
-}
+from buildflow.api import ProcessorAPI, SourceType, SinkType
+from buildflow.runtime.ray_io import empty_io
 
 
 @dataclasses.dataclass
 class _ProcessorRef:
     processor_instance: ProcessorAPI
-    source: IO
-    sink: IO
+    source: SourceType
+    sink: SinkType
 
     def get_processor_replica(self):
         return copy.deepcopy(self.processor_instance)
@@ -103,7 +84,7 @@ class Runtime:
         if args.disable_usage_stats:
             self._enable_usage = False
 
-    def run(self, num_replicas: int):
+    def run(self):
         if self._enable_usage:
             print(
                 'Usage stats collection is enabled. To disable add the flag: '
@@ -120,18 +101,13 @@ class Runtime:
         print('Setting up resources...')
         for proc in self._processors.values():
 
-            proc.source.setup(
-                source=True,
-                sink=False,
-                process_arg_spec=proc.processor_instance.processor_arg_spec())
+            proc.source.setup()
             proc.sink.setup(
-                source=False,
-                sink=True,
                 process_arg_spec=proc.processor_instance.processor_arg_spec())
         print('...Finished setting up resources')
 
         try:
-            output = self._run(num_replicas)
+            output = self._run()
             return output
         except Exception as e:
             print('Flow failed with error: ', e)
@@ -147,34 +123,23 @@ class Runtime:
         # TODO: Add support for multiple node types (i.e. endpoints).
         self._processors = {}
 
-    def _run(self, num_replicas: int):
+    def _run(self):
         running_tasks = {}
         source_actors = {}
         for proc_id, processor_ref in self._processors.items():
-            # TODO: Add comments to explain this code, its pretty dense with
-            # need-to-know info.
-            source_actor_class = _IO_TYPE_TO_SOURCE[
-                processor_ref.source.__class__.__name__]
-            sink_actor_class = _IO_TYPE_TO_SINK[
-                processor_ref.sink.__class__.__name__]
-            source_args = source_actor_class.source_args(
-                processor_ref.source, num_replicas)
-            source_pool_tasks = []
-            for args in source_args:
-                processor_actor = _ProcessActor.remote(
-                    processor_ref.get_processor_replica())
-                sink = sink_actor_class.remote(
-                    processor_actor.process_batch.remote, processor_ref.sink)
-                # TODO: probably need support for unique keys. What if someone
-                # writes to two bigquery tables?
-                key = str(processor_ref.sink)
-                if isinstance(processor_ref.sink, io.Empty):
-                    key = 'local'
-                source = source_actor_class.remote({key: sink}, *args)
-                source_actors[proc_id] = source
-                num_threads = source_actor_class.recommended_num_threads()
-                source_pool_tasks.extend(
-                    [source.run.remote() for _ in range(num_threads)])
+            key = str(processor_ref.sink)
+            if isinstance(processor_ref.sink, empty_io.EmptySink):
+                key = 'local'
+            processor_actor = _ProcessActor.remote(
+                processor_ref.get_processor_replica())
+            sink_actor = processor_ref.sink.actor(
+                processor_actor.process_batch.remote,
+                processor_ref.source.is_streaming())
+            source_actor = processor_ref.source.actor({key: sink_actor})
+            num_threads = processor_ref.source.recommended_num_threads()
+            source_pool_tasks = [
+                source_actor.run.remote() for _ in range(num_threads)
+            ]
 
             # We no longer need to use the Actor Pool because there's no input
             # to the actors (they spawn their own inputs based on the IO refs).

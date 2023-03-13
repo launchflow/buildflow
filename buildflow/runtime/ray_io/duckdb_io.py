@@ -1,5 +1,6 @@
 """IO connectors for DuckDB and Ray."""
 
+import dataclasses
 import logging
 import time
 from typing import Any, Callable, Dict, Iterable, Union
@@ -12,13 +13,34 @@ from buildflow.api import io
 from buildflow.runtime.ray_io import base
 
 
+@dataclasses.dataclass
+class DuckDBSource(io.Source):
+    """Source for reading from DuckDB."""
+    database: str = ''
+    query: str = ''
+    table: str = ''
+
+    def actor(self, ray_sinks):
+        return DuckDBSourceActor.remote(ray_sinks, self)
+
+
+@dataclasses.dataclass
+class DuckDBSink(io.Sink):
+    """Sink for writing to a table in a DuckDB database."""
+    database: str
+    table: str
+
+    def actor(self, remote_fn: Callable, is_streaming: bool):
+        return DuckDBSinkActor.remote(remote_fn, self)
+
+
 @ray.remote
 class DuckDBSourceActor(base.RaySource):
 
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        duckdb_ref=io.DuckDB,
+        duckdb_ref: DuckDBSource,
     ) -> None:
         super().__init__(ray_sinks)
         self.duck_con = duckdb.connect(database=duckdb_ref.database,
@@ -50,7 +72,7 @@ class DuckDBSinkActor(base.RaySink):
     def __init__(
         self,
         remote_fn: Callable,
-        duckdb_ref: io.DuckDB,
+        duckdb_ref: DuckDBSink,
     ) -> None:
         super().__init__(remote_fn)
         self.database = duckdb_ref.database

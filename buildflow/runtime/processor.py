@@ -3,14 +3,15 @@ from typing import Optional
 
 from buildflow import utils
 from buildflow.api import ProcessorAPI
-from buildflow.api.io import IO, Empty
+from buildflow.api.io import SinkType, SourceType
 from buildflow.runtime import Runtime
+from buildflow.runtime.ray_io import empty_io
 
 
 class Processor(ProcessorAPI):
 
-    def sink(self) -> IO:
-        return Empty()
+    def sink(self) -> SinkType:
+        return empty_io.EmptySink()
 
     def setup(self):
         pass
@@ -22,10 +23,12 @@ class Processor(ProcessorAPI):
         return inspect.getfullargspec(self.process)
 
 
-def processor(runtime: Runtime, source: IO, sink: Optional[IO] = None):
+def processor(runtime: Runtime,
+              source: SourceType,
+              sink: Optional[SinkType] = None):
 
     if sink is None:
-        sink = Empty()
+        sink = empty_io.EmptySink()
 
     def decorator_function(original_function):
         processor_id = original_function.__name__

@@ -1,8 +1,9 @@
 """IO connectors for Redis and Ray."""
 
+import dataclasses
 import logging
 import time
-from typing import Any, Callable, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable, List, Union
 
 import ray
 import redis
@@ -11,13 +12,41 @@ from buildflow import io
 from buildflow.runtime.ray_io import base
 
 
+@dataclasses.dataclass
+class RedisStreamSource(io.Source):
+    """Source for reading from a redis stream."""
+    host: str
+    port: str
+    streams: List[str]
+    start_positions: Dict[str, str] = dataclasses.field(default_factory=dict)
+    read_timeout_secs: int = -1
+
+    def actor(self, ray_sinks):
+        return RedisStreamInput.remote(ray_sinks, self)
+
+    @classmethod
+    def is_streaming(cls) -> bool:
+        return True
+
+
+@dataclasses.dataclass
+class RedisStreamSink(io.Sink):
+    """Sink for writing to a redis stream."""
+    host: str
+    port: str
+    streams: List[str]
+
+    def actor(self, remote_fn: Callable, is_streaming: bool):
+        return RedisStreamOutput.remote(remote_fn, self)
+
+
 @ray.remote
 class RedisStreamInput(base.RaySource):
 
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
-        redis_stream_ref: io.RedisStream,
+        redis_stream_ref: RedisStreamSource,
     ) -> None:
         super().__init__(ray_sinks)
         self.redis_client = redis.Redis(host=redis_stream_ref.host,
@@ -70,7 +99,7 @@ class RedisStreamOutput(base.RaySink):
     def __init__(
         self,
         remote_fn: Callable,
-        redis_stream_ref: io.RedisStream,
+        redis_stream_ref: RedisStreamSink,
     ) -> None:
         super().__init__(remote_fn)
         self.redis_client = redis.Redis(host=redis_stream_ref.host,

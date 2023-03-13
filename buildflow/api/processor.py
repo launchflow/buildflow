@@ -1,20 +1,20 @@
 from typing import Any, Iterable
 
-from buildflow.api.io import IO
+from buildflow.api.io import SourceType, SinkType
 
 
 class ProcessorAPI:
 
     # This lifecycle method defines the input reference for the processor.
-    def source(self) -> IO:
+    def source(self) -> SourceType:
         raise NotImplementedError('source not implemented')
 
     # This lifecycle method defines the output reference for the processor.
-    def sink(self) -> IO:
+    def sink(self) -> SinkType:
         raise NotImplementedError('sink not implemented')
 
     # You can also define multiple outputs.
-    def sinks(self) -> Iterable[IO]:
+    def sinks(self) -> Iterable[SinkType]:
         raise NotImplementedError('sinks not implemented')
 
     # This lifecycle method initializes any shared state.

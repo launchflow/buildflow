@@ -14,13 +14,13 @@ flow = buildflow.Flow()
 class MyProcessor(buildflow.Processor):
 
     def source(self):
-        return buildflow.PubSub(
+        return buildflow.PubSubSource(
             subscription=(
                 'projects/pubsub-test-project/subscriptions/pubsub_main'),
             topic='projects/pubsub-test-project/topics/incoming_topic')
 
     def sink(self):
-        return buildflow.PubSub(
+        return buildflow.PubSubSink(
             topic='projects/pubsub-test-project/topics/outgoing_topic')
 
     def process(self, payload: int) -> Output:

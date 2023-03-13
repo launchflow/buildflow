@@ -6,7 +6,7 @@ import unittest
 
 from google.cloud import bigquery
 
-from buildflow.api.io import bq_schemas
+from buildflow.runtime.ray_io.schemas import bigquery as bq_schemas
 
 
 class BigqueryTest(unittest.TestCase):
