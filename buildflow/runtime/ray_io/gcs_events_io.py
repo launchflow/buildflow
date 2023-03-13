@@ -1,6 +1,6 @@
 """IO connectors for Pub/Sub and Ray."""
 
-from typing import Dict
+from typing import Any, Dict
 
 import ray
 from google.cloud import storage
@@ -46,10 +46,8 @@ class GCSFileEventStreamSourceActor(base.RaySource):
                 event_type = attributes["eventType"]
                 bucket_id = attributes["bucketId"]
                 object_id = attributes["objectId"]
-                storage_object = storage_client.get_bucket(bucket_id).get_blob(
-                    object_id)
-                payloads.append(
-                    (event_type, storage_object.download_as_text()))
+
+                payloads.append((event_type, bucket_id, object_id))
                 ack_ids.append(received_message.ack_id)
                 self._pending_ack_ids.append(ack_ids)
 
@@ -60,6 +58,13 @@ class GCSFileEventStreamSourceActor(base.RaySource):
                 # TODO: Add error handling.
                 await pubsub_client.acknowledge(
                     ack_ids=ack_ids, subscription=self.pubsub_subscription)
+
+    @staticmethod
+    def preprocess(payload: Any):
+        storage_client = storage.Client()
+        storage_object = storage_client.get_bucket(bucket_id).get_blob(
+            object_id)
+        pass
 
     def shutdown(self):
         self.running = False
