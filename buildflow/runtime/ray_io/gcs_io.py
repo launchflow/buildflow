@@ -118,8 +118,8 @@ class GCSFileNotifications(io.Source):
                 except exceptions.PermissionDenied:
                     raise ValueError(
                         'Failed to create bucket notification for bucket: '
-                        f'{self.bucket_name}. Please ensure you have permission '
-                        'to modify the bucket.')
+                        f'{self.bucket_name}. Please ensure you have '
+                        'permission to modify the bucket.')
 
     def preprocess(self, message: pubsub_io.PubsubMessage) -> GCSFileUpdate:
         return GCSFileUpdate(metadata=message.attributes)
