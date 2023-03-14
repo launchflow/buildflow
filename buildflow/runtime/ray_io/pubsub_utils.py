@@ -18,7 +18,6 @@ def maybe_create_topic(pubsub_topic: str, publisher_members: List[str] = []):
             print(f'Creating topic: {pubsub_topic}')
             topic = publisher_client.create_topic(name=pubsub_topic)
             if publisher_members:
-                print('DO NOT SUBMIT: add members')
                 iam_policy = publisher_client.get_iam_policy(
                     request=iam_policy_pb2.GetIamPolicyRequest(
                         resource=topic.name))
