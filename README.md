@@ -1,8 +1,9 @@
 # BuildFlow
 
-**BuildFlow**, is an open source framework that lets you build a data pipeline by simply attaching a decorator to a Python function. All you need to do is describe where your input is coming from and where your output should be written, and BuildFlow handles the rest. No configuration outside of the code is required.
+![CI](https://github.com/launchflow/buildflow/actions/workflows/python_ci.yaml/badge.svg)
+[![Discord Shield](https://discordapp.com/api/guilds/1082821064180117575/widget.png?style=shield)](https://discordapp.com/invite/wz7fjHyrCA)
 
-**Source Code**: https://github.com/launchflow/buildflow
+**BuildFlow**, is an open source framework that lets you build a data pipeline by simply attaching a decorator to a Python function. All you need to do is describe where your input is coming from and where your output should be written, and BuildFlow handles the rest. No configuration outside of the code is required.
 
 
 Key Features:
@@ -13,6 +14,11 @@ Key Features:
 - Automatic [resource creation / management](resource-creation) for popular cloud resources
 - [Schema validation](schema-validation) powered by Python dataclasses and type hints
 - Automatic parallelism powered by [Ray](https://ray.io)
+
+# Quick Links
+
+- **Docs**: https://www.buildflow.dev/docs/intro
+- **Discord**: https://discordapp.com/invite/wz7fjHyrCA
 
 ## Quickstart
 
