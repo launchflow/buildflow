@@ -196,6 +196,39 @@ class BigQueryTest(unittest.TestCase):
 
         bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
+    @mock.patch('google.cloud.bigquery.Client')
+    def test_bigquery_sink_setup_schema_no_output_type_not_validated(
+            self, bq_mock: mock.MagicMock):
+        bq_client_mock = bq_mock.return_value
+        bq_client_mock.get_table.return_value = bigquery.Table(
+            'p.ds.j',
+            schema=[
+                bigquery.SchemaField(name='field',
+                                     field_type='INTEGER',
+                                     mode='REQUIRED')
+            ])
+
+        bq = bigquery_io.BigQuerySink(table_id='p.ds.t')
+
+        def process():
+            pass
+
+        bq.setup(process_arg_spec=inspect.getfullargspec(process))
+
+    @mock.patch('google.cloud.bigquery.Client')
+    def test_bigquery_sink_setup_schema_no_output_type_value_error(
+            self, bq_mock: mock.MagicMock):
+        bq_client_mock = bq_mock.return_value
+        bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
+
+        bq = bigquery_io.BigQuerySink(table_id='p.ds.t')
+
+        def process():
+            pass
+
+        with self.assertRaises(ValueError):
+            bq.setup(process_arg_spec=inspect.getfullargspec(process))
+
 
 if __name__ == '__main__':
     unittest.main()
