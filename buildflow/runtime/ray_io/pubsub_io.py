@@ -131,7 +131,6 @@ class PubSubSinkActor(base.RaySink):
         elements: Union[Iterable[Dict[str, Any]],
                         Iterable[Iterable[Dict[str, Any]]]],
     ):
-
         def publish_element(item):
             future = self.pubslisher_client.publish(
                 self.topic,
