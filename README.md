@@ -18,6 +18,7 @@ Key Features:
 # Quick Links
 
 - **Docs**: https://www.buildflow.dev/docs/intro
+- **Walkthroughs**: https://www.buildflow.dev/docs/category/walk-throughs
 - **Discord**: https://discordapp.com/invite/wz7fjHyrCA
 
 ## Quickstart
