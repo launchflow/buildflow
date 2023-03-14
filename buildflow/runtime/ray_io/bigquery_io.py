@@ -148,12 +148,15 @@ class BigQuerySink(io.Sink):
         schema = None
         if 'return' in process_arg_spec.annotations:
             return_type = process_arg_spec.annotations['return']
+            if hasattr(return_type, '__args__'):
+                # Using a composite type hint like List or Optional
+                return_type = return_type.__args__[0]
             if not dataclasses.is_dataclass(return_type):
                 print('Output type was not a dataclass cannot validate '
-                      'schema.')
+                      f'schema. Return type: {return_type}')
             else:
                 schema = bq_schemas.dataclass_to_bq_schema(
-                    dataclasses.fields(process_arg_spec.annotations['return']))
+                    dataclasses.fields(return_type))
                 schema.sort(key=lambda sf: sf.name)
         else:
             print('No output type provided. Cannot validate BigQuery table.')
@@ -178,6 +181,7 @@ class BigQuerySink(io.Sink):
                 raise ValueError('\n'.join(error_str))
         except exceptions.NotFound:
             if schema is not None:
+                print(f'creating table: {self.table_id}')
                 dataset_ref = '.'.join(self.table_id.split('.')[0:2])
                 client.create_dataset(dataset_ref, exists_ok=True)
                 table = client.create_table(
@@ -288,7 +292,7 @@ def ray_dataset_load_job(dataset: ray.data.Dataset, bigquery_table_id: str,
 class BigQuerySinkActor(base.RaySink):
 
     # TODO: should make this configure able.
-    _BATCH_SIZE = 100_000
+    _BATCH_SIZE = 10_000
 
     def __init__(
         self,

@@ -57,7 +57,10 @@ def maybe_create_subscription(pubsub_subscription: str,
         try:
             print(f'Creating subscription: {pubsub_subscription}')
             subscriber_client.create_subscription(name=pubsub_subscription,
-                                                  topic=pubsub_topic)
+                                                  topic=pubsub_topic,
+                                                  # TODO: we should make this
+                                                  # configurable.
+                                                  ack_deadline_seconds=600)
         except exceptions.PermissionDenied:
             raise ValueError(
                 f'Failed to create subscription: {pubsub_subscription}. '

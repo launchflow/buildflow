@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import inspect
+from typing import List, Optional, Iterable
 import unittest
 from unittest import mock
 
@@ -228,6 +229,102 @@ class BigQueryTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             bq.setup(process_arg_spec=inspect.getfullargspec(process))
+
+    @mock.patch('google.cloud.bigquery.Client')
+    def test_bigquery_sink_setup_create_table_list(self,
+                                                   bq_mock: mock.MagicMock):
+        bq_client_mock = bq_mock.return_value
+        bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
+
+        bq = bigquery_io.BigQuerySink(table_id='p.ds.t')
+
+        @dataclass
+        class Output:
+            field: int
+
+        def process() -> List[Output]:
+            pass
+
+        bq.setup(process_arg_spec=inspect.getfullargspec(process))
+
+        bq_client_mock.create_dataset.assert_called_once_with('p.ds',
+                                                              exists_ok=True)
+
+        bq_client_mock.create_table.assert_called_once()
+
+        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][
+            0]
+        self.assertEqual(table_call.project, 'p')
+        self.assertEqual(table_call.dataset_id, 'ds')
+        self.assertEqual(table_call.table_id, 't')
+        self.assertEqual(table_call.schema, [
+            bigquery.SchemaField(
+                name='field', field_type='INTEGER', mode='REQUIRED')
+        ])
+
+    @mock.patch('google.cloud.bigquery.Client')
+    def test_bigquery_sink_setup_create_table_optional(
+            self, bq_mock: mock.MagicMock):
+        bq_client_mock = bq_mock.return_value
+        bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
+
+        bq = bigquery_io.BigQuerySink(table_id='p.ds.t')
+
+        @dataclass
+        class Output:
+            field: int
+
+        def process() -> Optional[Output]:
+            pass
+
+        bq.setup(process_arg_spec=inspect.getfullargspec(process))
+
+        bq_client_mock.create_dataset.assert_called_once_with('p.ds',
+                                                              exists_ok=True)
+
+        bq_client_mock.create_table.assert_called_once()
+
+        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][
+            0]
+        self.assertEqual(table_call.project, 'p')
+        self.assertEqual(table_call.dataset_id, 'ds')
+        self.assertEqual(table_call.table_id, 't')
+        self.assertEqual(table_call.schema, [
+            bigquery.SchemaField(
+                name='field', field_type='INTEGER', mode='REQUIRED')
+        ])
+
+    @mock.patch('google.cloud.bigquery.Client')
+    def test_bigquery_sink_setup_create_table_iterable(
+            self, bq_mock: mock.MagicMock):
+        bq_client_mock = bq_mock.return_value
+        bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
+
+        bq = bigquery_io.BigQuerySink(table_id='p.ds.t')
+
+        @dataclass
+        class Output:
+            field: int
+
+        def process() -> Iterable[Output]:
+            pass
+
+        bq.setup(process_arg_spec=inspect.getfullargspec(process))
+
+        bq_client_mock.create_dataset.assert_called_once_with('p.ds',
+                                                              exists_ok=True)
+
+        bq_client_mock.create_table.assert_called_once()
+
+        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][
+            0]
+        self.assertEqual(table_call.project, 'p')
+        self.assertEqual(table_call.dataset_id, 'ds')
+        self.assertEqual(table_call.table_id, 't')
+        self.assertEqual(table_call.schema, [
+            bigquery.SchemaField(
+                name='field', field_type='INTEGER', mode='REQUIRED')
+        ])
 
 
 if __name__ == '__main__':

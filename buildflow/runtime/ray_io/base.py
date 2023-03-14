@@ -43,7 +43,7 @@ class RaySink:
 
     async def _write(
         self,
-        elements: Union[ray.data.Dataset, Iterable[Any]],
+        elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
     ):
         raise NotImplementedError(
             f'`_write` method not implemented for class {self.__class__}')
@@ -65,12 +65,13 @@ class RaySink:
                     middle_result = []
                     for elem in result:
                         if dataclasses.is_dataclass(elem):
-                            middle_result.append(utils.asdict(elem))
+                            middle_result.append(utils.dataclass_to_json(elem))
                         else:
                             middle_result.append(elem)
-                    results.append(middle_result)
+                    # Flatten the results if a list was returned.
+                    results.extend(middle_result)
                 elif dataclasses.is_dataclass(result):
-                    results.append(utils.asdict(result))
+                    results.append(utils.dataclass_to_json(result))
                 else:
                     results.append(result)
 

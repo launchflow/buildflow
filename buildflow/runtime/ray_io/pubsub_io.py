@@ -128,9 +128,9 @@ class PubSubSinkActor(base.RaySink):
 
     async def _write(
         self,
-        elements: Union[Iterable[Dict[str, Any]],
-                        Iterable[Iterable[Dict[str, Any]]]],
+        elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
     ):
+        # TODO: need to support writing to Pub/Sub in batch mode.
         def publish_element(item):
             future = self.pubslisher_client.publish(
                 self.topic,
@@ -138,9 +138,5 @@ class PubSubSinkActor(base.RaySink):
             future.result()
 
         for elem in elements:
-            if isinstance(elem, dict):
-                publish_element(elem)
-            else:
-                for subelem in elem:
-                    publish_element(subelem)
+            publish_element(elem)
         return

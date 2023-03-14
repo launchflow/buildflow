@@ -68,7 +68,8 @@ class GCSIOTest(unittest.TestCase):
             request=expected_set_policy)
         sub_mock.create_subscription.assert_called_once_with(
             name='projects/project/subscriptions/bucket_subscriber',
-            topic='projects/project/topics/bucket_notifications')
+            topic='projects/project/topics/bucket_notifications',
+            ack_deadline_seconds=600)
         storage_mock.create_bucket.assert_called_once_with('bucket',
                                                            project='project')
 

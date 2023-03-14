@@ -27,7 +27,7 @@ class PubsubIOTest(unittest.TestCase):
 
         pub_mock.create_topic.assert_called_once_with(name='pubsub-topic')
         sub_mock.create_subscription.assert_called_once_with(
-            name='pubsub-sub', topic='pubsub-topic')
+            name='pubsub-sub', topic='pubsub-topic', ack_deadline_seconds=600)
 
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
@@ -46,7 +46,7 @@ class PubsubIOTest(unittest.TestCase):
 
         pub_mock.create_topic.assert_not_called()
         sub_mock.create_subscription.assert_called_once_with(
-            name='pubsub-sub', topic='pubsub-topic')
+            name='pubsub-sub', topic='pubsub-topic', ack_deadline_seconds=600)
 
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')

@@ -35,7 +35,7 @@ class EmptyTest(unittest.TestCase):
         self.assertEqual(len(output), 1)
         self.assertEqual(output,
                          {'process': {
-                             'local': [[1, 1], [2, 2], [3, 3]]
+                             'local': [1, 1, 2, 2, 3, 3]
                          }})
 
     def test_end_to_end_with_class(self):
