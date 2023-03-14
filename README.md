@@ -15,7 +15,7 @@ Key Features:
 - [Schema validation](schema-validation) powered by Python dataclasses and type hints
 - Automatic parallelism powered by [Ray](https://ray.io)
 
-# Quick Links
+## Quick Links
 
 - **Docs**: https://www.buildflow.dev/docs/intro
 - **Walkthroughs**: https://www.buildflow.dev/docs/category/walk-throughs
