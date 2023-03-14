@@ -130,13 +130,15 @@ class Runtime:
             key = str(processor_ref.sink)
             if isinstance(processor_ref.sink, empty_io.EmptySink):
                 key = 'local'
-            processor_actor = _ProcessActor.remote(
-                processor_ref.get_processor_replica())
-            sink_actor = processor_ref.sink.actor(
-                processor_actor.process_batch.remote,
-                processor_ref.source.is_streaming())
             source_actors[proc_id] = []
-            for _ in range(num_replicas):
+            for i in range(num_replicas):
+                if i % 4 == 0:
+                    processor_actor = _ProcessActor.remote(
+                        processor_ref.get_processor_replica())
+                    sink_actor = processor_ref.sink.actor(
+                        processor_actor.process_batch.remote,
+                        processor_ref.source.is_streaming())
+
                 source_actor = processor_ref.source.actor({key: sink_actor})
                 source_actors[proc_id].append(source_actor)
                 num_threads = processor_ref.source.recommended_num_threads()
