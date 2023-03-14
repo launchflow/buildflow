@@ -24,7 +24,7 @@ source = buildflow.GCSFileNotifications(project_id=args.gcp_project,
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 sink = buildflow.BigQuerySink(
-    table_id=f'{args.gcp_project}.buildflow_walkthrough2.csv_bigquery')
+    table_id=f'{args.gcp_project}.buildflow_walkthrough.csv_bigquery')
 
 
 # Nested dataclasses can be used inside of your schemas.
