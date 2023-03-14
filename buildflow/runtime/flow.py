@@ -1,6 +1,6 @@
 from typing import Optional
 
-from buildflow.api import ProcessorAPI, flow, IO
+from buildflow.api import ProcessorAPI, flow, SourceType, SinkType
 from buildflow.runtime.processor import processor
 from buildflow.runtime.runner import Runtime
 
@@ -15,6 +15,7 @@ class Flow(flow.FlowAPI):
         self._initialized = True
         self._name = name
         self.runtime = Runtime()
+        # TODO: need to implement num_replicas
         self.num_replicas = num_replicas
         self.resources = set()
         self.processors = set()
@@ -32,7 +33,7 @@ class Flow(flow.FlowAPI):
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def processor(self, source: IO, sink: Optional[IO] = None):
+    def processor(self, source: SourceType, sink: Optional[SinkType] = None):
         return processor(self.runtime, source, sink)
 
     def run(self,
@@ -40,4 +41,4 @@ class Flow(flow.FlowAPI):
             num_replicas: int = 1):
         if processor_instance is not None:
             self.runtime.register_processor(processor_instance)
-        return self.runtime.run(num_replicas)
+        return self.runtime.run()
