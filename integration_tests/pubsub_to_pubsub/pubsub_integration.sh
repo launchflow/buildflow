@@ -6,6 +6,7 @@ sleep 5
 export PUBSUB_EMULATOR_HOST=localhost:8085
 
 python pubsub_main.py --disable_usage_stats &
+sleep 15
 python pubsub_publish.py
 python pubsub_validation.py
 final_output=$?

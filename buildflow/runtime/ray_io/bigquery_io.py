@@ -139,52 +139,59 @@ class BigQuerySink(io.Sink):
     # batch mode.
     # TODO: we should attempt to create this if it doesn't exist.
     temp_gcs_bucket: str = ''
-    # The billing project to use for query usage. If unset we will use the
+    # The billing project to use for usage. If unset we will use the
     # project configured with application default credentials.
     billing_project: str = ''
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
         client = bigquery.Client()
+        schema = None
         if 'return' in process_arg_spec.annotations:
             return_type = process_arg_spec.annotations['return']
             if not dataclasses.is_dataclass(return_type):
                 print('Output type was not a dataclass cannot validate '
                       'schema.')
-            schema = bq_schemas.dataclass_to_bq_schema(
-                dataclasses.fields(process_arg_spec.annotations['return']))
-            schema.sort(key=lambda sf: sf.name)
-            try:
-                table = client.get_table(table=self.table_id)
-                bq_schema = table.schema
-                bq_schema.sort(key=lambda sf: sf.name)
-                if schema != bq_schema:
-                    only_in_bq = set(bq_schema) - set(schema)
-                    only_in_pytype = set(schema) - set(bq_schema)
-                    error_str = ['Output schema did not match table schema.']
-                    if only_in_bq:
-                        error_str.append(
-                            'Fields found only in BQ schema:\n'
-                            f'{bq_schemas.schema_fields_to_str(only_in_bq)}'  # noqa: E501
-                        )
-                    if only_in_pytype:
-                        error_str.append(
-                            'Fields found only in PyType schema:\n'
-                            f'{bq_schemas.schema_fields_to_str(only_in_pytype)}'  # noqa: E501
-                        )
-                    raise ValueError('\n'.join(error_str))
-            except exceptions.NotFound:
+            else:
+                schema = bq_schemas.dataclass_to_bq_schema(
+                    dataclasses.fields(process_arg_spec.annotations['return']))
+                schema.sort(key=lambda sf: sf.name)
+        else:
+            print('No output type provided. Cannot validate BigQuery table.')
+        try:
+            table = client.get_table(table=self.table_id)
+            bq_schema = table.schema
+            bq_schema.sort(key=lambda sf: sf.name)
+            if schema is not None and schema != bq_schema:
+                only_in_bq = set(bq_schema) - set(schema)
+                only_in_pytype = set(schema) - set(bq_schema)
+                error_str = ['Output schema did not match table schema.']
+                if only_in_bq:
+                    error_str.append(
+                        'Fields found only in BQ schema:\n'
+                        f'{bq_schemas.schema_fields_to_str(only_in_bq)}'  # noqa: E501
+                    )
+                if only_in_pytype:
+                    error_str.append(
+                        'Fields found only in PyType schema:\n'
+                        f'{bq_schemas.schema_fields_to_str(only_in_pytype)}'  # noqa: E501
+                    )
+                raise ValueError('\n'.join(error_str))
+        except exceptions.NotFound:
+            if schema is not None:
                 dataset_ref = '.'.join(self.table_id.split('.')[0:2])
                 client.create_dataset(dataset_ref, exists_ok=True)
                 table = client.create_table(
                     bigquery.Table(self.table_id, schema))
-            except exceptions.PermissionDenied as e:
+            else:
                 raise ValueError(
-                    f'Failed to retrieve BigQuery table: {self.table_id} '
-                    'for writing. Please ensure this table exists and you '
-                    'have access.') from e
-        else:
-            print(
-                'No output type provided. Cannot validate BigQuery table.')
+                    'BigQuery table does not exist and cannot create based on'
+                    ' your processor output type. Please either create the '
+                    'table or provde a dataclass as your output.')
+        except exceptions.PermissionDenied as e:
+            raise ValueError(
+                f'Failed to retrieve BigQuery table: {self.table_id} '
+                'for writing. Please ensure this table exists and you '
+                'have access.') from e
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return BigQuerySinkActor.remote(remote_fn, self, is_streaming)
@@ -226,8 +233,8 @@ class BigQuerySourceActor(base.RaySource):
 
 
 def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
-                          source_format: bigquery.SourceFormat):
-    bq_client = _get_bigquery_client()
+                          source_format: bigquery.SourceFormat, project: str):
+    bq_client = _get_bigquery_client(project)
     job_config = bigquery.LoadJobConfig(
         source_format=source_format,
         autodetect=True,
@@ -245,15 +252,16 @@ def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
 @ray.remote
 def json_rows_streaming(json_rows: Iterable[Dict[str, Any]],
                         bigquery_table_id: str, project: str) -> None:
-    bq_client = _get_bigquery_client()
+    bq_client = _get_bigquery_client(project)
     errors = bq_client.insert_rows_json(bigquery_table_id, json_rows)
     if errors:
         raise RuntimeError(f'BigQuery streaming insert failed: {errors}')
 
 
 @ray.remote
-def json_rows_load_job(json_rows: Iterable[Dict[str, Any]],
-                       bigquery_table_id: str, gcs_bucket: str) -> str:
+def json_rows_load_job(json_rows: Iterable[Dict[str,
+                                                Any]], bigquery_table_id: str,
+                       gcs_bucket: str, project: str) -> str:
     storage_client = _get_storage_client()
     bucket = storage_client.bucket(gcs_bucket)
     job_uuid = utils.uuid()
@@ -262,7 +270,8 @@ def json_rows_load_job(json_rows: Iterable[Dict[str, Any]],
     batch_blob.upload_from_string(json_file_contents)
     gcs_glob_uri = f'gs://{gcs_bucket}/{job_uuid}/*'
     return run_load_job_and_wait(bigquery_table_id, gcs_glob_uri,
-                                 bigquery.SourceFormat.NEWLINE_DELIMITED_JSON)
+                                 bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+                                 project)
 
 
 @ray.remote
@@ -326,7 +335,8 @@ class BigQuerySinkActor(base.RaySink):
                     else:
                         tasks.append(
                             json_rows_load_job.remote(batch, self.bq_table_id,
-                                                      self.temp_gcs_bucket))
+                                                      self.temp_gcs_bucket,
+                                                      self.project))
         return await asyncio.gather(*tasks)
 
 

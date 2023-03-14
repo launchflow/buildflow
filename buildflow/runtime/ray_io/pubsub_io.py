@@ -5,13 +5,19 @@ import inspect
 import json
 from typing import Any, Callable, Dict, Iterable, Union
 
-from google.api_core import exceptions
 from google.cloud import pubsub
 from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
 import ray
 
 from buildflow.api import io
 from buildflow.runtime.ray_io import base
+from buildflow.runtime.ray_io import pubsub_utils
+
+
+@dataclasses.dataclass(frozen=True)
+class PubsubMessage:
+    data: Dict[str, Any]
+    attributes: Dict[str, Any]
 
 
 @dataclasses.dataclass
@@ -22,42 +28,12 @@ class PubSubSource(io.Source):
     # The topic to connect to for the subscription. If this is provided and
     # subscription does not exist we will create it.
     topic: str = ''
+    # Whether or not to include the pubsub attributes. If this is true you will
+    # get a buildflow.PubsubMessage class as your input.
+    include_attributes: bool = False
 
     def setup(self):
-        subscriber_client = pubsub.SubscriberClient()
-        try:
-            subscriber_client.get_subscription(
-                subscription=self.subscription)
-        except exceptions.NotFound:
-            if not self.topic:
-                raise ValueError(
-                    f'subscription: {self.subscription} was not found, '
-                    'please provide the topic so we can create the '
-                    'subscriber or ensure you have read access to the '
-                    'subscribe.')
-            publisher_client = pubsub.PublisherClient()
-            try:
-                publisher_client.get_topic(topic=self.topic)
-            except exceptions.NotFound:
-                print(f'topic {self.topic} not found attempting to create')
-                try:
-                    print(f'Creating topic: {self.topic}')
-                    publisher_client.create_topic(name=self.topic)
-                except exceptions.PermissionDenied:
-                    raise ValueError(
-                        f'Failed to create topic: {self.topic}. Please ensure '
-                        'you have permission to read the existing topic or '
-                        'permission to create a new topic if needed.')
-            try:
-                print(f'Creating subscription: {self.subscription}')
-                subscriber_client.create_subscription(
-                    name=self.subscription, topic=self.topic)
-            except exceptions.PermissionDenied:
-                raise ValueError(
-                    f'Failed to create subscription: {self.subscription}. '
-                    'Please ensure you have permission to read the '
-                    'existing subscription or permission to create a new '
-                    'subscription if needed.')
+        pubsub_utils.maybe_create_subscription(self.subscription, self.topic)
 
     def actor(self, ray_sinks):
         return PubSubSourceActor.remote(ray_sinks, self)
@@ -81,19 +57,7 @@ class PubSubSink(io.Sink):
     topic: str
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
-        publisher_client = pubsub.PublisherClient()
-        try:
-            publisher_client.get_topic(topic=self.topic)
-        except exceptions.NotFound:
-            print(f'topic {self.topic} not found attempting to create')
-            try:
-                print(f'Creating topic: {self.topic}')
-                publisher_client.create_topic(name=self.topic)
-            except exceptions.PermissionDenied:
-                raise ValueError(
-                    f'Failed to create topic: {self.topic}. Please ensure '
-                    'you have permission to read the existing topic or '
-                    'permission to create a new topic if needed.')
+        pubsub_utils.maybe_create_topic(self.topic)
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return PubSubSinkActor.remote(remote_fn, self)
@@ -109,9 +73,9 @@ class PubSubSourceActor(base.RaySource):
     ) -> None:
         super().__init__(ray_sinks)
         self.subscription = pubsub_ref.subscription
+        self.include_attributes = pubsub_ref.include_attributes
         self.batch_size = 1000
         self.running = True
-        self._pending_ack_ids = []
 
     async def run(self):
         pubsub_client = SubscriberAsyncClient()
@@ -121,11 +85,21 @@ class PubSubSourceActor(base.RaySource):
             ack_ids = []
             payloads = []
             for received_message in response.received_messages:
-                decoded_data = received_message.message.data.decode()
-                json_loaded = json.loads(decoded_data)
-                payloads.append(json_loaded)
+                json_loaded = {}
+                if received_message.message.data:
+                    decoded_data = received_message.message.data.decode()
+                    json_loaded = json.loads(decoded_data)
+                if self.include_attributes:
+                    att_dict = {}
+                    attributes = received_message.message.attributes
+                    for key, value in attributes.items():
+                        att_dict[key] = value
+                    payload = PubsubMessage(
+                        json_loaded, att_dict)
+                else:
+                    payload = json_loaded
+                payloads.append(payload)
                 ack_ids.append(received_message.ack_id)
-                self._pending_ack_ids.append(ack_ids)
 
             # payloads will be empty if the pull times out (usually because
             # there's no data to pull).
@@ -157,7 +131,6 @@ class PubSubSinkActor(base.RaySink):
         elements: Union[Iterable[Dict[str, Any]],
                         Iterable[Iterable[Dict[str, Any]]]],
     ):
-
         def publish_element(item):
             future = self.pubslisher_client.publish(
                 self.topic,
