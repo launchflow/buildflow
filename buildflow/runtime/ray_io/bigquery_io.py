@@ -253,7 +253,7 @@ def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
     return
 
 
-@ray.remote
+@ray.remote(num_cpus=0.25)
 def json_rows_streaming(json_rows: Iterable[Dict[str, Any]],
                         bigquery_table_id: str, project: str) -> None:
     bq_client = _get_bigquery_client(project)

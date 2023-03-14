@@ -84,7 +84,7 @@ class Runtime:
         if args.disable_usage_stats:
             self._enable_usage = False
 
-    def run(self):
+    def run(self, num_replicas: int):
         if self._enable_usage:
             print(
                 'Usage stats collection is enabled. To disable add the flag: '
@@ -107,7 +107,7 @@ class Runtime:
         print('...Finished setting up resources')
 
         try:
-            output = self._run()
+            output = self._run(num_replicas)
             return output
         except Exception as e:
             print('Flow failed with error: ', e)
@@ -123,7 +123,7 @@ class Runtime:
         # TODO: Add support for multiple node types (i.e. endpoints).
         self._processors = {}
 
-    def _run(self):
+    def _run(self, num_replicas):
         running_tasks = {}
         source_actors = {}
         for proc_id, processor_ref in self._processors.items():
@@ -135,12 +135,14 @@ class Runtime:
             sink_actor = processor_ref.sink.actor(
                 processor_actor.process_batch.remote,
                 processor_ref.source.is_streaming())
-            source_actor = processor_ref.source.actor({key: sink_actor})
-            source_actors[proc_id] = source_actor
-            num_threads = processor_ref.source.recommended_num_threads()
-            source_pool_tasks = [
-                source_actor.run.remote() for _ in range(num_threads)
-            ]
+            source_actors[proc_id] = []
+            for _ in range(num_replicas):
+                source_actor = processor_ref.source.actor({key: sink_actor})
+                source_actors[proc_id].append(source_actor)
+                num_threads = processor_ref.source.recommended_num_threads()
+                source_pool_tasks = [
+                    source_actor.run.remote() for _ in range(num_threads)
+                ]
 
             # We no longer need to use the Actor Pool because there's no input
             # to the actors (they spawn their own inputs based on the IO refs).
@@ -154,9 +156,15 @@ class Runtime:
                 all_actor_outputs = ray.get(tasks)
             except KeyboardInterrupt:
                 print('Shutting down processors...')
-                source = source_actors[proc_id]
-                should_block = ray.get(source.shutdown.remote())
-                if should_block:
+                sources = source_actors[proc_id]
+                any_block = False
+                for source in sources:
+                    should_block = ray.get(source.shutdown.remote())
+                    if should_block:
+                        any_block = True
+                # If any of the shutdown operations require blocking wait.
+                # In practice if one requires blocking they all should.
+                if any_block:
                     ray.get(tasks)
                 print('...Sucessfully shut down processors.')
                 return
