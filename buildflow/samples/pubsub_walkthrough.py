@@ -49,4 +49,4 @@ def process(element: Dict[str, Any]) -> TaxiOutput:
 
 
 # Run our flow.
-flow.run(num_replicas=8)
+flow.run()

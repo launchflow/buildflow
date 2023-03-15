@@ -8,11 +8,11 @@
 
 Key Features:
 
-- Unified **batch** and **streaming** [Processor API](processors/overview)
-- Production-grade [IO connectors](io-connectors/overview) for popular cloud services & storage systems
-- IO templates for common data pipelines (e.g. [file upload notifications](io-connectors/gcs_notifications))
-- Automatic [resource creation / management](resource-creation) for popular cloud resources
-- [Schema validation](schema-validation) powered by Python dataclasses and type hints
+- Unified **batch** and **streaming** [Processor API](https://www.buildflow.dev/docs/processors/overview)
+- Production-grade [IO connectors](https://www.buildflow.dev/docs/io-connectors/overview) for popular cloud services & storage systems
+- IO templates for common data pipelines (e.g. [file upload notifications](https://www.buildflow.dev/docs/io-connectors/gcs_notifications))
+- Automatic [resource creation / management](https://www.buildflow.dev/docs/resource-creation) for popular cloud resources
+- [Schema validation](https://www.buildflow.dev/docs/schema-validation) powered by Python dataclasses and type hints
 - Automatic parallelism powered by [Ray](https://ray.io)
 
 ## Quick Links
@@ -54,7 +54,7 @@ def stream_processor(pubsub_message):
 flow.run(num_replicas=4)
 ```
 
-For a more in depth tutorial see our [walkthroughs](category/walk-throughs).
+For a more in depth tutorial see our [walkthroughs](https://www.buildflow.dev/docs/category/walk-throughs).
 
 ## Windows Users
 
