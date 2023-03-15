@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.7](https://github.com/launchflow/buildflow/compare/v0.0.6...v0.0.7) (2023-03-15)
+
+
+### Bug Fixes
+
+* add better error handling for streaming failutes ([8e10580](https://github.com/launchflow/buildflow/commit/8e10580ca7423aec949c757fedeb3d61b466f1a5))
+
 ## [0.0.6](https://github.com/launchflow/buildflow/compare/v0.0.5...v0.0.6) (2023-03-15)
 
 
