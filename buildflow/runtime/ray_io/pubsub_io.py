@@ -2,6 +2,7 @@
 
 import dataclasses
 import inspect
+import logging
 import json
 from typing import Any, Callable, Dict, Iterable, Union
 
@@ -103,10 +104,16 @@ class PubSubSourceActor(base.RaySource):
             # payloads will be empty if the pull times out (usually because
             # there's no data to pull).
             if payloads:
-                await self._send_batch_to_sinks_and_await(payloads)
-                # TODO: Add error handling.
-                await pubsub_client.acknowledge(ack_ids=ack_ids,
-                                                subscription=self.subscription)
+                try:
+                    await self._send_batch_to_sinks_and_await(payloads)
+                    # TODO: Add error handling.
+                    await pubsub_client.acknowledge(
+                        ack_ids=ack_ids, subscription=self.subscription)
+                except Exception as e:
+                    logging.error((
+                        'Failed to process message, '
+                        'will not be acked: error: %s'
+                    ), e)
 
     def shutdown(self):
         self.running = False
