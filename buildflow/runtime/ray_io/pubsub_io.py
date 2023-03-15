@@ -47,7 +47,7 @@ class PubSubSource(io.Source):
         # The actor becomes mainly network bound after roughly 4 threads, and
         # additoinal threads start to hurt cpu utilization.
         # This number is based on a single actor instance.
-        return 8
+        return 4
 
 
 @dataclasses.dataclass
@@ -80,10 +80,10 @@ class PubSubSourceActor(base.RaySource):
     async def run(self):
         pubsub_client = SubscriberAsyncClient()
         while self.running:
-            response = await pubsub_client.pull(subscription=self.subscription,
-                                                max_messages=self.batch_size)
             ack_ids = []
             payloads = []
+            response = await pubsub_client.pull(subscription=self.subscription,
+                                                max_messages=self.batch_size)
             for received_message in response.received_messages:
                 json_loaded = {}
                 if received_message.message.data:
@@ -94,8 +94,7 @@ class PubSubSourceActor(base.RaySource):
                     attributes = received_message.message.attributes
                     for key, value in attributes.items():
                         att_dict[key] = value
-                    payload = PubsubMessage(
-                        json_loaded, att_dict)
+                    payload = PubsubMessage(json_loaded, att_dict)
                 else:
                     payload = json_loaded
                 payloads.append(payload)

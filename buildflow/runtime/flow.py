@@ -41,4 +41,4 @@ class Flow(flow.FlowAPI):
             num_replicas: int = 1):
         if processor_instance is not None:
             self.runtime.register_processor(processor_instance)
-        return self.runtime.run()
+        return self.runtime.run(num_replicas)
