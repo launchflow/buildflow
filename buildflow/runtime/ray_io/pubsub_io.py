@@ -82,35 +82,31 @@ class PubSubSourceActor(base.RaySource):
         while self.running:
             ack_ids = []
             payloads = []
-            for _ in range(5):
-                response = await pubsub_client.pull(
-                    subscription=self.subscription,
-                    max_messages=self.batch_size)
-                for received_message in response.received_messages:
-                    json_loaded = {}
-                    if received_message.message.data:
-                        decoded_data = received_message.message.data.decode()
-                        json_loaded = json.loads(decoded_data)
-                    if self.include_attributes:
-                        att_dict = {}
-                        attributes = received_message.message.attributes
-                        for key, value in attributes.items():
-                            att_dict[key] = value
-                        payload = PubsubMessage(json_loaded, att_dict)
-                    else:
-                        payload = json_loaded
-                    payloads.append(payload)
-                    ack_ids.append(received_message.ack_id)
+            response = await pubsub_client.pull(subscription=self.subscription,
+                                                max_messages=self.batch_size)
+            for received_message in response.received_messages:
+                json_loaded = {}
+                if received_message.message.data:
+                    decoded_data = received_message.message.data.decode()
+                    json_loaded = json.loads(decoded_data)
+                if self.include_attributes:
+                    att_dict = {}
+                    attributes = received_message.message.attributes
+                    for key, value in attributes.items():
+                        att_dict[key] = value
+                    payload = PubsubMessage(json_loaded, att_dict)
+                else:
+                    payload = json_loaded
+                payloads.append(payload)
+                ack_ids.append(received_message.ack_id)
 
             # payloads will be empty if the pull times out (usually because
             # there's no data to pull).
             if payloads:
                 await self._send_batch_to_sinks_and_await(payloads)
                 # TODO: Add error handling.
-                for i in range(0, len(ack_ids), self.batch_size):
-                    await pubsub_client.acknowledge(
-                        ack_ids=ack_ids[i:i + self.batch_size],
-                        subscription=self.subscription)
+                await pubsub_client.acknowledge(ack_ids=ack_ids,
+                                                subscription=self.subscription)
 
     def shutdown(self):
         self.running = False
