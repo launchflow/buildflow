@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.6](https://github.com/launchflow/buildflow/compare/v0.0.5...v0.0.6) (2023-03-15)
+
+
+### Bug Fixes
+
+* actually use num replicas ([4761a1f](https://github.com/launchflow/buildflow/commit/4761a1f6341e00147c144745f06ef55cb158eeaa))
+
 ## [0.0.5](https://github.com/launchflow/buildflow/compare/v0.0.4...v0.0.5) (2023-03-14)
 
 
