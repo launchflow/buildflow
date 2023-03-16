@@ -6,14 +6,15 @@ import logging
 import os
 import sys
 import traceback
-from typing import Dict, Iterable, Optional
+from typing import Dict, Optional
 
 import ray
 import requests
 
 from buildflow import utils
-from buildflow.api import ProcessorAPI, SourceType, SinkType
-from buildflow.runtime.ray_io import empty_io
+from buildflow.api import ProcessorAPI, SourceType, SinkType, options
+from buildflow.runtime.managers import batch_manager
+from buildflow.runtime.managers import stream_manager
 
 
 @dataclasses.dataclass
@@ -33,25 +34,6 @@ _SESSION_FILE = os.path.join(_SESSION_DIR, 'build_flow_usage.json')
 @dataclasses.dataclass
 class Session:
     id: str
-
-
-@ray.remote
-class _ProcessActor(object):
-
-    def __init__(self, processor_instance: ProcessorAPI):
-        self._processor = processor_instance
-        print(f'Running processor setup: {self._processor.__class__}')
-        # NOTE: This is where the setup lifecycle method is called.
-        self._processor.setup()
-
-    def process(self, *args, **kwargs):
-        return self._processor._process(*args, **kwargs)
-
-    def process_batch(self, calls: Iterable):
-        to_ret = []
-        for call in calls:
-            to_ret.append(self.process(call))
-        return to_ret
 
 
 def _load_session():
@@ -84,7 +66,7 @@ class Runtime:
         if args.disable_usage_stats:
             self._enable_usage = False
 
-    def run(self, num_replicas: int):
+    def run(self, streaming_options: options.StreamingOptions):
         if self._enable_usage:
             print(
                 'Usage stats collection is enabled. To disable add the flag: '
@@ -107,7 +89,7 @@ class Runtime:
         print('...Finished setting up resources')
 
         try:
-            output = self._run(num_replicas)
+            output = self._run(streaming_options)
             return output
         except Exception as e:
             print('Flow failed with error: ', e)
@@ -123,66 +105,34 @@ class Runtime:
         # TODO: Add support for multiple node types (i.e. endpoints).
         self._processors = {}
 
-    def _run(self, num_replicas):
-        running_tasks = {}
-        source_actors = {}
+    def _run(self, streaming_options: options.StreamingOptions):
+        batch_refs = {}
+        streaming_refs = {}
         for proc_id, processor_ref in self._processors.items():
-            key = str(processor_ref.sink)
-            if isinstance(processor_ref.sink, empty_io.EmptySink):
-                key = 'local'
-            source_actors[proc_id] = []
-            for i in range(num_replicas):
-                if i % 4 == 0:
-                    processor_actor = _ProcessActor.remote(
-                        processor_ref.get_processor_replica())
-                    sink_actor = processor_ref.sink.actor(
-                        processor_actor.process_batch.remote,
-                        processor_ref.source.is_streaming())
-
-                source_actor = processor_ref.source.actor({key: sink_actor})
-                source_actors[proc_id].append(source_actor)
-                num_threads = processor_ref.source.recommended_num_threads()
-                source_pool_tasks = [
-                    source_actor.run.remote() for _ in range(num_threads)
-                ]
-
-            # We no longer need to use the Actor Pool because there's no input
-            # to the actors (they spawn their own inputs based on the IO refs).
-            # We also need to await each actor's subtask separately because its
-            # now running on multiple threads.
-            running_tasks[proc_id] = source_pool_tasks
+            if not processor_ref.source.is_streaming():
+                manager = batch_manager.BatchProcessManager(processor_ref)
+                batch_refs[proc_id] = manager.run()
+            else:
+                manager = stream_manager.StreamProcessManager(
+                    processor_ref, streaming_options)
+                streaming_refs[proc_id] = manager.run()
 
         final_output = {}
-        for proc_id, tasks in running_tasks.items():
-            try:
-                all_actor_outputs = ray.get(tasks)
-            except KeyboardInterrupt:
-                print('Shutting down processors...')
-                sources = source_actors[proc_id]
-                any_block = False
-                for source in sources:
-                    should_block = ray.get(source.shutdown.remote())
-                    if should_block:
-                        any_block = True
-                # If any of the shutdown operations require blocking wait.
-                # In practice if one requires blocking they all should.
-                if any_block:
-                    ray.get(tasks)
-                print('...Sucessfully shut down processors.')
-                return
+        for proc_id, streaming_ref in streaming_refs.items():
+            if streaming_options.blocking:
+                ray.get(streaming_ref)
+            else:
+                final_output[proc_id] = streaming_ref
 
-            # TODO: Add option to turn this off for prod deployments
-            # Otherwise I think we lose time to sending extra data over the
-            # wire.
-            processor_output = {}
-            for actor_output in all_actor_outputs:
-                if actor_output is not None:
-                    for key, value in actor_output.items():
-                        if key in processor_output:
-                            processor_output[key].extend(value)
-                        else:
-                            processor_output[key] = value
-            final_output[proc_id] = processor_output
+        for proc_id, batch_ref in batch_refs.items():
+            proc_output = {}
+            output = ray.get(batch_ref)
+            for key, value in output.items():
+                if key in proc_output:
+                    proc_output[key].extend(value)
+                else:
+                    proc_output[key] = value
+            final_output[proc_id] = proc_output
         return final_output
 
     def register_processor(self,

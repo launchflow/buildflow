@@ -1,5 +1,7 @@
 import dataclasses
 
+import ray
+
 import buildflow
 
 
@@ -27,4 +29,10 @@ class MyProcessor(buildflow.Processor):
         return Output(payload['val'] + 1)
 
 
-flow.run(MyProcessor())
+ref = flow.run(MyProcessor(),
+               streaming_options=buildflow.StreamingOptions(
+                   blocking=False, autoscaling=False))
+
+# Note: we could just turn blocking=True, but this is just some extra
+# validation to ensure this blocking mechnism works also.
+ray.get(ref['MyProcessor'])

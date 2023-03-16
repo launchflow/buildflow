@@ -32,7 +32,7 @@ class RedisStreamTest(unittest.TestCase):
     def setUp(self) -> None:
         self.flow = buildflow.Flow()
 
-    def test_end_to_end(self):
+    def test_end_to_end_redis(self):
 
         redis_client = redis.Redis(host='localhost', port=8765)
 
@@ -44,7 +44,6 @@ class RedisStreamTest(unittest.TestCase):
                 port=8765,
                 streams=['input_stream'],
                 start_positions={'input_stream': 0},
-                read_timeout_secs=5,
             ),
             sink=buildflow.RedisStreamSink(host='localhost',
                                            port=8765,
@@ -53,7 +52,9 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return element
 
-        self.flow.run()
+        self.flow.run(streaming_options=buildflow.StreamingOptions(
+            autoscaling=False, blocking=False))
+        time.sleep(5)
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(len(data_written), 1)
@@ -82,7 +83,9 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return [element, element]
 
-        self.flow.run()
+        self.flow.run(streaming_options=buildflow.StreamingOptions(
+            autoscaling=False, blocking=False))
+        time.sleep(5)
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(data_written[0][1][0][1],
@@ -111,7 +114,9 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return Output(element['field'])
 
-        self.flow.run()
+        self.flow.run(streaming_options=buildflow.StreamingOptions(
+            autoscaling=False, blocking=False))
+        time.sleep(5)
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(len(data_written), 1)
@@ -140,7 +145,9 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return [Output(element['field']), Output(element['field'])]
 
-        self.flow.run()
+        self.flow.run(streaming_options=buildflow.StreamingOptions(
+            autoscaling=False, blocking=False))
+        time.sleep(5)
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(data_written[0][1][0][1],
