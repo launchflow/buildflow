@@ -16,7 +16,8 @@ args, _ = parser.parse_known_args(sys.argv)
 # Set up a subscriber for the source.
 # If this subscriber does not exist yet BuildFlow will create it.
 input_sub = buildflow.PubSubSource(
-    subscription=f'projects/{args.gcp_project}/subscriptions/taxiride-sub')
+    subscription=f'projects/{args.gcp_project}/subscriptions/taxiride-sub',
+    topic='projects/pubsub-public-data/topics/taxirides-realtime')
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 output_table = buildflow.BigQuerySink(
