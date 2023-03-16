@@ -124,6 +124,19 @@ class RaySource:
         result_values = await asyncio.gather(*task_refs)
         return dict(zip(result_keys, result_values))
 
+
+class StreamingRaySource(RaySource):
+
+    def utilization(self) -> float:
+        """Returns the utilization of the source since this was last called.
+
+        This should be float between 0 and 1. 0 indicates that no works has
+        been done. 1 indicates the most possible work has been done.
+        """
+
+        raise NotImplementedError(
+            'utilization should be implemented for all streaming sources.')
+
     def shutdown(self):
         """Performs any shutdown work that is needed for the actor.
 
@@ -131,4 +144,5 @@ class RaySource:
         actor before allowing the program to finish. This is used by pub/sub
         to ensure we have acked all of our pending messages before exiting.
         """
-        return False
+        raise NotImplementedError(
+            'shutdown should be implemented for all streaming sources.')

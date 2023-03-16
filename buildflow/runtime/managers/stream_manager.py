@@ -12,6 +12,7 @@ class _StreamManagerActor:
                  processor_ref: processors.ProcessorRef) -> None:
         self.options = options
         self.processor_ref = processor_ref
+        self.running = False
 
     def _add_replica(self):
         key = str(self.processor_ref.sink)
@@ -24,28 +25,46 @@ class _StreamManagerActor:
             self.processor_ref.source.is_streaming())
 
         source_actor = self.processor_ref.source.actor({key: sink_actor})
-        return source_actor.run.remote()
+        num_threads = self.processor_ref.source.recommended_num_threads()
+        source_pool_tasks = [
+            source_actor.run.remote() for _ in range(num_threads)
+        ]
+        return source_actor, source_pool_tasks
 
-    async def run(self):
+    def run(self):
+        self.running = True
         start_replics = self.options.min_replicas
         if self.options.num_replicas:
             start_replics = self.options.num_replicas
         replicas = [self._add_replica() for _ in range(start_replics)]
-        while True:
+        while self.running:
             if not self.options.autoscaling:
                 # no autoscaling so just let the replicas run.
                 continue
             else:
                 print(replicas)
+        print('Shutting down processors...')
+        all_tasks = []
+        for replica in replicas:
+            actor, tasks = replica
+            actor.shutdown.remote()
+            all_tasks.extend(tasks)
+        ray.get(all_tasks)
+        print('...Sucessfully shut down processors.')
+
+    def shutdown(self):
+        self.running = False
 
 
 class StreamProcessManager:
 
     def __init__(self, processor_ref: processors.ProcessorRef,
                  streaming_options: options.StreamingOptions) -> None:
-        self.processor_ref = processor_ref
-        self.options = streaming_options
+        self._actor = _StreamManagerActor.remote(self.options, self.processor_ref)
+        self._manager_task = None
 
     def run(self):
-        actor = _StreamManagerActor.remote(self.options, self.processor_ref)
-        return actor.run.remote()
+        self._task = self.actor.run.remote()
+    
+    def shutdown(self):
+        self._actor.shutdown.remote()
