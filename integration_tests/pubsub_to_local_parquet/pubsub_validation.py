@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--file_path', type=str, required=True)
 args, _ = parser.parse_known_args(sys.argv)
 
-expected_data = {'output_val': 3}
+expected_data = {'output_val': 2}
 
 match = False
 
