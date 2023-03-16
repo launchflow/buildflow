@@ -58,3 +58,8 @@ jobs:
         run: |
           cd integration_tests/pubsub_to_pubsub_multi_output
           ./pubsub_integration.sh
+
+      - name: Run Pub/Sub to parquet local integration test
+        run: |
+          cd integration_tests/pubsub_to_local_parquet
+          ./pubsub_integration.sh

@@ -20,6 +20,7 @@ dependencies = [
     "google-cloud-storage",
     # TODO: https://github.com/grpc/grpc/issues/31885
     "grpcio==1.48.2",
+    "fastparquet",
     "opentelemetry-api",
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp",
