@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.9](https://github.com/launchflow/buildflow/compare/v0.0.8...v0.0.9) (2023-03-16)
+
+
+### Bug Fixes
+
+* error in pubsub walkthrough ([669f417](https://github.com/launchflow/buildflow/commit/669f4175ba3395120ad53b924bb79628f66c4e73))
+
 ## [0.0.8](https://github.com/launchflow/buildflow/compare/v0.0.7...v0.0.8) (2023-03-16)
 
 
