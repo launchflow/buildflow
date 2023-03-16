@@ -56,7 +56,8 @@ class RaySink:
         if isinstance(elements, ray.data.Dataset):
             # If the elements are a ray dataset, we need to wrap in a list
             # since the remote function expects a list of elements.
-            results = await self.remote_fn([elements])[0]
+            temp = await self.remote_fn([elements])
+            results = temp[0]
         else:
             temp_results = await self.remote_fn(elements)
             results = []

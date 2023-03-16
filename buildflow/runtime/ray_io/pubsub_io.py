@@ -106,7 +106,6 @@ class PubSubSourceActor(base.RaySource):
             if payloads:
                 try:
                     await self._send_batch_to_sinks_and_await(payloads)
-                    # TODO: Add error handling.
                     await pubsub_client.acknowledge(
                         ack_ids=ack_ids, subscription=self.subscription)
                 except Exception as e:
@@ -117,6 +116,7 @@ class PubSubSourceActor(base.RaySource):
 
     def shutdown(self):
         self.running = False
+        print('Shutting down Pub/Sub subscription')
         return True
 
 
