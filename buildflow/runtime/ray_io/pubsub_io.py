@@ -1,10 +1,12 @@
 """IO connectors for Pub/Sub and Ray."""
 
 import dataclasses
+from google.cloud import monitoring_v3
 import inspect
 import logging
 import json
-from typing import Any, Callable, Dict, Iterable, Union
+import time
+from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 from google.cloud import pubsub
 from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
@@ -15,6 +17,22 @@ from buildflow.runtime.ray_io import base
 from buildflow.runtime.ray_io import pubsub_utils
 
 
+_BACKLOG_QUERY_TEMPLATE = """\
+fetch pubsub_subscription
+| metric 'pubsub.googleapis.com/subscription/num_unacked_messages_by_region'
+| filter
+    resource.project_id == '{project}'
+    && (resource.subscription_id == '{sub_id}')
+| group_by 1m,
+    [value_num_unacked_messages_by_region_mean:
+       mean(value.num_unacked_messages_by_region)]
+| every 1m
+| group_by [],
+    [value_num_unacked_messages_by_region_mean_aggregate:
+       aggregate(value_num_unacked_messages_by_region_mean)]    
+"""
+
+
 @dataclasses.dataclass(frozen=True)
 class PubsubMessage:
     data: Dict[str, Any]
@@ -22,7 +40,7 @@ class PubsubMessage:
 
 
 @dataclasses.dataclass
-class PubSubSource(io.Source):
+class PubSubSource(io.StreamingSource):
     """Source for connecting to a Pub/Sub subscription."""
 
     subscription: str
@@ -39,9 +57,22 @@ class PubSubSource(io.Source):
     def actor(self, ray_sinks):
         return PubSubSourceActor.remote(ray_sinks, self)
 
-    @classmethod
-    def is_streaming(cls) -> bool:
-        return True
+    def backlog(self) -> Optional[int]:
+        split_sub = self.subscription.split('/')
+        project = split_sub[1]
+        sub_id = split_sub[3]
+        client = monitoring_v3.QueryServiceClient()
+        result = client.query_time_series(
+            request=monitoring_v3.QueryTimeSeriesRequest(
+                name=f'projects/{project}',
+                query=_BACKLOG_QUERY_TEMPLATE.format(project=project,
+                                                     sub_id=sub_id),
+                page_size=1))
+        result_list = list(result)
+        if result_list:
+            # TODO: clean this up
+            return result_list[0].point_data[0].values[0].double_value
+        return None
 
     @classmethod
     def recommended_num_threads(cls):
@@ -64,8 +95,9 @@ class PubSubSink(io.Sink):
         return PubSubSinkActor.remote(remote_fn, self)
 
 
-@ray.remote
-class PubSubSourceActor(base.RaySource):
+# TODO: put more though into this resource requirement
+@ray.remote(num_cpus=.25)
+class PubSubSourceActor(base.StreamingRaySource):
 
     def __init__(
         self,
@@ -83,6 +115,7 @@ class PubSubSourceActor(base.RaySource):
         while self.running:
             ack_ids = []
             payloads = []
+            start = time.time()
             response = await pubsub_client.pull(subscription=self.subscription,
                                                 max_messages=self.batch_size)
             for received_message in response.received_messages:
@@ -113,6 +146,10 @@ class PubSubSourceActor(base.RaySource):
                         'Failed to process message, '
                         'will not be acked: error: %s'
                     ), e)
+            end = time.time()
+            # For pub/sub we determine the utilization based on the number of
+            # messages received versus how many we received.
+            self.update_events_per_seconds(len(payloads), end - start)
 
     def shutdown(self):
         self.running = False
@@ -120,7 +157,8 @@ class PubSubSourceActor(base.RaySource):
         return True
 
 
-@ray.remote
+# TODO: put more though into this resource requirement
+@ray.remote(num_cpus=.25)
 class PubSubSinkActor(base.RaySink):
 
     def __init__(

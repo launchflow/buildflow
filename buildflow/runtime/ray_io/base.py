@@ -127,15 +127,22 @@ class RaySource:
 
 class StreamingRaySource(RaySource):
 
-    def utilization(self) -> float:
+    def __init__(self, ray_sinks: Dict[str, RaySink]) -> None:
+        super().__init__(ray_sinks)
+        self._events_per_second = 0
+        self._requests = 0
+
+    def update_events_per_seconds(self, num_events: int,
+                                  execution_time_secs: float):
+        self._events_per_second = num_events / execution_time_secs
+
+    def events_per_second(self) -> float:
         """Returns the utilization of the source since this was last called.
 
         This should be float between 0 and 1. 0 indicates that no works has
         been done. 1 indicates the most possible work has been done.
         """
-
-        raise NotImplementedError(
-            'utilization should be implemented for all streaming sources.')
+        return self._events_per_second
 
     def shutdown(self):
         """Performs any shutdown work that is needed for the actor.

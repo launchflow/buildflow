@@ -115,12 +115,13 @@ class Runtime:
             else:
                 manager = stream_manager.StreamProcessManager(
                     processor_ref, streaming_options)
-                streaming_refs[proc_id] = manager.run()
+                manager.run()
+                streaming_refs[proc_id] = manager
 
         final_output = {}
         for proc_id, streaming_ref in streaming_refs.items():
             if streaming_options.blocking:
-                ray.get(streaming_ref)
+                streaming_ref.block()
             else:
                 final_output[proc_id] = streaming_ref
 
