@@ -31,8 +31,6 @@ class MyProcessor(buildflow.Processor):
 
 ref = flow.run(MyProcessor(),
                streaming_options=buildflow.StreamingOptions(
-                   blocking=False, autoscaling=False))
+                   blocking=False))
 
-# Note: we could just turn blocking=True, but this is just some extra
-# validation to ensure this blocking mechnism works also.
-ray.get(ref['MyProcessor'])
+ref['MyProcessor'].block()
