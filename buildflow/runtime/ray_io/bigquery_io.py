@@ -287,6 +287,7 @@ def ray_dataset_load_job(dataset: ray.data.Dataset, bigquery_table_id: str,
     return run_load_job_and_wait(bigquery_table_id, gcs_glob_uri,
                                  bigquery.SourceFormat.PARQUET)
 
+
 # TODO: put more though into this resource requirement
 @ray.remote(num_cpus=.25)
 class BigQuerySinkActor(base.RaySink):

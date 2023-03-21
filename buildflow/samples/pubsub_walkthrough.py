@@ -3,6 +3,7 @@ import argparse
 import dataclasses
 from datetime import datetime
 import sys
+import logging
 from typing import Any, Dict
 
 import buildflow
@@ -21,6 +22,8 @@ input_sub = buildflow.PubSubSource(
 # If this table does not exist yet BuildFlow will create it.
 output_table = buildflow.BigQuerySink(
     table_id=f'{args.gcp_project}.buildflow_walkthrough.taxi_ride_data')
+
+logging.getLogger().setLevel(logging.INFO)
 
 
 # Define an output type for our pipeline.

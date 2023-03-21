@@ -7,7 +7,7 @@ class StreamingOptions:
     # The minimum number of replicas to maintain.
     min_replicas: int = 1
     # The maximum number of replicas to scale up to.
-    max_replicas: int = 100
+    max_replicas: int = 1000
     # The number of replicas to start your pipeline with. If not set we will
     # start with whatever min_replicas is set to.
     num_replicas: Optional[int] = None

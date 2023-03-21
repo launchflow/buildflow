@@ -16,7 +16,6 @@ from buildflow.api import io
 from buildflow.runtime.ray_io import base
 from buildflow.runtime.ray_io import pubsub_utils
 
-
 _BACKLOG_QUERY_TEMPLATE = """\
 fetch pubsub_subscription
 | metric 'pubsub.googleapis.com/subscription/num_unacked_messages_by_region'
@@ -29,7 +28,7 @@ fetch pubsub_subscription
 | every 1m
 | group_by [],
     [value_num_unacked_messages_by_region_mean_aggregate:
-       aggregate(value_num_unacked_messages_by_region_mean)]    
+       aggregate(value_num_unacked_messages_by_region_mean)]
 """
 
 
@@ -96,7 +95,7 @@ class PubSubSink(io.Sink):
 
 
 # TODO: put more though into this resource requirement
-@ray.remote(num_cpus=.25)
+@ray.remote(num_cpus=PubSubSource.num_cpus())
 class PubSubSourceActor(base.StreamingRaySource):
 
     def __init__(
@@ -116,8 +115,12 @@ class PubSubSourceActor(base.StreamingRaySource):
             ack_ids = []
             payloads = []
             start = time.time()
-            response = await pubsub_client.pull(subscription=self.subscription,
-                                                max_messages=self.batch_size)
+            try:
+                response = await pubsub_client.pull(
+                    subscription=self.subscription,
+                    max_messages=self.batch_size)
+            except Exception as e:
+                logging.error('pubsub pull failed with: %s', e)
             for received_message in response.received_messages:
                 json_loaded = {}
                 if received_message.message.data:
@@ -142,10 +145,8 @@ class PubSubSourceActor(base.StreamingRaySource):
                     await pubsub_client.acknowledge(
                         ack_ids=ack_ids, subscription=self.subscription)
                 except Exception as e:
-                    logging.error((
-                        'Failed to process message, '
-                        'will not be acked: error: %s'
-                    ), e)
+                    logging.error(('Failed to process message, '
+                                   'will not be acked: error: %s'), e)
             end = time.time()
             # For pub/sub we determine the utilization based on the number of
             # messages received versus how many we received.

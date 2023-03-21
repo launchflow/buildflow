@@ -8,13 +8,16 @@ from buildflow.api.options import StreamingOptions
 from buildflow.runtime.managers import processors
 from buildflow.runtime.ray_io import empty_io
 
-# TODO: tune this value
 _AUTO_SCALE_CHECK = 30
-# If the average utilizations for actors is > .75 we will scale up the actors.
-_SCALE_UP_THRESHOLD = .75
-# If the average utilization for the actors is < .30 we will scale down the
-# actors.
-_SCALE_DOWN_THRESHOLD = .30
+# Don't allocate more than 66% of CPU usage to the source actors.
+# This saves space to ensure that the sink and processor can be scheduled.
+# TODO: This really slows down our autoscaling, ideally we could just launch
+# as many as possible. The main issue though is that if we do that then there
+# will be no CPU left over for the processor / sink. We need someway to tie a
+# process, sink, and source together so when we scale up we get enough CPU for
+# all that.
+_REPLICA_CPU_RATIO = .66
+_TARGET_UTILIZATION = .75
 
 
 @ray.remote
@@ -50,13 +53,14 @@ class _StreamManagerActor:
         return source_actor, source_pool_tasks
 
     async def run(self):
+        # TODO: add better error handling for when an actor dies.
         start_replics = self.options.min_replicas
         if self.options.num_replicas:
             start_replics = self.options.num_replicas
         if start_replics <= 0:
             raise ValueError('min_replicas and num_replicas must be > 0')
         replicas = [self._add_replica() for _ in range(start_replics)]
-        last_autoscale_check = time.time()
+        last_autoscale_check = None
         while self.running:
             # Add a brief wait here to ensure we can check for shutdown events.
             # and free up the event loop
@@ -66,38 +70,56 @@ class _StreamManagerActor:
                 continue
             num_replicas = len(replicas)
             now = time.time()
-            if now - last_autoscale_check > _AUTO_SCALE_CHECK:
+            if (last_autoscale_check is None
+                    or last_autoscale_check > _AUTO_SCALE_CHECK):
                 backlog = self.processor_ref.source.backlog()
                 if backlog is None:
                     continue
 
                 last_autoscale_check = now
                 rate_sum = 0
+                new_replics = []
                 for replica in replicas:
-                    actor, _ = replica
-                    rate = await actor.events_per_second.remote()
-                    # Divide by 120 to get the rate over the last two minutes.
+                    actor, tasks = replica
+                    try:
+                        rate = await actor.events_per_second.remote()
+                    except Exception as e:
+                        logging.error(
+                            'Actor died with following exception: %s', e)
+                        continue
+                    new_replics.append((actor, tasks))
+                    # Multiply by 120 for the rate over the last two minutes.
                     # This essentially allows us to compute how many replicas
                     # it would take to burn down the backlog in two minutes.
                     rate_sum += rate * 120
+                replicas = new_replics
 
                 avg_rate = rate_sum / num_replicas
                 if avg_rate != 0:
                     estimated_replicas = backlog / avg_rate
                 else:
                     estimated_replicas = 0
-                print('DO NOT SUBMIT: backlog: ', backlog)
-                print('DO NOT SUBMIT: avg rate: ', avg_rate)
-                print('DO NOT SUBMIT: estimate_replicas: ', estimated_replicas)
-
                 if estimated_replicas > num_replicas:
-                    replicas_to_add = min(
-                        estimated_replicas,
-                        self.options.max_replicas) - num_replicas
-                    if replicas_to_add == 0:
+                    if num_replicas == self.options.max_replicas:
                         logging.warning(
                             'reached the max allowed replicas of %s',
                             num_replicas)
+                        continue
+                    new_num_replicas = min(estimated_replicas,
+                                           self.options.max_replicas)
+                    num_cpus = ray.cluster_resources()['CPU']
+
+                    max_replicas = int(
+                        (num_cpus / self.processor_ref.source.num_cpus() *
+                         _REPLICA_CPU_RATIO))
+
+                    new_num_replicas = min(new_num_replicas, max_replicas)
+                    replicas_to_add = new_num_replicas - num_replicas
+                    if replicas_to_add == 0:
+                        logging.warning(
+                            'reached the max allowed replicas of %s based on available cluster resources. more will be added as your cluster scales.',  # noqa: E501
+                            num_replicas)
+                        continue
                     else:
                         logging.warning(
                             'resizing from %s replicas to %s replicas.',
@@ -105,35 +127,28 @@ class _StreamManagerActor:
                         for _ in range(replicas_to_add):
                             replicas.append(self._add_replica())
                 else:
-                    print('No replicas to add, check if we should scale down.')
-
-                # logging.warning('average utilization of %s', avg_util)
-                # if avg_util > _SCALE_UP_THRESHOLD:
-                #     num_replicas = min(
-                #         len(replicas) * 2, self.options.max_replicas)
-                #     replicas_to_add = num_replicas - len(replicas)
-                #     if replicas_to_add == 0:
-                #         logging.warning(
-                #             'reached the max allowed replicas of %s',
-                #             num_replicas)
-                #     else:
-                #         logging.warning('resizing to %s replicas',
-                #                         num_replicas)
-                #         for _ in range(replicas_to_add):
-                #             replicas.append(self._add_replica())
-                # elif avg_util < _SCALE_DOWN_THRESHOLD:
-                #     if len(replicas) <= self.options.min_replicas:
-                #         # already at the minimum so just keep.
-                #         continue
-                #     replicas_to_remove = math.floor(.25 * len(replicas))
-                #     logging.warning('resizing to %s replicas',
-                #                     len(replicas) - replicas_to_remove)
-                #     tasks_to_finish = []
-                #     for _ in range(replicas_to_remove):
-                #         actor, tasks = replicas.pop()
-                #         await actor.shutdown.remote()
-                #         tasks_to_finish.extend(tasks)
-                #     await asyncio.gather(*tasks_to_finish)
+                    # Compute the average utilization over 9 seconds with 3
+                    # samples.
+                    cpu_usage_sum = 0
+                    cluster_cpus = ray.cluster_resources()['CPU']
+                    for _ in range(3):
+                        cpu_usage_sum += (cluster_cpus -
+                                          ray.available_resources()['CPU'])
+                        await asyncio.sleep(3)
+                    avg_cpu_usage = cpu_usage_sum / 3
+                    # TODO fine a good value for this
+                    # If our avg util is < 60 scale down the number of replicas
+                    if avg_cpu_usage / cluster_cpus <= _TARGET_UTILIZATION:
+                        target_cpu = avg_cpu_usage / _TARGET_UTILIZATION
+                        target_num_replicas = (
+                            target_cpu / self.processor_ref.source.num_cpus())
+                        if target_num_replicas > num_replicas:
+                            all_tasks = []
+                            for _ in range(num_replicas - target_num_replicas):
+                                actor, tasks = replicas.pop()
+                                all_tasks.extend(tasks)
+                                await actor.shutdown.remote()
+                            await asyncio.gather(*all_tasks)
 
         all_tasks = []
         for replica in replicas:
