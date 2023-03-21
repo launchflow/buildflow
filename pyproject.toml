@@ -16,6 +16,7 @@ dependencies = [
     "duckdb==0.6.0",
     "google-cloud-bigquery",
     "google-cloud-bigquery-storage",
+    "google-cloud-monitoring",
     "google-cloud-pubsub",
     "google-cloud-storage",
     # TODO: https://github.com/grpc/grpc/issues/31885

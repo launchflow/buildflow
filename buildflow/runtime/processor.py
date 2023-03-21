@@ -52,8 +52,8 @@ def processor(runtime: Runtime,
                 'processor_arg_spec':
                 lambda self: inspect.getfullargspec(original_function),
                 '_process':
-                lambda self, payload: original_function(
-                    self.source().preprocess(payload))
+                lambda self, payload: original_function(self.source().
+                                                        preprocess(payload))
             })
         processor_instance = _AdHocProcessor()
         runtime.register_processor(processor_instance,

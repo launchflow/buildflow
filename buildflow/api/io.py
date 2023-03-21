@@ -1,8 +1,15 @@
 import inspect
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 
-class Source:
+class _BaseIO:
+
+    @classmethod
+    def num_cpus(cls) -> float:
+        return .25
+
+
+class Source(_BaseIO):
     """Super class for all source types."""
 
     def setup(self):
@@ -26,10 +33,26 @@ class Source:
         return False
 
 
+class StreamingSource(Source):
+
+    def backlog(self) -> Optional[int]:
+        """Returns an estimate of the backlog for the source.
+
+        This method will be polled by our manager to determine if we need to
+        scale up the number of actor replicas.
+        """
+        raise NotImplementedError(
+            'backlog should be implemented for streaming sources.')
+
+    @classmethod
+    def is_streaming(cls) -> bool:
+        return True
+
+
 SourceType = TypeVar('SourceType', bound=Source)
 
 
-class Sink:
+class Sink(_BaseIO):
     """Super class for all sink types."""
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):

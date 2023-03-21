@@ -1,10 +1,15 @@
 from typing import Any, Optional
 
+from buildflow.api import options
+from buildflow.api.processor import ProcessorAPI
+
 
 class FlowAPI:
 
     def processor(input, output: Optional[Any] = None):
         pass
 
-    def run(num_replicas: int = 1):
+    def run(processor_instance: Optional[ProcessorAPI] = None,
+            streaming_options: options.StreamingOptions = options.
+            StreamingOptions()):
         pass
