@@ -313,6 +313,7 @@ class BigQuerySinkActor(base.RaySink):
         self.temp_gcs_bucket = bq_ref.temp_gcs_bucket
 
         self.use_streaming = use_streaming
+        self.bq_client = _get_bigquery_client(self.project)
 
     async def _write(
         self,
@@ -323,25 +324,25 @@ class BigQuerySinkActor(base.RaySink):
             tasks.append(
                 ray_dataset_load_job.remote(elements, self.bq_table_id,
                                             self.temp_gcs_bucket))
+        elif self.use_streaming:
+            errors = self.bq_client.insert_rows_json(self.bq_table_id,
+                                                     elements)
+            if errors:
+                raise RuntimeError(
+                    f'BigQuery streaming insert failed: {errors}')
         else:
             for i in range(0, len(elements), self._BATCH_SIZE):
                 batch = elements[i:i + self._BATCH_SIZE]
-                if self.use_streaming:
-                    tasks.append(
-                        json_rows_streaming.remote(batch, self.bq_table_id,
-                                                   self.project))
-                else:
-                    if isinstance(batch[0], ray.data.Dataset):
-                        for ds in batch:
-                            tasks.append(
-                                ray_dataset_load_job.remote(
-                                    ds, self.bq_table_id,
-                                    self.temp_gcs_bucket))
-                    else:
+                if isinstance(batch[0], ray.data.Dataset):
+                    for ds in batch:
                         tasks.append(
-                            json_rows_load_job.remote(batch, self.bq_table_id,
-                                                      self.temp_gcs_bucket,
-                                                      self.project))
+                            ray_dataset_load_job.remote(
+                                ds, self.bq_table_id, self.temp_gcs_bucket))
+                else:
+                    tasks.append(
+                        json_rows_load_job.remote(batch, self.bq_table_id,
+                                                  self.temp_gcs_bucket,
+                                                  self.project))
         return await asyncio.gather(*tasks)
 
 

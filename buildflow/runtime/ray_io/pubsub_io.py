@@ -1,11 +1,11 @@
 """IO connectors for Pub/Sub and Ray."""
 
+import asyncio
 import dataclasses
 from google.cloud import monitoring_v3
 import inspect
 import logging
 import json
-import time
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 from google.cloud import pubsub
@@ -95,7 +95,7 @@ class PubSubSink(io.Sink):
 
 
 # TODO: put more though into this resource requirement
-@ray.remote(num_cpus=PubSubSource.num_cpus())
+@ray.remote(num_cpus=PubSubSource.num_cpus(), scheduling_strategy='SPREAD')
 class PubSubSourceActor(base.StreamingRaySource):
 
     def __init__(
@@ -114,13 +114,14 @@ class PubSubSourceActor(base.StreamingRaySource):
         while self.running:
             ack_ids = []
             payloads = []
-            start = time.time()
             try:
                 response = await pubsub_client.pull(
                     subscription=self.subscription,
-                    max_messages=self.batch_size)
+                    max_messages=self.batch_size,
+                    return_immediately=True)
             except Exception as e:
                 logging.error('pubsub pull failed with: %s', e)
+                continue
             for received_message in response.received_messages:
                 json_loaded = {}
                 if received_message.message.data:
@@ -147,10 +148,19 @@ class PubSubSourceActor(base.StreamingRaySource):
                 except Exception as e:
                     logging.error(('Failed to process message, '
                                    'will not be acked: error: %s'), e)
-            end = time.time()
+                    # This nacks the messages. See:
+                    # https://github.com/googleapis/python-pubsub/pull/123/files
+                    ack_deadline_seconds = 0
+                    pubsub_client.modify_ack_deadline(
+                        subscription=self.subscription,
+                        ack_ids=ack_ids,
+                        ack_deadline_seconds=ack_deadline_seconds)
+            else:
+                # This happens when we didn't get any messages.
+                await asyncio.sleep(3)
             # For pub/sub we determine the utilization based on the number of
             # messages received versus how many we received.
-            self.update_events_per_seconds(len(payloads), end - start)
+            self.update_metrics(len(payloads))
 
     def shutdown(self):
         self.running = False
