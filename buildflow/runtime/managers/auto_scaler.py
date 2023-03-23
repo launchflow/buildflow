@@ -53,7 +53,7 @@ def get_recommended_num_replicas(
     rate = (sum(events_processed_per_replica) / time_since_last_check)
     avg_rate = rate / len(events_processed_per_replica) * 60
     # TODO: this doesn't take into account newly incoming messages so it won't
-    # actually burn down the backlog in two minutes. Ideally we could add some
+    # actually burn down the backlog in one minute. Ideally we could add some
     # metric to know we need at least N replicas for the standard rate + M
     # replicas for the backlog.
     if avg_rate != 0:
