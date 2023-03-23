@@ -20,7 +20,7 @@ import ray
 
 from buildflow.api.options import StreamingOptions
 
-_TARGET_UTILIZATION = .3
+_TARGET_UTILIZATION = .5
 # Don't allocate more than 66% of CPU usage to the source actors.
 # This saves space to ensure that the sink and processor can be scheduled.
 # TODO: This really slows down our autoscaling, ideally we could just launch
@@ -51,7 +51,11 @@ def get_recommended_num_replicas(
     avg_non_empty_rate = (non_empty_ratio_sum /
                           len(non_empty_ratio_per_replica))
     rate = (sum(events_processed_per_replica) / time_since_last_check)
-    avg_rate = rate / len(events_processed_per_replica) * 120
+    avg_rate = rate / len(events_processed_per_replica) * 60
+    # TODO: this doesn't take into account newly incoming messages so it won't
+    # actually burn down the backlog in two minutes. Ideally we could add some
+    # metric to know we need at least N replicas for the standard rate + M
+    # replicas for the backlog.
     if avg_rate != 0:
         estimated_replicas = int(backlog / avg_rate)
     else:
@@ -65,17 +69,11 @@ def get_recommended_num_replicas(
         # - Backlog is low enough we don't need any more replicas
         # - We are running more than 1 (don't scale to 0...)
         # - Over 30% of requests are empty, i.e. we're wasting requests
-        new_num_replicas = math.ceil(non_empty_ratio_sum * _TARGET_UTILIZATION)
+        new_num_replicas = math.ceil(non_empty_ratio_sum / _TARGET_UTILIZATION)
         if new_num_replicas < estimated_replicas:
             new_num_replicas = estimated_replicas
     else:
         new_num_replicas = current_num_replicas
-
-    print('DO NOT SUBMIT: replicas: ', current_num_replicas)
-    print('DO NOT SUBMIT: backlog ', backlog)
-    print('DO NOT SUBMIT: avg_rate ', avg_rate)
-    print('DO NOT SUBMIT: avg_non_empty_rate ', avg_non_empty_rate)
-    print('DO NOT SUBMIT: new_num_replicas ', new_num_replicas)
 
     max_replicas = max_replicas_for_cluster(source_cpus)
     if new_num_replicas > max_replicas:
@@ -83,6 +81,8 @@ def get_recommended_num_replicas(
             'reached the max allowed replicas for your cluster %s. We will add'
             ' more as your cluster scales up.', max_replicas
         )
+        # TODO: we can look at programatically scaling this to get faster
+        # autoscaling.
         new_num_replicas = max_replicas
 
     if new_num_replicas > autoscaling_options.max_replicas:
@@ -97,7 +97,5 @@ def get_recommended_num_replicas(
     if new_num_replicas != current_num_replicas:
         logging.warning('resizing from %s replicas to %s replicas.',
                         current_num_replicas, new_num_replicas)
-
-    print('DO NOT SUBMIT: adjusted ')
 
     return new_num_replicas

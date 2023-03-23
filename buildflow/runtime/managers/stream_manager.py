@@ -28,7 +28,10 @@ from buildflow.runtime.managers import auto_scaler
 from buildflow.runtime.managers import processors
 from buildflow.runtime.ray_io import empty_io
 
-_AUTO_SCALE_CHECK = 120
+# Even though our backlog calculation is based on 2 minute intervals we do an
+# auto scale check every 60 seconds. This helps ensure we use the ray resources
+# as soon as they're available.
+_AUTO_SCALE_CHECK = 10
 
 # The number of sources to create before creating a new sink.
 _SINK_SOURCE_RATIO = 4
@@ -47,10 +50,10 @@ async def _wait_for_metrics(
     async def mark(key: str,
                    coro: Awaitable) -> Tuple[str, Optional[_MetricsWrapper]]:
         try:
-            num_events, empty_response_ratio = await coro
-            return key, _MetricsWrapper(num_events=num_events,
-                                        non_empty_response_ratio=1 -
-                                        empty_response_ratio)
+            num_events, empty_response_ratio, requests = await coro
+            return key, _MetricsWrapper(
+                num_events=num_events,
+                non_empty_response_ratio=1 - empty_response_ratio)
         except asyncio.CancelledError:
             logging.warning('timeout for metrics, this can happen when an '
                             'actor is pending creation.')
@@ -64,6 +67,8 @@ async def _wait_for_metrics(
 
     for p in pending:
         p.cancel()
+        await p
+        done.add(p)
 
     final_result = {}
     for task in done:
@@ -121,7 +126,11 @@ class _StreamManagerActor:
             all_tasks.extend(tasks)
             actors_to_kill.append(actor)
             await actor.shutdown.remote()
-        await asyncio.gather(*all_tasks)
+        _, pending = await asyncio.wait(all_tasks, timeout=15)
+        for task in pending:
+            # This can happen if the actor is not started yet, we will just
+            # force it to with ray.kill below.
+            task.cancel()
         for actor in actors_to_kill:
             ray.kill(actor, no_restart=True)
 
@@ -159,24 +168,24 @@ class _StreamManagerActor:
                 backlog = self.processor_ref.source.backlog()
                 if backlog is None:
                     continue
-                print('DO NOT SUBMIT: running autoscaler')
                 events_processed = []
                 non_empty_ratios = []
                 metric_futures = {}
                 for replica_id, replica in self._replicas.items():
                     actor, _ = replica
                     metric_futures[replica_id] = actor.metrics.remote()
-                print('DO NOT SUBMIT: waiting for metrics')
                 metrics = await _wait_for_metrics(metric_futures)
-                print('DO NOT SUBMIT: finished with metrics')
                 new_replicas = {}
                 for replica_id, metric in metrics.items():
-                    if metric.failed:
+                    if metric is not None and metric.failed:
                         logging.warning('removing dead replica with ID: %s',
                                         replica_id)
                         continue
                     new_replicas[replica_id] = self._replicas[replica_id]
                     if metric is None:
+                        # Actor was pending creation so don't include it in our
+                        # metrics calculation. We still want to keep track of
+                        # it though for when it becomes ready.
                         continue
                     events_processed.append(metric.num_events)
                     non_empty_ratios.append(metric.non_empty_response_ratio)

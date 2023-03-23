@@ -154,10 +154,11 @@ class StreamingRaySource(RaySource):
             empty_response_ratio = self._empty_responses / self._requests
         else:
             empty_response_ratio = 0
+        requests = self._requests
         self._num_events = 0
         self._empty_responses = 0
         self._requests = 0
-        return num_events_to_return, empty_response_ratio
+        return num_events_to_return, empty_response_ratio, requests
 
     def shutdown(self):
         """Performs any shutdown work that is needed for the actor.

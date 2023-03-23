@@ -76,7 +76,7 @@ class PubSubSource(io.StreamingSource):
     @classmethod
     def recommended_num_threads(cls):
         # The actor becomes mainly network bound after roughly 4 threads, and
-        # additoinal threads start to hurt cpu utilization.
+        # additional threads start to hurt cpu utilization.
         # This number is based on a single actor instance.
         return 4
 
@@ -94,8 +94,7 @@ class PubSubSink(io.Sink):
         return PubSubSinkActor.remote(remote_fn, self)
 
 
-# TODO: put more though into this resource requirement
-@ray.remote(num_cpus=PubSubSource.num_cpus(), scheduling_strategy='SPREAD')
+@ray.remote(num_cpus=PubSubSource.num_cpus())
 class PubSubSourceActor(base.StreamingRaySource):
 
     def __init__(
