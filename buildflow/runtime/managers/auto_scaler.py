@@ -2,12 +2,12 @@
 
 When we do scale up?
     We check the backlog of the current source, and compare it to the
-    throughput over the last 2 minutes. Then we request the number of replicas
-    required to burn down the entire backlog in 2 minutes.
+    throughput since the last autoscale event we request the number of replicas
+    required to burn down the entire backlog in 60 seconds.
 
 When do we scale down?
     First we check that we don't need to scale up. If we don't need to scale
-    up we check what the current utilization of our replicas is above 30%.
+    up, we check what the current utilization of our replicas is above 50%.
     The utilization is determined by the number of non-empty requests for data
     were made.
 """
