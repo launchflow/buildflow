@@ -14,6 +14,7 @@ from buildflow import Flow
 parser = argparse.ArgumentParser()
 parser.add_argument('--gcp_project', type=str, required=True)
 parser.add_argument('--bucket_name', type=str, required=True)
+parser.add_argument('--table_name', type=str, default='csv_bigquery')
 args, _ = parser.parse_known_args(sys.argv)
 
 # Set up a subscriber for the source.
@@ -24,7 +25,7 @@ source = buildflow.GCSFileNotifications(project_id=args.gcp_project,
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 sink = buildflow.BigQuerySink(
-    table_id=f'{args.gcp_project}.buildflow_walkthrough.csv_bigquery')
+    table_id=f'{args.gcp_project}.buildflow_walkthrough.{args.table_name}')
 
 
 # Nested dataclasses can be used inside of your schemas.

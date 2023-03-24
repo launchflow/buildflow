@@ -6,31 +6,27 @@ steps to run:
     3. python bigquery_sample.py
 """
 
+import argparse
 import logging
 from buildflow import Flow
 import buildflow
 import ray
+import sys
 
-# TODO(developer): Fill in the table info.
-_INPUT_TABLE_ID = ''
-_OUTPUT_TABLE_ID = ''
+# Parser to allow run time configuration of arguments
+parser = argparse.ArgumentParser()
+parser.add_argument('--input_table', type=str, required=True)
+parser.add_argument('--output_table', type=str, required=True)
+args, _ = parser.parse_known_args(sys.argv)
 
 flow = Flow()
 
 
-# This will read in the entire table and create a ray Dataset.
-# Ray Datasets documentation: https://docs.ray.io/en/master/data/dataset.html
-@flow.processor(source=buildflow.BigQuery(table_id=_INPUT_TABLE_ID),
-                sink=buildflow.BigQuery(table_id=_OUTPUT_TABLE_ID))
-def process_table(dataset: ray.data.Dataset):
-    # TODO: process the dataset (bq table).
-    return dataset
-
-
-# NOTE: You can also pass queries to the BigQuery ref.
 @flow.processor(
-    source=buildflow.BigQuery(query=f'SELECT * FROM `{_INPUT_TABLE_ID}`'),
-    sink=buildflow.BigQuery(table_id=_OUTPUT_TABLE_ID))
+    # NOTE: You can alternatly just pass the table ID to read in an entire
+    # table.
+    source=buildflow.BigQuery(query=f'SELECT * FROM `{args.input_table}`'),
+    sink=buildflow.BigQuery(table_id=args.output_table))
 def process_query_result(dataset: ray.data.Dataset):
     # TODO: process the dataset (bq query result).
     return dataset
