@@ -34,65 +34,64 @@ jobs:
           num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}" | grep -Po '.* \K\d+\.*\d*'`
           if [ $num -gt 0 ]; then exit 1; else exit 0; fi
 
-
   bigquery_integration_test:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install .[dev]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
 
-    - name: Setup GCP Auth
-      uses: 'google-github-actions/auth@v1'
-      with:
-        workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
-        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Setup GCP Auth
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
 
-    # TODO: switch the condition below, just need to validate that is passes and failes correctly.
-    - name: Run BigQuery Sample
-      run: |
-        output_table=${{ secrets.GCP_PROJECT }}.testing_output.$(uuidgen)
-        python -m buildflow.samples.bigquery_sample --input_table=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input --output_table=$output_table
-        num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${output_table}" | grep -Po '.* \K\d+\.*\d*'`
-        if [ $num -gt 0 ]; then exit 1; else exit 0; fi
+      # TODO: switch the condition below, just need to validate that is passes and failes correctly.
+      - name: Run BigQuery Sample
+        run: |
+          output_table=${{ secrets.GCP_PROJECT }}.testing_output.$(uuidgen)
+          python -m buildflow.samples.bigquery_sample --input_table=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input --output_table=$output_table
+          num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${output_table}" | grep -Po '.* \K\d+\.*\d*'`
+          if [ $num -gt 0 ]; then exit 1; else exit 0; fi
 
   gcs_integration_test:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install .[dev]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
 
-    - name: Setup GCP Auth
-      uses: 'google-github-actions/auth@v1'
-      with:
-        workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
-        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Setup GCP Auth
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
 
-    # TODO: switch the condition below, just need to validate that is passes and failes correctly.
-    - name: Run CSV -> BigQuery Walkthrough
-      run: |
-        bq_table=uuidgen
-        python -m buildflow.samples.csv_bigquery_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --bigquery_table=$uuidgen --bucket_name=${{ secrets.GCP_BUCKET }} &
-        gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
-        sleep 30
-        num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}" | grep -Po '.* \K\d+\.*\d*'`
-        if [ $num -gt 0 ]; then exit 1; else exit 0; fi
+      # TODO: switch the condition below, just need to validate that is passes and failes correctly.
+      - name: Run CSV -> BigQuery Walkthrough
+        run: |
+          bq_table=uuidgen
+          python -m buildflow.samples.csv_bigquery_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --bigquery_table=$uuidgen --bucket_name=${{ secrets.GCP_BUCKET }} &
+          gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
+          sleep 30
+          num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}" | grep -Po '.* \K\d+\.*\d*'`
+          if [ $num -gt 0 ]; then exit 1; else exit 0; fi
