@@ -33,7 +33,7 @@ jobs:
       - name: Run Pub/Sub Walkthrough
         run: |
           bq_table=$(uuidgen)
-          timeout -s SIGINT 120 python -m buildflow.samples.pubsub_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --bigquery_table=$bq_table
+          timeout -s SIGINT --preserve-status 120 python -m buildflow.samples.pubsub_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --bigquery_table=$bq_table
           num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}" | grep -Po '.* \K\d+\.*\d*'`
           if [ $num -gt 0 ]; then exit 1; else exit 0; fi
 

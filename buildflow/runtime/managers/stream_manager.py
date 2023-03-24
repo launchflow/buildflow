@@ -121,23 +121,18 @@ class _StreamManagerActor:
         all_tasks = []
         actors_to_kill = []
         actor_shutdowns = []
-        logging.warning('REMOVE %s replicas out of %s', replicas_to_remove, len(self._replicas))
         for _ in range(replicas_to_remove):
             to_pop = next(iter(self._replicas.keys()))
             actor, tasks = self._replicas.pop(to_pop)
             all_tasks.extend(tasks)
             actors_to_kill.append(actor)
             actor_shutdowns.append(actor.shutdown.remote())
-        print('DO NOT SUBMIT: waiting for actor shutdown.')
         _, pending = await asyncio.wait(actor_shutdowns, timeout=15)
-        print('DO NOT SUBMIT: finished actor shutdown.')
         for task in pending:
             # This can happen if the actor is not started yet, we will just
             # force it to with ray.kill below.
             task.cancel()
-        print('DO NOT SUBMIT: waiting for task shutdown.')
         _, pending = await asyncio.wait(all_tasks, timeout=15)
-        print('DO NOT SUBMIT: finished task shutdown.')
         for task in pending:
             # This can happen if the actor is not started yet, we will just
             # force it to with ray.kill below.
