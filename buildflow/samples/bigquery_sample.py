@@ -25,8 +25,8 @@ flow = Flow()
 @flow.processor(
     # NOTE: You can alternatly just pass the table ID to read in an entire
     # table.
-    source=buildflow.BigQuery(query=f'SELECT * FROM `{args.input_table}`'),
-    sink=buildflow.BigQuery(table_id=args.output_table))
+    source=buildflow.BigQuerySource(query=f'SELECT * FROM `{args.input_table}`'),
+    sink=buildflow.BigQuerySink(table_id=args.output_table))
 def process_query_result(dataset: ray.data.Dataset):
     # TODO: process the dataset (bq query result).
     return dataset
