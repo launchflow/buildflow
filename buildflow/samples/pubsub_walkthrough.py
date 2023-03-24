@@ -12,6 +12,7 @@ from buildflow import Flow
 # Parser to allow run time configuration of arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--gcp_project', type=str, required=True)
+parser.add_argument('--bigquery_table', type=str, default='taxi_ride_data')
 args, _ = parser.parse_known_args(sys.argv)
 
 # Set up a subscriber for the source.
@@ -22,9 +23,7 @@ input_sub = buildflow.PubSubSource(
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 output_table = buildflow.BigQuerySink(
-    table_id=f'{args.gcp_project}.buildflow_walkthrough.taxi_ride_data')
-
-logging.getLogger().setLevel(logging.INFO)
+    table_id=f'{args.gcp_project}.buildflow_walkthrough.{args.bigquery_table}')
 
 
 # Define an output type for our pipeline.
