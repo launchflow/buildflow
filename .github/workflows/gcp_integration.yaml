@@ -33,8 +33,7 @@ jobs:
         run: |
           bq_table=$(uuidgen)
           timeout -s SIGINT --preserve-status 120 python -m buildflow.samples.pubsub_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --bigquery_table=$bq_table
-          bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}"
-          num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}" | grep -Po '.* \K\d+\.*\d*'`
+          num_rows=`bq query --nouse_legacy_sql 'SELECT COUNT(*) as count FROM `${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}`' | grep -Po '.* \K\d+\.*\d*'`
           echo $num_rows
           if [ $num -gt 0 ]; then exit 0; else exit 1; fi
 
@@ -67,8 +66,7 @@ jobs:
         run: |
           output_table=${{ secrets.GCP_PROJECT }}.testing_output.$(uuidgen)
           python -m buildflow.samples.bigquery_sample --gcs_bucket=${{ secrets.GCP_BQ_OUTPUT_BUCKET }} --input_table=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input --output_table=$output_table
-          bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${output_table}" 
-          num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${output_table}" | grep -Po '.* \K\d+\.*\d*'`
+          num_rows=`bq query --nouse_legacy_sql 'SELECT COUNT(*) as count FROM `${output_table}`' | grep -Po '.* \K\d+\.*\d*'`
           echo $num_rows
           if [ $num -gt 0 ]; then exit 0; else exit 1; fi
 
@@ -104,6 +102,5 @@ jobs:
           sleep 30
           gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
           sleep 60
-          bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}
-          num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}" | grep -Po '.* \K\d+\.*\d*'`
+          num_rows=`bq query --nouse_legacy_sql 'SELECT COUNT(*) as count FROM `${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}`' | grep -Po '.* \K\d+\.*\d*'`
           if [ $num -gt 0 ]; then exit 0; else exit 1; fi
