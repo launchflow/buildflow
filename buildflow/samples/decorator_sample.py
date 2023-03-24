@@ -25,4 +25,4 @@ def process(taxi_info):
     return taxi_info
 
 
-flow.run().results()
+flow.run().output()

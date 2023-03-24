@@ -43,7 +43,7 @@ class _StreamingResults(FlowResults):
     def __init__(self, manager: stream_manager.StreamProcessManager) -> None:
         self._manager = manager
 
-    def results(self):
+    def output(self):
         self._manager.block()
 
 
@@ -56,7 +56,7 @@ class _BatchResults(FlowResults):
     def _add_processor_task(self, processor_id: str, tasks):
         self._processor_tasks[processor_id] = tasks
 
-    def results(self):
+    def output(self):
         final_output = {}
         for proc_id, batch_ref in self._processor_tasks.items():
             proc_output = {}

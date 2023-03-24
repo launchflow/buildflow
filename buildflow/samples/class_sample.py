@@ -43,4 +43,4 @@ class MyProcessor(buildflow.Processor):
         return message_data
 
 
-flow.run(MyProcessor()).results()
+flow.run(MyProcessor()).output()

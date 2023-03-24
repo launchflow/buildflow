@@ -19,7 +19,7 @@ class EmptyTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        output = self.flow.run().results()
+        output = self.flow.run().output()
 
         self.assertEqual(len(output), 1)
         self.assertEqual(output, {'process': {'local': [1, 2, 3]}})
@@ -30,7 +30,7 @@ class EmptyTest(unittest.TestCase):
         def process(elem):
             return [elem, elem]
 
-        output = self.flow.run().results()
+        output = self.flow.run().output()
 
         self.assertEqual(len(output), 1)
         self.assertEqual(output,
@@ -48,7 +48,7 @@ class EmptyTest(unittest.TestCase):
             def process(self, num: int):
                 return num
 
-        output = self.flow.run(MyProcessor()).results()
+        output = self.flow.run(MyProcessor()).output()
 
         self.assertEqual(len(output), 1)
         self.assertEqual(output, {'MyProcessor': {'local': [1, 2, 3]}})
@@ -63,7 +63,7 @@ class EmptyTest(unittest.TestCase):
         def process2(elem):
             return elem
 
-        output = self.flow.run().results()
+        output = self.flow.run().output()
 
         self.assertEqual(len(output), 2)
         self.assertEqual(output, {

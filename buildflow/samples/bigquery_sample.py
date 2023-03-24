@@ -37,6 +37,6 @@ def process_query_result(dataset: ray.data.Dataset):
 
 
 logging.basicConfig(level=logging.INFO)
-output = flow.run().results()
+output = flow.run().output()
 
 # NOTE: You can (optionally) do something with the processed output.

@@ -51,7 +51,7 @@ def stream_processor(pubsub_message):
   return pubsub_message
 
 # Start the processor(s)
-flow.run().results()
+flow.run().output()
 ```
 
 For a more in depth tutorial see our [walkthroughs](https://www.buildflow.dev/docs/category/walk-throughs).
