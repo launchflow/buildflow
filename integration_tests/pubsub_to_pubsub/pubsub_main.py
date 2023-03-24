@@ -27,8 +27,4 @@ class MyProcessor(buildflow.Processor):
         return Output(payload['val'] + 1)
 
 
-ref = flow.run(MyProcessor(),
-               streaming_options=buildflow.StreamingOptions(
-                   blocking=False))
-
-ref['MyProcessor'].block()
+flow.run(MyProcessor()).results()

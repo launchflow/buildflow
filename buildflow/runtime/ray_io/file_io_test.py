@@ -34,7 +34,7 @@ class FileIoTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        self.flow.run()
+        self.flow.run().results()
         table = pq.read_table(path)
         self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
 
@@ -55,7 +55,7 @@ class FileIoTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        self.flow.run()
+        self.flow.run().results()
         table = pq.read_table(path)
         self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
 

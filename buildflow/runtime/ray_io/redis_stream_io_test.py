@@ -53,7 +53,7 @@ class RedisStreamTest(unittest.TestCase):
             return element
 
         self.flow.run(streaming_options=buildflow.StreamingOptions(
-            autoscaling=False, blocking=False))
+            autoscaling=False))
         time.sleep(10)
 
         data_written = redis_client.xread({'output_stream': 0})
@@ -84,7 +84,7 @@ class RedisStreamTest(unittest.TestCase):
             return [element, element]
 
         self.flow.run(streaming_options=buildflow.StreamingOptions(
-            autoscaling=False, blocking=False))
+            autoscaling=False))
         time.sleep(10)
 
         data_written = redis_client.xread({'output_stream': 0})
@@ -115,7 +115,7 @@ class RedisStreamTest(unittest.TestCase):
             return Output(element['field'])
 
         self.flow.run(streaming_options=buildflow.StreamingOptions(
-            autoscaling=False, blocking=False))
+            autoscaling=False))
         time.sleep(10)
 
         data_written = redis_client.xread({'output_stream': 0})
@@ -146,7 +146,7 @@ class RedisStreamTest(unittest.TestCase):
             return [Output(element['field']), Output(element['field'])]
 
         self.flow.run(streaming_options=buildflow.StreamingOptions(
-            autoscaling=False, blocking=False))
+            autoscaling=False))
         time.sleep(10)
 
         data_written = redis_client.xread({'output_stream': 0})

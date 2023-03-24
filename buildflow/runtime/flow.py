@@ -37,7 +37,7 @@ class Flow(flow.FlowAPI):
     def run(self,
             processor_instance: Optional[ProcessorAPI] = None,
             streaming_options: options.StreamingOptions = options.
-            StreamingOptions()):
+            StreamingOptions()) -> flow.FlowResults:
         if processor_instance is not None:
             self.runtime.register_processor(processor_instance)
         return self.runtime.run(streaming_options)

@@ -1,4 +1,5 @@
 # flake8: noqa
+from .flow import FlowAPI, FlowResults
 from .io import SinkType, SourceType
 from .processor import ProcessorAPI
 from .options import StreamingOptions
