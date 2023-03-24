@@ -7,6 +7,7 @@ steps to run:
 """
 
 import argparse
+import dataclasses
 import logging
 from buildflow import Flow
 import buildflow
@@ -19,20 +20,25 @@ parser.add_argument('--input_table', type=str, required=True)
 parser.add_argument('--output_table', type=str, required=True)
 args, _ = parser.parse_known_args(sys.argv)
 
+
+@dataclasses.dataclass
+class Output:
+    count: int
+
+
 flow = Flow()
 
 
 @flow.processor(
     # NOTE: You can alternatly just pass the table ID to read in an entire
     # table.
-    source=buildflow.BigQuerySource(query=f'SELECT * FROM `{args.input_table}`'),
+    source=buildflow.BigQuerySource(
+        query=f'SELECT COUNT(*) as count FROM `{args.input_table}`'),
     sink=buildflow.BigQuerySink(table_id=args.output_table))
-def process_query_result(dataset: ray.data.Dataset):
+def process_query_result(dataset: ray.data.Dataset) -> Output:
     # TODO: process the dataset (bq query result).
     return dataset
 
 
 logging.basicConfig(level=logging.INFO)
 output = flow.run().output()
-
-# NOTE: You can (optionally) do something with the processed output.
