@@ -68,6 +68,8 @@ jobs:
           output_table=${{ secrets.GCP_PROJECT }}.testing_output.$(uuidgen)
           python -m buildflow.samples.bigquery_sample --gcs_bucket=${{ secrets.GCP_BQ_OUTPUT_BUCKET }} --input_table=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input --output_table=$output_table
           query="SELECT COUNT(*) as count FROM \`${output_table}\`"
+          echo $query
+          bq query --nouse_legacy_sql $query
           num_rows=$(bq query --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
           echo $num_rows
           if [ $num -gt 0 ]; then exit 0; else exit 1; fi
@@ -105,5 +107,7 @@ jobs:
           gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
           sleep 60
           query="SELECT COUNT(*) as count FROM \`${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}\`"
+          echo $query
+          bq query --nouse_legacy_sql $query
           num_rows=$(bq query --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
           if [ $num -gt 0 ]; then exit 0; else exit 1; fi
