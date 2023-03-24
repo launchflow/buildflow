@@ -6,6 +6,9 @@ on:
 jobs:
   pub_sub_integration_test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: 'write'
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10
@@ -36,6 +39,9 @@ jobs:
 
   bigquery_integration_test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: 'write'
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10
@@ -66,6 +72,9 @@ jobs:
 
   gcs_integration_test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: 'write'
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10
