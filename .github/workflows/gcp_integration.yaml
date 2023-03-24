@@ -100,6 +100,7 @@ jobs:
         run: |
           bq_table=uuidgen
           python -m buildflow.samples.csv_bigquery_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --bigquery_table=$uuidgen --bucket_name=${{ secrets.GCP_BUCKET }} &
+          sleep 30
           gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
           sleep 30
           num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}" | grep -Po '.* \K\d+\.*\d*'`
