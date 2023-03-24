@@ -35,7 +35,7 @@ class Source(_BaseIO):
 
 class StreamingSource(Source):
 
-    def backlog(self) -> Optional[int]:
+    def backlog(self) -> Optional[float]:
         """Returns an estimate of the backlog for the source.
 
         This method will be polled by our manager to determine if we need to

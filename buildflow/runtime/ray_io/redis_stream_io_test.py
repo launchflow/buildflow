@@ -54,7 +54,7 @@ class RedisStreamTest(unittest.TestCase):
 
         self.flow.run(streaming_options=buildflow.StreamingOptions(
             autoscaling=False, blocking=False))
-        time.sleep(5)
+        time.sleep(10)
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(len(data_written), 1)
@@ -85,7 +85,7 @@ class RedisStreamTest(unittest.TestCase):
 
         self.flow.run(streaming_options=buildflow.StreamingOptions(
             autoscaling=False, blocking=False))
-        time.sleep(5)
+        time.sleep(10)
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(data_written[0][1][0][1],
@@ -116,7 +116,7 @@ class RedisStreamTest(unittest.TestCase):
 
         self.flow.run(streaming_options=buildflow.StreamingOptions(
             autoscaling=False, blocking=False))
-        time.sleep(5)
+        time.sleep(10)
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(len(data_written), 1)
@@ -147,7 +147,7 @@ class RedisStreamTest(unittest.TestCase):
 
         self.flow.run(streaming_options=buildflow.StreamingOptions(
             autoscaling=False, blocking=False))
-        time.sleep(5)
+        time.sleep(10)
 
         data_written = redis_client.xread({'output_stream': 0})
         self.assertEqual(data_written[0][1][0][1],

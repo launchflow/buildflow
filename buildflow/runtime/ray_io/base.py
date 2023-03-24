@@ -1,6 +1,7 @@
 """Base class for all Ray IO Connectors"""
 
 import asyncio
+import atexit
 import dataclasses
 import os
 from typing import Any, Callable, Dict, Iterable, Union
@@ -129,20 +130,35 @@ class StreamingRaySource(RaySource):
 
     def __init__(self, ray_sinks: Dict[str, RaySink]) -> None:
         super().__init__(ray_sinks)
-        self._events_per_second = 0
+        self._num_events = 0
+        self._empty_responses = 0
         self._requests = 0
+        self._secs = 0
+        self._replica_id = utils.uuid()
+        atexit.register(self.shutdown)
 
-    def update_events_per_seconds(self, num_events: int,
-                                  execution_time_secs: float):
-        self._events_per_second = num_events / execution_time_secs
+    def update_metrics(self, num_events: int):
+        self._num_events += num_events
+        self._requests += 1
+        if not num_events:
+            self._empty_responses += 1
 
-    def events_per_second(self) -> float:
+    def metrics(self) -> float:
         """Returns the utilization of the source since this was last called.
 
         This should be float between 0 and 1. 0 indicates that no works has
         been done. 1 indicates the most possible work has been done.
         """
-        return self._events_per_second
+        num_events_to_return = self._num_events
+        if self._requests != 0:
+            empty_response_ratio = self._empty_responses / self._requests
+        else:
+            empty_response_ratio = 0
+        requests = self._requests
+        self._num_events = 0
+        self._empty_responses = 0
+        self._requests = 0
+        return num_events_to_return, empty_response_ratio, requests
 
     def shutdown(self):
         """Performs any shutdown work that is needed for the actor.

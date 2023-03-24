@@ -29,7 +29,7 @@ dependencies = [
     "pandas",
     "pyarrow",
     "pyyaml",
-    "ray",
+    "ray[default]",
     "redis",
 ]
 classifiers = [

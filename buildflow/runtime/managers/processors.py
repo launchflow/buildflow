@@ -17,7 +17,8 @@ class ProcessorRef:
         return copy.deepcopy(self.processor_instance)
 
 
-@ray.remote
+# TODO(#113): make this configurable by the user
+@ray.remote(num_cpus=.5)
 class ProcessActor(object):
 
     def __init__(self, processor_instance: ProcessorAPI):
