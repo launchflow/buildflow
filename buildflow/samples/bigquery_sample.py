@@ -18,6 +18,7 @@ import sys
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_table', type=str, required=True)
 parser.add_argument('--output_table', type=str, required=True)
+parser.add_argument('--gcs_bucket', type=str, required=True)
 args, _ = parser.parse_known_args(sys.argv)
 
 
@@ -34,7 +35,8 @@ flow = Flow()
     # table.
     source=buildflow.BigQuerySource(
         query=f'SELECT COUNT(*) as count FROM `{args.input_table}`'),
-    sink=buildflow.BigQuerySink(table_id=args.output_table))
+    sink=buildflow.BigQuerySink(table_id=args.output_table,
+                                temp_gcs_bucket=args.gcs_bucket))
 def process_query_result(dataset: ray.data.Dataset) -> Output:
     # TODO: process the dataset (bq query result).
     return dataset

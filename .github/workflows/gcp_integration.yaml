@@ -66,7 +66,7 @@ jobs:
       - name: Run BigQuery Sample
         run: |
           output_table=${{ secrets.GCP_PROJECT }}.testing_output.$(uuidgen)
-          python -m buildflow.samples.bigquery_sample --input_table=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input --output_table=$output_table
+          python -m buildflow.samples.bigquery_sample --gcs_bucket=${{ secrets.GCP_BQ_OUTPUT_BUCKET }} --input_table=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input --output_table=$output_table
           num_rows=`bq query --nouse_legacy_sql "SELECT COUNT(*) as count FROM ${output_table}" | grep -Po '.* \K\d+\.*\d*'`
           if [ $num -gt 0 ]; then exit 1; else exit 0; fi
 
