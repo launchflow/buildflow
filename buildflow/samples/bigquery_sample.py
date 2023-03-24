@@ -37,7 +37,6 @@ def process_query_result(dataset: ray.data.Dataset):
 
 
 logging.basicConfig(level=logging.INFO)
-# NOTE: You can increase the number of replicas to load the dataset faster.
-output = flow.run(num_replicas=1)
+output = flow.run().output()
 
 # NOTE: You can (optionally) do something with the processed output.

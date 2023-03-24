@@ -43,4 +43,4 @@ def process(element: Dict[str, Any]):
 
 
 # Run our flow.
-flow.run()
+flow.run().output()

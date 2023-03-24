@@ -12,7 +12,8 @@ import ray
 import requests
 
 from buildflow import utils
-from buildflow.api import ProcessorAPI, SourceType, SinkType, options
+from buildflow.api import (FlowResults, ProcessorAPI, SourceType, SinkType,
+                           options)
 from buildflow.runtime.managers import batch_manager
 from buildflow.runtime.managers import stream_manager
 
@@ -34,6 +35,39 @@ _SESSION_FILE = os.path.join(_SESSION_DIR, 'build_flow_usage.json')
 @dataclasses.dataclass
 class Session:
     id: str
+
+
+@dataclasses.dataclass
+class _StreamingResults(FlowResults):
+
+    def __init__(self, manager: stream_manager.StreamProcessManager) -> None:
+        self._manager = manager
+
+    def output(self):
+        self._manager.block()
+
+
+@dataclasses.dataclass
+class _BatchResults(FlowResults):
+
+    def __init__(self) -> None:
+        self._processor_tasks = {}
+
+    def _add_processor_task(self, processor_id: str, tasks):
+        self._processor_tasks[processor_id] = tasks
+
+    def output(self):
+        final_output = {}
+        for proc_id, batch_ref in self._processor_tasks.items():
+            proc_output = {}
+            output = ray.get(batch_ref)
+            for key, value in output.items():
+                if key in proc_output:
+                    proc_output[key].extend(value)
+                else:
+                    proc_output[key] = value
+            final_output[proc_id] = proc_output
+        return final_output
 
 
 def _load_session():
@@ -106,35 +140,23 @@ class Runtime:
         self._processors = {}
 
     def _run(self, streaming_options: options.StreamingOptions):
-        batch_refs = {}
-        streaming_refs = {}
+        batch_results = _BatchResults()
+        streaming_results = None
         for proc_id, processor_ref in self._processors.items():
             if not processor_ref.source.is_streaming():
                 manager = batch_manager.BatchProcessManager(processor_ref)
-                batch_refs[proc_id] = manager.run()
+                batch_results._add_processor_task(proc_id, manager.run())
             else:
+                assert len(self._processors) == 1
                 manager = stream_manager.StreamProcessManager(
                     processor_ref, streaming_options)
                 manager.run()
-                streaming_refs[proc_id] = manager
+                streaming_results = _StreamingResults(manager)
 
-        final_output = {}
-        for proc_id, streaming_ref in streaming_refs.items():
-            if streaming_options.blocking:
-                streaming_ref.block()
-            else:
-                final_output[proc_id] = streaming_ref
+        if streaming_results is not None:
+            return streaming_results
 
-        for proc_id, batch_ref in batch_refs.items():
-            proc_output = {}
-            output = ray.get(batch_ref)
-            for key, value in output.items():
-                if key in proc_output:
-                    proc_output[key].extend(value)
-                else:
-                    proc_output[key] = value
-            final_output[proc_id] = proc_output
-        return final_output
+        return batch_results
 
     def register_processor(self,
                            processor_instance: ProcessorAPI,
@@ -144,6 +166,20 @@ class Runtime:
         if processor_id in self._processors:
             logging.warning(
                 f'Processor {processor_id} already registered. Overwriting.')
+
+        # For a flow allow 1 streaming processors or N batch processors.
+        # If user is adding a streaming processor ensure their are no other
+        # processors.
+        # If user is adding a batch processor ensure their are no existing
+        # streaming processors.
+        if ((processor_instance.source().is_streaming() and self._processors)
+                or any([
+                    p.source.is_streaming()
+                    for p in self._processors.values()
+                ])):
+            raise ValueError(
+                'Flows containing a streaming processor are only allowed '
+                'to have one processor.')
 
         # NOTE: This is where the source / sink lifecycle methods are executed.
         self._processors[processor_id] = _ProcessorRef(

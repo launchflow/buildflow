@@ -25,5 +25,4 @@ def process(taxi_info):
     return taxi_info
 
 
-# NOTE: You can increase the number of replicas to process the messages faster.
-flow.run(num_replicas=1)
+flow.run().output()

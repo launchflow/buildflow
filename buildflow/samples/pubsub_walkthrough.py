@@ -53,4 +53,4 @@ def process(element: Dict[str, Any]) -> TaxiOutput:
 
 
 # Run our flow.
-flow.run(streaming_options=buildflow.StreamingOptions())
+flow.run().output()

@@ -15,7 +15,3 @@ class StreamingOptions:
     # set to false your pipeline will always maintain the same number of
     # replicas as it started with.
     autoscaling: bool = True
-    # If true flow.run() will block as the pipeline executes. If false we will
-    # return a async ref allowing you to block with:
-    #       ray.get(flow.run()['PROC_NAME'])
-    blocking: bool = True
