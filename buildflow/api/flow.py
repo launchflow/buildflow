@@ -6,7 +6,13 @@ from buildflow.api.processor import ProcessorAPI
 
 class FlowResults:
 
-    def results(self):
+    def output(self):
+        """This method will block the flow until completion.
+
+        For batch flows it will return the output of the pipeline.
+
+        For streaming flows it will simply infinitely block.
+        """
         pass
 
 
@@ -15,7 +21,9 @@ class FlowAPI:
     def processor(input, output: Optional[Any] = None):
         pass
 
-    def run(processor_instance: Optional[ProcessorAPI] = None,
-            streaming_options: options.StreamingOptions = options.
-            StreamingOptions()) -> FlowResults:
+    def run(
+        processor_instance: Optional[ProcessorAPI] = None,
+        streaming_options: options.StreamingOptions = options.StreamingOptions(
+        )
+    ) -> FlowResults:
         pass

@@ -21,4 +21,4 @@ class MyProcessor(buildflow.Processor):
         return [payload, payload]
 
 
-flow.run(MyProcessor()).results()
+flow.run(MyProcessor()).output()

@@ -33,4 +33,4 @@ class MyProcessor(buildflow.Processor):
         return Output(payload['val'] + 1)
 
 
-flow.run(MyProcessor()).results()
+flow.run(MyProcessor()).output()
