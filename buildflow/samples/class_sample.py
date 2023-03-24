@@ -43,6 +43,4 @@ class MyProcessor(buildflow.Processor):
         return message_data
 
 
-# NOTE: You can increase the number of replicas to process the messages faster.
-# 1 replica == 1 process. Each replica is multithreaded by default.
-flow.run(MyProcessor(), num_replicas=1)
+flow.run(MyProcessor()).results()
