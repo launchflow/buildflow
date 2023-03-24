@@ -53,8 +53,8 @@ jobs:
           workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-        - name: 'Set up Cloud SDK'
-          uses: 'google-github-actions/setup-gcloud@v1'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
 
       # TODO: switch the condition below, just need to validate that is passes and failes correctly.
       - name: Run BigQuery Sample
@@ -83,8 +83,8 @@ jobs:
           workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-        - name: 'Set up Cloud SDK'
-          uses: 'google-github-actions/setup-gcloud@v1'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
 
       # TODO: switch the condition below, just need to validate that is passes and failes correctly.
       - name: Run CSV -> BigQuery Walkthrough
