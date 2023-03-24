@@ -36,7 +36,7 @@ jobs:
           query="SELECT COUNT(*) as count FROM \`buildflow-integration-tests.buildflow_walkthrough.${bq_table}\`"
           num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
           echo $num_rows
-          if [ $num -gt 0 ]; then exit 0; else exit 1; fi
+          if [ $num > 0 ]; then exit 0; else exit 1; fi
 
   bigquery_integration_test:
     runs-on: ubuntu-latest
@@ -103,7 +103,7 @@ jobs:
       - name: Run CSV -> BigQuery Walkthrough
         run: |
           bq_table=$(uuidgen)
-          python -m buildflow.samples.csv_bigquery_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --bigquery_table=$bq_table --bucket_name=${{ secrets.GCP_BUCKET }} &
+          python -m buildflow.samples.csv_bigquery_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --table_name=$bq_table --bucket_name=${{ secrets.GCP_BUCKET }} &
           sleep 30
           gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
           sleep 60
@@ -111,4 +111,4 @@ jobs:
           echo $query
           bq query --nouse_legacy_sql $query
           num_rows=$(bq query --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
-          if [ $num -gt 0 ]; then exit 0; else exit 1; fi
+          if [ $num > 0 ]; then exit 0; else exit 1; fi
