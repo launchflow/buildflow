@@ -26,7 +26,7 @@ class GCSFileEvent:
 
 
 @dataclasses.dataclass
-class GCSFileNotifications(io.Source):
+class GCSFileNotifications(io.StreamingSource):
     bucket_name: str
     project_id: str
     # The pubsub topic that is configured to point at the bucket. If not set
@@ -45,6 +45,8 @@ class GCSFileNotifications(io.Source):
     # configured correctly.
     _managed_subscriber = True
     _managed_publisher = True
+    _pubsub_ref: Optional[pubsub_io.PubSubSource] = dataclasses.field(
+        init=False, default=None)
 
     def __post_init__(self):
         if not self.pubsub_topic:
@@ -60,9 +62,15 @@ class GCSFileNotifications(io.Source):
                          f'{self.pubsub_subscription}.')
         else:
             self._managed_subscriber = False
+        self._pubsub_ref = pubsub_io.PubSubSource(
+            subscription=self.pubsub_subscription,
+            topic=self.pubsub_topic,
+            include_attributes=True,
+        )
 
     def setup(self):
-
+        # TODO: Can we make the pubsub setup easier by just running:
+        #   self._pubsub_ref.set()?
         storage_client = storage.Client()
         bucket = None
         try:
@@ -125,12 +133,7 @@ class GCSFileNotifications(io.Source):
         return GCSFileEvent(metadata=message.attributes)
 
     def actor(self, ray_sinks):
-        return pubsub_io.PubSubSourceActor.remote(
-            ray_sinks,
-            pubsub_io.PubSubSource(self.pubsub_subscription,
-                                   self.pubsub_topic,
-                                   include_attributes=True))
+        return pubsub_io.PubSubSourceActor.remote(ray_sinks, self._pubsub_ref)
 
-    @classmethod
-    def is_streaming(cls) -> bool:
-        return True
+    def backlog(self) -> Optional[float]:
+        return self._pubsub_ref.backlog()
