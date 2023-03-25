@@ -121,7 +121,6 @@ class PubSubSourceActor(base.StreamingRaySource):
             except Exception as e:
                 logging.error('pubsub pull failed with: %s', e)
                 continue
-            if response.received_messages:
             for received_message in response.received_messages:
                 json_loaded = {}
                 if received_message.message.data:
