@@ -120,12 +120,18 @@ class _StreamManagerActor:
     async def _remove_replicas(self, replicas_to_remove: int):
         all_tasks = []
         actors_to_kill = []
+        actor_shutdowns = []
         for _ in range(replicas_to_remove):
             to_pop = next(iter(self._replicas.keys()))
             actor, tasks = self._replicas.pop(to_pop)
             all_tasks.extend(tasks)
             actors_to_kill.append(actor)
-            await actor.shutdown.remote()
+            actor_shutdowns.append(actor.shutdown.remote())
+        _, pending = await asyncio.wait(actor_shutdowns, timeout=15)
+        for task in pending:
+            # This can happen if the actor is not started yet, we will just
+            # force it to with ray.kill below.
+            task.cancel()
         _, pending = await asyncio.wait(all_tasks, timeout=15)
         for task in pending:
             # This can happen if the actor is not started yet, we will just
