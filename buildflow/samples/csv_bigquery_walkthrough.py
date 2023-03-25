@@ -88,4 +88,4 @@ def process(
 
 
 # Run your flow.
-flow.run()
+flow.run().output()
