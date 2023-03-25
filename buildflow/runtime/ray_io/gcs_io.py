@@ -132,6 +132,13 @@ class GCSFileNotifications(io.StreamingSource):
     def preprocess(self, message: pubsub_io.PubsubMessage) -> GCSFileEvent:
         return GCSFileEvent(metadata=message.attributes)
 
+    @classmethod
+    def recommended_num_threads(cls):
+        # The actor becomes mainly network bound after roughly 4 threads, and
+        # additional threads start to hurt cpu utilization.
+        # This number is based on a single actor instance.
+        return 4
+
     def actor(self, ray_sinks):
         return pubsub_io.PubSubSourceActor.remote(ray_sinks, self._pubsub_ref)
 

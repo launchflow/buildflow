@@ -324,16 +324,16 @@ class BigQuerySinkActor(base.RaySink):
             tasks.append(
                 ray_dataset_load_job.remote(elements, self.bq_table_id,
                                             self.temp_gcs_bucket))
-        elif self.use_streaming:
-            errors = self.bq_client.insert_rows_json(self.bq_table_id,
-                                                     elements)
-            if errors:
-                raise RuntimeError(
-                    f'BigQuery streaming insert failed: {errors}')
         else:
             for i in range(0, len(elements), self._BATCH_SIZE):
                 batch = elements[i:i + self._BATCH_SIZE]
-                if isinstance(batch[0], ray.data.Dataset):
+                if self.use_streaming:
+                    errors = self.bq_client.insert_rows_json(
+                        self.bq_table_id, batch)
+                    if errors:
+                        raise RuntimeError(
+                            f'BigQuery streaming insert failed: {errors}')
+                elif isinstance(batch[0], ray.data.Dataset):
                     for ds in batch:
                         tasks.append(
                             ray_dataset_load_job.remote(
