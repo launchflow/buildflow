@@ -13,6 +13,7 @@ from buildflow import Flow
 import buildflow
 import ray
 import sys
+from typing import Optional
 
 # Parser to allow run time configuration of arguments
 parser = argparse.ArgumentParser()
@@ -24,7 +25,7 @@ args, _ = parser.parse_known_args(sys.argv)
 
 @dataclasses.dataclass
 class Output:
-    count: int
+    count: Optional[int]
 
 
 flow = Flow()

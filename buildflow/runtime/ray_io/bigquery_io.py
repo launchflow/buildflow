@@ -241,6 +241,8 @@ def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
     bq_client = _get_bigquery_client(project)
     job_config = bigquery.LoadJobConfig(
         source_format=source_format,
+        # TODO: Autodetect can be kind of awful we should set this
+        # if we can based on our output schema.
         autodetect=True,
         create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
@@ -280,12 +282,12 @@ def json_rows_load_job(json_rows: Iterable[Dict[str,
 
 @ray.remote
 def ray_dataset_load_job(dataset: ray.data.Dataset, bigquery_table_id: str,
-                         gcs_bucket: str) -> str:
+                         gcs_bucket: str, project: str) -> str:
     gcs_output_dir = f'gs://{gcs_bucket}/{utils.uuid()}'
     dataset.write_parquet(gcs_output_dir)
     gcs_glob_uri = f'{gcs_output_dir}/*'
     return run_load_job_and_wait(bigquery_table_id, gcs_glob_uri,
-                                 bigquery.SourceFormat.PARQUET)
+                                 bigquery.SourceFormat.PARQUET, project)
 
 
 # TODO: put more though into this resource requirement
@@ -323,7 +325,8 @@ class BigQuerySinkActor(base.RaySink):
         if isinstance(elements, ray.data.Dataset):
             tasks.append(
                 ray_dataset_load_job.remote(elements, self.bq_table_id,
-                                            self.temp_gcs_bucket))
+                                            self.temp_gcs_bucket,
+                                            self.project))
         else:
             for i in range(0, len(elements), self._BATCH_SIZE):
                 batch = elements[i:i + self._BATCH_SIZE]
@@ -337,7 +340,8 @@ class BigQuerySinkActor(base.RaySink):
                     for ds in batch:
                         tasks.append(
                             ray_dataset_load_job.remote(
-                                ds, self.bq_table_id, self.temp_gcs_bucket))
+                                ds, self.bq_table_id, self.temp_gcs_bucket,
+                                self.project))
                 else:
                     tasks.append(
                         json_rows_load_job.remote(batch, self.bq_table_id,
