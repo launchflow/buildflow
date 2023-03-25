@@ -106,7 +106,5 @@ jobs:
           gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
           sleep 60
           query="SELECT COUNT(*) as count FROM \`${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}\`"
-          echo $query
-          bq query --nouse_legacy_sql $query
           num_rows=$(bq query --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
           if [[ $num_rows > 0 ]]; then exit 0; else exit 1; fi
