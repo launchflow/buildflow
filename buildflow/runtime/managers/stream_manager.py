@@ -21,6 +21,7 @@ import time
 from typing import Awaitable, Dict, Optional, Tuple
 
 import ray
+from ray.util.metrics import Gauge
 
 from buildflow import utils
 from buildflow.api.options import StreamingOptions
@@ -51,9 +52,9 @@ async def _wait_for_metrics(
                    coro: Awaitable) -> Tuple[str, Optional[_MetricsWrapper]]:
         try:
             num_events, empty_response_ratio, requests = await coro
-            return key, _MetricsWrapper(
-                num_events=num_events,
-                non_empty_response_ratio=1 - empty_response_ratio)
+            return key, _MetricsWrapper(num_events=num_events,
+                                        non_empty_response_ratio=1 -
+                                        empty_response_ratio)
         except asyncio.CancelledError:
             logging.warning('timeout for metrics, this can happen when an '
                             'actor is pending creation.')
@@ -89,6 +90,13 @@ class _StreamManagerActor:
         self._running_average = float("nan")
         self._sink_actor = None
         self._replicas = {}
+        self.num_replicas_gauge = Gauge(
+            "num_replicas",
+            description="Current number of replicas. Goes up and down.",
+            tag_keys=("actor_name", ),
+        )
+        self.num_replicas_gauge.set_default_tags(
+            {"actor_name": self.__class__.__name__})
 
     def _add_replica(self):
         key = str(self.processor_ref.sink)
@@ -158,6 +166,8 @@ class _StreamManagerActor:
             start_replics = max_replicas
         for _ in range(start_replics):
             self._add_replica()
+        self.num_replicas_gauge.set(start_replics)
+        replicas = [self._add_replica() for _ in range(start_replics)]
         last_autoscale_check = None
         while self.running:
             # Add a brief wait here to ensure we can check for shutdown events.

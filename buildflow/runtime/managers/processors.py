@@ -1,10 +1,12 @@
 import copy
 import dataclasses
+import time
 from typing import Iterable
 
 import ray
+from ray.util.metrics import Gauge
 
-from buildflow.api import SinkType, SourceType, ProcessorAPI
+from buildflow.api import ProcessorAPI, SinkType, SourceType
 
 
 @dataclasses.dataclass
@@ -26,12 +28,22 @@ class ProcessActor(object):
         print(f'Running processor setup: {self._processor.__class__}')
         # NOTE: This is where the setup lifecycle method is called.
         self._processor.setup()
+        self.process_time_gauge = Gauge(
+            "process_time",
+            description="Current process time of the actor. Goes up and down.",
+            tag_keys=("actor_name", ),
+        )
+        self.process_time_gauge.set_default_tags(
+            {"actor_name": self.__class__.__name__})
 
     def process(self, *args, **kwargs):
         return self._processor._process(*args, **kwargs)
 
     def process_batch(self, calls: Iterable):
+        start_time = time.time()
         to_ret = []
         for call in calls:
             to_ret.append(self.process(call))
+        self.process_time_gauge.set(
+            round(((time.time() - start_time) * 1000) / len(to_ret)))
         return to_ret

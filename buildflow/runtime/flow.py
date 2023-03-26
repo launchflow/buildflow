@@ -9,12 +9,12 @@ class Flow(flow.FlowAPI):
     _instance = None
     _initialized = False
 
-    def __init__(self, name: str = '') -> None:
+    def __init__(self, name: str = '', host: Optional[str] = None) -> None:
         if self._initialized:
             return
         self._initialized = True
         self._name = name
-        self.runtime = Runtime()
+        self.runtime = Runtime(host=host)
         self.resources = set()
         self.processors = set()
 

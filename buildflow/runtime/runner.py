@@ -12,10 +12,11 @@ import ray
 import requests
 
 from buildflow import utils
-from buildflow.api import (FlowResults, ProcessorAPI, SourceType, SinkType,
+from buildflow.api import (FlowResults, ProcessorAPI, SinkType, SourceType,
                            options)
-from buildflow.runtime.managers import batch_manager
-from buildflow.runtime.managers import stream_manager
+from buildflow.runtime.managers import batch_manager, stream_manager
+
+RAY_CLUSTER_ADDRESS = 'http://127.0.0.1:8265'
 
 
 @dataclasses.dataclass
@@ -88,19 +89,42 @@ def _load_session():
 
 class Runtime:
 
-    def __init__(self):
+    def __init__(self, host: Optional[str] = None):
+        self.host = host
         self._processors: Dict[str, _ProcessorRef] = {}
         self._session = _load_session()
         parser = argparse.ArgumentParser()
         parser.add_argument('--disable_usage_stats',
                             action='store_true',
                             default=False)
+        parser.add_argument('--ignore_host',
+                            action='store_true',
+                            default=False)
         args, _ = parser.parse_known_args(sys.argv)
         self._enable_usage = True
         if args.disable_usage_stats:
             self._enable_usage = False
+        self._ignore_host = args.ignore_host
 
     def run(self, streaming_options: options.StreamingOptions):
+        if self.host is not None and not self._ignore_host:
+            print(f'Forwarding job to host: {self.host}')
+            # TODO: Determine if we need to zip the files and send them over.
+            source = list(self._processors.values()
+                          )[0].source.__class__.__name__.replace('Source', '')
+            sink = list(
+                self._processors.values())[0].sink.__class__.__name__.replace(
+                    'Sink', '')
+            response = requests.post(f'{self.host}/submit_job',
+                                     json={
+                                         'entrypoint':
+                                         f'python {sys.argv[0]} --ignore_host',
+                                         'working_dir': os.getcwd(),
+                                         'source': source,
+                                         'sink': sink,
+                                     })
+            print('Response from host: ', response.text)
+            return response
         if self._enable_usage:
             print(
                 'Usage stats collection is enabled. To disable add the flag: '
@@ -174,8 +198,7 @@ class Runtime:
         # streaming processors.
         if ((processor_instance.source().is_streaming() and self._processors)
                 or any([
-                    p.source.is_streaming()
-                    for p in self._processors.values()
+                    p.source.is_streaming() for p in self._processors.values()
                 ])):
             raise ValueError(
                 'Flows containing a streaming processor are only allowed '

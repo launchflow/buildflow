@@ -2,19 +2,17 @@
 
 import asyncio
 import dataclasses
-from google.cloud import monitoring_v3
 import inspect
-import logging
 import json
+import logging
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
-from google.cloud import pubsub
-from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
 import ray
+from google.cloud import monitoring_v3, pubsub
+from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
 
 from buildflow.api import io
-from buildflow.runtime.ray_io import base
-from buildflow.runtime.ray_io import pubsub_utils
+from buildflow.runtime.ray_io import base, pubsub_utils
 
 _BACKLOG_QUERY_TEMPLATE = """\
 fetch pubsub_subscription
