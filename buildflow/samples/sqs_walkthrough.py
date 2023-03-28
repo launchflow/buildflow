@@ -1,23 +1,32 @@
 # flake8: noqa
 import argparse
-import dataclasses
-from datetime import datetime
+import json
 import sys
-import logging
 from typing import Any, Dict
 
 import buildflow
 from buildflow import Flow
 
-input_sqs = buildflow.SQSSource(queue_name='caleb-testing2')
+
+# Parser to allow run time configuration of arguments
+parser = argparse.ArgumentParser()
+parser.add_argument('--queue_name', type=str, required=True)
+parser.add_argument('--file_path',
+                    type=str,
+                    default='/tmp/buildflow/local_pubsub.parquet')
+args, _ = parser.parse_known_args(sys.argv)
+
+
+input_sqs = buildflow.SQSSource(queue_name=args.queue_name)
+sink = buildflow.FileSink(file_path=args.file_path,
+                          file_format=buildflow.FileFormat.PARQUET)
 
 flow = Flow()
 
 
-@flow.processor(source=input_sqs)
+@flow.processor(source=input_sqs, sink=sink)
 def process(element: Dict[str, Any]):
-    print('DO NOT SUBMIT: ', element)
-    return element
+    return json.loads(element['Body'])
 
 
 # Run our flow.
