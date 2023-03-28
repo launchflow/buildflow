@@ -234,7 +234,7 @@ class StreamProcessManager:
     def run(self):
         self._manager_task = self._actor.run.remote()
 
-    def _shutdown(self):
+    def shutdown(self):
         ray.get(self._actor.shutdown.remote())
 
     def block(self):
@@ -242,6 +242,6 @@ class StreamProcessManager:
             ray.get(self._manager_task)
         except KeyboardInterrupt:
             print('Shutting down processors...')
-            self._shutdown()
+            self.shutdown()
             ray.get(self._manager_task)
             print('...Sucessfully shut down processors.')

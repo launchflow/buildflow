@@ -1,5 +1,6 @@
 """IO connectors for Redis and Ray."""
 
+import asyncio
 import dataclasses
 import logging
 import time
@@ -41,7 +42,7 @@ class RedisStreamSink(io.Sink):
 
 
 @ray.remote
-class RedisStreamInput(base.RaySource):
+class RedisStreamInput(base.StreamingRaySource):
 
     def __init__(
         self,
@@ -53,6 +54,7 @@ class RedisStreamInput(base.RaySource):
                                         port=redis_stream_ref.port)
         self.timeout_secs = redis_stream_ref.read_timeout_secs
         self.streams = {}
+        self.running = True
         for stream in redis_stream_ref.streams:
             if stream in redis_stream_ref.start_positions:
                 start = redis_stream_ref.start_positions[stream]
@@ -72,7 +74,7 @@ class RedisStreamInput(base.RaySource):
             'Started listening to the following streams at the s'
             'pecified ID: %s', self.streams)
         start = time.time()
-        while True:
+        while self.running:
             if (self.timeout_secs > 0
                     and time.time() - start > self.timeout_secs):
                 break
@@ -90,7 +92,11 @@ class RedisStreamInput(base.RaySource):
                     items.append(decoded_item)
                 await self._send_batch_to_sinks_and_await(items)
 
-            time.sleep(1)
+            await asyncio.sleep(1)
+
+    def shutdown(self):
+        self.running = False
+        return True
 
 
 @ray.remote

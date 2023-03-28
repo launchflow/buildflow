@@ -48,10 +48,16 @@ def get_recommended_num_replicas(
     autoscaling_options: StreamingOptions,
 ) -> int:
     non_empty_ratio_sum = sum(non_empty_ratio_per_replica)
-    avg_non_empty_rate = (non_empty_ratio_sum /
-                          len(non_empty_ratio_per_replica))
+    if non_empty_ratio_per_replica:
+        avg_non_empty_rate = (non_empty_ratio_sum /
+                              len(non_empty_ratio_per_replica))
+    else:
+        avg_non_empty_rate = 0
     rate = (sum(events_processed_per_replica) / time_since_last_check)
-    avg_rate = rate / len(events_processed_per_replica) * 60
+    if events_processed_per_replica:
+        avg_rate = rate / len(events_processed_per_replica) * 60
+    else:
+        avg_rate = 0
     # TODO: this doesn't take into account newly incoming messages so it won't
     # actually burn down the backlog in one minute. Ideally we could add some
     # metric to know we need at least N replicas for the standard rate + M
@@ -79,8 +85,7 @@ def get_recommended_num_replicas(
     if new_num_replicas > max_replicas:
         logging.warning(
             'reached the max allowed replicas for your cluster %s. We will add'
-            ' more as your cluster scales up.', max_replicas
-        )
+            ' more as your cluster scales up.', max_replicas)
         # TODO: we can look at programatically scaling this to get faster
         # autoscaling.
         new_num_replicas = max_replicas
