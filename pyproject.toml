@@ -13,6 +13,8 @@ description = "buildflow is a unified **batch** and **streaming** framework that
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
+    # TODO: split up AWS and GCP dependencies.
+    "boto3",
     "duckdb==0.6.0",
     "google-cloud-bigquery",
     "google-cloud-bigquery-storage",
@@ -41,6 +43,7 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+    "moto",
     "pytest",
     "flake8",
     "setuptools",
