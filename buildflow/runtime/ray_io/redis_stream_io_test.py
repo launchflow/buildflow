@@ -61,7 +61,7 @@ class RedisStreamTest(unittest.TestCase):
         self.assertEqual(len(data_written[0]), 2)
         self.assertEqual(data_written[0][1][0][1],
                          {'field'.encode(): 'value'.encode()})
-        
+
         runner.shutdown()
 
     def test_end_to_end_multi_output(self):
@@ -94,7 +94,7 @@ class RedisStreamTest(unittest.TestCase):
                          {'field'.encode(): 'value'.encode()})
         self.assertEqual(data_written[0][1][1][1],
                          {'field'.encode(): 'value'.encode()})
-        
+
         runner.shutdown()
 
     def test_end_to_end_dataclass(self):
@@ -127,7 +127,7 @@ class RedisStreamTest(unittest.TestCase):
         self.assertEqual(len(data_written[0]), 2)
         self.assertEqual(data_written[0][1][0][1],
                          {'field'.encode(): 'value'.encode()})
-        
+
         runner.shutdown()
 
     def test_end_to_end_multi_output_dataclass(self):
