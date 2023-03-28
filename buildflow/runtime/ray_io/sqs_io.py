@@ -123,7 +123,7 @@ class SQSSourceActor(base.StreamingRaySource):
                 # Ideally we wouldn't have to put this sleep in here though.
                 # TODO: look at using promethius metrics to get metrics
                 # instead.
-                await asyncio.sleep(1)
+                await asyncio.sleep(.1)
             except Exception as error:
                 logging.error(
                     'Couldn\'t process messages from queue: %s. The message '

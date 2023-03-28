@@ -1,3 +1,9 @@
+"""Basic flow that reads from an AWS SQS queue and writes to a local parquet file.
+
+This assumes you have set up AWS on your local machine.
+
+See: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html
+"""
 # flake8: noqa
 import argparse
 import json
@@ -17,14 +23,14 @@ parser.add_argument('--file_path',
 args, _ = parser.parse_known_args(sys.argv)
 
 
-input_sqs = buildflow.SQSSource(queue_name=args.queue_name)
+source = buildflow.SQSSource(queue_name=args.queue_name)
 sink = buildflow.FileSink(file_path=args.file_path,
                           file_format=buildflow.FileFormat.PARQUET)
 
 flow = Flow()
 
 
-@flow.processor(source=input_sqs, sink=sink)
+@flow.processor(source=source, sink=sink)
 def process(element: Dict[str, Any]):
     return json.loads(element['Body'])
 

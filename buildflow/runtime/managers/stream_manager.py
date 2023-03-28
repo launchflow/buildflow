@@ -242,6 +242,6 @@ class StreamProcessManager:
             ray.get(self._manager_task)
         except KeyboardInterrupt:
             print('Shutting down processors...')
-            self.shutdown()()
+            self.shutdown()
             ray.get(self._manager_task)
             print('...Sucessfully shut down processors.')
