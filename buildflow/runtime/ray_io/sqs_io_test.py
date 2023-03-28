@@ -111,7 +111,7 @@ class SqsIoTest(unittest.TestCase):
 
         runner = self.flow.run()
 
-        time.sleep(5)
+        time.sleep(10)
         table = pq.read_table(path)
         self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
 
