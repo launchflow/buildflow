@@ -52,7 +52,7 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return element
 
-        self.flow.run(streaming_options=buildflow.StreamingOptions(
+        runner = self.flow.run(streaming_options=buildflow.StreamingOptions(
             autoscaling=False))
         time.sleep(10)
 
@@ -61,6 +61,8 @@ class RedisStreamTest(unittest.TestCase):
         self.assertEqual(len(data_written[0]), 2)
         self.assertEqual(data_written[0][1][0][1],
                          {'field'.encode(): 'value'.encode()})
+        
+        runner.shutdown()
 
     def test_end_to_end_multi_output(self):
 
@@ -83,7 +85,7 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return [element, element]
 
-        self.flow.run(streaming_options=buildflow.StreamingOptions(
+        runner = self.flow.run(streaming_options=buildflow.StreamingOptions(
             autoscaling=False))
         time.sleep(10)
 
@@ -92,6 +94,8 @@ class RedisStreamTest(unittest.TestCase):
                          {'field'.encode(): 'value'.encode()})
         self.assertEqual(data_written[0][1][1][1],
                          {'field'.encode(): 'value'.encode()})
+        
+        runner.shutdown()
 
     def test_end_to_end_dataclass(self):
 
@@ -114,7 +118,7 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return Output(element['field'])
 
-        self.flow.run(streaming_options=buildflow.StreamingOptions(
+        runner = self.flow.run(streaming_options=buildflow.StreamingOptions(
             autoscaling=False))
         time.sleep(10)
 
@@ -123,6 +127,8 @@ class RedisStreamTest(unittest.TestCase):
         self.assertEqual(len(data_written[0]), 2)
         self.assertEqual(data_written[0][1][0][1],
                          {'field'.encode(): 'value'.encode()})
+        
+        runner.shutdown()
 
     def test_end_to_end_multi_output_dataclass(self):
 
@@ -145,7 +151,7 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return [Output(element['field']), Output(element['field'])]
 
-        self.flow.run(streaming_options=buildflow.StreamingOptions(
+        runner = self.flow.run(streaming_options=buildflow.StreamingOptions(
             autoscaling=False))
         time.sleep(10)
 
@@ -154,6 +160,7 @@ class RedisStreamTest(unittest.TestCase):
                          {'field'.encode(): 'value'.encode()})
         self.assertEqual(data_written[0][1][1][1],
                          {'field'.encode(): 'value'.encode()})
+        runner.shutdown()
 
 
 if __name__ == '__main__':

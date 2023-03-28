@@ -40,9 +40,6 @@ class SqsIoTest(unittest.TestCase):
         self.output_path = tempfile.mkdtemp()
         self.flow = buildflow.Flow()
 
-    def tearDown(self) -> None:
-        shutil.rmtree(self.output_path)
-
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -107,11 +104,13 @@ class SqsIoTest(unittest.TestCase):
         def process(element):
             return element['Body']
 
-        self.flow.run()
+        runner = self.flow.run()
 
         time.sleep(5)
         table = pq.read_table(path)
         self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
+
+        runner.shutdown()
 
 
 if __name__ == '__main__':

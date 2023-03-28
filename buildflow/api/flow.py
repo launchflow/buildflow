@@ -15,6 +15,10 @@ class FlowResults:
         """
         pass
 
+    def shutdown(self):
+        """Sends the shutdown signal to the running flow."""
+        pass
+
 
 class FlowAPI:
 

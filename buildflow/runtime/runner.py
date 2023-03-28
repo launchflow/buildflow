@@ -46,6 +46,9 @@ class _StreamingResults(FlowResults):
     def output(self):
         self._manager.block()
 
+    def shutdown(self):
+        self._manager.shutdown()
+
 
 @dataclasses.dataclass
 class _BatchResults(FlowResults):
