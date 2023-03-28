@@ -39,9 +39,11 @@ class SqsIoTest(unittest.TestCase):
     def setUp(self) -> None:
         self.output_path = tempfile.mkdtemp()
         self.flow = buildflow.Flow()
+        os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
 
     def tearDown(self) -> None:
         shutil.rmtree(self.output_path)
+        del os.environ['AWS_DEFAULT_REGION']
 
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
