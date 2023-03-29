@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.10](https://github.com/launchflow/buildflow/compare/v0.0.9...v0.0.10) (2023-03-28)
+
+
+### Bug Fixes
+
+* add support for SQS as a source ([813740e](https://github.com/launchflow/buildflow/commit/813740ed6068222ddf0adfbde86507bf544dcfce))
+* finish implementation of streaming autoscaler ([3243412](https://github.com/launchflow/buildflow/commit/3243412f39800c65c34580e1ff9b4f5bf00e38ce))
+* return a single flow results object from flow.run() ([e2b2cde](https://github.com/launchflow/buildflow/commit/e2b2cde207d89d402a780bdcbd78944e7a517426))
+
 ## [0.0.9](https://github.com/launchflow/buildflow/compare/v0.0.8...v0.0.9) (2023-03-16)
 
 
