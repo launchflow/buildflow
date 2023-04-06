@@ -52,4 +52,4 @@ def process(element: Dict[str, Any]) -> TaxiOutput:
 
 
 # Run our flow.
-flow.run(enable_resource_creation=False).output()
+flow.run().output()
