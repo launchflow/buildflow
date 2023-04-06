@@ -5,6 +5,7 @@ import tempfile
 import time
 from typing import Any, Dict, List
 import unittest
+from unittest import mock
 
 import boto3
 from moto import mock_sqs
@@ -116,6 +117,49 @@ class SqsIoTest(unittest.TestCase):
         self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
 
         runner.shutdown()
+
+    @mock.patch('boto3.client')
+    def test_sqs_source_disable_resource_creation(self, boto_mock: mock.MagicMock):
+        path = os.path.join(self.output_path, 'output.parquet')
+        fake_sqs = FakeSqsClient(responses=[{
+            'Messages': [
+                {
+                    'MessageId': '1',
+                    'ReceiptHandle': '2',
+                    'Body': {
+                        'field': 1
+                    },
+                },
+                {
+                    'MessageId': '3',
+                    'ReceiptHandle': '4',
+                    'Body': {
+                        'field': 2
+                    },
+                },
+            ]
+        }])
+
+        input_sqs = buildflow.SQSSource(queue_name='queue_name',
+                                        _test_sqs_client=fake_sqs)
+
+        @self.flow.processor(source=input_sqs,
+                             sink=buildflow.FileSink(
+                                 file_path=path,
+                                 file_format=buildflow.FileFormat.PARQUET))
+        def process(element):
+            return element['Body']
+
+        runner = self.flow.run(enable_resource_creation=False)
+
+        time.sleep(10)
+        table = pq.read_table(path)
+        self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
+
+        runner.shutdown()
+
+        # Should not be called because setup is not being called.
+        boto_mock.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -36,11 +36,11 @@ class Flow(flow.FlowAPI):
 
     def run(
         self,
-        disable_usage_stats: bool = False,
-        enable_resource_creation: bool = True,
         processor_instance: Optional[ProcessorAPI] = None,
         streaming_options: options.StreamingOptions = options.StreamingOptions(
-        )
+        ),
+        disable_usage_stats: bool = False,
+        enable_resource_creation: bool = True,
     ) -> flow.FlowResults:
         if processor_instance is not None:
             self.runtime.register_processor(processor_instance)
