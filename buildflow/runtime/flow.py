@@ -34,10 +34,15 @@ class Flow(flow.FlowAPI):
     def processor(self, source: SourceType, sink: Optional[SinkType] = None):
         return processor(self.runtime, source, sink)
 
-    def run(self,
-            processor_instance: Optional[ProcessorAPI] = None,
-            streaming_options: options.StreamingOptions = options.
-            StreamingOptions()) -> flow.FlowResults:
+    def run(
+        self,
+        disable_usage_stats: bool = False,
+        enable_resource_creation: bool = True,
+        processor_instance: Optional[ProcessorAPI] = None,
+        streaming_options: options.StreamingOptions = options.StreamingOptions(
+        )
+    ) -> flow.FlowResults:
         if processor_instance is not None:
             self.runtime.register_processor(processor_instance)
-        return self.runtime.run(streaming_options)
+        return self.runtime.run(streaming_options, disable_usage_stats,
+                                enable_resource_creation)
