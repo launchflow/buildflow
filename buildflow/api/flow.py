@@ -26,10 +26,10 @@ class FlowAPI:
         pass
 
     def run(
-        disable_usage_stats: bool = False,
-        enable_resource_creation: bool = True,
         processor_instance: Optional[ProcessorAPI] = None,
         streaming_options: options.StreamingOptions = options.StreamingOptions(
-        )
+        ),
+        disable_usage_stats: bool = False,
+        enable_resource_creation: bool = True,
     ) -> FlowResults:
         pass

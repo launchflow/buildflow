@@ -95,10 +95,12 @@ class Runtime:
 
     def run(self, streaming_options: options.StreamingOptions,
             enable_resource_creation: bool, disable_usage_stats: bool):
-        if not disable_usage_stats:
+        if (not disable_usage_stats
+                or 'BUILDFLOW_USAGE_STATS_DISABLE' in os.environ):
             print(
-                'Usage stats collection is enabled. To disable add the flag: '
-                '`--disable_usage_stats`.')
+                'Usage stats collection is enabled. To disable set '
+                '`disable_usage_stats` in flow.run() or set the environment variable BUILDFLOW_USAGE_STATS_DISABLE.'
+            )
             response = requests.post(
                 'https://apis.launchflow.com/buildflow_usage',
                 data=json.dumps(dataclasses.asdict(self._session)))

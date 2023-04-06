@@ -7,7 +7,7 @@ export PUBSUB_EMULATOR_HOST=localhost:8085
 
 file_path=/tmp/$(uuidgen)/output.parquet
 
-python pubsub_main.py --disable_usage_stats --file_path=$file_path &
+python pubsub_main.py --file_path=$file_path &
 python pubsub_publish.py
 python pubsub_validation.py --file_path=$file_path
 final_output=$?
