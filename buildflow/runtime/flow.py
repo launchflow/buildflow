@@ -37,6 +37,7 @@ class Flow(flow.FlowAPI):
     def run(
         self,
         processor_instance: Optional[ProcessorAPI] = None,
+        *,
         streaming_options: options.StreamingOptions = options.StreamingOptions(
         ),
         disable_usage_stats: bool = False,

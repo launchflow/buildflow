@@ -27,6 +27,7 @@ class FlowAPI:
 
     def run(
         processor_instance: Optional[ProcessorAPI] = None,
+        *,
         streaming_options: options.StreamingOptions = options.StreamingOptions(
         ),
         disable_usage_stats: bool = False,
