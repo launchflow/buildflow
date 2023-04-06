@@ -119,7 +119,8 @@ class SqsIoTest(unittest.TestCase):
         runner.shutdown()
 
     @mock.patch('boto3.client')
-    def test_sqs_source_disable_resource_creation(self, boto_mock: mock.MagicMock):
+    def test_sqs_source_disable_resource_creation(self,
+                                                  boto_mock: mock.MagicMock):
         path = os.path.join(self.output_path, 'output.parquet')
         fake_sqs = FakeSqsClient(responses=[{
             'Messages': [
