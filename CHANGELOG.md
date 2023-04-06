@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.11](https://github.com/launchflow/buildflow/compare/v0.0.10...v0.0.11) (2023-04-06)
+
+
+### Bug Fixes
+
+* add some usability improvements ([4d8fbbe](https://github.com/launchflow/buildflow/commit/4d8fbbe787e9a50d3b464eac80a9e22f11c03e5d))
+
 ## [0.0.10](https://github.com/launchflow/buildflow/compare/v0.0.9...v0.0.10) (2023-03-28)
 
 
