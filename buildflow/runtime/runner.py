@@ -1,10 +1,8 @@
-import argparse
 import copy
 import dataclasses
 import json
 import logging
 import os
-import sys
 import traceback
 from typing import Dict, Optional
 
@@ -94,20 +92,19 @@ class Runtime:
     def __init__(self):
         self._processors: Dict[str, _ProcessorRef] = {}
         self._session = _load_session()
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--disable_usage_stats',
-                            action='store_true',
-                            default=False)
-        args, _ = parser.parse_known_args(sys.argv)
-        self._enable_usage = True
-        if args.disable_usage_stats:
-            self._enable_usage = False
 
-    def run(self, streaming_options: options.StreamingOptions):
-        if self._enable_usage:
-            print(
-                'Usage stats collection is enabled. To disable add the flag: '
-                '`--disable_usage_stats`.')
+    def run(
+        self,
+        *,
+        streaming_options: options.StreamingOptions,
+        enable_resource_creation: bool,
+        disable_usage_stats: bool,
+    ):
+        if (not disable_usage_stats
+                or 'BUILDFLOW_USAGE_STATS_DISABLE' in os.environ):
+            print('Usage stats collection is enabled. To disable set '
+                  '`disable_usage_stats` in flow.run() or set the environment '
+                  'variable BUILDFLOW_USAGE_STATS_DISABLE.')
             response = requests.post(
                 'https://apis.launchflow.com/buildflow_usage',
                 data=json.dumps(dataclasses.asdict(self._session)))
@@ -117,13 +114,14 @@ class Runtime:
                 logging.debug('failed to record usage stats.')
         print('Starting Flow Runtime')
 
-        print('Setting up resources...')
-        for proc in self._processors.values():
+        if enable_resource_creation:
+            print('Setting up resources...')
+            for proc in self._processors.values():
 
-            proc.source.setup()
-            proc.sink.setup(
-                process_arg_spec=proc.processor_instance.processor_arg_spec())
-        print('...Finished setting up resources')
+                proc.source.setup()
+                proc.sink.setup(process_arg_spec=proc.processor_instance.
+                                processor_arg_spec())
+            print('...Finished setting up resources')
 
         try:
             output = self._run(streaming_options)
@@ -177,8 +175,7 @@ class Runtime:
         # streaming processors.
         if ((processor_instance.source().is_streaming() and self._processors)
                 or any([
-                    p.source.is_streaming()
-                    for p in self._processors.values()
+                    p.source.is_streaming() for p in self._processors.values()
                 ])):
             raise ValueError(
                 'Flows containing a streaming processor are only allowed '

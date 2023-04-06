@@ -2,6 +2,9 @@ name: Python CI
 
 on: [push]
 
+env:
+  BUILDFLOW_USAGE_STATS_DISABLE: 1
+
 jobs:
   flake8:
 
@@ -42,7 +45,7 @@ jobs:
           pip install .[dev]
       - name: Test with pytest
         run: |
-          pytest --disable_usage_stats
+          pytest
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
