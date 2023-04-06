@@ -44,5 +44,7 @@ class Flow(flow.FlowAPI):
     ) -> flow.FlowResults:
         if processor_instance is not None:
             self.runtime.register_processor(processor_instance)
-        return self.runtime.run(streaming_options, disable_usage_stats,
-                                enable_resource_creation)
+        return self.runtime.run(
+            streaming_options=streaming_options,
+            disable_usage_stats=disable_usage_stats,
+            enable_resource_creation=enable_resource_creation)
