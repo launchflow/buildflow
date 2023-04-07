@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.12](https://github.com/launchflow/buildflow/compare/v0.0.11...v0.0.12) (2023-04-07)
+
+
+### Bug Fixes
+
+* add region to SQS source ([c81f47a](https://github.com/launchflow/buildflow/commit/c81f47ac9017cd376e65ec3d6ef5895b93e57922))
+
 ## [0.0.11](https://github.com/launchflow/buildflow/compare/v0.0.10...v0.0.11) (2023-04-06)
 
 
