@@ -22,6 +22,7 @@ def _get_queue_url(aws_conn, queue_name, aws_account_id):
 @dataclass
 class SQSSource(io.StreamingSource):
     queue_name: str
+    region: str = ''
     queue_owner_aws_account_id: str = ''
 
     _queue_url: str = ''
@@ -32,7 +33,9 @@ class SQSSource(io.StreamingSource):
     def get_boto_client(self):
         if self._test_sqs_client is not None:
             return self._test_sqs_client
-        return boto3.client('sqs')
+        if self.region:
+            return boto3.client(service_name='sqs', region_name=self.region)
+        return boto3.client(service_name='sqs')
 
     def get_queue_url(self):
         if not self._queue_url:
@@ -84,7 +87,11 @@ class SQSSourceActor(base.StreamingRaySource):
         if source._test_sqs_client is not None:
             self.sqs_client = source._test_sqs_client
         else:
-            self.sqs_client = boto3.client('sqs')
+            if source.region:
+                self.sqs_client = boto3.client(service_name='sqs',
+                                               region_name=source.region)
+            else:
+                self.sqs_client = boto3.client(service_name='sqs')
         self.queue_url = _get_queue_url(self.sqs_client, source.queue_name,
                                         source.queue_owner_aws_account_id)
         # This is the max messages allowed by SQS.
