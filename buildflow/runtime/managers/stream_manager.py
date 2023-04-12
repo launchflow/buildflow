@@ -247,6 +247,7 @@ class StreamProcessManager:
         try:
             ray.get(self._manager_task)
         except KeyboardInterrupt:
-            # We shutdown on sigint and sigterm. This allow users to easily drain
-            # a job they launched manually, and also kill longer running jobs.
+            # We shutdown on sigint and sigterm. This allow users to easily
+            # drain a job they launched manually, and also kill longer
+            # running jobs.
             self.shutdown()
