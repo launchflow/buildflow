@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.13](https://github.com/launchflow/buildflow/compare/v0.0.12...v0.0.13) (2023-04-12)
+
+
+### Bug Fixes
+
+* drain on sigterm and improve pub/sub backlog ([8ad5848](https://github.com/launchflow/buildflow/commit/8ad584853a82252cb5d2c21c9da5e36803385ae1))
+
 ## [0.0.12](https://github.com/launchflow/buildflow/compare/v0.0.11...v0.0.12) (2023-04-07)
 
 
