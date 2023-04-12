@@ -2,7 +2,9 @@
 
 import asyncio
 import dataclasses
+import datetime
 from google.cloud import monitoring_v3
+from google.cloud.monitoring_v3 import query
 import inspect
 import logging
 import json
@@ -60,18 +62,23 @@ class PubSubSource(io.StreamingSource):
         split_sub = self.subscription.split('/')
         project = split_sub[1]
         sub_id = split_sub[3]
-        client = monitoring_v3.QueryServiceClient()
-        result = client.query_time_series(
-            request=monitoring_v3.QueryTimeSeriesRequest(
-                name=f'projects/{project}',
-                query=_BACKLOG_QUERY_TEMPLATE.format(project=project,
-                                                     sub_id=sub_id),
-                page_size=1))
-        result_list = list(result)
-        if result_list:
-            # TODO: clean this up
-            return result_list[0].point_data[0].values[0].double_value
-        return None
+        client = monitoring_v3.MetricServiceClient()
+        backlog_query = query.Query(
+            client=client,
+            project=project,
+            end_time=datetime.datetime.now(),
+            metric_type=('pubsub.googleapis.com/subscription'
+                         '/num_unacked_messages_by_region'),
+            minutes=5)
+        backlog_query = backlog_query.select_resources(subscription_id=sub_id)
+        last_timeseries = None
+        for backlog_data in backlog_query.iter():
+            last_timeseries = backlog_data
+        if last_timeseries is None:
+            return None
+        points = list(last_timeseries.points)
+        points.sort(key=lambda p: p.interval.end_time, reverse=True)
+        return points[0].value.int64_value
 
     @classmethod
     def recommended_num_threads(cls):

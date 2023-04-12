@@ -17,6 +17,7 @@ When do we scale down?
 import asyncio
 from dataclasses import dataclass
 import logging
+import signal
 import time
 from typing import Awaitable, Dict, Optional, Tuple
 
@@ -233,15 +234,20 @@ class StreamProcessManager:
 
     def run(self):
         self._manager_task = self._actor.run.remote()
+        signal.signal(signal.SIGTERM, self.shutdown)
 
-    def shutdown(self):
+    # NOTE: *args is added so this can be registered with SIGTERM
+    def shutdown(self, *args):
+        print('Shutting down processors...')
         ray.get(self._actor.shutdown.remote())
+        ray.get(self._manager_task)
+        print('...Sucessfully shut down processors.')
 
     def block(self):
         try:
             ray.get(self._manager_task)
         except KeyboardInterrupt:
-            print('Shutting down processors...')
+            # We shutdown on sigint and sigterm. This allow users to easily
+            # drain a job they launched manually, and also kill longer
+            # running jobs.
             self.shutdown()
-            ray.get(self._manager_task)
-            print('...Sucessfully shut down processors.')

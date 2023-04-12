@@ -81,26 +81,33 @@ def get_recommended_num_replicas(
     else:
         new_num_replicas = current_num_replicas
 
-    max_replicas = max_replicas_for_cluster(source_cpus)
-    if new_num_replicas > max_replicas:
-        logging.warning(
-            'reached the max allowed replicas for your cluster %s. We will add'
-            ' more as your cluster scales up.', max_replicas)
-        # TODO: we can look at programatically scaling this to get faster
-        # autoscaling.
-        new_num_replicas = max_replicas
+    max_cluster_replicas = max_replicas_for_cluster(source_cpus)
+    max_replicas = autoscaling_options.max_replicas
 
-    if new_num_replicas > autoscaling_options.max_replicas:
-        logging.warning('reached the max allowed replicas of %s',
-                        autoscaling_options.max_replicas)
-        new_num_replicas = autoscaling_options.max_replicas
+    # If we're trying to scale to more than max replicas and max replicas for
+    # our cluster is less than our total max replicas
+    if (new_num_replicas > max_replicas):
+        if max_replicas <= max_cluster_replicas:
+            logging.warning('reached the max allowed replicas of %s',
+                            autoscaling_options.max_replicas)
+            new_num_replicas = autoscaling_options.max_replicas
     elif new_num_replicas < autoscaling_options.min_replicas:
         logging.warning('reached the minimum allowed replicas of %s',
                         autoscaling_options.min_replicas)
         new_num_replicas = autoscaling_options.min_replicas
 
+    max_cluster_replicas = max_replicas_for_cluster(source_cpus)
+    if new_num_replicas > max_cluster_replicas:
+        if max_cluster_replicas < max_replicas:
+            logging.warning(
+                'reached the max allowed replicas for your cluster %s. We will'
+                ' add more as your cluster scales up.', max_cluster_replicas)
+            # TODO: we can look at programatically scaling this to get faster
+            # autoscaling.
+            new_num_replicas = max_cluster_replicas
+
     if new_num_replicas != current_num_replicas:
-        logging.warning('resizing from %s replicas to %s replicas.',
+        logging.warning('resizing from %s replicas to %s replicas',
                         current_num_replicas, new_num_replicas)
 
     return new_num_replicas
