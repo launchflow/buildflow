@@ -48,6 +48,9 @@ class GCSFileNotifications(io.StreamingSource):
     _managed_publisher = True
     _pubsub_ref: Optional[pubsub_io.PubSubSource] = dataclasses.field(
         init=False, default=None)
+    # The billing project to use for GCP billing. If unset will default to
+    # project_id.
+    billing_project: str = ''
 
     def __post_init__(self):
         if not self.pubsub_topic:
@@ -68,11 +71,13 @@ class GCSFileNotifications(io.StreamingSource):
             topic=self.pubsub_topic,
             include_attributes=True,
         )
+        if not self.billing_project:
+            self.billing_project = self.project_id
 
     def setup(self):
         # TODO: Can we make the pubsub setup easier by just running:
         #   self._pubsub_ref.set()?
-        storage_client = clients.get_storage_client(self.project_id)
+        storage_client = clients.get_storage_client(self.billing_project)
         bucket = None
         try:
             bucket = storage_client.get_bucket(self.bucket_name)
@@ -132,7 +137,7 @@ class GCSFileNotifications(io.StreamingSource):
 
     def preprocess(self, message: pubsub_io.PubsubMessage) -> GCSFileEvent:
         return GCSFileEvent(metadata=message.attributes,
-                            billing_project=self.project_id)
+                            billing_project=self.billing_project)
 
     @classmethod
     def recommended_num_threads(cls):
