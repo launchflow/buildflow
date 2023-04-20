@@ -227,7 +227,7 @@ class BigQuerySourceActor(base.RaySource):
     async def run(self):
         if len(self.bq_read_session_stream_ids) == 1:
             stream = self.bq_read_session_stream_ids[0]
-            response = self.get_bigquery_storage_client(
+            response = clients.get_bigquery_storage_client(
                 self.billing_project).read_rows(stream)
             arrow_subtables = [response.to_arrow()]
         else:
