@@ -52,6 +52,13 @@ jobs:
         with:
           install_components: 'beta,pubsub-emulator'
 
+      - name: Setup GCP Auth
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+
       - name: Run Pub/Sub integration test
         run: |
           cd integration_tests/pubsub_to_pubsub
