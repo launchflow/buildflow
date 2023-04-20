@@ -3,23 +3,24 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from google.api_core import exceptions
-from google.cloud import storage
 
 from buildflow.api import io
 from buildflow.runtime.ray_io import pubsub_io
 from buildflow.runtime.ray_io import pubsub_utils
+from buildflow.runtime.ray_io.gcp import clients
 
 
 @dataclasses.dataclass
 class GCSFileEvent:
     # Metadata about that action taken.
     metadata: Dict[str, Any]
+    billing_project: str
 
     @property
     def blob(self) -> bytes:
         if self.metadata['eventType'] == 'OBJECT_DELETE':
             raise ValueError('Can\'t fetch blob for `OBJECT_DELETE` event.')
-        client = storage.Client()
+        client = clients.get_storage_client(self.billing_project)
         bucket = client.bucket(bucket_name=self.metadata['bucketId'])
         blob = bucket.get_blob(self.metadata['objectId'])
         return blob.download_as_bytes()
@@ -71,7 +72,7 @@ class GCSFileNotifications(io.StreamingSource):
     def setup(self):
         # TODO: Can we make the pubsub setup easier by just running:
         #   self._pubsub_ref.set()?
-        storage_client = storage.Client()
+        storage_client = clients.get_storage_client(self.project_id)
         bucket = None
         try:
             bucket = storage_client.get_bucket(self.bucket_name)
@@ -130,7 +131,8 @@ class GCSFileNotifications(io.StreamingSource):
                         'permission to modify the bucket.')
 
     def preprocess(self, message: pubsub_io.PubsubMessage) -> GCSFileEvent:
-        return GCSFileEvent(metadata=message.attributes)
+        return GCSFileEvent(metadata=message.attributes,
+                            billing_project=self.project_id)
 
     @classmethod
     def recommended_num_threads(cls):

@@ -9,7 +9,8 @@ from buildflow.runtime.ray_io import pubsub_io
 class StreamProcessor1(Processor):
 
     def source(self):
-        return pubsub_io.PubSubSource(subscription='sub')
+        return pubsub_io.PubSubSource(
+            subscription='projects/project/subscriptions/sub')
 
     def process(self, payload):
         return payload
@@ -18,7 +19,8 @@ class StreamProcessor1(Processor):
 class StreamProcessor2(Processor):
 
     def source(self):
-        return pubsub_io.PubSubSource(subscription='sub')
+        return pubsub_io.PubSubSource(
+            subscription='projects/project/subscriptions/sub')
 
     def process(self, payload):
         return payload

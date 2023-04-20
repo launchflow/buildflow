@@ -106,7 +106,8 @@ class BigQueryTest(unittest.TestCase):
 
     @mock.patch('google.cloud.bigquery.Client')
     def test_bigquery_source_setup_table_id(self, bq_mock: mock.MagicMock):
-        bq = bigquery_io.BigQuerySource(table_id='p.ds.t')
+        bq = bigquery_io.BigQuerySource(table_id='p.ds.t',
+                                        billing_project='tmp')
 
         bq.setup()
 
@@ -114,7 +115,7 @@ class BigQueryTest(unittest.TestCase):
 
     @mock.patch('google.cloud.bigquery.Client')
     def test_bigquery_source_setup_query(self, bq_mock: mock.MagicMock):
-        bq = bigquery_io.BigQuerySource(query='query')
+        bq = bigquery_io.BigQuerySource(query='query', billing_project='tmp')
 
         bq.setup()
 
