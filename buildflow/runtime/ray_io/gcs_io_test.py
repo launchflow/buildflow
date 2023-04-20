@@ -29,12 +29,15 @@ class GCSIOTest(unittest.TestCase):
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
     @mock.patch('google.cloud.storage.Client')
+    @mock.patch('google.auth.default')
     def test_create_all_resources(
         self,
+        auth_mock: mock.MagicMock,
         storage_client_mock: mock.MagicMock,
         sub_client_mock: mock.MagicMock,
         pub_client_mock: mock.MagicMock,
     ):
+        auth_mock.return_value = (None, None)
         pub_mock = pub_client_mock.return_value
         sub_mock = sub_client_mock.return_value
         storage_mock = storage_client_mock.return_value
@@ -82,12 +85,15 @@ class GCSIOTest(unittest.TestCase):
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
     @mock.patch('google.cloud.storage.Client')
+    @mock.patch('google.auth.default')
     def test_existing_resources(
         self,
+        auth_mock: mock.MagicMock,
         storage_client_mock: mock.MagicMock,
         sub_client_mock: mock.MagicMock,
         pub_client_mock: mock.MagicMock,
     ):
+        auth_mock.return_value = (None, None)
         pub_mock = pub_client_mock.return_value
         sub_mock = sub_client_mock.return_value
         storage_mock = storage_client_mock.return_value

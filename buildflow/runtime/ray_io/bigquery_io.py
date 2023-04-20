@@ -233,7 +233,9 @@ class BigQuerySourceActor(base.RaySource):
         else:
             tasks = []
             for stream in self.bq_read_session_stream_ids:
-                tasks.append(_load_arrow_table_from_stream.remote(stream))
+                tasks.append(
+                    _load_arrow_table_from_stream.remote(
+                        stream, self.billing_project))
             arrow_subtables = await asyncio.gather(*tasks)
         # TODO: determine if we can remove the async tag from this method.
         # NOTE: This uses ray.get, so it will block / log a warning.
