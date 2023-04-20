@@ -24,10 +24,7 @@ _TARGET_UTILIZATION = .5
 
 
 def max_replicas_for_cluster(cpu_per_replica: float):
-    print('DO NOT SUBMIT: cpu per replica: ', cpu_per_replica)
     num_cpus = ray.cluster_resources()['CPU']
-
-    print('DO NOT SUBMIT: max replicas: ', int(num_cpus / cpu_per_replica))
 
     return int(num_cpus / cpu_per_replica)
 

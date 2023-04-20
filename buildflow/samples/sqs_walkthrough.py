@@ -35,7 +35,6 @@ flow = Flow()
 
 @flow.processor(source=source, sink=sink)
 def process(element: Dict[str, Any]):
-    print('DO NOT SUBMIT IN PROCESS: ', datetime.datetime.now())
     time.sleep(5)
     return json.loads(element['Body'])
 

@@ -31,8 +31,11 @@ class Flow(flow.FlowAPI):
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def processor(self, source: SourceType, sink: Optional[SinkType] = None):
-        return processor(self.runtime, source, sink)
+    def processor(self,
+                  source: SourceType,
+                  sink: Optional[SinkType] = None,
+                  num_cpus: float = .5):
+        return processor(self.runtime, source, sink, num_cpus)
 
     def run(
         self,

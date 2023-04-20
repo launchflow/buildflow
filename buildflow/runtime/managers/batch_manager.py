@@ -11,11 +11,11 @@ class BatchProcessManager:
         key = str(self.processor_ref.sink)
         if isinstance(self.processor_ref.sink, empty_io.EmptySink):
             key = 'local'
-        processor_actor = processors.ProcessActor.remote(
-            self.processor_ref.get_processor_replica())
+        processor_actor = processors.ProcessActor.options(
+            num_cpues=self.processor_ref.processor_instance.num_cpus()).remote(
+                self.processor_ref.get_processor_replica())
         sink_actor = self.processor_ref.sink.actor(
-            processor_actor,
-            self.processor_ref.source.is_streaming())
+            processor_actor, self.processor_ref.source.is_streaming())
 
         source_actor = self.processor_ref.source.actor({key: sink_actor})
         return source_actor.run.remote()

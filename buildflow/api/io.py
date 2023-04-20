@@ -10,7 +10,7 @@ class _BaseIO:
         # scheduled.
         # TODO: we should probably make this configurable though to help
         # prevent OOMs.
-        return .01
+        return .1
 
 
 class Source(_BaseIO):

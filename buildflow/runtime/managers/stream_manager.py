@@ -95,10 +95,9 @@ class _StreamManagerActor:
         )
         self.num_replicas_gauge.set_default_tags(
             {"actor_name": self.__class__.__name__})
-        # TODO: update this when users can configure their num cpus for
-        # processors.
-        self.cpu_per_replica = (processor_ref.sink.num_cpus() +
-                                processor_ref.source.num_cpus() + .5)
+        self.cpu_per_replica = (
+            processor_ref.sink.num_cpus() + processor_ref.source.num_cpus() +
+            self.processor_ref.processor_instance.num_cpus())
 
     def _add_replica(self):
         key = str(self.processor_ref.sink)
@@ -110,11 +109,11 @@ class _StreamManagerActor:
         # on what source actors get turned down.
         # Could maybe solve this with ray placement groups:
         #   https://docs.ray.io/en/latest/ray-core/scheduling/placement-group.html
-        process_actor = processors.ProcessActor.remote(
-            self.processor_ref.get_processor_replica())
+        process_actor = processors.ProcessActor.options(
+            num_cpus=self.processor_ref.processor_instance.num_cpus()).remote(
+                self.processor_ref.get_processor_replica())
         sink_actor = self.processor_ref.sink.actor(
-            process_actor,
-            self.processor_ref.source.is_streaming())
+            process_actor, self.processor_ref.source.is_streaming())
 
         replica_id = utils.uuid()
         source_actor = self.processor_ref.source.actor({key: sink_actor})

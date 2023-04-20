@@ -20,7 +20,7 @@ class ProcessorRef:
 
 
 # TODO(#113): make this configurable by the user
-@ray.remote(num_cpus=.5)
+@ray.remote
 class ProcessActor(object):
 
     def __init__(self, processor_instance: ProcessorAPI):
