@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 import logging
+import time
 from typing import Any, Dict, Optional
 
 import boto3
@@ -101,6 +102,7 @@ class SQSSourceActor(base.StreamingRaySource):
     async def run(self):
         while self.running:
             try:
+                start_time = time.time()
                 response = self.sqs_client.receive_message(
                     QueueUrl=self.queue_url,
                     AttributeNames=['All'],
@@ -130,7 +132,7 @@ class SQSSourceActor(base.StreamingRaySource):
                 # Ideally we wouldn't have to put this sleep in here though.
                 # TODO: look at using promethius metrics to get metrics
                 # instead.
-                await asyncio.sleep(.1)
+                await asyncio.sleep(.1, time.time() - start_time)
             except Exception as error:
                 logging.error(
                     'Couldn\'t process messages from queue: %s. The message '

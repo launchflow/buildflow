@@ -22,6 +22,7 @@ import time
 from typing import Awaitable, Dict, Optional, Tuple
 
 import ray
+from ray.util.metrics import Gauge
 
 from buildflow import utils
 from buildflow.api.options import StreamingOptions
@@ -90,6 +91,13 @@ class _StreamManagerActor:
         self._running_average = float("nan")
         self._sink_actor = None
         self._replicas = {}
+        self.num_replicas_gauge = Gauge(
+            "num_replicas",
+            description="Current number of replicas. Goes up and down.",
+            tag_keys=("actor_name", ),
+        )
+        self.num_replicas_gauge.set_default_tags(
+            {"actor_name": self.__class__.__name__})
 
     def _add_replica(self):
         key = str(self.processor_ref.sink)
@@ -157,6 +165,8 @@ class _StreamManagerActor:
                 'will scale up the number of replicas as more nodes are added.'
             )
             start_replics = max_replicas
+        # Report number of replicas we're starting with.
+        self.num_replicas_gauge.set(start_replics)
         for _ in range(start_replics):
             self._add_replica()
         last_autoscale_check = None
@@ -207,7 +217,8 @@ class _StreamManagerActor:
                     source_cpus=self.processor_ref.source.num_cpus(),
                     autoscaling_options=self.options,
                 )
-
+                # Report new number of replicas from the scaling event.
+                self.num_replicas_gauge.set(new_num_replicas)
                 if new_num_replicas > num_replicas:
                     replicas_to_add = new_num_replicas - num_replicas
                     for _ in range(replicas_to_add):
