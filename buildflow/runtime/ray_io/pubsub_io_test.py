@@ -21,13 +21,17 @@ class PubsubIOTest(unittest.TestCase):
         pub_mock.get_topic.side_effect = exceptions.NotFound('unused')
         sub_mock.get_subscription.side_effect = exceptions.NotFound('unused')
 
-        pubsub_io = io.PubSubSource(topic='pubsub-topic',
-                                    subscription='pubsub-sub')
+        pubsub_io = io.PubSubSource(
+            topic='projects/project/topics/pubsub-topic',
+            subscription='projects/project/subscriptions/pubsub-sub')
         pubsub_io.setup()
 
-        pub_mock.create_topic.assert_called_once_with(name='pubsub-topic')
+        pub_mock.create_topic.assert_called_once_with(
+            name='projects/project/topics/pubsub-topic')
         sub_mock.create_subscription.assert_called_once_with(
-            name='pubsub-sub', topic='pubsub-topic', ack_deadline_seconds=600)
+            name='projects/project/subscriptions/pubsub-sub',
+            topic='projects/project/topics/pubsub-topic',
+            ack_deadline_seconds=600)
 
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
@@ -40,13 +44,16 @@ class PubsubIOTest(unittest.TestCase):
         sub_mock = sub_client_mock.return_value
         sub_mock.get_subscription.side_effect = exceptions.NotFound('unused')
 
-        pubsub_io = io.PubSubSource(topic='pubsub-topic',
-                                    subscription='pubsub-sub')
+        pubsub_io = io.PubSubSource(
+            topic='projects/project/topics/pubsub-topic',
+            subscription='projects/project/subscriptions/pubsub-sub')
         pubsub_io.setup()
 
         pub_mock.create_topic.assert_not_called()
         sub_mock.create_subscription.assert_called_once_with(
-            name='pubsub-sub', topic='pubsub-topic', ack_deadline_seconds=600)
+            name='projects/project/subscriptions/pubsub-sub',
+            topic='projects/project/topics/pubsub-topic',
+            ack_deadline_seconds=600)
 
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
@@ -58,8 +65,9 @@ class PubsubIOTest(unittest.TestCase):
         pub_mock = pub_client_mock.return_value
         sub_mock = sub_client_mock.return_value
 
-        pubsub_io = io.PubSubSource(topic='pubsub-topic',
-                                    subscription='pubsub-sub')
+        pubsub_io = io.PubSubSource(
+            topic='projects/project/topics/pubsub-topic',
+            subscription='projects/project/subscriptions/pubsub-sub')
         pubsub_io.setup()
 
         pub_mock.create_topic.assert_not_called()
@@ -73,9 +81,13 @@ class PubsubIOTest(unittest.TestCase):
         sub_mock = sub_client_mock.return_value
         sub_mock.get_subscription.side_effect = exceptions.NotFound('unused')
 
-        pubsub_io = io.PubSubSource(topic='', subscription='pubsub-sub')
-        with self.assertRaisesRegex(ValueError,
-                                    'subscription: pubsub-sub was not found'):
+        pubsub_io = io.PubSubSource(
+            topic='', subscription='projects/project/subscriptions/pubsub-sub')
+        with self.assertRaisesRegex(
+                ValueError,
+                'subscription: projects/project/subscriptions/pubsub-sub was '
+                'not found'
+        ):
             pubsub_io.setup()
 
     @mock.patch('google.cloud.pubsub.PublisherClient')
@@ -87,10 +99,11 @@ class PubsubIOTest(unittest.TestCase):
 
         pub_mock.get_topic.side_effect = exceptions.NotFound('unused')
 
-        pubsub_io = io.PubSubSink('pubsub-topic')
+        pubsub_io = io.PubSubSink('projects/project/topics/pubsub-topic')
         pubsub_io.setup(None)
 
-        pub_mock.create_topic.assert_called_once_with(name='pubsub-topic')
+        pub_mock.create_topic.assert_called_once_with(
+            name='projects/project/topics/pubsub-topic')
 
 
 if __name__ == '__main__':

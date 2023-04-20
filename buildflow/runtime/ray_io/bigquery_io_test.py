@@ -27,13 +27,15 @@ class FakeTable:
 class BigQueryTest(unittest.TestCase):
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
     def test_validate_setup_query_no_temp_dataset(
         self,
         bq_storage_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
         bq_mock: mock.MagicMock,
     ):
-
+        auth_mock.return_value = (None, None)
         bq_storage_client = bq_storage_mock.return_value
         bq_client_mock = bq_mock.return_value
 
@@ -50,13 +52,15 @@ class BigQueryTest(unittest.TestCase):
         bq_storage_client.create_read_session.assert_called_once()
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
     def test_validate_setup_query_with_temp_dataset(
         self,
         bq_storage_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
         bq_mock: mock.MagicMock,
     ):
-
+        auth_mock.return_value = (None, None)
         bq_storage_client = bq_storage_mock.return_value
 
         query = 'SELECT * FROM TABLE'
@@ -76,13 +80,15 @@ class BigQueryTest(unittest.TestCase):
         bq_storage_client.create_read_session.assert_called_once()
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     @mock.patch('google.cloud.bigquery_storage_v1.BigQueryReadClient')
     def test_validate_setup_table(
         self,
         bq_storage_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
         bq_mock: mock.MagicMock,
     ):
-
+        auth_mock.return_value = (None, None)
         bq_storage_client = bq_storage_mock.return_value
 
         bq_client_mock = bq_mock.return_value
@@ -105,23 +111,33 @@ class BigQueryTest(unittest.TestCase):
             max_stream_count=1000)
 
     @mock.patch('google.cloud.bigquery.Client')
-    def test_bigquery_source_setup_table_id(self, bq_mock: mock.MagicMock):
-        bq = bigquery_io.BigQuerySource(table_id='p.ds.t')
+    @mock.patch('google.auth.default')
+    def test_bigquery_source_setup_table_id(self, auth_mock: mock.MagicMock,
+                                            bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
+        bq = bigquery_io.BigQuerySource(table_id='p.ds.t',
+                                        billing_project='tmp')
 
         bq.setup()
 
         bq_mock.return_value.get_table.assert_called_once_with(table='p.ds.t')
 
     @mock.patch('google.cloud.bigquery.Client')
-    def test_bigquery_source_setup_query(self, bq_mock: mock.MagicMock):
-        bq = bigquery_io.BigQuerySource(query='query')
+    @mock.patch('google.auth.default')
+    def test_bigquery_source_setup_query(self, auth_mock: mock.MagicMock,
+                                         bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
+        bq = bigquery_io.BigQuerySource(query='query', billing_project='tmp')
 
         bq.setup()
 
         bq_mock.return_value.query.assert_called_once()
 
     @mock.patch('google.cloud.bigquery.Client')
-    def test_bigquery_sink_setup_create_table(self, bq_mock: mock.MagicMock):
+    @mock.patch('google.auth.default')
+    def test_bigquery_sink_setup_create_table(self, auth_mock: mock.MagicMock,
+                                              bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
 
@@ -152,8 +168,11 @@ class BigQueryTest(unittest.TestCase):
         ])
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     def test_bigquery_sink_setup_schema_mismatch(self,
+                                                 auth_mock: mock.MagicMock,
                                                  bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.return_value = bigquery.Table(
             'p.ds.j',
@@ -176,7 +195,10 @@ class BigQueryTest(unittest.TestCase):
             bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
     @mock.patch('google.cloud.bigquery.Client')
-    def test_bigquery_sink_setup_schema_match(self, bq_mock: mock.MagicMock):
+    @mock.patch('google.auth.default')
+    def test_bigquery_sink_setup_schema_match(self, auth_mock: mock.MagicMock,
+                                              bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.return_value = bigquery.Table(
             'p.ds.j',
@@ -198,8 +220,10 @@ class BigQueryTest(unittest.TestCase):
         bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     def test_bigquery_sink_setup_schema_no_output_type_not_validated(
-            self, bq_mock: mock.MagicMock):
+            self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.return_value = bigquery.Table(
             'p.ds.j',
@@ -217,8 +241,10 @@ class BigQueryTest(unittest.TestCase):
         bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     def test_bigquery_sink_setup_schema_no_output_type_value_error(
-            self, bq_mock: mock.MagicMock):
+            self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
 
@@ -231,8 +257,11 @@ class BigQueryTest(unittest.TestCase):
             bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     def test_bigquery_sink_setup_create_table_list(self,
+                                                   auth_mock: mock.MagicMock,
                                                    bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
 
@@ -263,8 +292,10 @@ class BigQueryTest(unittest.TestCase):
         ])
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     def test_bigquery_sink_setup_create_table_optional(
-            self, bq_mock: mock.MagicMock):
+            self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
 
@@ -295,8 +326,10 @@ class BigQueryTest(unittest.TestCase):
         ])
 
     @mock.patch('google.cloud.bigquery.Client')
+    @mock.patch('google.auth.default')
     def test_bigquery_sink_setup_create_table_iterable(
-            self, bq_mock: mock.MagicMock):
+            self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock):
+        auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound('unused')
 

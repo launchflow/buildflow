@@ -16,6 +16,7 @@ dependencies = [
     # TODO: split up AWS and GCP dependencies.
     "boto3",
     "duckdb==0.6.0",
+    "google-auth",
     "google-cloud-bigquery",
     "google-cloud-bigquery-storage",
     "google-cloud-monitoring",
@@ -45,6 +46,7 @@ classifiers = [
 dev = [
     "moto",
     "pytest",
+    "pytest-timeout",
     "flake8",
     "setuptools",
     "wheel"

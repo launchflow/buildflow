@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 import logging
+import time
 from typing import Any, Dict, Optional
 
 import boto3
@@ -101,6 +102,7 @@ class SQSSourceActor(base.StreamingRaySource):
     async def run(self):
         while self.running:
             try:
+                start_time = time.time()
                 response = self.sqs_client.receive_message(
                     QueueUrl=self.queue_url,
                     AttributeNames=['All'],
@@ -123,7 +125,7 @@ class SQSSourceActor(base.StreamingRaySource):
                 # TODO: we should look into abstracting the while loop in
                 # base.StreamingRaySource then new sources wouldn't have to
                 # worry about the shutdown / reporting metrics
-                self.update_metrics(num_messages)
+                self.update_metrics(num_messages, time.time() - start_time)
                 # Since SQS doesn't have an async client we need to
                 # sleep here to yield back the event loop. This allows us to
                 # collect metrics and shut down correctly.

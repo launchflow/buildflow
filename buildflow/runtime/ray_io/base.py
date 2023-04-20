@@ -1,12 +1,13 @@
 """Base class for all Ray IO Connectors"""
 
 import asyncio
-import atexit
 import dataclasses
 import os
 from typing import Any, Callable, Dict, Iterable, Union
 
 import ray
+from ray.util.metrics import Gauge
+
 from buildflow.runtime import tracer as t
 from buildflow import utils
 
@@ -135,13 +136,21 @@ class StreamingRaySource(RaySource):
         self._requests = 0
         self._secs = 0
         self._replica_id = utils.uuid()
-        atexit.register(self.shutdown)
+        self.throughput_gauge = Gauge(
+            "throughput",
+            description="Current throughput of the actor. Goes up and down.",
+            tag_keys=("actor_name", ),
+        )
+        self.throughput_gauge.set_default_tags(
+            {"actor_name": self.__class__.__name__})
 
-    def update_metrics(self, num_events: int):
+    def update_metrics(self, num_events: int, execution_time_secs: float):
         self._num_events += num_events
         self._requests += 1
         if not num_events:
             self._empty_responses += 1
+        self._events_per_second = num_events / execution_time_secs
+        self.throughput_gauge.set(round(self._events_per_second, 2))
 
     def metrics(self) -> float:
         """Returns the utilization of the source since this was last called.

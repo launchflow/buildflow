@@ -26,6 +26,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test:
+    permissions:
+      contents: write
+      id-token: write
 
     runs-on: ubuntu-latest
     strategy:
@@ -45,12 +48,19 @@ jobs:
           pip install .[dev]
       - name: Test with pytest
         run: |
-          pytest
+          pytest --timeout=60
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
         with:
           install_components: 'beta,pubsub-emulator'
+
+      - name: Setup GCP Auth
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
 
       - name: Run Pub/Sub integration test
         run: |

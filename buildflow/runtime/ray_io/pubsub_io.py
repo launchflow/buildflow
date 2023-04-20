@@ -3,20 +3,19 @@
 import asyncio
 import dataclasses
 import datetime
-from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import query
 import inspect
 import logging
 import json
+import time
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
-from google.cloud import pubsub
-from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
 import ray
 
 from buildflow.api import io
 from buildflow.runtime.ray_io import base
 from buildflow.runtime.ray_io import pubsub_utils
+from buildflow.runtime.ray_io.gcp import clients
 
 _BACKLOG_QUERY_TEMPLATE = """\
 fetch pubsub_subscription
@@ -51,6 +50,14 @@ class PubSubSource(io.StreamingSource):
     # Whether or not to include the pubsub attributes. If this is true you will
     # get a buildflow.PubsubMessage class as your input.
     include_attributes: bool = False
+    # The project to bill for Pub/Sub usage. If not set we use the project that
+    # the subscription exists in.
+    billing_project: str = ''
+
+    def __post_init__(self):
+        if not self.billing_project:
+            split_sub = self.subscription.split('/')
+            self.billing_project = split_sub[1]
 
     def setup(self):
         pubsub_utils.maybe_create_subscription(self.subscription, self.topic)
@@ -62,7 +69,7 @@ class PubSubSource(io.StreamingSource):
         split_sub = self.subscription.split('/')
         project = split_sub[1]
         sub_id = split_sub[3]
-        client = monitoring_v3.MetricServiceClient()
+        client = clients.get_metrics_client(project)
         backlog_query = query.Query(
             client=client,
             project=project,
@@ -93,6 +100,14 @@ class PubSubSink(io.Sink):
     """Source for writing to a Pub/Sub topic."""
 
     topic: str
+    # The project to bill for Pub/Sub usage. If not set we use the project that
+    # the topic exists in.
+    billing_project: str = ''
+
+    def __post_init__(self):
+        if not self.billing_project:
+            split_topic = self.topic.split('/')
+            self.billing_project = split_topic[1]
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
         pubsub_utils.maybe_create_topic(self.topic)
@@ -112,12 +127,14 @@ class PubSubSourceActor(base.StreamingRaySource):
         super().__init__(ray_sinks)
         self.subscription = pubsub_ref.subscription
         self.include_attributes = pubsub_ref.include_attributes
+        self.billing_project = pubsub_ref.billing_project
         self.batch_size = 1000
         self.running = True
 
     async def run(self):
-        pubsub_client = SubscriberAsyncClient()
+        pubsub_client = clients.get_subscriber_client(self.billing_project)
         while self.running:
+            start_time = time.time()
             ack_ids = []
             payloads = []
             try:
@@ -166,7 +183,7 @@ class PubSubSourceActor(base.StreamingRaySource):
                 await asyncio.sleep(3)
             # For pub/sub we determine the utilization based on the number of
             # messages received versus how many we received.
-            self.update_metrics(len(payloads))
+            self.update_metrics(len(payloads), time.time() - start_time)
 
     def shutdown(self):
         self.running = False
@@ -184,7 +201,8 @@ class PubSubSinkActor(base.RaySink):
         pubsub_ref: PubSubSink,
     ) -> None:
         super().__init__(remote_fn)
-        self.pubslisher_client = pubsub.PublisherClient()
+        self.pubslisher_client = clients.get_publisher_client(
+            pubsub_ref.billing_project)
         self.topic = pubsub_ref.topic
 
     async def _write(

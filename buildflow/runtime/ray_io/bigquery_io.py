@@ -6,17 +6,17 @@ import inspect
 import json
 import logging
 import time
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Union
 
 from google.api_core import exceptions
-import google.auth
-from google.cloud import bigquery, bigquery_storage_v1, storage
+from google.cloud import bigquery, bigquery_storage_v1
 import pyarrow as pa
 import ray
 
 from buildflow import utils
 from buildflow.api import io
 from buildflow.runtime.ray_io import base
+from buildflow.runtime.ray_io.gcp import clients
 from buildflow.runtime.ray_io.schemas import bigquery as bq_schemas
 
 _DEFAULT_TEMP_DATASET = 'buildflow_temp'
@@ -24,18 +24,6 @@ _DEFAULT_TEMP_BUCKET = 'buildflow_temp'
 # 3 days
 _DEFAULT_DATASET_EXPIRATION_MS = 24 * 3 * 60 * 60 * 1000
 _MAX_STREAM_COUNT = 1000
-
-
-def _get_storage_client() -> storage.Client:
-    return storage.Client()
-
-
-def _get_bigquery_client(project: Optional[str] = None) -> bigquery.Client:
-    return bigquery.Client(project=project)
-
-
-def _get_bigquery_storage_client() -> bigquery_storage_v1.BigQueryReadClient:
-    return bigquery_storage_v1.BigQueryReadClient()
 
 
 @dataclasses.dataclass
@@ -47,19 +35,29 @@ class BigQuerySource(io.Source):
     table_id: str = ''
     # The query to read data from.
     # One and only one of table_id and query should be provided.
+    # NOTE: You must provide `billing_project` if using a query.
     query: str = ''
     # The temporary dataset to store query results in. If unspecified we will
     # attempt to create one.
     temp_dataset: str = ''
-    # The billing project to use for query usage. If unset we will use the
-    # project configured with application default credentials.
+    # The billing project to use for query usage. If unset we will use attempt
+    # to user the project from `table_id`.
+    # NOTE: This must be provided if you are using a query.
     billing_project: str = ''
 
-    def setup(self):
+    def __post_init__(self):
         if self.query and self.table_id:
             raise ValueError(
                 'Only one of query and table_id should be provided.')
-        client = bigquery.Client()
+        if not self.billing_project:
+            if self.query:
+                raise ValueError(
+                    'billing_project must be provided if using a query')
+            split_table = self.table_id.split('.')
+            self.billing_project = split_table[0]
+
+    def setup(self):
+        client = clients.get_bigquery_client(self.billing_project)
         if self.table_id:
             try:
                 client.get_table(table=self.table_id)
@@ -77,11 +75,7 @@ class BigQuerySource(io.Source):
                     f'Failed to test BigQuery query. Failed with: {e}') from e
 
     def actor(self, ray_sinks):
-        if self.billing_project:
-            project = self.billing_project
-        else:
-            _, project = google.auth.default()
-        bq_client = _get_bigquery_client(project)
+        bq_client = clients.get_bigquery_client(self.billing_project)
         if self.query:
             if self.temp_dataset:
                 output_table = (f'{self.temp_dataset}.{utils.uuid()}')
@@ -89,7 +83,8 @@ class BigQuerySource(io.Source):
                 logging.info(
                     'temporary dataset was not provided, attempting to create'
                     ' one.')
-                dataset_name = f'{project}.{_DEFAULT_TEMP_DATASET}'
+                dataset_name = (
+                    f'{self.billing_project}.{_DEFAULT_TEMP_DATASET}')
                 dataset = bq_client.create_dataset(dataset=dataset_name,
                                                    exists_ok=True)
                 dataset.default_table_expiration_ms = _DEFAULT_DATASET_EXPIRATION_MS  # noqa: E501
@@ -116,7 +111,8 @@ class BigQuerySource(io.Source):
             table=(f'projects/{table.project}/datasets/'
                    f'{table.dataset_id}/tables/{table.table_id}'),
             data_format=bigquery_storage_v1.types.DataFormat.ARROW)
-        storage_client = _get_bigquery_storage_client()
+        storage_client = clients.get_bigquery_storage_client(
+            self.billing_project)
         parent = f'projects/{table.project}'
         read_session = storage_client.create_read_session(
             parent=parent,
@@ -126,7 +122,8 @@ class BigQuerySource(io.Source):
         # The BigQuerySourceActor instance will fan these tasks out and combine
         # them into a single ray Dataset in the run() method.
         streams = [stream.name for stream in read_session.streams]
-        return BigQuerySourceActor.remote(ray_sinks, streams)
+        return BigQuerySourceActor.remote(ray_sinks, streams,
+                                          self.billing_project)
 
 
 @dataclasses.dataclass
@@ -139,12 +136,17 @@ class BigQuerySink(io.Sink):
     # batch mode.
     # TODO: we should attempt to create this if it doesn't exist.
     temp_gcs_bucket: str = ''
-    # The billing project to use for usage. If unset we will use the
-    # project configured with application default credentials.
+    # The billing project to use for usage. If not set we will bill the project
+    # that the table exists in.
     billing_project: str = ''
 
+    def __post_init__(self):
+        if not self.billing_project:
+            split_table = self.table_id.split('.')
+            self.billing_project = split_table[0]
+
     def setup(self, process_arg_spec: inspect.FullArgSpec):
-        client = bigquery.Client()
+        client = clients.get_bigquery_client(self.billing_project)
         schema = None
         if 'return' in process_arg_spec.annotations:
             return_type = process_arg_spec.annotations['return']
@@ -202,8 +204,8 @@ class BigQuerySink(io.Sink):
 
 
 @ray.remote
-def _load_arrow_table_from_stream(stream: str) -> pa.Table:
-    storage_client = _get_bigquery_storage_client()
+def _load_arrow_table_from_stream(stream: str, project: str) -> pa.Table:
+    storage_client = clients.get_bigquery_storage_client(project)
     response = storage_client.read_rows(stream)
     return response.to_arrow()
 
@@ -215,20 +217,25 @@ class BigQuerySourceActor(base.RaySource):
         self,
         ray_sinks: Dict[str, base.RaySink],
         bq_read_session_stream_ids: List[str],
+        billing_project: str
     ) -> None:
         super().__init__(ray_sinks)
         self.bq_read_session_stream_ids = bq_read_session_stream_ids
+        self.billing_project = billing_project
         logging.basicConfig(level=logging.INFO)
 
     async def run(self):
         if len(self.bq_read_session_stream_ids) == 1:
             stream = self.bq_read_session_stream_ids[0]
-            response = _get_bigquery_storage_client().read_rows(stream)
+            response = self.get_bigquery_storage_client(
+                self.billing_project).read_rows(stream)
             arrow_subtables = [response.to_arrow()]
         else:
             tasks = []
             for stream in self.bq_read_session_stream_ids:
-                tasks.append(_load_arrow_table_from_stream.remote(stream))
+                tasks.append(
+                    _load_arrow_table_from_stream.remote(
+                        stream, self.billing_project))
             arrow_subtables = await asyncio.gather(*tasks)
         # TODO: determine if we can remove the async tag from this method.
         # NOTE: This uses ray.get, so it will block / log a warning.
@@ -238,7 +245,7 @@ class BigQuerySourceActor(base.RaySource):
 
 def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
                           source_format: bigquery.SourceFormat, project: str):
-    bq_client = _get_bigquery_client(project)
+    bq_client = clients.get_bigquery_client(project)
     job_config = bigquery.LoadJobConfig(
         source_format=source_format,
         # TODO: Autodetect can be kind of awful we should set this
@@ -258,7 +265,7 @@ def run_load_job_and_wait(bigquery_table_id: str, gcs_glob_uri: str,
 @ray.remote(num_cpus=0.25)
 def json_rows_streaming(json_rows: Iterable[Dict[str, Any]],
                         bigquery_table_id: str, project: str) -> None:
-    bq_client = _get_bigquery_client(project)
+    bq_client = clients.get_bigquery_client(project)
     errors = bq_client.insert_rows_json(bigquery_table_id, json_rows)
     if errors:
         raise RuntimeError(f'BigQuery streaming insert failed: {errors}')
@@ -267,8 +274,9 @@ def json_rows_streaming(json_rows: Iterable[Dict[str, Any]],
 @ray.remote
 def json_rows_load_job(json_rows: Iterable[Dict[str,
                                                 Any]], bigquery_table_id: str,
-                       gcs_bucket: str, project: str) -> str:
-    storage_client = _get_storage_client()
+                       gcs_bucket: str, project: str,
+                       billing_project: str) -> str:
+    storage_client = clients.get_storage_client(billing_project)
     bucket = storage_client.bucket(gcs_bucket)
     job_uuid = utils.uuid()
     json_file_contents = '\n'.join(json.dumps(row) for row in json_rows)
@@ -305,17 +313,14 @@ class BigQuerySinkActor(base.RaySink):
     ) -> None:
         super().__init__(remote_fn)
         self.bq_table_id = bq_ref.table_id
-        if bq_ref.billing_project:
-            self.project = bq_ref.billing_project
-        else:
-            self.project = self.bq_table_id.split('.')[0]
+        self.project = bq_ref.billing_project
 
         if not use_streaming and not bq_ref.temp_gcs_bucket:
             raise ValueError('`temp_gcs_bucket` must be provided for batch.')
         self.temp_gcs_bucket = bq_ref.temp_gcs_bucket
 
         self.use_streaming = use_streaming
-        self.bq_client = _get_bigquery_client(self.project)
+        self.bq_client = clients.get_bigquery_client(self.project)
 
     async def _write(
         self,
