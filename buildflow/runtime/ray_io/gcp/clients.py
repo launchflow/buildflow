@@ -17,12 +17,12 @@ def _get_gcp_creds(quota_project_id: str) -> Credentials:
 
 def get_storage_client(project: str = None) -> storage.Client:
     creds = _get_gcp_creds(project)
-    return storage.Client(project=project, credentials=creds)
+    return storage.Client(credentials=creds)
 
 
 def get_bigquery_client(project: str = None) -> bigquery.Client:
     creds = _get_gcp_creds(project)
-    return bigquery.Client(project=project, credentials=creds)
+    return bigquery.Client(credentials=creds)
 
 
 def get_bigquery_storage_client(
