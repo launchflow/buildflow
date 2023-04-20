@@ -46,6 +46,7 @@ classifiers = [
 dev = [
     "moto",
     "pytest",
+    "pytest-timeout",
     "flake8",
     "setuptools",
     "wheel"

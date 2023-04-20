@@ -125,14 +125,14 @@ class SQSSourceActor(base.StreamingRaySource):
                 # TODO: we should look into abstracting the while loop in
                 # base.StreamingRaySource then new sources wouldn't have to
                 # worry about the shutdown / reporting metrics
-                self.update_metrics(num_messages)
+                self.update_metrics(num_messages, time.time() - start_time)
                 # Since SQS doesn't have an async client we need to
                 # sleep here to yield back the event loop. This allows us to
                 # collect metrics and shut down correctly.
                 # Ideally we wouldn't have to put this sleep in here though.
                 # TODO: look at using promethius metrics to get metrics
                 # instead.
-                await asyncio.sleep(.1, time.time() - start_time)
+                await asyncio.sleep(.1)
             except Exception as error:
                 logging.error(
                     'Couldn\'t process messages from queue: %s. The message '

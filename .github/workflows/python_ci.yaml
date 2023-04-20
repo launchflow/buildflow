@@ -45,7 +45,7 @@ jobs:
           pip install .[dev]
       - name: Test with pytest
         run: |
-          pytest
+          pytest --timeout=60
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
