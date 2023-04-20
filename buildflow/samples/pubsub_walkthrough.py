@@ -46,7 +46,7 @@ flow = Flow()
 
 
 # Define our processor.
-@flow.processor(source=input_sub, sink=output_table, num_cpus=.1)
+@flow.processor(source=input_sub, sink=output_table)
 def process(element: Dict[str, Any]) -> TaxiOutput:
     return element
 

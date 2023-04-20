@@ -98,8 +98,9 @@ class GCSFileNotifications(io.StreamingSource):
                 f'serviceAccount:service-{bucket.project_number}@gs-project-accounts.iam.gserviceaccount.com'  # noqa: E501
             )
             pubsub_utils.maybe_create_subscription(
-                self.pubsub_subscription,
-                self.pubsub_topic,
+                pubsub_subscription=self.pubsub_subscription,
+                pubsub_topic=self.pubsub_topic,
+                billing_project=self.billing_project,
                 publisher_members=[gcs_notify_sa])
         if self._managed_publisher:
             notification_found = False

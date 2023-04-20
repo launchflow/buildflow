@@ -60,7 +60,10 @@ class PubSubSource(io.StreamingSource):
             self.billing_project = split_sub[1]
 
     def setup(self):
-        pubsub_utils.maybe_create_subscription(self.subscription, self.topic)
+        pubsub_utils.maybe_create_subscription(
+            pubsub_subscription=self.subscription,
+            pubsub_topic=self.topic,
+            billing_project=self.billing_project)
 
     def actor(self, ray_sinks):
         return PubSubSourceActor.remote(ray_sinks, self)
@@ -110,7 +113,8 @@ class PubSubSink(io.Sink):
             self.billing_project = split_topic[1]
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
-        pubsub_utils.maybe_create_topic(self.topic)
+        pubsub_utils.maybe_create_topic(pubsub_topic=self.topic,
+                                        billing_project=self.billing_project)
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return PubSubSinkActor.remote(remote_fn, self)
@@ -132,7 +136,8 @@ class PubSubSourceActor(base.StreamingRaySource):
         self.running = True
 
     async def run(self):
-        pubsub_client = clients.get_subscriber_client(self.billing_project)
+        pubsub_client = clients.get_async_subscriber_client(
+            self.billing_project)
         while self.running:
             start_time = time.time()
             ack_ids = []

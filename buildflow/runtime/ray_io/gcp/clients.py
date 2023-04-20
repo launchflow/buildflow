@@ -36,7 +36,7 @@ def get_metrics_client(project: str):
     return monitoring_v3.MetricServiceClient(credentials=creds)
 
 
-def get_subscriber_client(project: str):
+def get_async_subscriber_client(project: str):
     creds = _get_gcp_creds(project)
     return SubscriberAsyncClient(credentials=creds)
 
@@ -44,3 +44,8 @@ def get_subscriber_client(project: str):
 def get_publisher_client(project: str):
     creds = _get_gcp_creds(project)
     return pubsub.PublisherClient(credentials=creds)
+
+
+def get_subscriber_client(project: str):
+    creds = _get_gcp_creds(project)
+    return pubsub.SubscriberClient(credentials=creds)
