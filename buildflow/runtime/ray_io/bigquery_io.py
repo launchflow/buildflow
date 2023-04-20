@@ -144,7 +144,6 @@ class BigQuerySink(io.Sink):
         if not self.billing_project:
             split_table = self.table_id.split('.')
             self.billing_project = split_table[0]
-        print('DO NOT SUBMIT: ', self.billing_project)
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
         client = clients.get_bigquery_client(self.billing_project)
