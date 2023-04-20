@@ -210,7 +210,7 @@ def _load_arrow_table_from_stream(stream: str, project: str) -> pa.Table:
     return response.to_arrow()
 
 
-@ray.remote
+@ray.remote(num_cpus=BigQuerySource.num_cpus())
 class BigQuerySourceActor(base.RaySource):
 
     def __init__(
@@ -298,8 +298,7 @@ def ray_dataset_load_job(dataset: ray.data.Dataset, bigquery_table_id: str,
                                  bigquery.SourceFormat.PARQUET, project)
 
 
-# TODO: put more though into this resource requirement
-@ray.remote(num_cpus=.25)
+@ray.remote(num_cpus=BigQuerySink.num_cpus())
 class BigQuerySinkActor(base.RaySink):
 
     # TODO: should make this configure able.

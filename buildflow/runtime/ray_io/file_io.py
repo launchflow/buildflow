@@ -36,7 +36,7 @@ class FileSink(io.Sink):
         return FileSinkActor.remote(remote_fn, self)
 
 
-@ray.remote
+@ray.remote(num_cpus=FileSink.num_cpus())
 class FileSinkActor(base.RaySink):
 
     def __init__(self, remote_fn, file_sink: FileSink) -> None:

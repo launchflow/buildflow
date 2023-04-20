@@ -39,7 +39,7 @@ class ProcessActor(object):
     def process(self, *args, **kwargs):
         return self._processor._process(*args, **kwargs)
 
-    def process_batch(self, calls: Iterable):
+    async def process_batch(self, calls: Iterable):
         start_time = time.time()
         to_ret = []
         for call in calls:

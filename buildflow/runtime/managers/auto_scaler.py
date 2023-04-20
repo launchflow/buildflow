@@ -21,20 +21,15 @@ import ray
 from buildflow.api.options import StreamingOptions
 
 _TARGET_UTILIZATION = .5
-# Don't allocate more than 66% of CPU usage to the source actors.
-# This saves space to ensure that the sink and processor can be scheduled.
-# TODO: This really slows down our autoscaling, ideally we could just launch
-# as many as possible. The main issue though is that if we do that then there
-# will be no CPU left over for the processor / sink. We need someway to tie a
-# process, sink, and source together so when we scale up we get enough CPU for
-# all that.
-_REPLICA_CPU_RATIO = .66
 
 
-def max_replicas_for_cluster(source_cpu: float):
+def max_replicas_for_cluster(cpu_per_replica: float):
+    print('DO NOT SUBMIT: cpu per replica: ', cpu_per_replica)
     num_cpus = ray.cluster_resources()['CPU']
 
-    return int((num_cpus / source_cpu * _REPLICA_CPU_RATIO))
+    print('DO NOT SUBMIT: max replicas: ', int(num_cpus / cpu_per_replica))
+
+    return int(num_cpus / cpu_per_replica)
 
 
 def get_recommended_num_replicas(
@@ -44,8 +39,8 @@ def get_recommended_num_replicas(
     events_processed_per_replica: List[int],
     non_empty_ratio_per_replica: List[float],
     time_since_last_check: float,
-    source_cpus: float,
     autoscaling_options: StreamingOptions,
+    cpus_per_replica: float,
 ) -> int:
     non_empty_ratio_sum = sum(non_empty_ratio_per_replica)
     if non_empty_ratio_per_replica:
@@ -81,7 +76,7 @@ def get_recommended_num_replicas(
     else:
         new_num_replicas = current_num_replicas
 
-    max_cluster_replicas = max_replicas_for_cluster(source_cpus)
+    max_cluster_replicas = max_replicas_for_cluster(cpus_per_replica)
     max_replicas = autoscaling_options.max_replicas
 
     # If we're trying to scale to more than max replicas and max replicas for
@@ -96,7 +91,6 @@ def get_recommended_num_replicas(
                         autoscaling_options.min_replicas)
         new_num_replicas = autoscaling_options.min_replicas
 
-    max_cluster_replicas = max_replicas_for_cluster(source_cpus)
     if new_num_replicas > max_cluster_replicas:
         if max_cluster_replicas < max_replicas:
             logging.warning(

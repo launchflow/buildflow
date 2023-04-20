@@ -35,9 +35,6 @@ from buildflow.runtime.ray_io import empty_io
 # as soon as they're available.
 _AUTO_SCALE_CHECK = 10
 
-# The number of sources to create before creating a new sink.
-_SINK_SOURCE_RATIO = 4
-
 
 @dataclass
 class _MetricsWrapper:
@@ -98,28 +95,29 @@ class _StreamManagerActor:
         )
         self.num_replicas_gauge.set_default_tags(
             {"actor_name": self.__class__.__name__})
+        # TODO: update this when users can configure their num cpus for
+        # processors.
+        self.cpu_per_replica = (processor_ref.sink.num_cpus() +
+                                processor_ref.source.num_cpus() + .5)
 
     def _add_replica(self):
         key = str(self.processor_ref.sink)
         if isinstance(self.processor_ref.sink, empty_io.EmptySink):
             key = 'local'
 
-        num_replicas = len(self._replicas)
         # TODO: could probably have a better way of picking these.
         # When we scale down we maybe not end up with the .25 ratio depending
         # on what source actors get turned down.
         # Could maybe solve this with ray placement groups:
         #   https://docs.ray.io/en/latest/ray-core/scheduling/placement-group.html
-        if (self._sink_actor is None
-                or num_replicas % _SINK_SOURCE_RATIO == 0):
-            process_actor = processors.ProcessActor.remote(
-                self.processor_ref.get_processor_replica())
-            self._sink_actor = self.processor_ref.sink.actor(
-                process_actor.process_batch.remote,
-                self.processor_ref.source.is_streaming())
+        process_actor = processors.ProcessActor.remote(
+            self.processor_ref.get_processor_replica())
+        sink_actor = self.processor_ref.sink.actor(
+            process_actor,
+            self.processor_ref.source.is_streaming())
 
         replica_id = utils.uuid()
-        source_actor = self.processor_ref.source.actor({key: self._sink_actor})
+        source_actor = self.processor_ref.source.actor({key: sink_actor})
         num_threads = self.processor_ref.source.recommended_num_threads()
         source_pool_tasks = [
             source_actor.run.remote() for _ in range(num_threads)
@@ -157,7 +155,7 @@ class _StreamManagerActor:
         if start_replics <= 0:
             raise ValueError('min_replicas and num_replicas must be > 0')
         max_replicas = auto_scaler.max_replicas_for_cluster(
-            self.processor_ref.source.num_cpus())
+            self.cpu_per_replica)
         if start_replics > max_replicas:
             logging.warning(
                 'requested more replicas than your current cluster can handle.'
@@ -214,8 +212,8 @@ class _StreamManagerActor:
                     events_processed_per_replica=events_processed,
                     non_empty_ratio_per_replica=non_empty_ratios,
                     time_since_last_check=(now - last_autoscale_check),
-                    source_cpus=self.processor_ref.source.num_cpus(),
                     autoscaling_options=self.options,
+                    cpus_per_replica=self.cpu_per_replica,
                 )
                 # Report new number of replicas from the scaling event.
                 self.num_replicas_gauge.set(new_num_replicas)

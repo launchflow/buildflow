@@ -25,7 +25,7 @@ class EmptySink(io.Sink):
         return EmptySinkActor.remote(remote_fn)
 
 
-@ray.remote
+@ray.remote(num_cpus=EmptySource.num_cpus())
 class EmptySourceActor(base.RaySource):
 
     def __init__(
@@ -45,7 +45,7 @@ class EmptySourceActor(base.RaySource):
         return await self._send_batch_to_sinks_and_await(self.inputs)
 
 
-@ray.remote
+@ray.remote(num_cpus=EmptySink.num_cpus())
 class EmptySinkActor(base.RaySink):
 
     async def _write(

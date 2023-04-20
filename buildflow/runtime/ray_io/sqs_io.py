@@ -25,11 +25,16 @@ class SQSSource(io.StreamingSource):
     queue_name: str
     region: str = ''
     queue_owner_aws_account_id: str = ''
+    batch_size: int = 10
 
     _queue_url: str = ''
     # Client used for testing locally.
     # NOTE: this should only be set for tests
     _test_sqs_client: Any = None
+
+    def __post_init__(self):
+        if self.batch_size > 10:
+            raise ValueError('max batch size support by sqs is 10.')
 
     def get_boto_client(self):
         if self._test_sqs_client is not None:
@@ -69,15 +74,6 @@ class SQSSource(io.StreamingSource):
             return int(queue_atts['Attributes']['ApproximateNumberOfMessages'])
         return 0
 
-    @classmethod
-    def recommended_num_threads(cls):
-        # TODO: tune this value.
-        return 4
-
-    @classmethod
-    def num_cpus(cls) -> float:
-        return .25
-
 
 @ray.remote(num_cpus=SQSSource.num_cpus())
 class SQSSourceActor(base.StreamingRaySource):
@@ -96,7 +92,7 @@ class SQSSourceActor(base.StreamingRaySource):
         self.queue_url = _get_queue_url(self.sqs_client, source.queue_name,
                                         source.queue_owner_aws_account_id)
         # This is the max messages allowed by SQS.
-        self.batch_size = 10
+        self.batch_size = source.batch_size
         self.running = True
 
     async def run(self):

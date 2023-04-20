@@ -6,7 +6,11 @@ class _BaseIO:
 
     @classmethod
     def num_cpus(cls) -> float:
-        return .25
+        # IO options don't need much CPU pretty much just need enough keep it
+        # scheduled.
+        # TODO: we should probably make this configurable though to help
+        # prevent OOMs.
+        return .01
 
 
 class Source(_BaseIO):

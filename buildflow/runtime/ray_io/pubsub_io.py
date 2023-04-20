@@ -191,8 +191,7 @@ class PubSubSourceActor(base.StreamingRaySource):
         return True
 
 
-# TODO: put more though into this resource requirement
-@ray.remote(num_cpus=.25)
+@ray.remote(num_cpus=PubSubSink.num_cpus())
 class PubSubSinkActor(base.RaySink):
 
     def __init__(

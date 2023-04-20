@@ -28,12 +28,12 @@ def get_bigquery_client(project: str = None) -> bigquery.Client:
 def get_bigquery_storage_client(
         project: str = None) -> bigquery_storage_v1.BigQueryReadClient:
     creds = _get_gcp_creds(project)
-    return bigquery_storage_v1.BigQueryReadClient(creds)
+    return bigquery_storage_v1.BigQueryReadClient(credentials=creds)
 
 
 def get_metrics_client(project: str):
     creds = _get_gcp_creds(project)
-    return monitoring_v3.MetricServiceClient(creds)
+    return monitoring_v3.MetricServiceClient(credentials=creds)
 
 
 def get_subscriber_client(project: str):

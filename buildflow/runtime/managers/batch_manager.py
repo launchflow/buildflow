@@ -14,7 +14,7 @@ class BatchProcessManager:
         processor_actor = processors.ProcessActor.remote(
             self.processor_ref.get_processor_replica())
         sink_actor = self.processor_ref.sink.actor(
-            processor_actor.process_batch.remote,
+            processor_actor,
             self.processor_ref.source.is_streaming())
 
         source_actor = self.processor_ref.source.actor({key: sink_actor})

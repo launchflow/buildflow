@@ -34,7 +34,7 @@ class DuckDBSink(io.Sink):
         return DuckDBSinkActor.remote(remote_fn, self)
 
 
-@ray.remote
+@ray.remote(num_cpus=DuckDBSource.num_cpus())
 class DuckDBSourceActor(base.RaySource):
 
     def __init__(
@@ -66,7 +66,7 @@ class DuckDBSourceActor(base.RaySource):
 _MAX_CONNECT_TRIES = 20
 
 
-@ray.remote
+@ray.remote(num_cpus=DuckDBSource.num_cpus())
 class DuckDBSinkActor(base.RaySink):
 
     def __init__(
