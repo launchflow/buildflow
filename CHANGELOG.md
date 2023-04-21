@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.14](https://github.com/launchflow/buildflow/compare/v0.0.13...v0.0.14) (2023-04-21)
+
+
+### Bug Fixes
+
+* add metrics ([506cd2c](https://github.com/launchflow/buildflow/commit/506cd2cb24d4d8ad24afc250227c172bc6e6564a))
+* improvements to the autoscaller ([3b8bb29](https://github.com/launchflow/buildflow/commit/3b8bb29f1052122e5c177ec2d8137a4599684f6c))
+* set billing project when setting up GCP clients ([a11c8f2](https://github.com/launchflow/buildflow/commit/a11c8f2b0788a1e5f5caa5024cbe2af5429386fc))
+
 ## [0.0.13](https://github.com/launchflow/buildflow/compare/v0.0.12...v0.0.13) (2023-04-12)
 
 
