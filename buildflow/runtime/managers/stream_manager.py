@@ -208,7 +208,9 @@ class _StreamManagerActor:
                     events_processed.append(metric.num_events)
                     non_empty_ratios.append(metric.non_empty_response_ratio)
 
-                self.num_events_counter.inc(sum(events_processed))
+                total_events_process = sum(events_processed)
+                if total_events_process > 0:
+                    self.num_events_counter.inc(total_events_process)
                 self._replicas = new_replicas
                 num_replicas = len(self._replicas)
                 if self.options.autoscaling:
