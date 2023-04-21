@@ -1,13 +1,11 @@
 """IO connectors for Pub/Sub and Ray."""
 
-import asyncio
 import dataclasses
 import datetime
 from google.cloud.monitoring_v3 import query
 import inspect
 import logging
 import json
-import time
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 import ray
@@ -60,7 +58,10 @@ class PubSubSource(io.StreamingSource):
             self.billing_project = split_sub[1]
 
     def setup(self):
-        pubsub_utils.maybe_create_subscription(self.subscription, self.topic)
+        pubsub_utils.maybe_create_subscription(
+            pubsub_subscription=self.subscription,
+            pubsub_topic=self.topic,
+            billing_project=self.billing_project)
 
     def actor(self, ray_sinks):
         return PubSubSourceActor.remote(ray_sinks, self)
@@ -110,7 +111,8 @@ class PubSubSink(io.Sink):
             self.billing_project = split_topic[1]
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
-        pubsub_utils.maybe_create_topic(self.topic)
+        pubsub_utils.maybe_create_topic(pubsub_topic=self.topic,
+                                        billing_project=self.billing_project)
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return PubSubSinkActor.remote(remote_fn, self)
@@ -132,9 +134,9 @@ class PubSubSourceActor(base.StreamingRaySource):
         self.running = True
 
     async def run(self):
-        pubsub_client = clients.get_subscriber_client(self.billing_project)
+        pubsub_client = clients.get_async_subscriber_client(
+            self.billing_project)
         while self.running:
-            start_time = time.time()
             ack_ids = []
             payloads = []
             try:
@@ -174,16 +176,13 @@ class PubSubSourceActor(base.StreamingRaySource):
                     # This nacks the messages. See:
                     # https://github.com/googleapis/python-pubsub/pull/123/files
                     ack_deadline_seconds = 0
-                    pubsub_client.modify_ack_deadline(
+                    await pubsub_client.modify_ack_deadline(
                         subscription=self.subscription,
                         ack_ids=ack_ids,
                         ack_deadline_seconds=ack_deadline_seconds)
-            else:
-                # This happens when we didn't get any messages.
-                await asyncio.sleep(3)
             # For pub/sub we determine the utilization based on the number of
             # messages received versus how many we received.
-            self.update_metrics(len(payloads), time.time() - start_time)
+            self.update_metrics(len(payloads))
 
     def shutdown(self):
         self.running = False
@@ -191,8 +190,7 @@ class PubSubSourceActor(base.StreamingRaySource):
         return True
 
 
-# TODO: put more though into this resource requirement
-@ray.remote(num_cpus=.25)
+@ray.remote(num_cpus=PubSubSink.num_cpus())
 class PubSubSinkActor(base.RaySink):
 
     def __init__(

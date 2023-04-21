@@ -31,7 +31,7 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                source_cpus=.25,
+                cpus_per_replica=.1,
                 autoscaling_options=options.StreamingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
@@ -60,7 +60,7 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                source_cpus=.25,
+                cpus_per_replica=.1,
                 autoscaling_options=options.StreamingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
@@ -85,7 +85,7 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                source_cpus=.25,
+                cpus_per_replica=.1,
                 # Max replicas will cap recommendation. Even though we need 8
                 # to burn down the backlog we won't scale beyond max_replicas.
                 autoscaling_options=options.StreamingOptions(max_replicas=5),
@@ -106,8 +106,7 @@ class AutoScalerTest(unittest.TestCase):
         # (100_000 / 100).
         # However this will be limited by the number of CPUs on our cluster.
         # We have 32 CPUs in our mock cluster, so we will only scale to:
-        #   32 / .25 * .66 = 84
-        #   num_cpus / source_cpus / REPLICA_CPU_RATION
+        #   32 / .5 = 64
         events_processed_per_replica = [100] * 3
         non_empty_ratio_per_replica = [1] * 3
 
@@ -118,18 +117,18 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                source_cpus=.25,
+                cpus_per_replica=.5,
                 autoscaling_options=options.StreamingOptions(max_replicas=85),
             )
             self.assertEqual(len(self._caplog.records), 2)
             expected_log = (
                 'reached the max allowed replicas for your cluster '
-                '84. We will add more as your cluster scales up.')
+                '64. We will add more as your cluster scales up.')
             self.assertEqual(self._caplog.records[0].message, expected_log)
-            expected_log = 'resizing from 3 replicas to 84 replicas'
+            expected_log = 'resizing from 3 replicas to 64 replicas'
             self.assertEqual(self._caplog.records[1].message, expected_log)
 
-            self.assertEqual(84, rec_replicas)
+            self.assertEqual(64, rec_replicas)
 
     def test_scale_up_to_max_cpu_replicas_equals_max_options(
             self, resources_mock):
@@ -152,7 +151,7 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                source_cpus=.25,
+                cpus_per_replica=.1,
                 autoscaling_options=options.StreamingOptions(max_replicas=84),
             )
             self.assertEqual(len(self._caplog.records), 2)
@@ -182,7 +181,7 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                source_cpus=.25,
+                cpus_per_replica=.1,
                 autoscaling_options=options.StreamingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
@@ -210,7 +209,7 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=120,
-                source_cpus=.25,
+                cpus_per_replica=.1,
                 # Don't scale below 18 replicas.
                 autoscaling_options=options.StreamingOptions(min_replicas=18),
             )

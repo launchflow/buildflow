@@ -20,7 +20,7 @@ class ProcessorRef:
 
 
 # TODO(#113): make this configurable by the user
-@ray.remote(num_cpus=.5)
+@ray.remote
 class ProcessActor(object):
 
     def __init__(self, processor_instance: ProcessorAPI):
@@ -39,11 +39,11 @@ class ProcessActor(object):
     def process(self, *args, **kwargs):
         return self._processor._process(*args, **kwargs)
 
-    def process_batch(self, calls: Iterable):
+    async def process_batch(self, calls: Iterable):
         start_time = time.time()
         to_ret = []
         for call in calls:
             to_ret.append(self.process(call))
         self.process_time_gauge.set(
-            round(((time.time() - start_time) * 1000) / len(to_ret)))
+            (time.time() - start_time) * 1000 / len(to_ret))
         return to_ret

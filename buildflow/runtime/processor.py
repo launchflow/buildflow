@@ -28,7 +28,8 @@ class Processor(ProcessorAPI):
 
 def processor(runtime: Runtime,
               source: SourceType,
-              sink: Optional[SinkType] = None):
+              sink: Optional[SinkType] = None,
+              num_cpus: float = .5):
 
     if sink is None:
         sink = empty_io.EmptySink()
@@ -53,7 +54,8 @@ def processor(runtime: Runtime,
                 lambda self: inspect.getfullargspec(original_function),
                 '_process':
                 lambda self, payload: original_function(self.source().
-                                                        preprocess(payload))
+                                                        preprocess(payload)),
+                'num_cpus': lambda self: num_cpus
             })
         processor_instance = _AdHocProcessor()
         runtime.register_processor(processor_instance,

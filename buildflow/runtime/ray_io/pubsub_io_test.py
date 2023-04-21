@@ -8,13 +8,16 @@ from buildflow.runtime.ray_io import pubsub_io as io
 
 class PubsubIOTest(unittest.TestCase):
 
+    @mock.patch('google.auth.default')
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
     def test_pubsub_source_setup_create_sub_and_topic(
         self,
         sub_client_mock: mock.MagicMock,
         pub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
     ):
+        auth_mock.return_value = (None, None)
         pub_mock = pub_client_mock.return_value
         sub_mock = sub_client_mock.return_value
 
@@ -33,13 +36,16 @@ class PubsubIOTest(unittest.TestCase):
             topic='projects/project/topics/pubsub-topic',
             ack_deadline_seconds=600)
 
+    @mock.patch('google.auth.default')
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
     def test_pubsub_source_setup_create_only_sub(
         self,
         sub_client_mock: mock.MagicMock,
         pub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
     ):
+        auth_mock.return_value = (None, None)
         pub_mock = pub_client_mock.return_value
         sub_mock = sub_client_mock.return_value
         sub_mock.get_subscription.side_effect = exceptions.NotFound('unused')
@@ -55,13 +61,16 @@ class PubsubIOTest(unittest.TestCase):
             topic='projects/project/topics/pubsub-topic',
             ack_deadline_seconds=600)
 
+    @mock.patch('google.auth.default')
     @mock.patch('google.cloud.pubsub.PublisherClient')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
     def test_pubsub_source_setup_create_none_created(
         self,
         sub_client_mock: mock.MagicMock,
         pub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
     ):
+        auth_mock.return_value = (None, None)
         pub_mock = pub_client_mock.return_value
         sub_mock = sub_client_mock.return_value
 
@@ -73,11 +82,14 @@ class PubsubIOTest(unittest.TestCase):
         pub_mock.create_topic.assert_not_called()
         sub_mock.create_subscription.assert_not_called()
 
+    @mock.patch('google.auth.default')
     @mock.patch('google.cloud.pubsub.SubscriberClient')
     def test_pubsub__source_setup_create_sub_no_topic(
         self,
         sub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
     ):
+        auth_mock.return_value = (None, None)
         sub_mock = sub_client_mock.return_value
         sub_mock.get_subscription.side_effect = exceptions.NotFound('unused')
 
@@ -90,11 +102,14 @@ class PubsubIOTest(unittest.TestCase):
         ):
             pubsub_io.setup()
 
+    @mock.patch('google.auth.default')
     @mock.patch('google.cloud.pubsub.PublisherClient')
     def test_pubsub_setup_create_topic(
         self,
         pub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
     ):
+        auth_mock.return_value = (None, None)
         pub_mock = pub_client_mock.return_value
 
         pub_mock.get_topic.side_effect = exceptions.NotFound('unused')

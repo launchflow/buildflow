@@ -28,3 +28,6 @@ class ProcessorAPI:
     # Returns the arg spec of the process method.
     def processor_arg_spec(self):
         raise NotImplementedError('process not implemented')
+
+    def num_cpus(self) -> float:
+        return .5

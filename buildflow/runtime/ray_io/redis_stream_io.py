@@ -41,7 +41,7 @@ class RedisStreamSink(io.Sink):
         return RedisStreamOutput.remote(remote_fn, self)
 
 
-@ray.remote
+@ray.remote(num_cpus=RedisStreamSource.num_cpus())
 class RedisStreamInput(base.StreamingRaySource):
 
     def __init__(
@@ -99,7 +99,7 @@ class RedisStreamInput(base.StreamingRaySource):
         return True
 
 
-@ray.remote
+@ray.remote(num_cpus=RedisStreamSink.num_cpus())
 class RedisStreamOutput(base.RaySink):
 
     def __init__(

@@ -26,8 +26,9 @@ jobs:
       - name: Setup GCP Auth
         uses: 'google-github-actions/auth@v1'
         with:
-          workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          # NOTE: We use a key file here because changing the quota project
+          # doesn't work with WIF.
+          credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
@@ -62,7 +63,6 @@ jobs:
           # NOTE: We use a key file here because pyarrow doesn't support
           # authenticating with workflow identity federation.
           credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
-
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
 
@@ -95,8 +95,9 @@ jobs:
       - name: Setup GCP Auth
         uses: 'google-github-actions/auth@v1'
         with:
-          workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          # NOTE: We use a key file here because changing the quota project
+          # doesn't work with WIF.
+          credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'

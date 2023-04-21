@@ -35,7 +35,8 @@ flow = Flow()
     # NOTE: You can alternatly just pass the table ID to read in an entire
     # table.
     source=buildflow.BigQuerySource(
-        query=f'SELECT COUNT(*) as count FROM `{args.input_table}`'),
+        query=f'SELECT COUNT(*) as count FROM `{args.input_table}`',
+        billing_project=args.input_table.split('.')[0]),
     sink=buildflow.BigQuerySink(table_id=args.output_table,
                                 temp_gcs_bucket=args.gcs_bucket))
 def process_query_result(dataset: ray.data.Dataset) -> Output:

@@ -5,11 +5,15 @@ from typing import List
 from google.api_core import exceptions
 from google.iam.v1 import iam_policy_pb2
 from google.iam.v1 import policy_pb2
-from google.cloud import pubsub
+
+from buildflow.runtime.ray_io.gcp import clients
 
 
-def maybe_create_topic(pubsub_topic: str, publisher_members: List[str] = []):
-    publisher_client = pubsub.PublisherClient()
+def maybe_create_topic(*,
+                       pubsub_topic: str,
+                       billing_project: str,
+                       publisher_members: List[str] = []):
+    publisher_client = clients.get_publisher_client(billing_project)
     try:
         publisher_client.get_topic(topic=pubsub_topic)
     except exceptions.NotFound:
@@ -40,10 +44,12 @@ def maybe_create_topic(pubsub_topic: str, publisher_members: List[str] = []):
                 'permission to create a new topic if needed.')
 
 
-def maybe_create_subscription(pubsub_subscription: str,
+def maybe_create_subscription(*,
+                              pubsub_subscription: str,
                               pubsub_topic: str,
+                              billing_project: str,
                               publisher_members: List[str] = []):
-    subscriber_client = pubsub.SubscriberClient()
+    subscriber_client = clients.get_subscriber_client(billing_project)
     try:
         subscriber_client.get_subscription(subscription=pubsub_subscription)
     except exceptions.NotFound:
@@ -53,14 +59,17 @@ def maybe_create_subscription(pubsub_subscription: str,
                 'please provide the topic so we can create the '
                 'subscriber or ensure you have read access to the '
                 'subscribe.')
-        maybe_create_topic(pubsub_topic, publisher_members)
+        maybe_create_topic(pubsub_topic=pubsub_topic,
+                           publisher_members=publisher_members,
+                           billing_project=billing_project)
         try:
             print(f'Creating subscription: {pubsub_subscription}')
-            subscriber_client.create_subscription(name=pubsub_subscription,
-                                                  topic=pubsub_topic,
-                                                  # TODO: we should make this
-                                                  # configurable.
-                                                  ack_deadline_seconds=600)
+            subscriber_client.create_subscription(
+                name=pubsub_subscription,
+                topic=pubsub_topic,
+                # TODO: we should make this
+                # configurable.
+                ack_deadline_seconds=600)
         except exceptions.PermissionDenied:
             raise ValueError(
                 f'Failed to create subscription: {pubsub_subscription}. '
