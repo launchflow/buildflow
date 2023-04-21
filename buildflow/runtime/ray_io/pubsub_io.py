@@ -1,13 +1,11 @@
 """IO connectors for Pub/Sub and Ray."""
 
-import asyncio
 import dataclasses
 import datetime
 from google.cloud.monitoring_v3 import query
 import inspect
 import logging
 import json
-import time
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 import ray
@@ -178,13 +176,10 @@ class PubSubSourceActor(base.StreamingRaySource):
                     # This nacks the messages. See:
                     # https://github.com/googleapis/python-pubsub/pull/123/files
                     ack_deadline_seconds = 0
-                    pubsub_client.modify_ack_deadline(
+                    await pubsub_client.modify_ack_deadline(
                         subscription=self.subscription,
                         ack_ids=ack_ids,
                         ack_deadline_seconds=ack_deadline_seconds)
-            else:
-                # This happens when we didn't get any messages.
-                await asyncio.sleep(3)
             # For pub/sub we determine the utilization based on the number of
             # messages received versus how many we received.
             self.update_metrics(len(payloads))

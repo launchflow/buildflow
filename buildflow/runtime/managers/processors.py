@@ -45,5 +45,5 @@ class ProcessActor(object):
         for call in calls:
             to_ret.append(self.process(call))
         self.process_time_gauge.set(
-            round(((time.time() - start_time) * 1000) / len(to_ret)))
+            (time.time() - start_time) * 1000 / len(to_ret))
         return to_ret

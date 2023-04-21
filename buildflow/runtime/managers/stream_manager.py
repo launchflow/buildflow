@@ -22,7 +22,7 @@ import time
 from typing import Awaitable, Dict, Optional, Tuple
 
 import ray
-from ray.util.metrics import Gauge
+from ray.util.metrics import Counter, Gauge
 
 from buildflow import utils
 from buildflow.api.options import StreamingOptions
@@ -33,7 +33,7 @@ from buildflow.runtime.ray_io import empty_io
 # Even though our backlog calculation is based on 2 minute intervals we do an
 # auto scale check every 60 seconds. This helps ensure we use the ray resources
 # as soon as they're available.
-_AUTO_SCALE_CHECK = 10
+_REPLICA_CHECK_IN = 10
 
 
 @dataclass
@@ -98,6 +98,14 @@ class _StreamManagerActor:
         self.cpu_per_replica = (
             processor_ref.sink.num_cpus() + processor_ref.source.num_cpus() +
             self.processor_ref.processor_instance.num_cpus())
+        self.num_events_counter = Counter(
+            "num_events_processed",
+            description=(
+                "Number of events processed by the actor. Goes up and down."),
+            tag_keys=("actor_name", ),
+        )
+        self.num_events_counter.set_default_tags(
+            {"actor_name": self.__class__.__name__})
 
     def _add_replica(self):
         key = str(self.processor_ref.sink)
@@ -166,19 +174,19 @@ class _StreamManagerActor:
         self.num_replicas_gauge.set(start_replics)
         for _ in range(start_replics):
             self._add_replica()
-        last_autoscale_check = None
+        last_check_in = None
         while self.running:
             # Add a brief wait here to ensure we can check for shutdown events.
             # and free up the event loop
-            await asyncio.sleep(15)
+            await asyncio.sleep(_REPLICA_CHECK_IN)
             if not self.options.autoscaling:
                 # no autoscaling so just let the replicas run.
                 continue
             now = time.time()
-            if last_autoscale_check is None:
-                last_autoscale_check = now
+            if last_check_in is None:
+                last_check_in = now
                 continue
-            if (now - last_autoscale_check > _AUTO_SCALE_CHECK):
+            if (now - last_check_in > _REPLICA_CHECK_IN):
                 backlog = self.processor_ref.source.backlog()
                 if backlog is None:
                     continue
@@ -203,17 +211,24 @@ class _StreamManagerActor:
                         continue
                     events_processed.append(metric.num_events)
                     non_empty_ratios.append(metric.non_empty_response_ratio)
+
+                self.num_events_counter.inc(sum(events_processed))
                 self._replicas = new_replicas
                 num_replicas = len(self._replicas)
-                new_num_replicas = auto_scaler.get_recommended_num_replicas(
-                    current_num_replicas=num_replicas,
-                    backlog=backlog,
-                    events_processed_per_replica=events_processed,
-                    non_empty_ratio_per_replica=non_empty_ratios,
-                    time_since_last_check=(now - last_autoscale_check),
-                    autoscaling_options=self.options,
-                    cpus_per_replica=self.cpu_per_replica,
-                )
+                if self.options.autoscaling:
+                    new_num_replicas = auto_scaler.get_recommended_num_replicas(  # noqa: E501
+                        current_num_replicas=num_replicas,
+                        backlog=backlog,
+                        events_processed_per_replica=events_processed,
+                        non_empty_ratio_per_replica=non_empty_ratios,
+                        time_since_last_check=(now - last_check_in),
+                        autoscaling_options=self.options,
+                        cpus_per_replica=self.cpu_per_replica,
+                    )
+                else:
+                    # Ensure we restart any dead replicas to get back to what
+                    # the user requested.
+                    new_num_replicas = start_replics
                 # Report new number of replicas from the scaling event.
                 self.num_replicas_gauge.set(new_num_replicas)
                 if new_num_replicas > num_replicas:
@@ -223,7 +238,7 @@ class _StreamManagerActor:
                 elif new_num_replicas < num_replicas:
                     replicas_to_remove = num_replicas - new_num_replicas
                     await self._remove_replicas(replicas_to_remove)
-                last_autoscale_check = now
+                last_check_in = now
 
         await self._remove_replicas(len(self._replicas))
 

@@ -6,7 +6,6 @@ import os
 from typing import Any, Callable, Dict, Iterable, Union
 
 import ray
-from ray.util.metrics import Gauge
 
 from buildflow.runtime import tracer as t
 from buildflow import utils
@@ -136,20 +135,12 @@ class StreamingRaySource(RaySource):
         self._requests = 0
         self._secs = 0
         self._replica_id = utils.uuid()
-        self.throughput_gauge = Gauge(
-            "throughput",
-            description="Current throughput of the actor. Goes up and down.",
-            tag_keys=("actor_name", ),
-        )
-        self.throughput_gauge.set_default_tags(
-            {"actor_name": self.__class__.__name__})
 
     def update_metrics(self, num_events: int):
         self._num_events += num_events
         self._requests += 1
         if not num_events:
             self._empty_responses += 1
-        self.throughput_gauge.set(num_events)
 
     def metrics(self) -> float:
         """Returns the utilization of the source since this was last called.

@@ -52,4 +52,4 @@ def process(element: Dict[str, Any]) -> TaxiOutput:
 
 
 # Run our flow.
-flow.run().output()
+flow.run(streaming_options=buildflow.StreamingOptions(max_replicas=2)).output()
