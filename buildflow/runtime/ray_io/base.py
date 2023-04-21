@@ -144,13 +144,12 @@ class StreamingRaySource(RaySource):
         self.throughput_gauge.set_default_tags(
             {"actor_name": self.__class__.__name__})
 
-    def update_metrics(self, num_events: int, execution_time_secs: float):
+    def update_metrics(self, num_events: int):
         self._num_events += num_events
         self._requests += 1
         if not num_events:
             self._empty_responses += 1
-        self._events_per_second = num_events / execution_time_secs
-        self.throughput_gauge.set(round(self._events_per_second, 2))
+        self.throughput_gauge.set(num_events)
 
     def metrics(self) -> float:
         """Returns the utilization of the source since this was last called.

@@ -139,7 +139,6 @@ class PubSubSourceActor(base.StreamingRaySource):
         pubsub_client = clients.get_async_subscriber_client(
             self.billing_project)
         while self.running:
-            start_time = time.time()
             ack_ids = []
             payloads = []
             try:
@@ -188,7 +187,7 @@ class PubSubSourceActor(base.StreamingRaySource):
                 await asyncio.sleep(3)
             # For pub/sub we determine the utilization based on the number of
             # messages received versus how many we received.
-            self.update_metrics(len(payloads), time.time() - start_time)
+            self.update_metrics(len(payloads))
 
     def shutdown(self):
         self.running = False

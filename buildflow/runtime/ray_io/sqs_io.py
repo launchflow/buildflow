@@ -121,7 +121,7 @@ class SQSSourceActor(base.StreamingRaySource):
                 # TODO: we should look into abstracting the while loop in
                 # base.StreamingRaySource then new sources wouldn't have to
                 # worry about the shutdown / reporting metrics
-                self.update_metrics(num_messages, time.time() - start_time)
+                self.update_metrics(num_messages)
                 # Since SQS doesn't have an async client we need to
                 # sleep here to yield back the event loop. This allows us to
                 # collect metrics and shut down correctly.
