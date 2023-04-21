@@ -176,12 +176,8 @@ class _StreamManagerActor:
             self._add_replica()
         last_check_in = None
         while self.running:
-            # Add a brief wait here to ensure we can check for shutdown events.
-            # and free up the event loop
+            # Sleep until it's time for the next check in.
             await asyncio.sleep(_REPLICA_CHECK_IN)
-            if not self.options.autoscaling:
-                # no autoscaling so just let the replicas run.
-                continue
             now = time.time()
             if last_check_in is None:
                 last_check_in = now
