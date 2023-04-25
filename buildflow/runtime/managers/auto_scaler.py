@@ -17,6 +17,7 @@ import math
 from typing import List
 
 import ray
+from ray.autoscaler.sdk import request_resources
 
 from buildflow.api.options import StreamingOptions
 
@@ -93,8 +94,7 @@ def get_recommended_num_replicas(
             logging.warning(
                 'reached the max allowed replicas for your cluster %s. We will'
                 ' add more as your cluster scales up.', max_cluster_replicas)
-            # TODO: we can look at programatically scaling this to get faster
-            # autoscaling.
+            request_resources(num_cpus=int(new_num_replicas * cpus_per_replica))
             new_num_replicas = max_cluster_replicas
 
     if new_num_replicas != current_num_replicas:
