@@ -94,12 +94,20 @@ def get_recommended_num_replicas(
             logging.warning(
                 'reached the max allowed replicas for your cluster %s. We will'
                 ' add more as your cluster scales up.', max_cluster_replicas)
-            request_resources(num_cpus=int(new_num_replicas *
-                                           cpus_per_replica))
+            request_resources(num_cpus=math.ceil(new_num_replicas *
+                                                 cpus_per_replica))
             new_num_replicas = max_cluster_replicas
 
     if new_num_replicas != current_num_replicas:
         logging.warning('resizing from %s replicas to %s replicas',
                         current_num_replicas, new_num_replicas)
+
+    if new_num_replicas < current_num_replicas:
+        # we're scaling down so only request resources that are needed for
+        # the smaller amount.
+        # This will override the case where we requested a bunch of resources
+        # for a replicas that haven't been fufilled yet.
+        request_resources(num_cpus=math.ceil(new_num_replicas *
+                                             cpus_per_replica))
 
     return new_num_replicas

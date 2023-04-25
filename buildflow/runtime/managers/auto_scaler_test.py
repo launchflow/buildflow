@@ -40,7 +40,9 @@ class AutoScalerTest(unittest.TestCase):
 
         self.assertEqual(8, rec_replicas)
 
-    def test_scale_down_to_estimated_replicas(self, resources_mock):
+    @mock.patch('buildflow.runtime.managers.auto_scaler.request_resources')
+    def test_scale_down_to_estimated_replicas(
+            self, request_resources_mock: mock.MagicMock, resources_mock):
         current_num_replicas = 24
         backlog = 100_000
         # 15_000 events per minute means we can burn down a backlog 15_000
@@ -68,6 +70,8 @@ class AutoScalerTest(unittest.TestCase):
             self.assertEqual(self._caplog.records[0].message, expected_log)
 
         self.assertEqual(6, rec_replicas)
+        # .1 * 6 = .6 so 1 CPU
+        request_resources_mock.assert_called_once_with(num_cpus=1)
 
     def test_scale_up_to_max_options_replicas(self, resources_mock):
         current_num_replicas = 3
@@ -98,7 +102,9 @@ class AutoScalerTest(unittest.TestCase):
 
         self.assertEqual(5, rec_replicas)
 
-    def test_scale_up_to_max_cpu_replicas(self, resources_mock):
+    @mock.patch('buildflow.runtime.managers.auto_scaler.request_resources')
+    def test_scale_up_to_max_cpu_replicas(
+            self, request_resources_mock: mock.MagicMock, resources_mock):
         current_num_replicas = 3
         backlog = 100_000
         # 100 events per minute means we can burn down a backlog 100
@@ -129,6 +135,7 @@ class AutoScalerTest(unittest.TestCase):
             self.assertEqual(self._caplog.records[1].message, expected_log)
 
             self.assertEqual(64, rec_replicas)
+        request_resources_mock.assert_called_once_with(num_cpus=500)
 
     def test_scale_up_to_max_cpu_replicas_equals_max_options(
             self, resources_mock):
@@ -162,7 +169,9 @@ class AutoScalerTest(unittest.TestCase):
 
             self.assertEqual(84, rec_replicas)
 
-    def test_scale_down_to_target_utilization(self, resources_mock):
+    @mock.patch('buildflow.runtime.managers.auto_scaler.request_resources')
+    def test_scale_down_to_target_utilization(
+            self, request_resources_mock: mock.MagicMock, resources_mock):
         current_num_replicas = 24
         backlog = 10
         # 15_000 events per minute means we can burn down a backlog 15_000
@@ -189,8 +198,12 @@ class AutoScalerTest(unittest.TestCase):
             self.assertEqual(self._caplog.records[0].message, expected_log)
 
         self.assertEqual(15, rec_replicas)
+        # .1 * 15 = 1.5 so 2 cpus
+        request_resources_mock.assert_called_once_with(num_cpus=2)
 
-    def test_scale_down_to_min_options_replicas(self, resources_mock):
+    @mock.patch('buildflow.runtime.managers.auto_scaler.request_resources')
+    def test_scale_down_to_min_options_replicas(
+            self, request_resources_mock: mock.MagicMock, resources_mock):
         current_num_replicas = 24
         backlog = 10
         # 15_000 events per minute means we can burn down a backlog 15_000
@@ -220,6 +233,8 @@ class AutoScalerTest(unittest.TestCase):
             self.assertEqual(self._caplog.records[1].message, expected_log)
 
         self.assertEqual(18, rec_replicas)
+        # .1 * 18 = 1.8 so 2 cpus
+        request_resources_mock.assert_called_once_with(num_cpus=2)
 
 
 if __name__ == '__name__':
