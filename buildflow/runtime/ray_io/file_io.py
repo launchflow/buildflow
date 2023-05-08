@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from enum import Enum
 import os
+import csv
+import json
 from typing import Any, Callable, Dict, Iterable, Union
 
 import fastparquet
@@ -16,6 +18,8 @@ from buildflow.runtime.ray_io import base
 class FileFormat(Enum):
     # TODO: Support additional file formats (CSV, JSON, Arrow, Avro, etc..)
     PARQUET = 1
+    CSV = 2
+    JSON = 3
 
 
 @dataclass
@@ -52,9 +56,22 @@ class FileSinkActor(base.RaySink):
         if isinstance(elements, ray.data.Dataset):
             if self._format == FileFormat.PARQUET:
                 elements.write_parquet(self._path)
+            elif self._format == FileFormat.CSV:
+                elements.write_csv(self._path)
+            elif self._format == FileFormat.JSON:
+                elements.write_json(self._path)
         else:
             if self._format == FileFormat.PARQUET:
                 exists = os.path.exists(self._path)
                 fastparquet.write(self._path,
                                   pd.DataFrame.from_records(elements),
                                   append=exists)
+            elif self._format == FileFormat.CSV:
+                with open(self._path, 'a', newline='') as output_file:
+                    keys = elements[0].keys()
+                    writer = csv.DictWriter(output_file, keys)
+                    writer.writeheader()
+                    writer.writerows(elements)
+            elif self._format == FileFormat.JSON:
+                with open(self._path, 'a') as output_file:
+                    json.dump(elements, output_file)
