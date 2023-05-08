@@ -85,8 +85,8 @@ class FileIoTest(unittest.TestCase):
         # read all csvs in the folder
         all_files = Path(path).glob('*.csv')
         table_from_each_file = (pcsv.read_csv(f) for f in all_files)
-        concatenated_table   = pa.concat_tables(table_from_each_file)
-        self.assertEqual([{'field': 1}, {'field': 2}], concatenated_table.to_pylist())
+        table = pa.concat_tables(table_from_each_file)
+        self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
 
     def test_write_json(self):
 
@@ -110,8 +110,9 @@ class FileIoTest(unittest.TestCase):
         # read all csvs in the folder
         all_files = Path(path).glob('*.json')
         table_from_each_file = (pjson.read_json(f) for f in all_files)
-        concatenated_table   = pa.concat_tables(table_from_each_file)
-        self.assertEqual([{'field': 1}, {'field': 2}], concatenated_table.to_pylist())
+        table = pa.concat_tables(table_from_each_file)
+        self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
+
 
 if __name__ == '__main__':
     unittest.main()
