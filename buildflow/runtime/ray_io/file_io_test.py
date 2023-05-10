@@ -1,4 +1,5 @@
 import os
+import json
 import shutil
 import tempfile
 import unittest
@@ -63,7 +64,29 @@ class FileIoTest(unittest.TestCase):
         table = pq.read_table(path)
         self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
 
-    def test_write_csv(self):
+    def test_write_csv_from_dictionaries(self):
+
+        path = os.path.join(self.output_path, 'output.csv')
+
+        @self.flow.processor(
+            source=buildflow.EmptySource(inputs=[{
+                'field': 1,
+            }, {
+                'field': 2
+            }]),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.CSV),
+        )
+        def process(elem):
+            return elem
+
+        self.flow.run().output()
+
+        # read csv file
+        table = pcsv.read_csv(Path(path))
+        self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
+
+    def test_write_csv_from_ray_datasets(self):
 
         path = os.path.join(self.output_path, 'output.csv')
 
@@ -88,7 +111,31 @@ class FileIoTest(unittest.TestCase):
         table = pa.concat_tables(table_from_each_file)
         self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
 
-    def test_write_json(self):
+    def test_write_json_from_dictionaries(self):
+
+        path = os.path.join(self.output_path, 'output.json')
+
+        @self.flow.processor(
+            source=buildflow.EmptySource(inputs=[{
+                'field': 1,
+            }, {
+                'field': 2
+            }]),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.JSON),
+        )
+        def process(elem):
+            return elem
+
+        self.flow.run().output()
+
+        # read json file
+        with open(Path(path), "r") as read_file:
+            data = json.load(read_file)
+
+        self.assertEqual([{'field': 1}, {'field': 2}], data)
+
+    def test_write_json_from_ray_datasets(self):
 
         path = os.path.join(self.output_path, 'output.json')
 
@@ -107,7 +154,7 @@ class FileIoTest(unittest.TestCase):
 
         self.flow.run().output()
 
-        # read all csvs in the folder
+        # read all jsons in the folder
         all_files = Path(path).glob('*.json')
         table_from_each_file = (pjson.read_json(f) for f in all_files)
         table = pa.concat_tables(table_from_each_file)

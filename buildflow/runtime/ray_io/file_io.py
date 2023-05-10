@@ -3,13 +3,15 @@
 from dataclasses import dataclass
 from enum import Enum
 import os
-import csv
 import json
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Union
 
 import fastparquet
 import pandas as pd
 import ray
+import pyarrow as pa
+import pyarrow.csv as pcsv
 
 from buildflow.api import io
 from buildflow.runtime.ray_io import base
@@ -53,6 +55,17 @@ class FileSinkActor(base.RaySink):
 
     async def _write(self, elements: Union[ray.data.Dataset,
                                            Iterable[Dict[str, Any]]]):
+        """Based on the instance of `elements` param, write the values
+        to the supported file types.
+
+        For Ray Dataset, file path becomes a folder and individual
+        dictionary become individual file.
+        For Iterable type, file path results in a single file of
+        the `FileFormat` type.
+
+        :param elements: Data
+        :type elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]]
+        """
         if isinstance(elements, ray.data.Dataset):
             if self._format == FileFormat.PARQUET:
                 elements.write_parquet(self._path)
@@ -68,11 +81,12 @@ class FileSinkActor(base.RaySink):
                                   append=exists)
             elif self._format == FileFormat.CSV:
                 if elements:
-                    with open(self._path, 'a', newline='') as output_file:
-                        keys = elements[0].keys()
-                        writer = csv.DictWriter(output_file, keys)
-                        writer.writeheader()
-                        writer.writerows(elements)
+                    table = pa.Table.from_pylist(elements)
+                    if Path(self._path).exists():
+                        table = pa.concat_tables(
+                            [table, pcsv.read_csv(self._path)]
+                        )
+                    pcsv.write_csv(table, self._path)
             elif self._format == FileFormat.JSON:
                 if elements:
                     with open(self._path, 'a') as output_file:
