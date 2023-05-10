@@ -67,11 +67,13 @@ class FileSinkActor(base.RaySink):
                                   pd.DataFrame.from_records(elements),
                                   append=exists)
             elif self._format == FileFormat.CSV:
-                with open(self._path, 'a', newline='') as output_file:
-                    keys = elements[0].keys()
-                    writer = csv.DictWriter(output_file, keys)
-                    writer.writeheader()
-                    writer.writerows(elements)
+                if elements:
+                    with open(self._path, 'a', newline='') as output_file:
+                        keys = elements[0].keys()
+                        writer = csv.DictWriter(output_file, keys)
+                        writer.writeheader()
+                        writer.writerows(elements)
             elif self._format == FileFormat.JSON:
-                with open(self._path, 'a') as output_file:
-                    json.dump(elements, output_file)
+                if elements:
+                    with open(self._path, 'a') as output_file:
+                        json.dump(elements, output_file)
