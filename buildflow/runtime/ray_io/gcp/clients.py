@@ -1,4 +1,7 @@
+import logging
+
 import google.auth
+from google.auth import exceptions
 from google.auth.credentials import Credentials
 from google.cloud import (
     bigquery,
@@ -11,7 +14,15 @@ from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
 
 
 def _get_gcp_creds(quota_project_id: str) -> Credentials:
-    creds, _ = google.auth.default(quota_project_id=quota_project_id)
+    try:
+        creds, _ = google.auth.default(quota_project_id=quota_project_id)
+    except exceptions.DefaultCredentialsError:
+        # if we failed to fetch the credentials fall back to anonymous
+        # credentials. This shouldn't normally happen, but can happen if user
+        # is running on a machine with now default creds.
+        logging.warning(
+            'no default credentials found, using anonymous credentials')
+        creds = google.auth.credentials.AnonymousCredentials()
     return creds
 
 
