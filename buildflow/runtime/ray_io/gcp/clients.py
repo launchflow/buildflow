@@ -13,17 +13,22 @@ from google.cloud import (
 from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
 
 
+_CREDS = None
+
+
 def _get_gcp_creds(quota_project_id: str) -> Credentials:
-    try:
-        creds, _ = google.auth.default(quota_project_id=quota_project_id)
-    except exceptions.DefaultCredentialsError:
-        # if we failed to fetch the credentials fall back to anonymous
-        # credentials. This shouldn't normally happen, but can happen if user
-        # is running on a machine with now default creds.
-        logging.warning(
-            'no default credentials found, using anonymous credentials')
-        creds = google.auth.credentials.AnonymousCredentials()
-    return creds
+    global _CREDS
+    if _CREDS is None:
+        try:
+            _CREDS, _ = google.auth.default(quota_project_id=quota_project_id)
+        except exceptions.DefaultCredentialsError:
+            # if we failed to fetch the credentials fall back to anonymous
+            # credentials. This shouldn't normally happen, but can happen if
+            # user is running on a machine with now default creds.
+            logging.warning(
+                'no default credentials found, using anonymous credentials')
+            _CREDS = google.auth.credentials.AnonymousCredentials()
+    return _CREDS
 
 
 def get_storage_client(project: str = None) -> storage.Client:
