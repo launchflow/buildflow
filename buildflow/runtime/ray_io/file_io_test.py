@@ -155,7 +155,7 @@ class FileIoTest(unittest.TestCase):
         self.flow.run().output()
 
         # read all jsons in the folder
-        all_files = Path(path).glob('*.json')
+        all_files = sorted(list(Path(path).glob('*.json')), key=lambda x: os.path.getmtime(x), reverse=True)
         table_from_each_file = (pjson.read_json(f) for f in all_files)
         table = pa.concat_tables(table_from_each_file)
         self.assertEqual([{'field': 1}, {'field': 2}], table.to_pylist())
