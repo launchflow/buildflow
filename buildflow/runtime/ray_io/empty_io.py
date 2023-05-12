@@ -20,14 +20,12 @@ class EmptySource(io.Source):
 
 @dataclasses.dataclass
 class EmptySink(io.Sink):
-
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return EmptySinkActor.remote(remote_fn)
 
 
 @ray.remote(num_cpus=EmptySource.num_cpus())
 class EmptySourceActor(base.RaySource):
-
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
@@ -37,9 +35,10 @@ class EmptySourceActor(base.RaySource):
         self.inputs = empty_ref.inputs
         if not self.inputs:
             logging.warning(
-                'No inputs provide your source. This means nothing will '
-                'happen. You can pass inputs like: '
-                '`ray_io.source(..., inputs=[1, 2, 3]`)')
+                "No inputs provide your source. This means nothing will "
+                "happen. You can pass inputs like: "
+                "`ray_io.source(..., inputs=[1, 2, 3]`)"
+            )
 
     async def run(self):
         return await self._send_batch_to_sinks_and_await(self.inputs)
@@ -47,7 +46,6 @@ class EmptySourceActor(base.RaySource):
 
 @ray.remote(num_cpus=EmptySink.num_cpus())
 class EmptySinkActor(base.RaySink):
-
     async def _write(
         self,
         elements: Iterable[Any],

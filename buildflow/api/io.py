@@ -3,14 +3,13 @@ from typing import Any, Callable, Optional, TypeVar
 
 
 class _BaseIO:
-
     @classmethod
     def num_cpus(cls) -> float:
         # IO options don't need much CPU pretty much just need enough keep it
         # scheduled.
         # TODO: we should probably make this configurable though to help
         # prevent OOMs.
-        return .1
+        return 0.1
 
 
 class Source(_BaseIO):
@@ -38,7 +37,6 @@ class Source(_BaseIO):
 
 
 class StreamingSource(Source):
-
     def backlog(self) -> Optional[float]:
         """Returns an estimate of the backlog for the source.
 
@@ -46,14 +44,15 @@ class StreamingSource(Source):
         scale up the number of actor replicas.
         """
         raise NotImplementedError(
-            'backlog should be implemented for streaming sources.')
+            "backlog should be implemented for streaming sources."
+        )
 
     @classmethod
     def is_streaming(cls) -> bool:
         return True
 
 
-SourceType = TypeVar('SourceType', bound=Source)
+SourceType = TypeVar("SourceType", bound=Source)
 
 
 class Sink(_BaseIO):
@@ -72,4 +71,4 @@ class Sink(_BaseIO):
         pass
 
 
-SinkType = TypeVar('SinkType', bound=Sink)
+SinkType = TypeVar("SinkType", bound=Sink)

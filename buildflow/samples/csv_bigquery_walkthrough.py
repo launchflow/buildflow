@@ -12,20 +12,22 @@ from buildflow import Flow
 
 # Parser to allow run time configuration of arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--gcp_project', type=str, required=True)
-parser.add_argument('--bucket_name', type=str, required=True)
-parser.add_argument('--table_name', type=str, default='csv_bigquery')
+parser.add_argument("--gcp_project", type=str, required=True)
+parser.add_argument("--bucket_name", type=str, required=True)
+parser.add_argument("--table_name", type=str, default="csv_bigquery")
 args, _ = parser.parse_known_args(sys.argv)
 
 # Set up a subscriber for the source.
 # The source will setup a Pub/Sub topic and subscription to listen to new files
 # uploaded to the GCS bucket.
-source = buildflow.GCSFileNotifications(project_id=args.gcp_project,
-                                        bucket_name=args.bucket_name)
+source = buildflow.GCSFileNotifications(
+    project_id=args.gcp_project, bucket_name=args.bucket_name
+)
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 sink = buildflow.BigQuerySink(
-    table_id=f'{args.gcp_project}.buildflow_walkthrough.{args.table_name}')
+    table_id=f"{args.gcp_project}.buildflow_walkthrough.{args.table_name}"
+)
 
 
 # Nested dataclasses can be used inside of your schemas.
@@ -53,18 +55,17 @@ flow = Flow()
 
 # Define our processor.
 @flow.processor(source=source, sink=sink)
-def process(
-        gcs_file_event: buildflow.GCSFileEvent
-) -> List[AggregateWikiPageViews]:
+def process(gcs_file_event: buildflow.GCSFileEvent) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))
     aggregate_stats = {}
     for row in csv_reader:
-        timestamp = datetime.datetime.strptime(row['datehour'],
-                                               '%Y-%m-%d %H:%M:%S.%f %Z')
-        wiki = row['wiki']
-        title = row['title']
-        views = row['views']
+        timestamp = datetime.datetime.strptime(
+            row["datehour"], "%Y-%m-%d %H:%M:%S.%f %Z"
+        )
+        wiki = row["wiki"]
+        title = row["title"]
+        views = row["views"]
 
         key = (wiki, title)
         if key in aggregate_stats:

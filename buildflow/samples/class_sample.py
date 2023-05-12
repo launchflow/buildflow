@@ -14,13 +14,12 @@ import buildflow
 
 # TODO(developer): Fill in with a pub/sub subscription.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
-_SUBSCRIPTION = ''
+_SUBSCRIPTION = ""
 
 flow = Flow()
 
 
 class MyProcessor(buildflow.Processor):
-
     def source(self):
         return buildflow.PubSub(subscription=_SUBSCRIPTION)
 
@@ -32,7 +31,7 @@ class MyProcessor(buildflow.Processor):
     # spent in the source / sink, but its a good proxy.
     def print_messages_per_sec(self):
         elapsed = time.time() - self.t0
-        print(f'{self.num_messages / elapsed} messages / sec')
+        print(f"{self.num_messages / elapsed} messages / sec")
         self.t0 = time.time()
         self.num_messages = 0
 

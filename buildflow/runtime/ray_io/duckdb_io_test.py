@@ -6,9 +6,8 @@ import pytest
 import ray
 
 
-@pytest.mark.skip('DuckDB is not fully supported yet')
+@pytest.mark.skip("DuckDB is not fully supported yet")
 class DuckDBTest(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls) -> None:
         ray.init(num_cpus=1, num_gpus=0)
@@ -24,5 +23,5 @@ class DuckDBTest(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

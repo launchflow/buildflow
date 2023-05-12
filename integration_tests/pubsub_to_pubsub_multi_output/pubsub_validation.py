@@ -4,9 +4,10 @@ from concurrent.futures import TimeoutError
 from google.cloud import pubsub_v1
 
 subscriber = pubsub_v1.SubscriberClient()
-subscription_path = subscriber.subscription_path('pubsub-test-project',
-                                                 'validation_multi')
-expected_data = {'val': 2}
+subscription_path = subscriber.subscription_path(
+    "pubsub-test-project", "validation_multi"
+)
+expected_data = {"val": 2}
 
 matches = 0
 
@@ -23,10 +24,10 @@ def callback(message):
 
 with pubsub_v1.SubscriberClient() as subscriber:
     future = subscriber.subscribe(subscription_path, callback=callback)
-    print('Subscribing to: ', subscription_path)
+    print("Subscribing to: ", subscription_path)
     try:
         future.result(timeout=20)
     except TimeoutError:
-        print('Reached validation subscriber timeout.')
+        print("Reached validation subscriber timeout.")
 
-assert matches == 2, f'expected 2 matches got {matches}'
+assert matches == 2, f"expected 2 matches got {matches}"
