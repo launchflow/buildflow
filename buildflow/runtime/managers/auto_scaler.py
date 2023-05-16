@@ -17,6 +17,7 @@ import math
 from typing import List
 
 import ray
+from ray.autoscaler.sdk import request_resources
 
 from buildflow.api.options import StreamingOptions
 
@@ -100,8 +101,7 @@ def get_recommended_num_replicas(
                 " add more as your cluster scales up.",
                 max_cluster_replicas,
             )
-            # TODO: we can look at programatically scaling this to get faster
-            # autoscaling.
+            request_resources(num_cpus=math.ceil(new_num_replicas * cpus_per_replica))
             new_num_replicas = max_cluster_replicas
 
     if new_num_replicas != current_num_replicas:
@@ -110,5 +110,12 @@ def get_recommended_num_replicas(
             current_num_replicas,
             new_num_replicas,
         )
+
+    if new_num_replicas < current_num_replicas:
+        # we're scaling down so only request resources that are needed for
+        # the smaller amount.
+        # This will override the case where we requested a bunch of resources
+        # for a replicas that haven't been fufilled yet.
+        request_resources(num_cpus=math.ceil(new_num_replicas * cpus_per_replica))
 
     return new_num_replicas
