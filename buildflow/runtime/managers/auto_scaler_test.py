@@ -8,9 +8,8 @@ from buildflow.api import options
 from buildflow.runtime.managers import auto_scaler
 
 
-@mock.patch('ray.cluster_resources', return_value={'CPU': 32})
+@mock.patch("ray.cluster_resources", return_value={"CPU": 32})
 class AutoScalerTest(unittest.TestCase):
-
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -31,11 +30,11 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                cpus_per_replica=.1,
+                cpus_per_replica=0.1,
                 autoscaling_options=options.StreamingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
-            expected_log = 'resizing from 3 replicas to 8 replicas'
+            expected_log = "resizing from 3 replicas to 8 replicas"
             self.assertEqual(self._caplog.records[0].message, expected_log)
 
         self.assertEqual(8, rec_replicas)
@@ -53,7 +52,7 @@ class AutoScalerTest(unittest.TestCase):
         # attempt to scale down. With this ratio we would scale down to 2
         # replica, but based on the backlog we will keep 8 replicas to ensure
         # the backlog can be burned down.
-        non_empty_ratio_per_replica = [.1] * 24
+        non_empty_ratio_per_replica = [0.1] * 24
 
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = auto_scaler.get_recommended_num_replicas(
@@ -62,11 +61,11 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                cpus_per_replica=.1,
+                cpus_per_replica=0.1,
                 autoscaling_options=options.StreamingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
-            expected_log = 'resizing from 24 replicas to 6 replicas'
+            expected_log = "resizing from 24 replicas to 6 replicas"
             self.assertEqual(self._caplog.records[0].message, expected_log)
 
         self.assertEqual(6, rec_replicas)
@@ -89,15 +88,15 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                cpus_per_replica=.1,
+                cpus_per_replica=0.1,
                 # Max replicas will cap recommendation. Even though we need 8
                 # to burn down the backlog we won't scale beyond max_replicas.
                 autoscaling_options=options.StreamingOptions(max_replicas=5),
             )
             self.assertEqual(len(self._caplog.records), 2)
-            expected_log = 'reached the max allowed replicas of 5'
+            expected_log = "reached the max allowed replicas of 5"
             self.assertEqual(self._caplog.records[0].message, expected_log)
-            expected_log = 'resizing from 3 replicas to 5 replicas'
+            expected_log = "resizing from 3 replicas to 5 replicas"
             self.assertEqual(self._caplog.records[1].message, expected_log)
 
         self.assertEqual(5, rec_replicas)
@@ -123,22 +122,22 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                cpus_per_replica=.5,
+                cpus_per_replica=0.5,
                 autoscaling_options=options.StreamingOptions(max_replicas=85),
             )
             self.assertEqual(len(self._caplog.records), 2)
             expected_log = (
-                'reached the max allowed replicas for your cluster '
-                '64. We will add more as your cluster scales up.')
+                "reached the max allowed replicas for your cluster "
+                "64. We will add more as your cluster scales up."
+            )
             self.assertEqual(self._caplog.records[0].message, expected_log)
-            expected_log = 'resizing from 3 replicas to 64 replicas'
+            expected_log = "resizing from 3 replicas to 64 replicas"
             self.assertEqual(self._caplog.records[1].message, expected_log)
 
             self.assertEqual(64, rec_replicas)
         request_resources_mock.assert_called_once_with(num_cpus=500)
 
-    def test_scale_up_to_max_cpu_replicas_equals_max_options(
-            self, resources_mock):
+    def test_scale_up_to_max_cpu_replicas_equals_max_options(self, resources_mock):
         current_num_replicas = 3
         backlog = 100_000
         # 100 events per minute means we can burn down a backlog 100
@@ -158,13 +157,13 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                cpus_per_replica=.1,
+                cpus_per_replica=0.1,
                 autoscaling_options=options.StreamingOptions(max_replicas=84),
             )
             self.assertEqual(len(self._caplog.records), 2)
-            expected_log = 'reached the max allowed replicas of 84'
+            expected_log = "reached the max allowed replicas of 84"
             self.assertEqual(self._caplog.records[0].message, expected_log)
-            expected_log = 'resizing from 3 replicas to 84 replicas'
+            expected_log = "resizing from 3 replicas to 84 replicas"
             self.assertEqual(self._caplog.records[1].message, expected_log)
 
             self.assertEqual(84, rec_replicas)
@@ -181,7 +180,7 @@ class AutoScalerTest(unittest.TestCase):
         # Our non empty ratio is low meaning we have low utilization so we will
         # attempt to scale down. With this ratio we would scale down to 15
         # replicas to achieve a utilization of .5
-        non_empty_ratio_per_replica = [.3] * 24
+        non_empty_ratio_per_replica = [0.3] * 24
 
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = auto_scaler.get_recommended_num_replicas(
@@ -190,11 +189,11 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
-                cpus_per_replica=.1,
+                cpus_per_replica=0.1,
                 autoscaling_options=options.StreamingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
-            expected_log = 'resizing from 24 replicas to 15 replicas'
+            expected_log = "resizing from 24 replicas to 15 replicas"
             self.assertEqual(self._caplog.records[0].message, expected_log)
 
         self.assertEqual(15, rec_replicas)
@@ -213,7 +212,7 @@ class AutoScalerTest(unittest.TestCase):
         # Our non empty ratio is low meaning we have low utilization so we will
         # attempt to scale down. With this ratio we would scale down to 6
         # replicas to achieve a utilization of .75
-        non_empty_ratio_per_replica = [.3] * 24
+        non_empty_ratio_per_replica = [0.3] * 24
 
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = auto_scaler.get_recommended_num_replicas(
@@ -222,14 +221,14 @@ class AutoScalerTest(unittest.TestCase):
                 events_processed_per_replica=events_processed_per_replica,
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=120,
-                cpus_per_replica=.1,
+                cpus_per_replica=0.1,
                 # Don't scale below 18 replicas.
                 autoscaling_options=options.StreamingOptions(min_replicas=18),
             )
             self.assertEqual(len(self._caplog.records), 2)
-            expected_log = 'reached the minimum allowed replicas of 18'
+            expected_log = "reached the minimum allowed replicas of 18"
             self.assertEqual(self._caplog.records[0].message, expected_log)
-            expected_log = 'resizing from 24 replicas to 18 replicas'
+            expected_log = "resizing from 24 replicas to 18 replicas"
             self.assertEqual(self._caplog.records[1].message, expected_log)
 
         self.assertEqual(18, rec_replicas)
@@ -237,5 +236,5 @@ class AutoScalerTest(unittest.TestCase):
         request_resources_mock.assert_called_once_with(num_cpus=2)
 
 
-if __name__ == '__name__':
+if __name__ == "__name__":
     unittest.main()

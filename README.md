@@ -59,3 +59,13 @@ For a more in depth tutorial see our [walkthroughs](https://www.buildflow.dev/do
 ## Windows Users
 
 Our runtime is built on [Ray](https://ray.io/), where Windows support is currently in beta. See the [Ray docs](https://docs.ray.io/en/latest/ray-overview/installation.html#windows-support) for more info.
+
+## Code Health Checks
+
+We use [black](https://github.com/psf/black) and [ruff](https://github.com/charliermarsh/ruff) with [pre-commit](https://pre-commit.com/) hooks to perform health checks.
+To setup these locally:
+* Clone the repo
+* Install the `dev` dependencies like `python -m pip install .[dev]
+* Check if pre-commit is installed correctly by running `pre-commit --version`
+* Setup pre-commit to run before every commit on staged changes by running `pre-commit install`
+* Pre-commit can also be ran manually as `pre-commit run --all-files`

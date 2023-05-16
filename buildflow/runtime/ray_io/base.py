@@ -32,7 +32,7 @@ def add_to_trace(
 
 
 def _data_tracing_enabled() -> bool:
-    return 'ENABLE_FLOW_DATA_TRACING' in os.environ
+    return "ENABLE_FLOW_DATA_TRACING" in os.environ
 
 
 class RaySink:
@@ -47,7 +47,8 @@ class RaySink:
         elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
     ):
         raise NotImplementedError(
-            f'`_write` method not implemented for class {self.__class__}')
+            f"`_write` method not implemented for class {self.__class__}"
+        )
 
     async def write(
         self,
@@ -78,9 +79,11 @@ class RaySink:
                     results.append(result)
 
         if self.data_tracing_enabled:
-            add_to_trace(key=self.__class__.__name__,
-                         value={'output_data': results},
-                         context=context)
+            add_to_trace(
+                key=self.__class__.__name__,
+                value={"output_data": results},
+                context=context,
+            )
 
         return await self._write(results)
 
@@ -94,7 +97,8 @@ class RaySource:
 
     async def run(self):
         raise NotImplementedError(
-            f'`run` method not implemented for class {self.__class__}')
+            f"`run` method not implemented for class {self.__class__}"
+        )
 
     @staticmethod
     def recommended_num_threads():
@@ -112,7 +116,7 @@ class RaySource:
         query, then the subsequent actors can each read a portion of that
         query.
         """
-        return [(io_ref, )] * num_replicas
+        return [(io_ref,)] * num_replicas
 
     async def _send_batch_to_sinks_and_await(self, elements):
         result_keys = []
@@ -127,7 +131,6 @@ class RaySource:
 
 
 class StreamingRaySource(RaySource):
-
     def __init__(self, ray_sinks: Dict[str, RaySink]) -> None:
         super().__init__(ray_sinks)
         self._num_events = 0
@@ -167,4 +170,5 @@ class StreamingRaySource(RaySource):
         to ensure we have acked all of our pending messages before exiting.
         """
         raise NotImplementedError(
-            'shutdown should be implemented for all streaming sources.')
+            "shutdown should be implemented for all streaming sources."
+        )

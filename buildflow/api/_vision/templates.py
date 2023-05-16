@@ -9,7 +9,7 @@ class Template:
 
     # This instance method defines the reference to the managed Processor.
     def processor(self) -> ProcessorAPI:
-        raise NotImplementedError('processor not implemented')
+        raise NotImplementedError("processor not implemented")
 
 
 @dataclasses.dataclass(frozen=True)

@@ -5,7 +5,6 @@ from buildflow.api.processor import ProcessorAPI
 
 
 class FlowResults:
-
     def output(self):
         """This method will block the flow until completion.
 
@@ -21,15 +20,13 @@ class FlowResults:
 
 
 class FlowAPI:
-
     def processor(input, output: Optional[Any] = None):
         pass
 
     def run(
         processor_instance: Optional[ProcessorAPI] = None,
         *,
-        streaming_options: options.StreamingOptions = options.StreamingOptions(
-        ),
+        streaming_options: options.StreamingOptions = options.StreamingOptions(),
         disable_usage_stats: bool = False,
         enable_resource_creation: bool = True,
     ) -> FlowResults:
