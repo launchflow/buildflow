@@ -39,9 +39,10 @@ class AutoScalerTest(unittest.TestCase):
 
         self.assertEqual(8, rec_replicas)
 
-    @mock.patch('buildflow.runtime.managers.auto_scaler.request_resources')
+    @mock.patch("buildflow.runtime.managers.auto_scaler.request_resources")
     def test_scale_down_to_estimated_replicas(
-            self, request_resources_mock: mock.MagicMock, resources_mock):
+        self, request_resources_mock: mock.MagicMock, resources_mock
+    ):
         current_num_replicas = 24
         backlog = 100_000
         # 15_000 events per minute means we can burn down a backlog 15_000
@@ -101,9 +102,10 @@ class AutoScalerTest(unittest.TestCase):
 
         self.assertEqual(5, rec_replicas)
 
-    @mock.patch('buildflow.runtime.managers.auto_scaler.request_resources')
+    @mock.patch("buildflow.runtime.managers.auto_scaler.request_resources")
     def test_scale_up_to_max_cpu_replicas(
-            self, request_resources_mock: mock.MagicMock, resources_mock):
+        self, request_resources_mock: mock.MagicMock, resources_mock
+    ):
         current_num_replicas = 3
         backlog = 100_000
         # 100 events per minute means we can burn down a backlog 100
@@ -168,9 +170,10 @@ class AutoScalerTest(unittest.TestCase):
 
             self.assertEqual(84, rec_replicas)
 
-    @mock.patch('buildflow.runtime.managers.auto_scaler.request_resources')
+    @mock.patch("buildflow.runtime.managers.auto_scaler.request_resources")
     def test_scale_down_to_target_utilization(
-            self, request_resources_mock: mock.MagicMock, resources_mock):
+        self, request_resources_mock: mock.MagicMock, resources_mock
+    ):
         current_num_replicas = 24
         backlog = 10
         # 15_000 events per minute means we can burn down a backlog 15_000
@@ -200,9 +203,10 @@ class AutoScalerTest(unittest.TestCase):
         # .1 * 15 = 1.5 so 2 cpus
         request_resources_mock.assert_called_once_with(num_cpus=2)
 
-    @mock.patch('buildflow.runtime.managers.auto_scaler.request_resources')
+    @mock.patch("buildflow.runtime.managers.auto_scaler.request_resources")
     def test_scale_down_to_min_options_replicas(
-            self, request_resources_mock: mock.MagicMock, resources_mock):
+        self, request_resources_mock: mock.MagicMock, resources_mock
+    ):
         current_num_replicas = 24
         backlog = 10
         # 15_000 events per minute means we can burn down a backlog 15_000
