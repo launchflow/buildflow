@@ -44,7 +44,6 @@ class FileSink(io.Sink):
 
 @ray.remote(num_cpus=FileSink.num_cpus())
 class FileSinkActor(base.RaySink):
-
     def __init__(self, remote_fn, file_sink: FileSink) -> None:
         super().__init__(remote_fn)
         self._format = file_sink.file_format
@@ -53,8 +52,7 @@ class FileSinkActor(base.RaySink):
         # s3:// = S3
         self._path = file_sink.file_path
 
-    async def _write(self, elements: Union[ray.data.Dataset,
-                                           Iterable[Dict[str, Any]]]):
+    async def _write(self, elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]]):
         """Based on the instance of `elements` param, write the values
         to the supported file types.
 
@@ -76,18 +74,16 @@ class FileSinkActor(base.RaySink):
         else:
             if self._format == FileFormat.PARQUET:
                 exists = os.path.exists(self._path)
-                fastparquet.write(self._path,
-                                  pd.DataFrame.from_records(elements),
-                                  append=exists)
+                fastparquet.write(
+                    self._path, pd.DataFrame.from_records(elements), append=exists
+                )
             elif self._format == FileFormat.CSV:
                 if elements:
                     table = pa.Table.from_pylist(elements)
                     if Path(self._path).exists():
-                        table = pa.concat_tables(
-                            [table, pcsv.read_csv(self._path)]
-                        )
+                        table = pa.concat_tables([table, pcsv.read_csv(self._path)])
                     pcsv.write_csv(table, self._path)
             elif self._format == FileFormat.JSON:
                 if elements:
-                    with open(self._path, 'a') as output_file:
+                    with open(self._path, "a") as output_file:
                         json.dump(elements, output_file)

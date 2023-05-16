@@ -9,7 +9,6 @@ from buildflow.runtime.ray_io import empty_io
 
 
 class Processor(ProcessorAPI):
-
     def sink(self) -> SinkType:
         return empty_io.EmptySink()
 
@@ -26,40 +25,39 @@ class Processor(ProcessorAPI):
         return inspect.getfullargspec(self.process)
 
 
-def processor(runtime: Runtime,
-              source: SourceType,
-              sink: Optional[SinkType] = None,
-              num_cpus: float = .5):
-
+def processor(
+    runtime: Runtime,
+    source: SourceType,
+    sink: Optional[SinkType] = None,
+    num_cpus: float = 0.5,
+):
     if sink is None:
         sink = empty_io.EmptySink()
 
     def decorator_function(original_function):
         processor_id = original_function.__name__
         # Dynamically define a new class with the same structure as Processor
-        class_name = f'AdHocProcessor_{utils.uuid(max_len=8)}'
+        class_name = f"AdHocProcessor_{utils.uuid(max_len=8)}"
         _AdHocProcessor = type(
-            class_name, (object, ), {
-                'source':
-                lambda self: source,
-                'sink':
-                lambda self: sink,
-                'sinks':
-                lambda self: [],
-                'setup':
-                lambda self: None,
-                'process':
-                lambda self, payload: original_function(payload),
-                'processor_arg_spec':
-                lambda self: inspect.getfullargspec(original_function),
-                '_process':
-                lambda self, payload: original_function(self.source().
-                                                        preprocess(payload)),
-                'num_cpus': lambda self: num_cpus
-            })
+            class_name,
+            (object,),
+            {
+                "source": lambda self: source,
+                "sink": lambda self: sink,
+                "sinks": lambda self: [],
+                "setup": lambda self: None,
+                "process": lambda self, payload: original_function(payload),
+                "processor_arg_spec": lambda self: inspect.getfullargspec(
+                    original_function
+                ),
+                "_process": lambda self, payload: original_function(
+                    self.source().preprocess(payload)
+                ),
+                "num_cpus": lambda self: num_cpus,
+            },
+        )
         processor_instance = _AdHocProcessor()
-        runtime.register_processor(processor_instance,
-                                   processor_id=processor_id)
+        runtime.register_processor(processor_instance, processor_id=processor_id)
 
         def wrapper_function(*args, **kwargs):
             return original_function(*args, **kwargs)

@@ -25,8 +25,7 @@ def _get_gcp_creds(quota_project_id: str) -> Credentials:
             # if we failed to fetch the credentials fall back to anonymous
             # credentials. This shouldn't normally happen, but can happen if
             # user is running on a machine with now default creds.
-            logging.warning(
-                'no default credentials found, using anonymous credentials')
+            logging.warning("no default credentials found, using anonymous credentials")
             _CREDS = google.auth.credentials.AnonymousCredentials()
     return _CREDS
 
@@ -42,7 +41,8 @@ def get_bigquery_client(project: str = None) -> bigquery.Client:
 
 
 def get_bigquery_storage_client(
-        project: str = None) -> bigquery_storage_v1.BigQueryReadClient:
+    project: str = None,
+) -> bigquery_storage_v1.BigQueryReadClient:
     creds = _get_gcp_creds(project)
     return bigquery_storage_v1.BigQueryReadClient(credentials=creds)
 

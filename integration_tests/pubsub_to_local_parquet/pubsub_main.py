@@ -5,7 +5,7 @@ import sys
 import buildflow
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--file_path', type=str, required=True)
+parser.add_argument("--file_path", type=str, required=True)
 args, _ = parser.parse_known_args(sys.argv)
 
 
@@ -18,19 +18,19 @@ flow = buildflow.Flow()
 
 
 class MyProcessor(buildflow.Processor):
-
     def source(self):
         return buildflow.PubSubSource(
-            subscription=(
-                'projects/pubsub-test-project/subscriptions/pubsub_main'),
-            topic='projects/pubsub-test-project/topics/incoming_topic')
+            subscription=("projects/pubsub-test-project/subscriptions/pubsub_main"),
+            topic="projects/pubsub-test-project/topics/incoming_topic",
+        )
 
     def sink(self):
-        return buildflow.FileSink(file_path=args.file_path,
-                                  file_format=buildflow.FileFormat.PARQUET)
+        return buildflow.FileSink(
+            file_path=args.file_path, file_format=buildflow.FileFormat.PARQUET
+        )
 
     def process(self, payload: int) -> Output:
-        return Output(payload['val'] + 1)
+        return Output(payload["val"] + 1)
 
 
 flow.run(MyProcessor()).output()

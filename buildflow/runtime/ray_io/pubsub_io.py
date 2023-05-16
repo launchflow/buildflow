@@ -44,30 +44,31 @@ class PubSubSource(io.StreamingSource):
     subscription: str
     # The topic to connect to for the subscription. If this is provided and
     # subscription does not exist we will create it.
-    topic: str = ''
+    topic: str = ""
     # Whether or not to include the pubsub attributes. If this is true you will
     # get a buildflow.PubsubMessage class as your input.
     include_attributes: bool = False
     # The project to bill for Pub/Sub usage. If not set we use the project that
     # the subscription exists in.
-    billing_project: str = ''
+    billing_project: str = ""
 
     def __post_init__(self):
         if not self.billing_project:
-            split_sub = self.subscription.split('/')
+            split_sub = self.subscription.split("/")
             self.billing_project = split_sub[1]
 
     def setup(self):
         pubsub_utils.maybe_create_subscription(
             pubsub_subscription=self.subscription,
             pubsub_topic=self.topic,
-            billing_project=self.billing_project)
+            billing_project=self.billing_project,
+        )
 
     def actor(self, ray_sinks):
         return PubSubSourceActor.remote(ray_sinks, self)
 
     def backlog(self) -> Optional[int]:
-        split_sub = self.subscription.split('/')
+        split_sub = self.subscription.split("/")
         project = split_sub[1]
         sub_id = split_sub[3]
         client = clients.get_metrics_client(project)
@@ -75,9 +76,11 @@ class PubSubSource(io.StreamingSource):
             client=client,
             project=project,
             end_time=datetime.datetime.now(),
-            metric_type=('pubsub.googleapis.com/subscription'
-                         '/num_unacked_messages_by_region'),
-            minutes=5)
+            metric_type=(
+                "pubsub.googleapis.com/subscription" "/num_unacked_messages_by_region"
+            ),
+            minutes=5,
+        )
         backlog_query = backlog_query.select_resources(subscription_id=sub_id)
         last_timeseries = None
         for backlog_data in backlog_query.iter():
@@ -103,16 +106,17 @@ class PubSubSink(io.Sink):
     topic: str
     # The project to bill for Pub/Sub usage. If not set we use the project that
     # the topic exists in.
-    billing_project: str = ''
+    billing_project: str = ""
 
     def __post_init__(self):
         if not self.billing_project:
-            split_topic = self.topic.split('/')
+            split_topic = self.topic.split("/")
             self.billing_project = split_topic[1]
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
-        pubsub_utils.maybe_create_topic(pubsub_topic=self.topic,
-                                        billing_project=self.billing_project)
+        pubsub_utils.maybe_create_topic(
+            pubsub_topic=self.topic, billing_project=self.billing_project
+        )
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return PubSubSinkActor.remote(remote_fn, self)
@@ -120,7 +124,6 @@ class PubSubSink(io.Sink):
 
 @ray.remote(num_cpus=PubSubSource.num_cpus())
 class PubSubSourceActor(base.StreamingRaySource):
-
     def __init__(
         self,
         ray_sinks: Dict[str, base.RaySink],
@@ -134,8 +137,7 @@ class PubSubSourceActor(base.StreamingRaySource):
         self.running = True
 
     async def run(self):
-        pubsub_client = clients.get_async_subscriber_client(
-            self.billing_project)
+        pubsub_client = clients.get_async_subscriber_client(self.billing_project)
         while self.running:
             ack_ids = []
             payloads = []
@@ -143,9 +145,10 @@ class PubSubSourceActor(base.StreamingRaySource):
                 response = await pubsub_client.pull(
                     subscription=self.subscription,
                     max_messages=self.batch_size,
-                    return_immediately=True)
+                    return_immediately=True,
+                )
             except Exception as e:
-                logging.error('pubsub pull failed with: %s', e)
+                logging.error("pubsub pull failed with: %s", e)
                 continue
             for received_message in response.received_messages:
                 json_loaded = {}
@@ -169,30 +172,33 @@ class PubSubSourceActor(base.StreamingRaySource):
                 try:
                     await self._send_batch_to_sinks_and_await(payloads)
                     await pubsub_client.acknowledge(
-                        ack_ids=ack_ids, subscription=self.subscription)
+                        ack_ids=ack_ids, subscription=self.subscription
+                    )
                 except Exception as e:
-                    logging.error(('Failed to process message, '
-                                   'will not be acked: error: %s'), e)
+                    logging.error(
+                        ("Failed to process message, " "will not be acked: error: %s"),
+                        e,
+                    )
                     # This nacks the messages. See:
                     # https://github.com/googleapis/python-pubsub/pull/123/files
                     ack_deadline_seconds = 0
                     await pubsub_client.modify_ack_deadline(
                         subscription=self.subscription,
                         ack_ids=ack_ids,
-                        ack_deadline_seconds=ack_deadline_seconds)
+                        ack_deadline_seconds=ack_deadline_seconds,
+                    )
             # For pub/sub we determine the utilization based on the number of
             # messages received versus how many we received.
             self.update_metrics(len(payloads))
 
     def shutdown(self):
         self.running = False
-        print('Shutting down Pub/Sub subscription')
+        print("Shutting down Pub/Sub subscription")
         return True
 
 
 @ray.remote(num_cpus=PubSubSink.num_cpus())
 class PubSubSinkActor(base.RaySink):
-
     def __init__(
         self,
         remote_fn: Callable,
@@ -200,7 +206,8 @@ class PubSubSinkActor(base.RaySink):
     ) -> None:
         super().__init__(remote_fn)
         self.pubslisher_client = clients.get_publisher_client(
-            pubsub_ref.billing_project)
+            pubsub_ref.billing_project
+        )
         self.topic = pubsub_ref.topic
 
     async def _write(
@@ -210,8 +217,8 @@ class PubSubSinkActor(base.RaySink):
         # TODO: need to support writing to Pub/Sub in batch mode.
         def publish_element(item):
             future = self.pubslisher_client.publish(
-                self.topic,
-                json.dumps(item).encode('UTF-8'))
+                self.topic, json.dumps(item).encode("UTF-8")
+            )
             future.result()
 
         for elem in elements:

@@ -9,7 +9,7 @@ class Flow(flow.FlowAPI):
     _instance = None
     _initialized = False
 
-    def __init__(self, name: str = '') -> None:
+    def __init__(self, name: str = "") -> None:
         if self._initialized:
             return
         self._initialized = True
@@ -21,8 +21,10 @@ class Flow(flow.FlowAPI):
     @classmethod
     def instance(cls):
         if cls._instance is None:
-            raise ValueError('Flow has not yet been initialized. Did you call '
-                             'buildflow.Flow(...)?')
+            raise ValueError(
+                "Flow has not yet been initialized. Did you call "
+                "buildflow.Flow(...)?"
+            )
         return cls._instance
 
     # This method is used to make this class a singleton
@@ -31,18 +33,16 @@ class Flow(flow.FlowAPI):
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def processor(self,
-                  source: SourceType,
-                  sink: Optional[SinkType] = None,
-                  num_cpus: float = .5):
+    def processor(
+        self, source: SourceType, sink: Optional[SinkType] = None, num_cpus: float = 0.5
+    ):
         return processor(self.runtime, source, sink, num_cpus)
 
     def run(
         self,
         processor_instance: Optional[ProcessorAPI] = None,
         *,
-        streaming_options: options.StreamingOptions = options.StreamingOptions(
-        ),
+        streaming_options: options.StreamingOptions = options.StreamingOptions(),
         disable_usage_stats: bool = False,
         enable_resource_creation: bool = True,
     ) -> flow.FlowResults:
@@ -51,4 +51,5 @@ class Flow(flow.FlowAPI):
         return self.runtime.run(
             streaming_options=streaming_options,
             disable_usage_stats=disable_usage_stats,
-            enable_resource_creation=enable_resource_creation)
+            enable_resource_creation=enable_resource_creation,
+        )

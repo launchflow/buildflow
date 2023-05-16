@@ -47,7 +47,9 @@ dev = [
     "moto",
     "pytest",
     "pytest-timeout",
-    "flake8",
+    "ruff",
+    "black",
+    "pre-commit",
     "setuptools",
     "wheel"
 ]

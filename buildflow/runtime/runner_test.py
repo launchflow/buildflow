@@ -7,48 +7,41 @@ from buildflow.runtime.ray_io import pubsub_io
 
 
 class StreamProcessor1(Processor):
-
     def source(self):
-        return pubsub_io.PubSubSource(
-            subscription='projects/project/subscriptions/sub')
+        return pubsub_io.PubSubSource(subscription="projects/project/subscriptions/sub")
 
     def process(self, payload):
         return payload
 
 
 class StreamProcessor2(Processor):
-
     def source(self):
-        return pubsub_io.PubSubSource(
-            subscription='projects/project/subscriptions/sub')
+        return pubsub_io.PubSubSource(subscription="projects/project/subscriptions/sub")
 
     def process(self, payload):
         return payload
 
 
 class BatchProcessor1(Processor):
-
     def source(self):
-        return bigquery_io.BigQuerySource(table_id='a.b.c')
+        return bigquery_io.BigQuerySource(table_id="a.b.c")
 
     def process(self, payload):
         return payload
 
 
 class BatchProcessor2(Processor):
-
     def source(self):
-        return bigquery_io.BigQuerySource(table_id='a.b.c')
+        return bigquery_io.BigQuerySource(table_id="a.b.c")
 
     def process(self, payload):
         return payload
 
 
-_ERROR_TEXT = 'Flows containing a streaming processor are only allowed to have one processor.'  # noqa: E501
+_ERROR_TEXT = "Flows containing a streaming processor are only allowed to have one processor."  # noqa: E501
 
 
 class RunnerTest(unittest.TestCase):
-
     def test_add_multiple_streaming(self):
         runtime = runner.Runtime()
         runtime.register_processor(StreamProcessor1())
@@ -67,5 +60,5 @@ class RunnerTest(unittest.TestCase):
             runtime.register_processor(StreamProcessor2())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
