@@ -17,6 +17,8 @@ def dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
     # This also converts some field types that we know aren't serializable to
     # json.
     #   - datetime.datetime, datetime.date, datetime.time
+
+    # TODO: need to ensure we convert containers of dataclasses to json
     to_ret = {}
     for k in dataclass_instance.__dataclass_fields__:
         val = getattr(dataclass_instance, k)
@@ -24,5 +26,8 @@ def dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
             val = val.isoformat()
         if dataclasses.is_dataclass(val):
             val = dataclass_to_json(val)
+        if (isinstance(val, list) and len(val) > 0
+                and dataclasses.is_dataclass(val[0])):
+            val = [dataclass_to_json(v) for v in val]
         to_ret[k] = val
     return to_ret
