@@ -1,11 +1,11 @@
 from typing import Optional
 
-from buildflow.api import ProcessorAPI, flow, SourceType, SinkType, options
+from buildflow.api import ProcessorAPI, SourceType, SinkType, node, options
 from buildflow.runtime.processor import processor
 from buildflow.runtime.runner import Runtime
 
 
-class Flow(flow.FlowAPI):
+class Node(node.NodeAPI):
     _instance = None
     _initialized = False
 
@@ -22,8 +22,8 @@ class Flow(flow.FlowAPI):
     def instance(cls):
         if cls._instance is None:
             raise ValueError(
-                "Flow has not yet been initialized. Did you call "
-                "buildflow.Flow(...)?"
+                "Node has not yet been initialized. Did you call "
+                "buildflow.Node(...)?"
             )
         return cls._instance
 
@@ -45,7 +45,7 @@ class Flow(flow.FlowAPI):
         streaming_options: options.StreamingOptions = options.StreamingOptions(),
         disable_usage_stats: bool = False,
         enable_resource_creation: bool = True,
-    ) -> flow.FlowResults:
+    ) -> node.NodeResults:
         if processor_instance is not None:
             self.runtime.register_processor(processor_instance)
         return self.runtime.run(

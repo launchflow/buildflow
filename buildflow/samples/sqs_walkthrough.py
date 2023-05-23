@@ -13,7 +13,7 @@ import time
 from typing import Any, Dict
 
 import buildflow
-from buildflow import Flow
+from buildflow import Node
 
 
 # Parser to allow run time configuration of arguments
@@ -33,7 +33,7 @@ sink = buildflow.FileSink(
     file_path=args.file_path, file_format=buildflow.FileFormat.PARQUET
 )
 
-flow = Flow()
+flow = Node()
 
 
 @flow.processor(source=source, sink=sink)

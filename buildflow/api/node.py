@@ -4,7 +4,7 @@ from buildflow.api import options
 from buildflow.api.processor import ProcessorAPI
 
 
-class FlowResults:
+class NodeResults:
     def output(self):
         """This method will block the flow until completion.
 
@@ -19,7 +19,7 @@ class FlowResults:
         pass
 
 
-class FlowAPI:
+class NodeAPI:
     def processor(input, output: Optional[Any] = None):
         pass
 
@@ -29,5 +29,5 @@ class FlowAPI:
         streaming_options: options.StreamingOptions = options.StreamingOptions(),
         disable_usage_stats: bool = False,
         enable_resource_creation: bool = True,
-    ) -> FlowResults:
+    ) -> NodeResults:
         pass

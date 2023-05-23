@@ -10,7 +10,7 @@ import ray
 import requests
 
 from buildflow import utils
-from buildflow.api import FlowResults, ProcessorAPI, SourceType, SinkType, options
+from buildflow.api import NodeResults, ProcessorAPI, SourceType, SinkType, options
 from buildflow.runtime.managers import batch_manager
 from buildflow.runtime.managers import stream_manager
 
@@ -35,7 +35,7 @@ class Session:
 
 
 @dataclasses.dataclass
-class _StreamingResults(FlowResults):
+class _StreamingResults(NodeResults):
     def __init__(self, manager: stream_manager.StreamProcessManager) -> None:
         self._manager = manager
 
@@ -47,7 +47,7 @@ class _StreamingResults(FlowResults):
 
 
 @dataclasses.dataclass
-class _BatchResults(FlowResults):
+class _BatchResults(NodeResults):
     def __init__(self) -> None:
         self._processor_tasks = {}
 

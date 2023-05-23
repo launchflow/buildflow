@@ -14,7 +14,7 @@ class Output:
     output_val: int
 
 
-flow = buildflow.Flow()
+flow = buildflow.Node()
 
 
 class MyProcessor(buildflow.Processor):

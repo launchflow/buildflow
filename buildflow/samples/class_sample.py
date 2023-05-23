@@ -9,14 +9,14 @@ steps to run:
 import time
 from typing import Any, Dict
 
-from buildflow import Flow
+from buildflow import Node
 import buildflow
 
 # TODO(developer): Fill in with a pub/sub subscription.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
 _SUBSCRIPTION = ""
 
-flow = Flow()
+node = Node()
 
 
 class MyProcessor(buildflow.Processor):
@@ -42,4 +42,4 @@ class MyProcessor(buildflow.Processor):
         return message_data
 
 
-flow.run(MyProcessor()).output()
+node.run(MyProcessor()).output()

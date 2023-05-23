@@ -9,7 +9,7 @@ steps to run:
 import argparse
 import dataclasses
 import logging
-from buildflow import Flow
+from buildflow import Node
 import buildflow
 import ray
 import sys
@@ -28,10 +28,10 @@ class Output:
     count: Optional[int]
 
 
-flow = Flow()
+node = Node()
 
 
-@flow.processor(
+@node.processor(
     # NOTE: You can alternatly just pass the table ID to read in an entire
     # table.
     source=buildflow.BigQuerySource(
@@ -48,4 +48,4 @@ def process_query_result(dataset: ray.data.Dataset) -> Output:
 
 
 logging.basicConfig(level=logging.INFO)
-output = flow.run().output()
+output = node.run().output()

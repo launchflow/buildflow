@@ -10,7 +10,7 @@ import sys
 from typing import Any, Dict
 
 import buildflow
-from buildflow import Flow
+from buildflow import Node
 
 # Parser to allow run time configuration of arguments
 parser = argparse.ArgumentParser()
@@ -35,14 +35,10 @@ sink = buildflow.FileSink(
     file_path=args.file_path, file_format=buildflow.FileFormat.PARQUET
 )
 
-flow = Flow()
+node = Node()
 
 
 # Define our processor.
-@flow.processor(source=input_sub, sink=sink)
+@node.processor(source=input_sub, sink=sink)
 def process(element: Dict[str, Any]):
     return element
-
-
-# Run our flow.
-flow.run().output()

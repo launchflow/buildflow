@@ -1,6 +1,6 @@
 import buildflow
 
-flow = buildflow.Flow()
+flow = buildflow.Node()
 
 
 class MyProcessor(buildflow.Processor):

@@ -8,7 +8,7 @@ import sys
 from typing import List
 
 import buildflow
-from buildflow import Flow
+from buildflow import Node
 
 # Parser to allow run time configuration of arguments
 parser = argparse.ArgumentParser()
@@ -50,11 +50,11 @@ class AggregateWikiPageViews:
     min_page_views_per_hour: HourAggregate
 
 
-flow = Flow()
+node = Node()
 
 
 # Define our processor.
-@flow.processor(source=source, sink=sink)
+@node.processor(source=source, sink=sink)
 def process(gcs_file_event: buildflow.GCSFileEvent) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))
@@ -86,7 +86,3 @@ def process(gcs_file_event: buildflow.GCSFileEvent) -> List[AggregateWikiPageVie
             )
 
     return list(aggregate_stats.values())
-
-
-# Run your flow.
-flow.run().output()

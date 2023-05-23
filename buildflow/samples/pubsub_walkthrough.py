@@ -7,7 +7,7 @@ import logging
 from typing import Any, Dict
 
 import buildflow
-from buildflow import Flow
+from buildflow import Node
 
 # Parser to allow run time configuration of arguments
 parser = argparse.ArgumentParser()
@@ -44,14 +44,11 @@ class TaxiOutput:
     passenger_count: int
 
 
-flow = Flow()
+node = Node()
 
 
 # Define our processor.
-@flow.processor(source=input_sub, sink=output_table)
+@node.processor(source=input_sub, sink=output_table)
 def process(element: Dict[str, Any]) -> TaxiOutput:
     return element
 
-
-# Run our flow.
-flow.run().output()

@@ -28,7 +28,7 @@ class RedisStreamTest(unittest.TestCase):
         cls.redis_process.kill()
 
     def setUp(self) -> None:
-        self.flow = buildflow.Flow()
+        self.flow = buildflow.Node()
 
     def test_end_to_end_redis(self):
         redis_client = redis.Redis(host="localhost", port=8765)

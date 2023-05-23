@@ -10,7 +10,7 @@ import buildflow
 @pytest.mark.usefixtures("ray_fix")
 class EmptyTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.flow = buildflow.Flow()
+        self.flow = buildflow.Node()
 
     def test_end_to_end_empty(self):
         @self.flow.processor(source=buildflow.EmptySource(inputs=[1, 2, 3]))

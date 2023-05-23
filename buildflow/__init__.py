@@ -2,7 +2,7 @@
 from typing import Optional
 
 from buildflow.api import *
-from buildflow.runtime.flow import Flow
+from buildflow.runtime.node import Node
 from buildflow.runtime.processor import Processor
 from buildflow.utils import *
 from buildflow.runtime.ray_io.bigquery_io import BigQuerySink, BigQuerySource

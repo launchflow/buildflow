@@ -37,7 +37,7 @@ class FakeSqsClient:
 class SqsIoTest(unittest.TestCase):
     def setUp(self) -> None:
         self.output_path = tempfile.mkdtemp()
-        self.flow = buildflow.Flow()
+        self.flow = buildflow.Node()
 
     def tearDown(self) -> None:
         shutil.rmtree(self.output_path)
