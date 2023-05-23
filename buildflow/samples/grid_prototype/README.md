@@ -71,10 +71,46 @@ Resources:
 Would you like to create the desired resources (Y/n)?
 ```
 
-Could also add an `as-user` flag to ensure the user has the correct permissions to read the resources.
+Could also add a `grant-user` flag to ensure the user has the correct permissions to read the resources.
 
 ```
-buildflow plan main:grid --as-user=a-service-account
+$ buildflow plan main:grid --grant-user=a-service-account
+
+Grid Graph:
+
+    activity_classification(step_count_node)
+                 ||
+                \  /
+                 \/
+        step_count(step_count_node)
+                 ||
+                \  /
+                 \/
+            gait(gait_node)
+
+Resources:
+    node:
+        - name: step_count_node
+        - activity_classification:
+            - topic: /projects/gcp-project/topics/ac_pubsub
+            - subscription: /projects/gcp-project/subscriptions/ac_pubsub
+            - bigquery_table: gcp-project.dataset.activity_classification
+        - step_count:
+            - topic: /projects/gcp-project/topics/sc_pubsub
+            - subscription: /projects/gcp-project/subscriptions/sc_pubsub
+            - bigquery_table: gcp-project.dataset.step_count
+
+    node:
+        - name: gait_node
+        - gait:
+            - topic: /projects/gcp-project/topics/gait_pubsub
+            - subscription: /projects/gcp-project/subscriptions/gait_pubsub
+            - bigquery_table: gcp-project.dataset.gait
+
+Would you like to create the desired resources (Y/n)?
+...
+Would you like to grant user `a-service-account` access to the resources (Y/n)?
+....
 ```
 
 
