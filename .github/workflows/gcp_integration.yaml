@@ -36,7 +36,9 @@ jobs:
       - name: Run Pub/Sub Walkthrough
         run: |
           bq_table=$(uuidgen)
-          timeout -s SIGINT --preserve-status 120 python -m buildflow.samples.pubsub_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --bigquery_table=$bq_table
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          export BQ_TABLE=$bq_table
+          timeout -s SIGINT --preserve-status 120 buildflow run buildflow.samples.pubsub_walkthrough:app
           query="SELECT COUNT(*) as count FROM \`buildflow-integration-tests.buildflow_walkthrough.${bq_table}\`"
           num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
           if [[ $num_rows > 0 ]]; then exit 0; else exit 1; fi
@@ -69,7 +71,10 @@ jobs:
       - name: Run BigQuery Sample
         run: |
           output_table=${{ secrets.GCP_PROJECT }}.testing_output.$(uuidgen)
-          python -m buildflow.samples.bigquery_sample --gcs_bucket=${{ secrets.GCP_BQ_OUTPUT_BUCKET }} --input_table=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input --output_table=$output_table
+          export OUTPUT_TABLE=$output_table
+          export GCS_BUCKET=${{ secrets.GCP_BQ_OUTPUT_BUCKET }}
+          export INPUT_TABLE=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input
+          buildflow run buildflow.samples.bigquery_sample:app
           query="SELECT COUNT(*) as count FROM \`${output_table}\`"
           echo $query
           bq query --nouse_legacy_sql $query
@@ -105,7 +110,10 @@ jobs:
       - name: Run CSV -> BigQuery Walkthrough
         run: |
           bq_table=$(uuidgen)
-          python -m buildflow.samples.csv_bigquery_walkthrough --gcp_project=${{ secrets.GCP_PROJECT }} --table_name=$bq_table --bucket_name=${{ secrets.GCP_BUCKET }} &
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          export BUCKET_NAME=${{ secrets.GCP_BUCKET }}
+          export TABLE_NAME=$bq_table
+          buildflow run  buildflow.samples.csv_bigquery_walkthrough:app
           sleep 30
           gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
           sleep 60
