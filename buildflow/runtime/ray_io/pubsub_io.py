@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Type, Union
 
 from buildflow.api import io
 from buildflow.api.depends import Publisher
@@ -33,7 +33,7 @@ class PubSubSource(io.StreamingSource):
     def backlog(self) -> Optional[float]:
         return self._cloud_source.backlog()
 
-    def actor(self, ray_sinks, proc_input_type):
+    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
         if self.cloud == io.Cloud.GCP:
             return gcp_pubsub_io.PubSubSourceActor.remote(
                 ray_sinks, self._cloud_source, proc_input_type
