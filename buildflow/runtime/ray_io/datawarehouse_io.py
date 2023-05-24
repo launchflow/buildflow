@@ -4,10 +4,8 @@ from typing import Callable
 from buildflow.api import io
 from buildflow.runtime.ray_io import bigquery_io
 
-        
 
 class DataWarehouseSink(io.Sink):
-
     def __init__(self, cloud: str | io.Cloud, name: str, **kwargs) -> None:
         self.name = name
         self.cloud_args = kwargs
@@ -25,13 +23,15 @@ class DataWarehouseSink(io.Sink):
                 del self.cloud_args["dataset"]
             else:
                 dataset = "buildflow_default"
-            self.cloud_args["table_id"] = f'{project}.{dataset}.{self.name}'
+            self.cloud_args["table_id"] = f"{project}.{dataset}.{self.name}"
             self._cloud_sink = bigquery_io.BigQuerySink(**self.cloud_args)
         else:
             raise ValueError(f"Unsupported cloud: {self.cloud}")
-        
+
     def setup(self, process_arg_spec: inspect.FullArgSpec):
         return self._cloud_sink.setup(process_arg_spec)
-    
+
     def actor(self, remote_fn: Callable, is_streaming: bool):
-        return bigquery_io.BigQuerySinkActor.remote(remote_fn, self._cloud_sink, is_streaming)
+        return bigquery_io.BigQuerySinkActor.remote(
+            remote_fn, self._cloud_sink, is_streaming
+        )

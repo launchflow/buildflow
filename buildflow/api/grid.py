@@ -34,6 +34,6 @@ class GridAPI:
                 f"node with name {name} alreay exists in grid. "
                 "all node names must be unique."
             )
-        
+
     def deploy(self):
         pass

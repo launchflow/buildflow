@@ -9,6 +9,7 @@ class Cloud(Enum):
     GCP = "gcp"
     AWS = "aws"
 
+
 class _BaseIO:
     @classmethod
     def num_cpus(cls) -> float:

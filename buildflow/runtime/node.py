@@ -6,7 +6,6 @@ from buildflow.runtime.runner import Runtime
 
 
 class Node(node.NodeAPI):
-
     def __init__(self, name: str = "") -> None:
         super().__init__(name)
         self._runtime = Runtime()
@@ -15,7 +14,7 @@ class Node(node.NodeAPI):
         self, source: SourceType, sink: Optional[SinkType] = None, num_cpus: float = 0.5
     ):
         return processor(self._runtime, source, sink, num_cpus)
-    
+
     def add_processor(self, processor: ProcessorAPI):
         self._runtime.register_processor(processor)
 

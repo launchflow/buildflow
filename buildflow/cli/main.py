@@ -9,7 +9,10 @@ app = typer.Typer()
 
 APP_DIR_OPTION = typer.Option(
     "",
-    help="The directory to look for the app in, by adding this to `sys.path` we default to looking in the current working directory.",
+    help=(
+        "The directory to look for the app in, by adding this to `sys.path` "
+        "we default to looking in the current working directory."
+    ),
 )
 
 

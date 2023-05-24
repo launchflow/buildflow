@@ -26,8 +26,7 @@ def dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
             val = val.isoformat()
         if dataclasses.is_dataclass(val):
             val = dataclass_to_json(val)
-        if (isinstance(val, list) and len(val) > 0
-                and dataclasses.is_dataclass(val[0])):
+        if isinstance(val, list) and len(val) > 0 and dataclasses.is_dataclass(val[0]):
             val = [dataclass_to_json(v) for v in val]
         to_ret[k] = val
     return to_ret

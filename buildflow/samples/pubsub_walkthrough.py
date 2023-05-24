@@ -51,4 +51,3 @@ node = Node()
 @node.processor(source=input_sub, sink=output_table)
 def process(element: Dict[str, Any]) -> TaxiOutput:
     return element
-
