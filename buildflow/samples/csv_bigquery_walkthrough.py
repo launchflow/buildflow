@@ -1,32 +1,25 @@
-# flake8: noqa
-import argparse
 import csv
 import dataclasses
 import datetime
+import os
 import io
-import sys
 from typing import List
 
 import buildflow
 from buildflow import Node
 
-# Parser to allow run time configuration of arguments
-parser = argparse.ArgumentParser()
-parser.add_argument("--gcp_project", type=str, required=True)
-parser.add_argument("--bucket_name", type=str, required=True)
-parser.add_argument("--table_name", type=str, default="csv_bigquery")
-args, _ = parser.parse_known_args(sys.argv)
+gcp_project = os.environ["GCP_PROJECT"]
+bucket_name = os.environ["BUCKET_NAME"]
+table_name = os.environ["TABLE_NAME"]
 
 # Set up a subscriber for the source.
 # The source will setup a Pub/Sub topic and subscription to listen to new files
 # uploaded to the GCS bucket.
-source = buildflow.GCSFileNotifications(
-    project_id=args.gcp_project, bucket_name=args.bucket_name
-)
+source = buildflow.GCSFileNotifications(project_id=gcp_project, bucket_name=bucket_name)
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 sink = buildflow.BigQuerySink(
-    table_id=f"{args.gcp_project}.buildflow_walkthrough.{args.table_name}"
+    table_id=f"{gcp_project}.buildflow_walkthrough.{table_name}"
 )
 
 
@@ -50,11 +43,11 @@ class AggregateWikiPageViews:
     min_page_views_per_hour: HourAggregate
 
 
-node = Node()
+app = Node()
 
 
 # Define our processor.
-@node.processor(source=source, sink=sink)
+@app.processor(source=source, sink=sink)
 def process(gcs_file_event: buildflow.GCSFileEvent) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))

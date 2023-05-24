@@ -1,6 +1,5 @@
 """Tests for redis.py"""
 
-import asyncio
 import dataclasses
 import redis
 import subprocess

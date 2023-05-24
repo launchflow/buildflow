@@ -1,12 +1,12 @@
 import inspect
-from typing import Callable
+from typing import Callable, Union
 
 from buildflow.api import io
 from buildflow.runtime.ray_io import bigquery_io
 
 
 class DataWarehouseSink(io.Sink):
-    def __init__(self, cloud: str | io.Cloud, name: str, **kwargs) -> None:
+    def __init__(self, cloud: Union[str, io.Cloud], name: str, **kwargs) -> None:
         self.name = name
         self.cloud_args = kwargs
         self.cloud = cloud

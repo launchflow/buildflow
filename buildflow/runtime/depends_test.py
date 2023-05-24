@@ -19,7 +19,7 @@ class DependsTest(unittest.TestCase):
         def processor1(element):
             pass
 
-        pubsub_depends = depends.Depends(processor1)
+        pubsub_depends = depends.Depends(processor1.source())
 
         self.assertIsInstance(pubsub_depends, depends.PubSub)
 
@@ -34,7 +34,7 @@ class DependsTest(unittest.TestCase):
             def process(self, payload: int):
                 pass
 
-        pubsub_depends = depends.Depends(MyProcessor)
+        pubsub_depends = depends.Depends(MyProcessor.source())
 
         self.assertIsInstance(pubsub_depends, depends.PubSub)
 
@@ -44,20 +44,7 @@ class DependsTest(unittest.TestCase):
             pass
 
         with self.assertRaises(depends.UnsupportDepenendsSource):
-            buildflow.Depends(processor1)
-
-    def test_process_class_depends_no_class_method(self):
-        class MyProcessor(buildflow.Processor):
-            def source(cls):
-                return buildflow.PubSubSource(
-                    cloud="gcp", name="p1_pubsub", project_id="unused"
-                )
-
-            def process(self, payload: int):
-                pass
-
-        with self.assertRaises(depends.InvalidProcessorSource):
-            depends.Depends(MyProcessor)
+            buildflow.Depends(processor1.source())
 
 
 if __name__ == "__main__":

@@ -1,12 +1,7 @@
-import argparse
 import dataclasses
-import sys
+import os
 
 import buildflow
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--file_path", type=str, required=True)
-args, _ = parser.parse_known_args(sys.argv)
 
 
 @dataclasses.dataclass
@@ -28,7 +23,8 @@ class MyProcessor(buildflow.Processor):
     @classmethod
     def sink(cls):
         return buildflow.FileSink(
-            file_path=args.file_path, file_format=buildflow.FileFormat.PARQUET
+            file_path=os.environ["OUTPUT_FILE_PATH"],
+            file_format=buildflow.FileFormat.PARQUET,
         )
 
     def process(self, payload: int) -> Output:

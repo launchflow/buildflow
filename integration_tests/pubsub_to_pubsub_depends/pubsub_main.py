@@ -33,6 +33,7 @@ def processor2(payload: Output):
     )
 )
 def processor1(
-    payload: Input, p1: buildflow.PubSub[Output] = buildflow.Depends(processor2)
+    payload: Input,
+    p1: buildflow.PubSub[Output] = buildflow.Depends(processor2.source()),
 ):
     p1.publish(Output(payload.val + 1))

@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable
+from typing import Callable, Optional, Union
 
 from buildflow.api import io
 from buildflow.api.depends import Publisher
@@ -7,7 +7,7 @@ from buildflow.runtime.ray_io import gcp_pubsub_io
 
 
 class PubSubSource(io.StreamingSource):
-    def __init__(self, cloud: str | io.Cloud, name: str, **kwargs) -> None:
+    def __init__(self, cloud: Union[str, io.Cloud], name: str, **kwargs) -> None:
         self.name = name
         self.cloud_args = kwargs
         self.cloud = cloud
@@ -30,7 +30,7 @@ class PubSubSource(io.StreamingSource):
     def setup(self):
         return self._cloud_source.setup()
 
-    def backlog(self) -> float | None:
+    def backlog(self) -> Optional[float]:
         return self._cloud_source.backlog()
 
     def actor(self, ray_sinks, proc_input_type):
@@ -46,7 +46,7 @@ class PubSubSource(io.StreamingSource):
 
 
 class PubSubSink(io.Sink):
-    def __init__(self, cloud: str | io.Cloud, name: str, **kwargs) -> None:
+    def __init__(self, cloud: Union[str, io.Cloud], name: str, **kwargs) -> None:
         self.name = name
         self.cloud_args = kwargs
         self.cloud = cloud

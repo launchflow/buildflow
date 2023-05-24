@@ -16,7 +16,7 @@ import buildflow
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
 _SUBSCRIPTION = ""
 
-node = Node()
+app = Node()
 
 
 class MyProcessor(buildflow.Processor):
@@ -42,4 +42,4 @@ class MyProcessor(buildflow.Processor):
         return message_data
 
 
-node.run(MyProcessor()).output()
+app.add_processor(MyProcessor())

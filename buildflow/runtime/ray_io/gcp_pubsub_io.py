@@ -38,7 +38,7 @@ class PubSubPublisher(Publisher):
         self.client = clients.get_publisher_client(project)
         self.topic = topic
 
-    def publish(self, element: Dict[str, Any] | Any):
+    def publish(self, element: Union[Dict[str, Any], Any]):
         if dataclasses.is_dataclass(element):
             element = utils.dataclass_to_json(element)
         elif not isinstance(element, dict):
@@ -106,8 +106,8 @@ class GCPPubSubSource(io.StreamingSource):
                 return None
         except Exception:
             logging.error(
-                "Failed to get backlog for subscription %s please ensure your user has: "
-                "roles/monitoring.viewer to read the backlog, "
+                "Failed to get backlog for subscription %s please ensure your user "
+                "has: roles/monitoring.viewer to read the backlog, "
                 "no autoscaling will happen.",
                 self.subscription,
             )

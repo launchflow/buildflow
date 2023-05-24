@@ -34,10 +34,6 @@ class PubSub(Generic[T]):
 
 
 def Depends(depends):
-    try:
-        source = depends.source()
-    except Exception as e:
-        raise InvalidProcessorSource() from e
-    if isinstance(source, (pubsub_io.PubSubSource, gcp_pubsub_io.GCPPubSubSource)):
-        return PubSub(source)
-    raise UnsupportDepenendsSource(source)
+    if isinstance(depends, (pubsub_io.PubSubSource, gcp_pubsub_io.GCPPubSubSource)):
+        return PubSub(depends)
+    raise UnsupportDepenendsSource(depends)
