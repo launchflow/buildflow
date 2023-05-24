@@ -40,7 +40,7 @@ class BigQueryTest(unittest.TestCase):
 
         query = "SELECT * FROM TABLE"
 
-        buildflow.BigQuerySource(query=query, billing_project="tmp").actor([])
+        buildflow.BigQuerySource(query=query, billing_project="tmp").actor([], None)
 
         bq_client_mock.create_dataset.assert_called_once()
         bq_client_mock.update_dataset.assert_called_once()
@@ -66,7 +66,7 @@ class BigQueryTest(unittest.TestCase):
         source = buildflow.BigQuerySource(
             query=query, temp_dataset="p.ds", billing_project="tmp"
         )
-        source.actor([])
+        source.actor([], None)
 
         bq_client_mock = bq_mock.return_value
         bq_client_mock.create_dataset.assert_not_called()
@@ -92,7 +92,7 @@ class BigQueryTest(unittest.TestCase):
         bq_client_mock.get_table.return_value = FakeTable("p", "d", "t", 10)
 
         source = buildflow.BigQuerySource(table_id="p.d.t", billing_project="tmp")
-        source.actor([])
+        source.actor([], None)
 
         bq_client_mock.create_dataset.assert_not_called()
         bq_client_mock.update_dataset.assert_not_called()

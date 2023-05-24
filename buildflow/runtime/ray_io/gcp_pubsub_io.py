@@ -81,7 +81,7 @@ class GCPPubSubSource(io.StreamingSource):
         )
 
     def actor(self, ray_sinks, proc_input_type):
-        return PubSubSourceActor.remote(ray_sinks, self, proc_input_type)
+        return PubSubSourceActor.remote(ray_sinks, proc_input_type, self)
 
     def backlog(self) -> Optional[int]:
         split_sub = self.subscription.split("/")
@@ -155,8 +155,8 @@ class PubSubSourceActor(base.StreamingRaySource):
     def __init__(
         self,
         ray_sinks: Dict[str, base.RaySink],
-        pubsub_ref: GCPPubSubSource,
         processor_input_type: Optional[Type],
+        pubsub_ref: GCPPubSubSource,
     ) -> None:
         super().__init__(ray_sinks, processor_input_type)
         self.subscription = pubsub_ref.subscription

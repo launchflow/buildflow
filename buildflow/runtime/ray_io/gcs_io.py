@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 
 from google.api_core import exceptions
 
@@ -159,8 +159,10 @@ class GCSFileNotifications(io.StreamingSource):
         # This number is based on a single actor instance.
         return 4
 
-    def actor(self, ray_sinks):
-        return gcp_pubsub_io.PubSubSourceActor.remote(ray_sinks, self._pubsub_ref)
+    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
+        return gcp_pubsub_io.PubSubSourceActor.remote(
+            ray_sinks, proc_input_type, self._pubsub_ref
+        )
 
     def backlog(self) -> Optional[float]:
         return self._pubsub_ref.backlog()
