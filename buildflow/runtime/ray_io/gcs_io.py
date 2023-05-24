@@ -5,8 +5,8 @@ from typing import Any, Dict, List, Optional
 from google.api_core import exceptions
 
 from buildflow.api import io
-from buildflow.runtime.ray_io import pubsub_io
-from buildflow.runtime.ray_io import pubsub_utils
+from buildflow.runtime.ray_io import gcp_pubsub_io
+from buildflow.runtime.ray_io import gcp_pubsub_utils
 from buildflow.runtime.ray_io.gcp import clients
 
 
@@ -46,7 +46,7 @@ class GCSFileNotifications(io.StreamingSource):
     # configured correctly.
     _managed_subscriber = True
     _managed_publisher = True
-    _pubsub_ref: Optional[pubsub_io.PubSubSource] = dataclasses.field(
+    _pubsub_ref: Optional[gcp_pubsub_io.GCPPubSubSource] = dataclasses.field(
         init=False, default=None
     )
     # The billing project to use for GCP billing. If unset will default to
@@ -69,7 +69,7 @@ class GCSFileNotifications(io.StreamingSource):
             )
         else:
             self._managed_subscriber = False
-        self._pubsub_ref = pubsub_io.PubSubSource(
+        self._pubsub_ref = gcp_pubsub_io.GCPPubSubSource(
             subscription=self.pubsub_subscription,
             topic=self.pubsub_topic,
             include_attributes=True,
@@ -100,7 +100,7 @@ class GCSFileNotifications(io.StreamingSource):
 
         if self._managed_subscriber:
             gcs_notify_sa = f"serviceAccount:service-{bucket.project_number}@gs-project-accounts.iam.gserviceaccount.com"  # noqa: E501
-            pubsub_utils.maybe_create_subscription(
+            gcp_pubsub_utils.maybe_create_subscription(
                 pubsub_subscription=self.pubsub_subscription,
                 pubsub_topic=self.pubsub_topic,
                 billing_project=self.billing_project,
@@ -147,7 +147,7 @@ class GCSFileNotifications(io.StreamingSource):
                         "permission to modify the bucket."
                     )
 
-    def preprocess(self, message: pubsub_io.PubsubMessage) -> GCSFileEvent:
+    def preprocess(self, message: gcp_pubsub_io.PubsubMessage) -> GCSFileEvent:
         return GCSFileEvent(
             metadata=message.attributes, billing_project=self.billing_project
         )
@@ -160,7 +160,7 @@ class GCSFileNotifications(io.StreamingSource):
         return 4
 
     def actor(self, ray_sinks):
-        return pubsub_io.PubSubSourceActor.remote(ray_sinks, self._pubsub_ref)
+        return gcp_pubsub_io.PubSubSourceActor.remote(ray_sinks, self._pubsub_ref)
 
     def backlog(self) -> Optional[float]:
         return self._pubsub_ref.backlog()

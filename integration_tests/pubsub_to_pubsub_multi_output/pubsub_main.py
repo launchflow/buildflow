@@ -1,17 +1,19 @@
 import buildflow
 
-flow = buildflow.Node()
+app = buildflow.Node()
 
 
 class MyProcessor(buildflow.Processor):
+    @classmethod
     def source(self):
-        return buildflow.PubSubSource(
+        return buildflow.GCPPubSubSource(
             subscription=("projects/pubsub-test-project/subscriptions/pubsub_multi"),
             topic="projects/pubsub-test-project/topics/incoming_topic_multi",
         )
 
+    @classmethod
     def sink(self):
-        return buildflow.PubSubSink(
+        return buildflow.GCPPubSubSink(
             topic="projects/pubsub-test-project/topics/outgoing_topic_multi"
         )
 
@@ -20,4 +22,4 @@ class MyProcessor(buildflow.Processor):
         return [payload, payload]
 
 
-flow.run(MyProcessor()).output()
+app.add_processor(MyProcessor())

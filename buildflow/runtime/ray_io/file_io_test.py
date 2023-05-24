@@ -15,7 +15,7 @@ import buildflow
 class FileIoTest(unittest.TestCase):
     def setUp(self) -> None:
         self.output_path = tempfile.mkdtemp()
-        self.flow = buildflow.Node()
+        self.app = buildflow.Node()
 
     def tearDown(self) -> None:
         shutil.rmtree(self.output_path)
@@ -23,7 +23,7 @@ class FileIoTest(unittest.TestCase):
     def test_write_dictionaries(self):
         path = os.path.join(self.output_path, "output.parquet")
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.EmptySource(
                 inputs=[
                     {
@@ -39,14 +39,14 @@ class FileIoTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        self.flow.run().output()
+        self.app.run()
         table = pq.read_table(path)
         self.assertEqual([{"field": 1}, {"field": 2}], table.to_pylist())
 
     def test_write_dataset(self):
         path = os.path.join(self.output_path, "output.parquet")
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.EmptySource(
                 inputs=ray.data.from_items(
                     [
@@ -64,14 +64,14 @@ class FileIoTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        self.flow.run().output()
+        self.app.run()
         table = pq.read_table(path)
         self.assertEqual([{"field": 1}, {"field": 2}], table.to_pylist())
 
     def test_write_csv_from_dictionaries(self):
         path = os.path.join(self.output_path, "output.csv")
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.EmptySource(
                 inputs=[
                     {
@@ -87,7 +87,7 @@ class FileIoTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        self.flow.run().output()
+        self.app.run()
 
         # read csv file
         table = pcsv.read_csv(Path(path))
@@ -96,7 +96,7 @@ class FileIoTest(unittest.TestCase):
     def test_write_csv_from_ray_datasets(self):
         path = os.path.join(self.output_path, "output.csv")
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.EmptySource(
                 inputs=ray.data.from_items(
                     [
@@ -114,7 +114,7 @@ class FileIoTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        self.flow.run().output()
+        self.app.run()
 
         # read all csvs in the folder
         ray_dataset = ray.data.read_csv(path)
@@ -123,7 +123,7 @@ class FileIoTest(unittest.TestCase):
     def test_write_json_from_dictionaries(self):
         path = os.path.join(self.output_path, "output.json")
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.EmptySource(
                 inputs=[
                     {
@@ -139,7 +139,7 @@ class FileIoTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        self.flow.run().output()
+        self.app.run()
 
         # read json file
         with open(Path(path), "r") as read_file:
@@ -150,7 +150,7 @@ class FileIoTest(unittest.TestCase):
     def test_write_json_from_ray_datasets(self):
         path = os.path.join(self.output_path, "output.json")
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.EmptySource(
                 inputs=ray.data.from_items(
                     [
@@ -168,7 +168,7 @@ class FileIoTest(unittest.TestCase):
         def process(elem):
             return elem
 
-        self.flow.run().output()
+        self.app.run()
 
         # read all jsons in the folder
         ray_dataset = ray.data.read_json(path)

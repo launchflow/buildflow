@@ -5,29 +5,33 @@ from buildflow.api.processor import ProcessorAPI
 
 
 class NodeResults:
-    def output(self):
-        """This method will block the flow until completion.
+    def __init__(self, node_name: str) -> None:
+        self.node_name = node_name
 
-        For batch flows it will return the output of the pipeline.
-
-        For streaming flows it will simply infinitely block.
-        """
+    async def output(self, register_shutdown: bool = True):
+        """This method will block the flow until completion."""
         pass
 
-    def shutdown(self):
+    async def shutdown(self):
         """Sends the shutdown signal to the running flow."""
         pass
 
 
 class NodeAPI:
+    def __init__(self, name) -> None:
+        self.name = name
+
     def processor(input, output: Optional[Any] = None):
         pass
 
+    def add_processor(self, processor: ProcessorAPI):
+        pass
+
     def run(
-        processor_instance: Optional[ProcessorAPI] = None,
         *,
         streaming_options: options.StreamingOptions = options.StreamingOptions(),
         disable_usage_stats: bool = False,
         enable_resource_creation: bool = True,
-    ) -> NodeResults:
+        blocking: bool = True,
+    ):
         pass

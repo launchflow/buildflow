@@ -17,7 +17,7 @@ args, _ = parser.parse_known_args(sys.argv)
 
 # Set up a subscriber for the source.
 # If this subscriber does not exist yet BuildFlow will create it.
-input_sub = buildflow.PubSubSource(
+input_sub = buildflow.GCPPubSubSource(
     subscription=f"projects/{args.gcp_project}/subscriptions/taxiride-sub",
     topic="projects/pubsub-public-data/topics/taxirides-realtime",
 )

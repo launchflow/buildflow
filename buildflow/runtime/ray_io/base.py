@@ -1,9 +1,10 @@
 """Base class for all Ray IO Connectors"""
 
 import asyncio
+import dacite
 import dataclasses
 import os
-from typing import Any, Callable, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Type, Union
 
 import ray
 
@@ -91,8 +92,11 @@ class RaySink:
 class RaySource:
     """Base class for all ray sources."""
 
-    def __init__(self, ray_sinks: Dict[str, RaySink]) -> None:
+    def __init__(
+        self, ray_sinks: Dict[str, RaySink], processor_input_type: Optional[Type]
+    ) -> None:
         self.ray_sinks = ray_sinks
+        self.processor_input_type = processor_input_type
         self.data_tracing_enabled = _data_tracing_enabled()
 
     async def run(self):
@@ -119,6 +123,11 @@ class RaySource:
         return [(io_ref,)] * num_replicas
 
     async def _send_batch_to_sinks_and_await(self, elements):
+        if dataclasses.is_dataclass(self.processor_input_type):
+            elements = [
+                dacite.from_dict(data_class=self.processor_input_type, data=elem)
+                for elem in elements
+            ]
         result_keys = []
         task_refs = []
         for name, ray_sink in self.ray_sinks.items():
@@ -131,8 +140,12 @@ class RaySource:
 
 
 class StreamingRaySource(RaySource):
-    def __init__(self, ray_sinks: Dict[str, RaySink]) -> None:
-        super().__init__(ray_sinks)
+    def __init__(
+        self,
+        ray_sinks: Dict[str, RaySink],
+        processor_input_type: Type,
+    ) -> None:
+        super().__init__(ray_sinks, processor_input_type)
         self._num_events = 0
         self._empty_responses = 0
         self._requests = 0

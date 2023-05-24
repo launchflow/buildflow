@@ -9,6 +9,7 @@ from buildflow.runtime.ray_io import empty_io
 
 
 class Processor(ProcessorAPI):
+    @classmethod
     def sink(self) -> SinkType:
         return empty_io.EmptySink()
 
@@ -62,6 +63,6 @@ def processor(
         def wrapper_function(*args, **kwargs):
             return original_function(*args, **kwargs)
 
-        return wrapper_function
+        return processor_instance
 
     return decorator_function

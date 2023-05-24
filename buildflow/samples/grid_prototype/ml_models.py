@@ -1,8 +1,10 @@
-def classify_activity(imu):
-    return "walking"
+from .entities import IMU, ActivityClassification, StepCount, Gait
 
-def count_steps(activity_classification):
-    return 1
+def classify_activity(imu: IMU) -> ActivityClassification:
+    return ActivityClassification(activity="walking")
 
-def compute_gait(step_count):
-    return "normal"
+def count_steps(activity_classification: ActivityClassification) -> StepCount:
+    return StepCount(steps=100)
+
+def compute_gait(step_count: StepCount) -> Gait:
+    return Gait(gait="normal")

@@ -29,7 +29,7 @@ buildflow run main:grid
 Prints out the graph of your grids and nodes, and asks if you would like to create the required resources.
 
 ```
-buildflow plan main:grid
+buildflow plan main:grid -output=asdf.yaml
 ```
 
 So for this example it would look something like:
@@ -79,11 +79,11 @@ $ buildflow plan main:grid --grant-user=a-service-account
 Grid Graph:
 
     activity_classification(step_count_node)
-                 ||
+                 || PubSub
                 \  /
                  \/
         step_count(step_count_node)
-                 ||
+                 || PubSub
                 \  /
                  \/
             gait(gait_node)
@@ -112,6 +112,3 @@ Would you like to create the desired resources (Y/n)?
 Would you like to grant user `a-service-account` access to the resources (Y/n)?
 ....
 ```
-
-
-

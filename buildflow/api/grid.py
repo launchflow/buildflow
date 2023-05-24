@@ -26,6 +26,7 @@ class GridAPI:
                 name = node.name
             else:
                 name = uuid()
+        node.name = name
         try:
             self.nodes[name] = GridNode(name, cluster_address, node)
         except KeyError:
@@ -33,3 +34,6 @@ class GridAPI:
                 f"node with name {name} alreay exists in grid. "
                 "all node names must be unique."
             )
+        
+    def deploy(self):
+        pass

@@ -2,15 +2,15 @@ from buildflow import Depends, PubSub
 import buildflow
 
 from .ml_models import classify_activity, count_steps
-from .models import IMU, ActivityClassification, StepCount
+from .entities import IMU, ActivityClassification, StepCount
 from .gait import gait
 
 node = buildflow.Node()
 
 
 @node.processor(
-    source=buildflow.PubSubSource(cloud="gcp", name="sc_pubsub"),
-    sink=buildflow.DataWarhouse(cloud="gcp", name="step_count"),
+    source=buildflow.PubSubSource(cloud="gcp", name="sc_pubsub", project_id='daring-runway-374503'),
+    sink=buildflow.DataWarehouseSink(cloud="gcp", name="step_count", project_id='daring-runway-374503'),
 )
 def step_count(
     activity_classification: ActivityClassification,
@@ -22,8 +22,8 @@ def step_count(
 
 
 @node.processor(
-    source=buildflow.PubSubSource(cloud="gcp", name="ac_pubsub"),
-    sink=buildflow.DataWarehouse(cloud="gcp", name="activity_classification"),
+    source=buildflow.PubSubSource(cloud="gcp", name="ac_pubsub", project_id='daring-runway-374503'),
+    sink=buildflow.DataWarehouseSink(cloud="gcp", name="activity_classification", project_id='daring-runway-374503'),
 )
 def activity_classification(
     imu: IMU, sc_pubsub: PubSub[ActivityClassification] = Depends(step_count)
@@ -31,3 +31,8 @@ def activity_classification(
     ac = classify_activity(imu)
     sc_pubsub.publish(ac)
     return ac
+
+
+
+if __name__ == "__main__":
+    node.run()

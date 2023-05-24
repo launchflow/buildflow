@@ -14,17 +14,19 @@ class Output:
     output_val: int
 
 
-flow = buildflow.Node()
+app = buildflow.Node()
 
 
 class MyProcessor(buildflow.Processor):
-    def source(self):
-        return buildflow.PubSubSource(
+    @classmethod
+    def source(cls):
+        return buildflow.GCPPubSubSource(
             subscription=("projects/pubsub-test-project/subscriptions/pubsub_main"),
             topic="projects/pubsub-test-project/topics/incoming_topic",
         )
 
-    def sink(self):
+    @classmethod
+    def sink(cls):
         return buildflow.FileSink(
             file_path=args.file_path, file_format=buildflow.FileFormat.PARQUET
         )
@@ -33,4 +35,4 @@ class MyProcessor(buildflow.Processor):
         return Output(payload["val"] + 1)
 
 
-flow.run(MyProcessor()).output()
+app.add_processor(MyProcessor())

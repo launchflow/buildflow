@@ -39,7 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
-  test:
+  pytest:
     permissions:
       contents: write
       id-token: write
@@ -63,6 +63,24 @@ jobs:
       - name: Test with pytest
         run: |
           pytest --timeout=60
+
+  pubsub_integration_tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get install redis-server
+          python -m pip install --upgrade pip
+          pip install .[dev]
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'

@@ -26,7 +26,7 @@ if "PUBSUB_EMULATOR_HOST" not in os.environ:
 
 # Set up a subscriber for the source.
 # If this subscriber does not exist yet BuildFlow will create it.
-input_sub = buildflow.PubSubSource(
+input_sub = buildflow.GCPPubSubSource(
     subscription=f"projects/local-buildflow-example/subscriptions/my-sub",
     topic=f"projects/local-buildflow-example/topics/my-topic",
 )

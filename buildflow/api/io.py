@@ -1,6 +1,13 @@
+from enum import Enum
 import inspect
 from typing import Any, Callable, Optional, TypeVar
 
+from buildflow.api.depends import DependsPublisher
+
+
+class Cloud(Enum):
+    GCP = "gcp"
+    AWS = "aws"
 
 class _BaseIO:
     @classmethod
@@ -36,7 +43,7 @@ class Source(_BaseIO):
         return False
 
 
-class StreamingSource(Source):
+class StreamingSource(Source, DependsPublisher):
     def backlog(self) -> Optional[float]:
         """Returns an estimate of the backlog for the source.
 

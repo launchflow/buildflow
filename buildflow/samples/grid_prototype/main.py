@@ -1,9 +1,9 @@
-from buildflow import Grid
+from buildflow import DeploymentGrid
 
 from .step_count import node as sc_node
 from .gait import node as gait_node
 
-grid = Grid()
+grid = DeploymentGrid()
 
 # All nodes get deployed to one cluster.
 #    So the step count node will run both activity classification and step count
