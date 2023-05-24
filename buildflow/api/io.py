@@ -1,6 +1,6 @@
 from enum import Enum
 import inspect
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, Type, TypeVar
 
 from buildflow.api.depends import DependsPublisher
 
@@ -26,7 +26,7 @@ class Source(_BaseIO):
     def setup(self):
         """Perform any setup that is needed to connect to a source."""
 
-    def actor(self, ray_sinks):
+    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
         """Returns the actor associated with the source."""
         pass
 

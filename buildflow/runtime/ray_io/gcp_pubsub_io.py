@@ -80,7 +80,7 @@ class GCPPubSubSource(io.StreamingSource):
             billing_project=self.billing_project,
         )
 
-    def actor(self, ray_sinks, proc_input_type):
+    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
         return PubSubSourceActor.remote(ray_sinks, proc_input_type, self)
 
     def backlog(self) -> Optional[int]:
