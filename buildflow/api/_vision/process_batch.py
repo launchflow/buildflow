@@ -5,10 +5,10 @@ from dataclasses import dataclass
 import pandas as pd
 from ray.data import Dataset
 
-from buildflow import Flow
+from buildflow import Node
 from buildflow.io import BigQuery
 
-flow = Flow()
+flow = Node()
 
 
 @dataclass

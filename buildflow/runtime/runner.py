@@ -1,16 +1,18 @@
+import asyncio
 import copy
 import dataclasses
 import json
 import logging
 import os
+import signal
 import traceback
 from typing import Dict, Optional
 
-import ray
+
 import requests
 
 from buildflow import utils
-from buildflow.api import FlowResults, ProcessorAPI, SourceType, SinkType, options
+from buildflow.api import NodeResults, ProcessorAPI, SourceType, SinkType, options
 from buildflow.runtime.managers import batch_manager
 from buildflow.runtime.managers import stream_manager
 
@@ -35,30 +37,51 @@ class Session:
 
 
 @dataclasses.dataclass
-class _StreamingResults(FlowResults):
-    def __init__(self, manager: stream_manager.StreamProcessManager) -> None:
-        self._manager = manager
+class _StreamingResults(NodeResults):
+    def __init__(self, node_name: str) -> None:
+        super().__init__(node_name)
+        self._managers = []
+        self._manager_tasks = []
 
-    def output(self):
-        self._manager.block()
+    def add_manager(self, manager: stream_manager.StreamProcessManager):
+        self._managers.append(manager)
+        self._manager_tasks.append(manager.manager_task)
 
-    def shutdown(self):
-        self._manager.shutdown()
+    async def output(self, register_shutdown: bool = True):
+        if register_shutdown:
+            loop = asyncio.get_event_loop()
+            for signame in ("SIGINT", "SIGTERM"):
+                loop.add_signal_handler(
+                    getattr(signal, signame),
+                    lambda: asyncio.create_task(self.shutdown()),
+                )
+        return await asyncio.gather(*self._manager_tasks)
+
+    async def shutdown(self, *args):
+        print(f"Shutting down node: {self.node_name}...")
+        shutdown_tasks = []
+        for manager in self._managers:
+            # same time.
+            shutdown_tasks.append(manager.shutdown())
+        await asyncio.gather(*shutdown_tasks)
+        await asyncio.gather(*self._manager_tasks)
+        print(f"...node: {self.node_name} shut down.")
 
 
 @dataclasses.dataclass
-class _BatchResults(FlowResults):
-    def __init__(self) -> None:
+class _BatchResults(NodeResults):
+    def __init__(self, node_name: str) -> None:
+        super().__init__(node_name)
         self._processor_tasks = {}
 
     def _add_processor_task(self, processor_id: str, tasks):
         self._processor_tasks[processor_id] = tasks
 
-    def output(self):
+    async def _get_results(self):
         final_output = {}
         for proc_id, batch_ref in self._processor_tasks.items():
             proc_output = {}
-            output = ray.get(batch_ref)
+            output = await batch_ref
             for key, value in output.items():
                 if key in proc_output:
                     proc_output[key].extend(value)
@@ -66,6 +89,9 @@ class _BatchResults(FlowResults):
                     proc_output[key] = value
             final_output[proc_id] = proc_output
         return final_output
+
+    async def output(self):
+        return await self._get_results()
 
 
 def _load_session():
@@ -95,8 +121,13 @@ class Runtime:
         streaming_options: options.StreamingOptions,
         enable_resource_creation: bool,
         disable_usage_stats: bool,
+        node_name: str,
+        blocking: bool = True,
     ):
-        if not disable_usage_stats or "BUILDFLOW_USAGE_STATS_DISABLE" in os.environ:
+        if (
+            not disable_usage_stats
+            and "BUILDFLOW_USAGE_STATS_DISABLE" not in os.environ
+        ):
             print(
                 "Usage stats collection is enabled. To disable set "
                 "`disable_usage_stats` in flow.run() or set the environment "
@@ -122,8 +153,7 @@ class Runtime:
             print("...Finished setting up resources")
 
         try:
-            output = self._run(streaming_options)
-            return output
+            return self._run(streaming_options, node_name=node_name, blocking=blocking)
         except Exception as e:
             print("Flow failed with error: ", e)
             traceback.print_exc()
@@ -138,25 +168,38 @@ class Runtime:
         # TODO: Add support for multiple node types (i.e. endpoints).
         self._processors = {}
 
-    def _run(self, streaming_options: options.StreamingOptions):
-        batch_results = _BatchResults()
-        streaming_results = None
+    def _run(
+        self,
+        streaming_options: options.StreamingOptions,
+        node_name: str,
+        blocking: bool,
+    ):
+        results: _BatchResults | _StreamingResults = None
         for proc_id, processor_ref in self._processors.items():
+            proc_arg_spec = processor_ref.processor_instance.processor_arg_spec()
+            if not proc_arg_spec.args:
+                raise ValueError("Processor must have at least one argument.")
+            proc_input_type = proc_arg_spec.annotations.get(proc_arg_spec.args[0], None)
             if not processor_ref.source.is_streaming():
-                manager = batch_manager.BatchProcessManager(processor_ref)
-                batch_results._add_processor_task(proc_id, manager.run())
+                if results is None:
+                    results = _BatchResults(node_name)
+                manager = batch_manager.BatchProcessManager(
+                    processor_ref, proc_input_type
+                )
+                results._add_processor_task(proc_id, manager.run())
             else:
-                assert len(self._processors) == 1
+                if results is None:
+                    results = _StreamingResults(node_name)
                 manager = stream_manager.StreamProcessManager(
-                    processor_ref, streaming_options
+                    processor_ref, proc_id, streaming_options, proc_input_type
                 )
                 manager.run()
-                streaming_results = _StreamingResults(manager)
+                results.add_manager(manager)
 
-        if streaming_results is not None:
-            return streaming_results
-
-        return batch_results
+        if blocking:
+            return asyncio.run(results.output())
+        else:
+            return results
 
     def register_processor(
         self, processor_instance: ProcessorAPI, processor_id: Optional[str] = None
@@ -168,14 +211,19 @@ class Runtime:
                 f"Processor {processor_id} already registered. Overwriting."
             )
 
-        # For a flow allow 1 streaming processors or N batch processors.
-        # If user is adding a streaming processor ensure their are no other
-        # processors.
-        # If user is adding a batch processor ensure their are no existing
-        # streaming processors.
-        if (processor_instance.source().is_streaming() and self._processors) or any(
+        # Flows can only contain batch or streaming pipelines.
+        if processor_instance.source().is_streaming() and any(
+            [not p.source.is_streaming() for p in self._processors.values()]
+        ):
+            raise ValueError("Flows can only contain batch or streaming processors.")
+        elif not processor_instance.source().is_streaming() and any(
             [p.source.is_streaming() for p in self._processors.values()]
         ):
+            raise ValueError("Flows can only contain batch or streaming processors.")
+
+        if (
+            not processor_instance.source().is_streaming() and self._processors
+        ) and any([p.source.is_streaming() for p in self._processors.values()]):
             raise ValueError(
                 "Flows containing a streaming processor are only allowed "
                 "to have one processor."

@@ -17,6 +17,7 @@ class Output:
 
 
 @pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("event_loop_instance")
 class RedisStreamTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -28,14 +29,18 @@ class RedisStreamTest(unittest.TestCase):
         cls.redis_process.kill()
 
     def setUp(self) -> None:
-        self.flow = buildflow.Flow()
+        self.app = buildflow.Node()
+
+    def get_async_result(self, coro):
+        """Run a coroutine synchronously."""
+        return self.event_loop.run_until_complete(coro)
 
     def test_end_to_end_redis(self):
         redis_client = redis.Redis(host="localhost", port=8765)
 
         redis_client.xadd("input_stream", {"field": "value"})
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.RedisStreamSource(
                 host="localhost",
                 port=8765,
@@ -49,8 +54,9 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return element
 
-        runner = self.flow.run(
-            streaming_options=buildflow.StreamingOptions(autoscaling=False)
+        runner = self.app.run(
+            streaming_options=buildflow.StreamingOptions(autoscaling=False),
+            blocking=False,
         )
         time.sleep(10)
 
@@ -59,14 +65,14 @@ class RedisStreamTest(unittest.TestCase):
         self.assertEqual(len(data_written[0]), 2)
         self.assertEqual(data_written[0][1][0][1], {"field".encode(): "value".encode()})
 
-        runner.shutdown()
+        self.get_async_result(runner.shutdown())
 
     def test_end_to_end_multi_output(self):
         redis_client = redis.Redis(host="localhost", port=8765)
 
         redis_client.xadd("input_stream", {"field": "value"})
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.RedisStreamSource(
                 host="localhost",
                 port=8765,
@@ -81,8 +87,9 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return [element, element]
 
-        runner = self.flow.run(
-            streaming_options=buildflow.StreamingOptions(autoscaling=False)
+        runner = self.app.run(
+            streaming_options=buildflow.StreamingOptions(autoscaling=False),
+            blocking=False,
         )
         time.sleep(10)
 
@@ -90,14 +97,14 @@ class RedisStreamTest(unittest.TestCase):
         self.assertEqual(data_written[0][1][0][1], {"field".encode(): "value".encode()})
         self.assertEqual(data_written[0][1][1][1], {"field".encode(): "value".encode()})
 
-        runner.shutdown()
+        self.get_async_result(runner.shutdown())
 
     def test_end_to_end_dataclass(self):
         redis_client = redis.Redis(host="localhost", port=8765)
 
         redis_client.xadd("input_stream", {"field": "value"})
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.RedisStreamSource(
                 host="localhost",
                 port=8765,
@@ -112,8 +119,9 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return Output(element["field"])
 
-        runner = self.flow.run(
-            streaming_options=buildflow.StreamingOptions(autoscaling=False)
+        runner = self.app.run(
+            streaming_options=buildflow.StreamingOptions(autoscaling=False),
+            blocking=False,
         )
         time.sleep(10)
 
@@ -122,14 +130,14 @@ class RedisStreamTest(unittest.TestCase):
         self.assertEqual(len(data_written[0]), 2)
         self.assertEqual(data_written[0][1][0][1], {"field".encode(): "value".encode()})
 
-        runner.shutdown()
+        self.get_async_result(runner.shutdown())
 
     def test_end_to_end_multi_output_dataclass(self):
         redis_client = redis.Redis(host="localhost", port=8765)
 
         redis_client.xadd("input_stream", {"field": "value"})
 
-        @self.flow.processor(
+        @self.app.processor(
             source=buildflow.RedisStreamSource(
                 host="localhost",
                 port=8765,
@@ -144,15 +152,16 @@ class RedisStreamTest(unittest.TestCase):
         def process(element):
             return [Output(element["field"]), Output(element["field"])]
 
-        runner = self.flow.run(
-            streaming_options=buildflow.StreamingOptions(autoscaling=False)
+        runner = self.app.run(
+            streaming_options=buildflow.StreamingOptions(autoscaling=False),
+            blocking=False,
         )
         time.sleep(10)
 
         data_written = redis_client.xread({"output_stream": 0})
         self.assertEqual(data_written[0][1][0][1], {"field".encode(): "value".encode()})
         self.assertEqual(data_written[0][1][1][1], {"field".encode(): "value".encode()})
-        runner.shutdown()
+        self.get_async_result(runner.shutdown())
 
 
 if __name__ == "__main__":

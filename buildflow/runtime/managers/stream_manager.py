@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import logging
 import signal
 import time
-from typing import Awaitable, Dict, Optional, Tuple
+from typing import Awaitable, Dict, Optional, Tuple, Type
 
 import ray
 from ray.util.metrics import Counter, Gauge
@@ -81,15 +81,21 @@ async def _wait_for_metrics(
 @ray.remote
 class _StreamManagerActor:
     def __init__(
-        self, options: StreamingOptions, processor_ref: processors.ProcessorRef
+        self,
+        options: StreamingOptions,
+        proc_id: str,
+        processor_ref: processors.ProcessorRef,
+        proc_input_type: Optional[Type],
     ) -> None:
         self.options = options
+        self.proc_id = proc_id
         self.processor_ref = processor_ref
         self.running = True
         self._requests = 0
         self._running_average = float("nan")
         self._sink_actor = None
         self._replicas = {}
+        self._proc_input_type = proc_input_type
         self.num_replicas_gauge = Gauge(
             "num_replicas",
             description="Current number of replicas. Goes up and down.",
@@ -123,14 +129,17 @@ class _StreamManagerActor:
         # Could maybe solve this with ray placement groups:
         #   https://docs.ray.io/en/latest/ray-core/scheduling/placement-group.html
         process_actor = processors.ProcessActor.options(
-            num_cpus=self.processor_ref.processor_instance.num_cpus()
+            num_cpus=self.processor_ref.processor_instance.num_cpus(),
+            namespace=self.proc_id,
         ).remote(self.processor_ref.get_processor_replica())
         sink_actor = self.processor_ref.sink.actor(
             process_actor, self.processor_ref.source.is_streaming()
         )
 
         replica_id = utils.uuid()
-        source_actor = self.processor_ref.source.actor({key: sink_actor})
+        source_actor = self.processor_ref.source.actor(
+            {key: sink_actor}, self._proc_input_type
+        )
         num_threads = self.processor_ref.source.recommended_num_threads()
         source_pool_tasks = [source_actor.run.remote() for _ in range(num_threads)]
         self._replicas[replica_id] = (source_actor, source_pool_tasks)
@@ -253,27 +262,25 @@ class StreamProcessManager:
     def __init__(
         self,
         processor_ref: processors.ProcessorRef,
+        proc_id: str,
         streaming_options: StreamingOptions,
+        proc_input_type: Optional[Type],
     ) -> None:
-        self._actor = _StreamManagerActor.remote(streaming_options, processor_ref)
-        self._manager_task = None
+        self._actor = _StreamManagerActor.options(namespace=proc_id).remote(
+            streaming_options, proc_id, processor_ref, proc_input_type
+        )
+        self.manager_task = None
 
     def run(self):
-        self._manager_task = self._actor.run.remote()
+        self.manager_task = self._actor.run.remote()
         signal.signal(signal.SIGTERM, self.shutdown)
+        signal.signal(signal.SIGINT, self.shutdown)
+        return self.manager_task
 
     # NOTE: *args is added so this can be registered with SIGTERM
-    def shutdown(self, *args):
-        print("Shutting down processors...")
-        ray.get(self._actor.shutdown.remote())
-        ray.get(self._manager_task)
-        print("...Sucessfully shut down processors.")
+    async def shutdown(self, *args):
+        await self._actor.shutdown.remote()
 
     def block(self):
-        try:
-            ray.get(self._manager_task)
-        except KeyboardInterrupt:
-            # We shutdown on sigint and sigterm. This allow users to easily
-            # drain a job they launched manually, and also kill longer
-            # running jobs.
-            self.shutdown()
+        ray.get(self.manager_task)
+        self.shutdown()

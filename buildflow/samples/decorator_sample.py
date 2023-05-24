@@ -7,7 +7,7 @@ steps to run:
 """
 
 import buildflow
-from buildflow import Flow
+from buildflow import Node
 
 # TODO(developer): add a pub/sub info.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
@@ -15,16 +15,13 @@ _INPUT_SUBSCRIPTION = ""
 # topic format: 'projects/{PROJECT_ID}/topic/{SUBSCRIPTION_ID}'
 _OUTPUT_TOPIC = ""
 
-flow = Flow()
+app = Node()
 
 
-@flow.processor(
+@app.processor(
     source=buildflow.PubSub(subscription=_INPUT_SUBSCRIPTION),
     sink=buildflow.PubSub(topic=_OUTPUT_TOPIC),
 )
 def process(taxi_info):
     print(taxi_info)
     return taxi_info
-
-
-flow.run().output()

@@ -6,7 +6,7 @@ import inspect
 import json
 import logging
 import time
-from typing import Any, Callable, Dict, Iterable, List, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
 
 from google.api_core import exceptions
 from google.cloud import bigquery, bigquery_storage_v1
@@ -76,7 +76,7 @@ class BigQuerySource(io.Source):
                     f"Failed to test BigQuery query. Failed with: {e}"
                 ) from e
 
-    def actor(self, ray_sinks):
+    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
         bq_client = clients.get_bigquery_client(self.billing_project)
         if self.query:
             if self.temp_dataset:
@@ -127,7 +127,9 @@ class BigQuerySource(io.Source):
         # The BigQuerySourceActor instance will fan these tasks out and combine
         # them into a single ray Dataset in the run() method.
         streams = [stream.name for stream in read_session.streams]
-        return BigQuerySourceActor.remote(ray_sinks, streams, self.billing_project)
+        return BigQuerySourceActor.remote(
+            ray_sinks, proc_input_type, streams, self.billing_project
+        )
 
 
 @dataclasses.dataclass
@@ -224,10 +226,11 @@ class BigQuerySourceActor(base.RaySource):
     def __init__(
         self,
         ray_sinks: Dict[str, base.RaySink],
+        processor_input_type: Optional[Type],
         bq_read_session_stream_ids: List[str],
         billing_project: str,
     ) -> None:
-        super().__init__(ray_sinks)
+        super().__init__(ray_sinks, processor_input_type)
         self.bq_read_session_stream_ids = bq_read_session_stream_ids
         self.billing_project = billing_project
         logging.basicConfig(level=logging.INFO)

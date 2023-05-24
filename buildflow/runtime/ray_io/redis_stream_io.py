@@ -4,7 +4,7 @@ import asyncio
 import dataclasses
 import logging
 import time
-from typing import Any, Callable, Dict, Iterable, List, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
 
 import ray
 import redis
@@ -23,8 +23,8 @@ class RedisStreamSource(io.Source):
     start_positions: Dict[str, str] = dataclasses.field(default_factory=dict)
     read_timeout_secs: int = -1
 
-    def actor(self, ray_sinks):
-        return RedisStreamInput.remote(ray_sinks, self)
+    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
+        return RedisStreamInput.remote(ray_sinks, proc_input_type, self)
 
     @classmethod
     def is_streaming(cls) -> bool:
@@ -48,9 +48,10 @@ class RedisStreamInput(base.StreamingRaySource):
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
+        proc_input_type: Optional[Type],
         redis_stream_ref: RedisStreamSource,
     ) -> None:
-        super().__init__(ray_sinks)
+        super().__init__(ray_sinks, proc_input_type)
         self.redis_client = redis.Redis(
             host=redis_stream_ref.host, port=redis_stream_ref.port
         )

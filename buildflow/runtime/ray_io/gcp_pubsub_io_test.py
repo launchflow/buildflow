@@ -3,7 +3,7 @@ from unittest import mock
 
 from google.api_core import exceptions
 
-from buildflow.runtime.ray_io import pubsub_io as io
+from buildflow.runtime.ray_io import gcp_pubsub_io as io
 
 
 class PubsubIOTest(unittest.TestCase):
@@ -23,7 +23,7 @@ class PubsubIOTest(unittest.TestCase):
         pub_mock.get_topic.side_effect = exceptions.NotFound("unused")
         sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
 
-        pubsub_io = io.PubSubSource(
+        pubsub_io = io.GCPPubSubSource(
             topic="projects/project/topics/pubsub-topic",
             subscription="projects/project/subscriptions/pubsub-sub",
         )
@@ -52,7 +52,7 @@ class PubsubIOTest(unittest.TestCase):
         sub_mock = sub_client_mock.return_value
         sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
 
-        pubsub_io = io.PubSubSource(
+        pubsub_io = io.GCPPubSubSource(
             topic="projects/project/topics/pubsub-topic",
             subscription="projects/project/subscriptions/pubsub-sub",
         )
@@ -78,7 +78,7 @@ class PubsubIOTest(unittest.TestCase):
         pub_mock = pub_client_mock.return_value
         sub_mock = sub_client_mock.return_value
 
-        pubsub_io = io.PubSubSource(
+        pubsub_io = io.GCPPubSubSource(
             topic="projects/project/topics/pubsub-topic",
             subscription="projects/project/subscriptions/pubsub-sub",
         )
@@ -98,7 +98,7 @@ class PubsubIOTest(unittest.TestCase):
         sub_mock = sub_client_mock.return_value
         sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
 
-        pubsub_io = io.PubSubSource(
+        pubsub_io = io.GCPPubSubSource(
             topic="", subscription="projects/project/subscriptions/pubsub-sub"
         )
         with self.assertRaisesRegex(
@@ -119,7 +119,7 @@ class PubsubIOTest(unittest.TestCase):
 
         pub_mock.get_topic.side_effect = exceptions.NotFound("unused")
 
-        pubsub_io = io.PubSubSink("projects/project/topics/pubsub-topic")
+        pubsub_io = io.GCPPubSubSink("projects/project/topics/pubsub-topic")
         pubsub_io.setup(None)
 
         pub_mock.create_topic.assert_called_once_with(

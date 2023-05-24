@@ -9,6 +9,7 @@ from buildflow.runtime.ray_io import empty_io
 
 
 class Processor(ProcessorAPI):
+    @classmethod
     def sink(self) -> SinkType:
         return empty_io.EmptySink()
 
@@ -38,6 +39,10 @@ def processor(
         processor_id = original_function.__name__
         # Dynamically define a new class with the same structure as Processor
         class_name = f"AdHocProcessor_{utils.uuid(max_len=8)}"
+
+        def wrapper_function(*args, **kwargs):
+            return original_function(*args, **kwargs)
+
         _AdHocProcessor = type(
             class_name,
             (object,),
@@ -54,14 +59,12 @@ def processor(
                     self.source().preprocess(payload)
                 ),
                 "num_cpus": lambda self: num_cpus,
+                "__call__": wrapper_function,
             },
         )
         processor_instance = _AdHocProcessor()
         runtime.register_processor(processor_instance, processor_id=processor_id)
 
-        def wrapper_function(*args, **kwargs):
-            return original_function(*args, **kwargs)
-
-        return wrapper_function
+        return processor_instance
 
     return decorator_function

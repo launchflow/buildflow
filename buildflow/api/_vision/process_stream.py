@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 
-from buildflow import Flow
+from buildflow import Node
 from buildflow.io import PubSub
 
-flow = Flow()
+flow = Node()
 
 
 @dataclass

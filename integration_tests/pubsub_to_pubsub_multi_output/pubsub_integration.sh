@@ -5,7 +5,7 @@ gcloud beta emulators pubsub start --project=pubsub-test-project --host-port=loc
 sleep 5
 export PUBSUB_EMULATOR_HOST=localhost:8085
 
-python pubsub_main.py &
+buildflow run pubsub_main:app &
 python pubsub_publish.py
 python pubsub_validation.py
 final_output=$?

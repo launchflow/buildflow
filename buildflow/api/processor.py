@@ -9,10 +9,12 @@ class ProcessorAPI:
         raise NotImplementedError("source not implemented")
 
     # This lifecycle method defines the output reference for the processor.
+    @classmethod
     def sink(self) -> SinkType:
         raise NotImplementedError("sink not implemented")
 
     # You can also define multiple outputs.
+    @classmethod
     def sinks(self) -> Iterable[SinkType]:
         raise NotImplementedError("sinks not implemented")
 

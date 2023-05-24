@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 
 import boto3
 import ray
@@ -63,8 +63,8 @@ class SQSSource(io.StreamingSource):
                     "Queue does not exist, and failed to created it."
                 ) from e
 
-    def actor(self, ray_sinks):
-        return SQSSourceActor.remote(ray_sinks, self)
+    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
+        return SQSSourceActor.remote(ray_sinks, proc_input_type, self)
 
     def backlog(self) -> Optional[float]:
         client = self.get_boto_client()
@@ -79,8 +79,13 @@ class SQSSource(io.StreamingSource):
 
 @ray.remote(num_cpus=SQSSource.num_cpus())
 class SQSSourceActor(base.StreamingRaySource):
-    def __init__(self, ray_sinks: Dict[str, base.RaySink], source: SQSSource) -> None:
-        super().__init__(ray_sinks)
+    def __init__(
+        self,
+        ray_sinks: Dict[str, base.RaySink],
+        proc_input_type: Optional[Type],
+        source: SQSSource,
+    ) -> None:
+        super().__init__(ray_sinks, proc_input_type)
         if source._test_sqs_client is not None:
             self.sqs_client = source._test_sqs_client
         else:

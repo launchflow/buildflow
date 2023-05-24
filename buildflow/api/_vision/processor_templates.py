@@ -7,11 +7,11 @@ from typing import Any, TextIO
 
 from ray.data import Dataset
 
-from buildflow import Flow
+from buildflow import Node
 from buildflow.io import BigQuery, HTTPEndpoint, PubSub
 from buildflow.templates import CloudRun, CloudScheduler, GCSFileEventStream
 
-flow = Flow()
+flow = Node()
 
 
 # CloudRun creates a Cloud Run endpoint to host the processor.

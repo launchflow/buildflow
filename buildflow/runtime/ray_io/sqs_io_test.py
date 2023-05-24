@@ -34,10 +34,12 @@ class FakeSqsClient:
         pass
 
 
+@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("event_loop_instance")
 class SqsIoTest(unittest.TestCase):
     def setUp(self) -> None:
         self.output_path = tempfile.mkdtemp()
-        self.flow = buildflow.Flow()
+        self.app = buildflow.Node()
 
     def tearDown(self) -> None:
         shutil.rmtree(self.output_path)
@@ -45,6 +47,10 @@ class SqsIoTest(unittest.TestCase):
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
+
+    def get_async_result(self, coro):
+        """Run a coroutine synchronously."""
+        return self.event_loop.run_until_complete(coro)
 
     @mock_sqs
     def test_sqs_setup_create_queue(self):
@@ -103,7 +109,7 @@ class SqsIoTest(unittest.TestCase):
             queue_name="queue_name", region="us-east-2", _test_sqs_client=fake_sqs
         )
 
-        @self.flow.processor(
+        @self.app.processor(
             source=input_sqs,
             sink=buildflow.FileSink(
                 file_path=path, file_format=buildflow.FileFormat.PARQUET
@@ -112,13 +118,13 @@ class SqsIoTest(unittest.TestCase):
         def process(element):
             return element["Body"]
 
-        runner = self.flow.run()
+        runner = self.app.run(blocking=False)
 
         time.sleep(10)
         table = pq.read_table(path)
         self.assertEqual([{"field": 1}, {"field": 2}], table.to_pylist())
 
-        runner.shutdown()
+        self.get_async_result(runner.shutdown())
 
     @mock.patch("boto3.client")
     def test_sqs_source_disable_resource_creation(self, boto_mock: mock.MagicMock):
@@ -146,7 +152,7 @@ class SqsIoTest(unittest.TestCase):
             queue_name="queue_name", region="us-east-2", _test_sqs_client=fake_sqs
         )
 
-        @self.flow.processor(
+        @self.app.processor(
             source=input_sqs,
             sink=buildflow.FileSink(
                 file_path=path, file_format=buildflow.FileFormat.PARQUET
@@ -155,13 +161,13 @@ class SqsIoTest(unittest.TestCase):
         def process(element):
             return element["Body"]
 
-        runner = self.flow.run(enable_resource_creation=False)
+        runner = self.app.run(enable_resource_creation=False, blocking=False)
 
         time.sleep(10)
         table = pq.read_table(path)
         self.assertEqual([{"field": 1}, {"field": 2}], table.to_pylist())
 
-        runner.shutdown()
+        self.get_async_result(runner.shutdown())
 
         # Should not be called because setup is not being called.
         boto_mock.assert_not_called()

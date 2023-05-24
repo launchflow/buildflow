@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 from tensorflow import keras
 
-from buildflow import Flow
+from buildflow import Node
 from buildflow.io import HTTPEndpoint
 
 model = keras.models.load_model("path/to/location")
 
-flow = Flow()
+flow = Node()
 
 
 @dataclass

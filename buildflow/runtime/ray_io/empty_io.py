@@ -2,7 +2,7 @@
 
 import dataclasses
 import logging
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable, Iterable, List, Optional, Type
 
 import ray
 
@@ -14,8 +14,8 @@ from buildflow.runtime.ray_io import base
 class EmptySource(io.Source):
     inputs: List[Any]
 
-    def actor(self, ray_sinks):
-        return EmptySourceActor.remote(ray_sinks, self)
+    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
+        return EmptySourceActor.remote(ray_sinks, proc_input_type, self)
 
 
 @dataclasses.dataclass
@@ -29,9 +29,10 @@ class EmptySourceActor(base.RaySource):
     def __init__(
         self,
         ray_sinks: Iterable[base.RaySink],
+        proc_ionput_type: Optional[Type],
         empty_ref: EmptySource,
     ) -> None:
-        super().__init__(ray_sinks)
+        super().__init__(ray_sinks, proc_ionput_type)
         self.inputs = empty_ref.inputs
         if not self.inputs:
             logging.warning(

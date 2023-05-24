@@ -15,6 +15,7 @@ requires-python = ">=3.7"
 dependencies = [
     # TODO: split up AWS and GCP dependencies.
     "boto3",
+    "dacite",
     "duckdb==0.6.0",
     "google-auth",
     "google-cloud-bigquery",
@@ -33,6 +34,7 @@ dependencies = [
     "pyarrow",
     "pyyaml",
     "ray[default]",
+    "typer",
     "redis",
 ]
 classifiers = [
@@ -56,3 +58,6 @@ dev = [
 
 [tool.setuptools.packages]
 find = {}  # Scan the project directory with the default parameters
+
+[project.scripts]
+buildflow = "buildflow.cli.main:main"
