@@ -31,7 +31,7 @@ class AutoScalerTest(unittest.TestCase):
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
                 cpus_per_replica=0.1,
-                autoscaling_options=options.StreamingOptions(),
+                autoscaling_options=options.AutoscalingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
             expected_log = "resizing from 3 replicas to 8 replicas"
@@ -63,7 +63,7 @@ class AutoScalerTest(unittest.TestCase):
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
                 cpus_per_replica=0.1,
-                autoscaling_options=options.StreamingOptions(),
+                autoscaling_options=options.AutoscalingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
             expected_log = "resizing from 24 replicas to 6 replicas"
@@ -92,7 +92,7 @@ class AutoScalerTest(unittest.TestCase):
                 cpus_per_replica=0.1,
                 # Max replicas will cap recommendation. Even though we need 8
                 # to burn down the backlog we won't scale beyond max_replicas.
-                autoscaling_options=options.StreamingOptions(max_replicas=5),
+                autoscaling_options=options.AutoscalingOptions(max_replicas=5),
             )
             self.assertEqual(len(self._caplog.records), 2)
             expected_log = "reached the max allowed replicas of 5"
@@ -125,7 +125,7 @@ class AutoScalerTest(unittest.TestCase):
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
                 cpus_per_replica=0.5,
-                autoscaling_options=options.StreamingOptions(max_replicas=85),
+                autoscaling_options=options.AutoscalingOptions(max_replicas=85),
             )
             self.assertEqual(len(self._caplog.records), 2)
             expected_log = (
@@ -160,7 +160,7 @@ class AutoScalerTest(unittest.TestCase):
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
                 cpus_per_replica=0.1,
-                autoscaling_options=options.StreamingOptions(max_replicas=84),
+                autoscaling_options=options.AutoscalingOptions(max_replicas=84),
             )
             self.assertEqual(len(self._caplog.records), 2)
             expected_log = "reached the max allowed replicas of 84"
@@ -193,7 +193,7 @@ class AutoScalerTest(unittest.TestCase):
                 non_empty_ratio_per_replica=non_empty_ratio_per_replica,
                 time_since_last_check=60,
                 cpus_per_replica=0.1,
-                autoscaling_options=options.StreamingOptions(),
+                autoscaling_options=options.AutoscalingOptions(),
             )
             self.assertEqual(len(self._caplog.records), 1)
             expected_log = "resizing from 24 replicas to 15 replicas"
@@ -227,7 +227,7 @@ class AutoScalerTest(unittest.TestCase):
                 time_since_last_check=120,
                 cpus_per_replica=0.1,
                 # Don't scale below 18 replicas.
-                autoscaling_options=options.StreamingOptions(min_replicas=18),
+                autoscaling_options=options.AutoscalingOptions(min_replicas=18),
             )
             self.assertEqual(len(self._caplog.records), 2)
             expected_log = "reached the minimum allowed replicas of 18"

@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Optional, Type, Union
+from typing import Any, Callable, Dict, Optional, Type, Union
 
 from buildflow.api import io
 from buildflow.api.depends import Publisher
@@ -26,6 +26,9 @@ class PubSubSource(io.StreamingSource):
             self._cloud_source = gcp_pubsub_io.GCPPubSubSource(**self.cloud_args)
         else:
             raise ValueError(f"Unsupported cloud: {self.cloud}")
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        return self._cloud_source.plan(process_arg_spec)
 
     def setup(self):
         return self._cloud_source.setup()
@@ -62,6 +65,9 @@ class PubSubSink(io.Sink):
             self._cloud_sink = gcp_pubsub_io.GCPPubSubSink(**self.cloud_args)
         else:
             raise ValueError(f"Unsupported cloud: {self.cloud}")
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        return self._cloud_sink.plan(process_arg_spec)
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
         return self._cloud_sink.setup(process_arg_spec)

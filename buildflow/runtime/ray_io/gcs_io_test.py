@@ -7,6 +7,8 @@ from google.api_core import exceptions
 from google.iam.v1 import iam_policy_pb2
 from google.iam.v1 import policy_pb2
 
+import buildflow
+from buildflow.api import NodePlan, ProcessorPlan
 from buildflow.runtime.ray_io import gcs_io
 
 
@@ -122,6 +124,38 @@ class GCSIOTest(unittest.TestCase):
             storage_mock.create_bucket.return_value.notification
         )  # noqa: E501
         notification_mock.assert_not_called()
+
+    def test_gcs_notifications_plan_source(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="gcs_process",
+                    source_resources={
+                        "source_type": "GCSFileNotifications",
+                        "bucket_name": "bucket",
+                        "pubsub_topic": "projects/p/topics/bucket_notifications",
+                        "pubsub_subscription": (
+                            "projects/p/subscriptions/bucket_subscriber"
+                        ),
+                    },
+                    sink_resources=None,
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(
+            source=gcs_io.GCSFileNotifications(
+                bucket_name="bucket",
+                project_id="p",
+            )
+        )
+        def gcs_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
 
 
 if __name__ == "__main__":

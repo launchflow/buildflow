@@ -19,13 +19,13 @@ file_path = os.environ.get("OUTPUT_FILE_PATH", "/tmp/buildflow/local_pubsub.parq
 source = buildflow.SQSSource(queue_name=queue_name, region=region, batch_size=1)
 sink = buildflow.FileSink(file_path=file_path, file_format=buildflow.FileFormat.PARQUET)
 
-flow = Node()
+app = Node()
 
 
-@flow.processor(source=source, sink=sink)
+@app.processor(source=source, sink=sink)
 def process(element: Dict[str, Any]):
     return json.loads(element["Body"])
 
 
-# Run our flow.
-flow.run().output()
+if __name__ == "__main__":
+    app.run()

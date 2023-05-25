@@ -3,6 +3,8 @@ from unittest import mock
 
 from google.api_core import exceptions
 
+import buildflow
+from buildflow.api import NodePlan, ProcessorPlan
 from buildflow.runtime.ray_io import gcp_pubsub_io as io
 
 
@@ -125,6 +127,93 @@ class PubsubIOTest(unittest.TestCase):
         pub_mock.create_topic.assert_called_once_with(
             name="projects/project/topics/pubsub-topic"
         )
+
+    def test_gcp_pubsub_plan_source(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="gcp_ps_process",
+                    source_resources={
+                        "source_type": "GCPPubSubSource",
+                        "subscription": "/projects/p/subscriptions/sub",
+                        "topic": "/projects/p/topics/topic",
+                    },
+                    sink_resources=None,
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(
+            source=io.GCPPubSubSource(
+                subscription="/projects/p/subscriptions/sub",
+                topic="/projects/p/topics/topic",
+            )
+        )
+        def gcp_ps_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
+
+    def test_gcp_pubsub_plan_source_no_topic(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="gcp_ps_process",
+                    source_resources={
+                        "source_type": "GCPPubSubSource",
+                        "subscription": "/projects/p/subscriptions/sub",
+                    },
+                    sink_resources=None,
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(
+            source=io.GCPPubSubSource(
+                subscription="/projects/p/subscriptions/sub",
+            )
+        )
+        def gcp_ps_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
+
+    def test_gcp_pubsub_plan_sink(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="gcp_ps_process",
+                    source_resources={
+                        "source_type": "GCPPubSubSource",
+                        "subscription": "/projects/p/subscriptions/sub",
+                    },
+                    sink_resources={
+                        "sink_type": "GCPPubSubSink",
+                        "topic": "/projects/p/topics/topic2",
+                    },
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(
+            source=io.GCPPubSubSource(
+                subscription="/projects/p/subscriptions/sub",
+            ),
+            sink=io.GCPPubSubSink(topic="/projects/p/topics/topic2"),
+        )
+        def gcp_ps_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
 
 
 if __name__ == "__main__":

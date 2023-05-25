@@ -25,7 +25,7 @@ import ray
 from ray.util.metrics import Counter, Gauge
 
 from buildflow import utils
-from buildflow.api.options import StreamingOptions
+from buildflow.api.options import AutoscalingOptions
 from buildflow.runtime.managers import auto_scaler
 from buildflow.runtime.managers import processors
 from buildflow.runtime.ray_io import empty_io
@@ -82,7 +82,7 @@ async def _wait_for_metrics(
 class _StreamManagerActor:
     def __init__(
         self,
-        options: StreamingOptions,
+        options: AutoscalingOptions,
         proc_id: str,
         processor_ref: processors.ProcessorRef,
         proc_input_type: Optional[Type],
@@ -264,11 +264,13 @@ class StreamProcessManager:
         self,
         processor_ref: processors.ProcessorRef,
         proc_id: str,
-        streaming_options: StreamingOptions,
         proc_input_type: Optional[Type],
     ) -> None:
         self._actor = _StreamManagerActor.options(namespace=proc_id).remote(
-            streaming_options, proc_id, processor_ref, proc_input_type
+            processor_ref.processor_instance.autoscaling_options(),
+            proc_id,
+            processor_ref,
+            proc_input_type,
         )
         self.manager_task = None
 

@@ -1,7 +1,8 @@
 """IO for writing to local files."""
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
+import inspect
 import os
 import json
 from pathlib import Path
@@ -25,6 +26,11 @@ class FileFormat(Enum):
 
 
 @dataclass
+class _FileSourcePlan:
+    file_path: str
+
+
+@dataclass
 class FileSink(io.Sink):
     file_path: str
     file_format: FileFormat
@@ -37,6 +43,9 @@ class FileSink(io.Sink):
         split_path = os.path.split(abs_path)
         if split_path[0]:
             os.makedirs(os.path.join(split_path[0]), exist_ok=True)
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        return asdict(_FileSourcePlan(self.file_path))
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return FileSinkActor.remote(remote_fn, self)

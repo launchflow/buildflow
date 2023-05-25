@@ -1,4 +1,5 @@
 import dataclasses
+import inspect
 import logging
 from typing import Any, Dict, List, Optional, Type
 
@@ -8,6 +9,13 @@ from buildflow.api import io
 from buildflow.runtime.ray_io import gcp_pubsub_io
 from buildflow.runtime.ray_io import gcp_pubsub_utils
 from buildflow.runtime.ray_io.gcp import clients
+
+
+@dataclasses.dataclass
+class _GCSSourcePlan:
+    bucket_name: str
+    pubsub_topic: str
+    pubsub_subscription: str
 
 
 @dataclasses.dataclass
@@ -76,6 +84,15 @@ class GCSFileNotifications(io.StreamingSource):
         )
         if not self.billing_project:
             self.billing_project = self.project_id
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        return dataclasses.asdict(
+            _GCSSourcePlan(
+                bucket_name=self.bucket_name,
+                pubsub_topic=self.pubsub_topic,
+                pubsub_subscription=self.pubsub_subscription,
+            )
+        )
 
     def setup(self):
         # TODO: Can we make the pubsub setup easier by just running:

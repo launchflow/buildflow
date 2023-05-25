@@ -43,3 +43,6 @@ class MyProcessor(buildflow.Processor):
 
 
 app.add_processor(MyProcessor())
+
+if __name__ == "__main__":
+    app.run()

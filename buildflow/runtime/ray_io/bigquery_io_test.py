@@ -11,6 +11,7 @@ from google.cloud import bigquery
 from google.cloud import bigquery_storage_v1
 
 import buildflow
+from buildflow.api import NodePlan, ProcessorPlan
 from buildflow.runtime.ray_io import bigquery_io
 
 
@@ -20,6 +21,11 @@ class FakeTable:
     dataset_id: str
     table_id: str
     num_rows: int
+
+
+@dataclass
+class FakeRow:
+    value: int
 
 
 # NOTE: Async actors don't support local mode / mocks so this really only tests
@@ -40,11 +46,15 @@ class BigQueryTest(unittest.TestCase):
 
         query = "SELECT * FROM TABLE"
 
-        buildflow.BigQuerySource(query=query, billing_project="tmp").actor([], None)
+        source = buildflow.BigQuerySource(query=query, billing_project="tmp")
+        source.setup()
+        source.actor([], None)
 
         bq_client_mock.create_dataset.assert_called_once()
         bq_client_mock.update_dataset.assert_called_once()
-        bq_client_mock.query.assert_called_once_with(query, job_config=mock.ANY)
+        # This should be called twice, once as a dry run validation, and once
+        # as a real query.
+        self.assertEqual(bq_client_mock.query.call_count, 2)
         bq_client_mock.get_table.assert_called_once()
 
         bq_storage_client.create_read_session.assert_called_once()
@@ -356,6 +366,155 @@ class BigQueryTest(unittest.TestCase):
             table_call.schema,
             [bigquery.SchemaField(name="field", field_type="INTEGER", mode="REQUIRED")],
         )
+
+    def test_source_plan_table_id(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="bq_process",
+                    source_resources={
+                        "source_type": "BigQuerySource",
+                        "table_id": "p.ds.t",
+                    },
+                    sink_resources=None,
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(source=bigquery_io.BigQuerySource(table_id="p.ds.t"))
+        def bq_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
+
+    def test_source_plan_query(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="bq_process",
+                    source_resources={
+                        "source_type": "BigQuerySource",
+                        "temp_dataset": "p.buildflow_temp",
+                    },
+                    sink_resources=None,
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(
+            source=bigquery_io.BigQuerySource(
+                query="select * from t", billing_project="p"
+            )
+        )
+        def bq_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
+
+    def test_sink_plan_no_schema(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="bq_process",
+                    source_resources={
+                        "source_type": "BigQuerySource",
+                        "table_id": "p.ds.t1",
+                    },
+                    sink_resources={
+                        "sink_type": "BigQuerySink",
+                        "table": {
+                            "table_id": "p.ds.t2",
+                            "schema": None,
+                        },
+                    },
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(
+            source=bigquery_io.BigQuerySource(table_id="p.ds.t1"),
+            sink=bigquery_io.BigQuerySink(table_id="p.ds.t2"),
+        )
+        def bq_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
+
+    def test_sink_plan_schema(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="bq_process",
+                    source_resources={
+                        "source_type": "BigQuerySource",
+                        "table_id": "p.ds.t1",
+                    },
+                    sink_resources={
+                        "sink_type": "BigQuerySink",
+                        "table": {
+                            "table_id": "p.ds.t2",
+                            "schema": [
+                                {"name": "value", "type": "INTEGER", "mode": "REQUIRED"}
+                            ],
+                        },
+                    },
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(
+            source=bigquery_io.BigQuerySource(table_id="p.ds.t1"),
+            sink=bigquery_io.BigQuerySink(table_id="p.ds.t2"),
+        )
+        def bq_process(elem) -> FakeRow:
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
+
+    def test_sink_plan_with_bucket(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="bq_process",
+                    source_resources={
+                        "source_type": "BigQuerySource",
+                        "table_id": "p.ds.t1",
+                    },
+                    sink_resources={
+                        "sink_type": "BigQuerySink",
+                        "table": {
+                            "table_id": "p.ds.t2",
+                            "schema": None,
+                        },
+                        "gcs_bucket": "bucket",
+                    },
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(
+            source=bigquery_io.BigQuerySource(table_id="p.ds.t1"),
+            sink=bigquery_io.BigQuerySink(table_id="p.ds.t2", temp_gcs_bucket="bucket"),
+        )
+        def bq_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
 
 
 if __name__ == "__main__":

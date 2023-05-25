@@ -1,7 +1,14 @@
-from typing import Dict
+from dataclasses import dataclass
+from typing import Dict, Iterable
 
-from buildflow.api.node import NodeAPI
+from buildflow.api.node import NodeAPI, NodePlan
 from buildflow.utils import uuid
+
+
+@dataclass
+class GridPlan:
+    name: str
+    nodes: Iterable[NodePlan]
 
 
 class GridNode:
@@ -37,3 +44,11 @@ class GridAPI:
 
     def deploy(self):
         pass
+
+    def plan(self):
+        node_plans = [node.plan() for node in self.nodes.values()]
+        return GridPlan(name=self.name, nodes=node_plans)
+
+    def setup(self):
+        for node in self.nodes.values():
+            node.setup()

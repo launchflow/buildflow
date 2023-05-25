@@ -12,9 +12,17 @@ from typing import Dict, Optional
 import requests
 
 from buildflow import utils
-from buildflow.api import NodeResults, ProcessorAPI, SourceType, SinkType, options
+from buildflow.api import (
+    NodePlan,
+    NodeResults,
+    ProcessorAPI,
+    ProcessorPlan,
+    SourceType,
+    SinkType,
+)
 from buildflow.runtime.managers import batch_manager
 from buildflow.runtime.managers import stream_manager
+from buildflow.runtime.ray_io import empty_io
 
 
 @dataclasses.dataclass
@@ -115,11 +123,18 @@ class Runtime:
         self._processors: Dict[str, _ProcessorRef] = {}
         self._session = _load_session()
 
+    def setup(self):
+        print("Setting up resources...")
+        for proc in self._processors.values():
+            proc.source.setup()
+            proc.sink.setup(
+                process_arg_spec=proc.processor_instance.processor_arg_spec()
+            )
+        print("...Finished setting up resources")
+
     def run(
         self,
         *,
-        streaming_options: options.StreamingOptions,
-        enable_resource_creation: bool,
         disable_usage_stats: bool,
         node_name: str,
         blocking: bool = True,
@@ -143,17 +158,8 @@ class Runtime:
                 logging.debug("failed to record usage stats.")
         print("Starting Flow Runtime")
 
-        if enable_resource_creation:
-            print("Setting up resources...")
-            for proc in self._processors.values():
-                proc.source.setup()
-                proc.sink.setup(
-                    process_arg_spec=proc.processor_instance.processor_arg_spec()
-                )
-            print("...Finished setting up resources")
-
         try:
-            return self._run(streaming_options, node_name=node_name, blocking=blocking)
+            return self._run(node_name=node_name, blocking=blocking)
         except Exception as e:
             print("Flow failed with error: ", e)
             traceback.print_exc()
@@ -170,7 +176,6 @@ class Runtime:
 
     def _run(
         self,
-        streaming_options: options.StreamingOptions,
         node_name: str,
         blocking: bool,
     ):
@@ -191,7 +196,7 @@ class Runtime:
                 if results is None:
                     results = _StreamingResults(node_name)
                 manager = stream_manager.StreamProcessManager(
-                    processor_ref, proc_id, streaming_options, proc_input_type
+                    processor_ref, proc_id, proc_input_type
                 )
                 manager.run()
                 results.add_manager(manager)
@@ -200,6 +205,28 @@ class Runtime:
             return asyncio.run(results.output())
         else:
             return results
+
+    def plan(self, node_name: str) -> NodePlan:
+        processor_plans = []
+        for proc_id, processor_ref in self._processors.items():
+            source_plan = {"source_type": type(processor_ref.source).__name__}
+            arg_spec = processor_ref.processor_instance.processor_arg_spec()
+            source_resources = processor_ref.source.plan(arg_spec)
+            if source_resources is not None:
+                source_plan.update(source_resources)
+
+            sink_plan = None
+            if not isinstance(processor_ref.sink, empty_io.EmptySink):
+                sink_plan = {"sink_type": type(processor_ref.sink).__name__}
+                sink_resources = processor_ref.sink.plan(arg_spec)
+                if sink_resources is not None:
+                    sink_plan.update(sink_resources)
+            processor_plans.append(
+                ProcessorPlan(
+                    proc_id, source_resources=source_plan, sink_resources=sink_plan
+                )
+            )
+        return NodePlan(node_name, processor_plans)
 
     def register_processor(
         self, processor_instance: ProcessorAPI, processor_id: Optional[str] = None

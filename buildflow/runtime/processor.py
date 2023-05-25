@@ -2,7 +2,7 @@ import inspect
 from typing import Optional
 
 from buildflow import utils
-from buildflow.api import ProcessorAPI
+from buildflow.api import ProcessorAPI, AutoscalingOptions
 from buildflow.api.io import SinkType, SourceType
 from buildflow.runtime import Runtime
 from buildflow.runtime.ray_io import empty_io
@@ -31,6 +31,7 @@ def processor(
     source: SourceType,
     sink: Optional[SinkType] = None,
     num_cpus: float = 0.5,
+    autoscaling_options: AutoscalingOptions = AutoscalingOptions(),
 ):
     if sink is None:
         sink = empty_io.EmptySink()
@@ -60,6 +61,7 @@ def processor(
                 ),
                 "num_cpus": lambda self: num_cpus,
                 "__call__": wrapper_function,
+                "autoscaling_options": lambda self: autoscaling_options,
             },
         )
         processor_instance = _AdHocProcessor()

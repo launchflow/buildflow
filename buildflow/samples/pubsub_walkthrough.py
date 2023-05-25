@@ -45,3 +45,7 @@ app = Node()
 @app.processor(source=input_sub, sink=output_table)
 def process(element: Dict[str, Any]) -> TaxiOutput:
     return element
+
+
+if __name__ == "__main__":
+    app.run()
