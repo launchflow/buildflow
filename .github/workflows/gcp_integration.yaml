@@ -9,6 +9,7 @@ env:
 jobs:
   pub_sub_integration_test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
@@ -45,6 +46,7 @@ jobs:
 
   bigquery_integration_test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
@@ -83,6 +85,7 @@ jobs:
 
   gcs_integration_test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write

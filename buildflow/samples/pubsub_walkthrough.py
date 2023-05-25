@@ -1,4 +1,3 @@
-# flake8: noqa
 import dataclasses
 from datetime import datetime
 import os
@@ -39,10 +38,10 @@ class TaxiOutput:
     passenger_count: int
 
 
-node = Node()
+app = Node()
 
 
 # Define our processor.
-@node.processor(source=input_sub, sink=output_table)
+@app.processor(source=input_sub, sink=output_table)
 def process(element: Dict[str, Any]) -> TaxiOutput:
     return element
