@@ -9,6 +9,7 @@ env:
 jobs:
   pub_sub_integration_test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
@@ -45,6 +46,7 @@ jobs:
 
   bigquery_integration_test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
@@ -83,6 +85,7 @@ jobs:
 
   gcs_integration_test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
@@ -113,7 +116,7 @@ jobs:
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
           export BUCKET_NAME=${{ secrets.GCP_BUCKET }}
           export TABLE_NAME=$bq_table
-          buildflow run  buildflow.samples.csv_bigquery_walkthrough:app
+          buildflow run buildflow.samples.csv_bigquery_walkthrough:app &
           sleep 30
           gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
           sleep 60
