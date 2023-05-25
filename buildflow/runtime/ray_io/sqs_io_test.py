@@ -176,6 +176,7 @@ class SqsIoTest(unittest.TestCase):
     @mock_sqs
     @mock_sts
     def test_sqs_source_plan(self):
+        os.environ["AWS_DEFAULT_REGION"] = "us-east-9"
         expected_plan = NodePlan(
             name="",
             processors=[
@@ -183,7 +184,7 @@ class SqsIoTest(unittest.TestCase):
                     name="sqs_process",
                     source_resources={
                         "source_type": "SQSSource",
-                        "queue_url": "https://sqs.us-east-1.amazonaws.com/123456789012/queue_name",
+                        "queue_url": "https://sqs.us-east-9.amazonaws.com/123456789012/queue_name",
                     },
                     sink_resources=None,
                 )
