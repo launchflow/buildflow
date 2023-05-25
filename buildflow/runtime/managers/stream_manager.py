@@ -243,7 +243,6 @@ class _StreamManagerActor:
                     new_num_replicas = start_replics
                 # Report new number of replicas from the scaling event.
                 self.num_replicas_gauge.set(new_num_replicas)
-                print("DO NOT SUBMIT: reporting num replicas: ", new_num_replicas)
                 if new_num_replicas > num_replicas:
                     replicas_to_add = new_num_replicas - num_replicas
                     for _ in range(replicas_to_add):
