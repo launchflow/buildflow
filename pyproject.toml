@@ -48,6 +48,7 @@ classifiers = [
 dev = [
     "moto",
     "pytest",
+    "pytest-cov",
     "pytest-timeout",
     "ruff",
     "black",
@@ -61,3 +62,25 @@ find = {}  # Scan the project directory with the default parameters
 
 [project.scripts]
 buildflow = "buildflow.cli.main:main"
+
+[tool.coverage.report]
+# Regexes for lines to exclude from consideration
+exclude_also = [
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    # Don't complain about abstract methods, they aren't run:
+    "@(abc\\.)?abstractmethod",
+]
+ignore_errors = true
+# Files to ignore
+omit = [
+    # Exclude samples
+    "buildflow/samples/*",
+    "buildflow/cli/*",
+    # Exclude skipped / prototype code
+    "buildflow/runtime/ray_io/duckdb_io*"
+]
