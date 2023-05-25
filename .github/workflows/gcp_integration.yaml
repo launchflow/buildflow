@@ -37,7 +37,7 @@ jobs:
         run: |
           bq_table=$(uuidgen)
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-          export BQ_TABLE=$bq_table
+          export BIGQUERY_TABLE=$bq_table
           timeout -s SIGINT --preserve-status 120 buildflow run buildflow.samples.pubsub_walkthrough:app
           query="SELECT COUNT(*) as count FROM \`buildflow-integration-tests.buildflow_walkthrough.${bq_table}\`"
           num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
