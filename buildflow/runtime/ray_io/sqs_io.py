@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import logging
 from typing import Any, Dict, Optional, Type
 
@@ -8,6 +8,11 @@ import ray
 
 from buildflow.api import io
 from buildflow.runtime.ray_io import base
+
+
+@dataclass
+class _SQSSourcePlan:
+    queue_url: str
 
 
 def _get_queue_url(aws_conn, queue_name, aws_account_id):
@@ -35,6 +40,16 @@ class SQSSource(io.StreamingSource):
     def __post_init__(self):
         if self.batch_size > 10:
             raise ValueError("max batch size support by sqs is 10.")
+
+    def plan(self, process_arg_spec) -> Dict[str, Any]:
+        region = self.region
+        if not region:
+            region = boto3.session.Session().region_name
+        account_id = self.queue_owner_aws_account_id
+        if not account_id:
+            account_id = boto3.client("sts").get_caller_identity()["Account"]
+        queue_url = f"https://sqs.{region}.amazonaws.com/{account_id}/{self.queue_name}"
+        return asdict(_SQSSourcePlan(queue_url))
 
     def get_boto_client(self):
         if self._test_sqs_client is not None:

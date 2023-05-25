@@ -11,9 +11,13 @@ class Node(node.NodeAPI):
         self._runtime = Runtime()
 
     def processor(
-        self, source: SourceType, sink: Optional[SinkType] = None, num_cpus: float = 0.5
+        self,
+        source: SourceType,
+        sink: Optional[SinkType] = None,
+        num_cpus: float = 0.5,
+        autoscaling_options: options.AutoscalingOptions = options.AutoscalingOptions(),
     ):
-        return processor(self._runtime, source, sink, num_cpus)
+        return processor(self._runtime, source, sink, num_cpus, autoscaling_options)
 
     def add_processor(self, processor: ProcessorAPI):
         self._runtime.register_processor(processor)
@@ -21,15 +25,20 @@ class Node(node.NodeAPI):
     def run(
         self,
         *,
-        streaming_options: options.StreamingOptions = options.StreamingOptions(),
         disable_usage_stats: bool = False,
-        enable_resource_creation: bool = True,
+        disable_resource_creation: bool = True,
         blocking: bool = True,
     ) -> node.NodeResults:
+        if not disable_resource_creation:
+            self._runtime.setup()
         return self._runtime.run(
-            streaming_options=streaming_options,
             disable_usage_stats=disable_usage_stats,
-            enable_resource_creation=enable_resource_creation,
             node_name=self.name,
             blocking=blocking,
         )
+
+    def plan(self) -> node.NodePlan:
+        return self._runtime.plan(node_name=self.name)
+
+    def setup(self):
+        return self._runtime.setup()

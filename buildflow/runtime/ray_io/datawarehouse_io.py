@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Union
+from typing import Any, Callable, Dict, Union
 
 from buildflow.api import io
 from buildflow.runtime.ray_io import bigquery_io
@@ -27,6 +27,9 @@ class DataWarehouseSink(io.Sink):
             self._cloud_sink = bigquery_io.BigQuerySink(**self.cloud_args)
         else:
             raise ValueError(f"Unsupported cloud: {self.cloud}")
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        return self._cloud_sink.plan(process_arg_spec)
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
         return self._cloud_sink.setup(process_arg_spec)

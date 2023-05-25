@@ -3,7 +3,7 @@ from typing import Optional
 
 
 @dataclass
-class StreamingOptions:
+class AutoscalingOptions:
     # The minimum number of replicas to maintain.
     min_replicas: int = 1
     # The maximum number of replicas to scale up to.

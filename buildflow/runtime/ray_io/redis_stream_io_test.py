@@ -50,12 +50,12 @@ class RedisStreamTest(unittest.TestCase):
             sink=buildflow.RedisStreamSink(
                 host="localhost", port=8765, streams=["output_stream"]
             ),
+            autoscaling_options=buildflow.AutoscalingOptions(autoscaling=False),
         )
         def process(element):
             return element
 
         runner = self.app.run(
-            streaming_options=buildflow.StreamingOptions(autoscaling=False),
             blocking=False,
         )
         time.sleep(10)
@@ -83,12 +83,12 @@ class RedisStreamTest(unittest.TestCase):
             sink=buildflow.RedisStreamSink(
                 host="localhost", port=8765, streams=["output_stream"]
             ),
+            autoscaling_options=buildflow.AutoscalingOptions(autoscaling=False),
         )
         def process(element):
             return [element, element]
 
         runner = self.app.run(
-            streaming_options=buildflow.StreamingOptions(autoscaling=False),
             blocking=False,
         )
         time.sleep(10)
@@ -115,12 +115,12 @@ class RedisStreamTest(unittest.TestCase):
             sink=buildflow.RedisStreamSink(
                 host="localhost", port=8765, streams=["output_stream"]
             ),
+            autoscaling_options=buildflow.AutoscalingOptions(autoscaling=False),
         )
         def process(element):
             return Output(element["field"])
 
         runner = self.app.run(
-            streaming_options=buildflow.StreamingOptions(autoscaling=False),
             blocking=False,
         )
         time.sleep(10)
@@ -148,12 +148,12 @@ class RedisStreamTest(unittest.TestCase):
             sink=buildflow.RedisStreamSink(
                 host="localhost", port=8765, streams=["output_stream"]
             ),
+            autoscaling_options=buildflow.AutoscalingOptions(autoscaling=False),
         )
         def process(element):
             return [Output(element["field"]), Output(element["field"])]
 
         runner = self.app.run(
-            streaming_options=buildflow.StreamingOptions(autoscaling=False),
             blocking=False,
         )
         time.sleep(10)

@@ -27,6 +27,24 @@ _MAX_STREAM_COUNT = 1000
 
 
 @dataclasses.dataclass
+class _BigQuerySourcePlan:
+    table_id: Optional[str]
+    temp_dataset: Optional[str]
+
+
+@dataclasses.dataclass
+class _SinkTablePlan:
+    table_id: str
+    schema: Optional[Dict[str, Any]]
+
+
+@dataclasses.dataclass
+class _BigQuerySinkPlan:
+    table: _SinkTablePlan
+    gcs_bucket: Optional[str]
+
+
+@dataclasses.dataclass
 class BigQuerySource(io.Source):
     """Source for reading data from BigQuery."""
 
@@ -54,6 +72,18 @@ class BigQuerySource(io.Source):
                 raise ValueError("billing_project must be provided if using a query")
             split_table = self.table_id.split(".")
             self.billing_project = split_table[0]
+        if self.query and not self.temp_dataset:
+            self.temp_dataset = f"{self.billing_project}.{_DEFAULT_TEMP_DATASET}"
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        plan_dict = dataclasses.asdict(
+            _BigQuerySourcePlan(self.table_id, self.temp_dataset)
+        )
+        if not plan_dict["table_id"]:
+            del plan_dict["table_id"]
+        if not plan_dict["temp_dataset"]:
+            del plan_dict["temp_dataset"]
+        return plan_dict
 
     def setup(self):
         client = clients.get_bigquery_client(self.billing_project)
@@ -75,25 +105,17 @@ class BigQuerySource(io.Source):
                 raise ValueError(
                     f"Failed to test BigQuery query. Failed with: {e}"
                 ) from e
+        if self.temp_dataset:
+            dataset = client.create_dataset(dataset=self.temp_dataset, exists_ok=True)
+            dataset.default_table_expiration_ms = (
+                _DEFAULT_DATASET_EXPIRATION_MS  # noqa: E501
+            )
+            client.update_dataset(dataset, fields=["default_table_expiration_ms"])
 
     def actor(self, ray_sinks, proc_input_type: Optional[Type]):
         bq_client = clients.get_bigquery_client(self.billing_project)
         if self.query:
-            if self.temp_dataset:
-                output_table = f"{self.temp_dataset}.{utils.uuid()}"
-            else:
-                logging.info(
-                    "temporary dataset was not provided, attempting to create" " one."
-                )
-                dataset_name = f"{self.billing_project}.{_DEFAULT_TEMP_DATASET}"
-                dataset = bq_client.create_dataset(dataset=dataset_name, exists_ok=True)
-                dataset.default_table_expiration_ms = (
-                    _DEFAULT_DATASET_EXPIRATION_MS  # noqa: E501
-                )
-                bq_client.update_dataset(
-                    dataset, fields=["default_table_expiration_ms"]
-                )
-                output_table = f"{dataset_name}.{utils.uuid()}"
+            output_table = f"{self.temp_dataset}.{utils.uuid()}"
             query_job = bq_client.query(
                 self.query,
                 job_config=bigquery.QueryJobConfig(destination=output_table),
@@ -152,9 +174,8 @@ class BigQuerySink(io.Sink):
             split_table = self.table_id.split(".")
             self.billing_project = split_table[0]
 
-    def setup(self, process_arg_spec: inspect.FullArgSpec):
-        client = clients.get_bigquery_client(self.billing_project)
-        schema = None
+    def _plan(self, process_arg_spec: inspect.FullArgSpec) -> _BigQuerySinkPlan:
+        table = _SinkTablePlan(self.table_id, schema=None)
         if "return" in process_arg_spec.annotations:
             return_type = process_arg_spec.annotations["return"]
             if hasattr(return_type, "__args__"):
@@ -170,15 +191,32 @@ class BigQuerySink(io.Sink):
                     dataclasses.fields(return_type)
                 )
                 schema.sort(key=lambda sf: sf.name)
+                table.schema = schema
         else:
-            print("No output type provided. Cannot validate BigQuery table.")
+            print("No output type provided. Cannot validate BigQuery schema.")
+        return _BigQuerySinkPlan(table, self.temp_gcs_bucket)
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        plan = self._plan(process_arg_spec)
+        if plan.table.schema is not None:
+            plan.table.schema = [
+                bq_schemas.schema_field_to_dict(sf) for sf in plan.table.schema
+            ]
+        plan_dict = dataclasses.asdict(plan)
+        if not plan_dict["gcs_bucket"]:
+            del plan_dict["gcs_bucket"]
+        return plan_dict
+
+    def setup(self, process_arg_spec: inspect.FullArgSpec):
+        client = clients.get_bigquery_client(self.billing_project)
+        plan = self._plan(process_arg_spec)
         try:
             table = client.get_table(table=self.table_id)
             bq_schema = table.schema
             bq_schema.sort(key=lambda sf: sf.name)
-            if schema is not None and schema != bq_schema:
-                only_in_bq = set(bq_schema) - set(schema)
-                only_in_pytype = set(schema) - set(bq_schema)
+            if plan.table.schema is not None and plan.table.schema != bq_schema:
+                only_in_bq = set(bq_schema) - set(plan.table.schema)
+                only_in_pytype = set(plan.table.schema) - set(bq_schema)
                 error_str = ["Output schema did not match table schema."]
                 if only_in_bq:
                     error_str.append(
@@ -192,11 +230,13 @@ class BigQuerySink(io.Sink):
                     )
                 raise ValueError("\n".join(error_str))
         except exceptions.NotFound:
-            if schema is not None:
+            if plan.table.schema is not None:
                 print(f"creating table: {self.table_id}")
                 dataset_ref = ".".join(self.table_id.split(".")[0:2])
                 client.create_dataset(dataset_ref, exists_ok=True)
-                table = client.create_table(bigquery.Table(self.table_id, schema))
+                table = client.create_table(
+                    bigquery.Table(self.table_id, plan.table.schema)
+                )
             else:
                 raise ValueError(
                     "BigQuery table does not exist and cannot create based on"

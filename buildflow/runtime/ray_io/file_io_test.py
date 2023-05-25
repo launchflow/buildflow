@@ -10,6 +10,7 @@ import pyarrow.parquet as pq
 import ray
 
 import buildflow
+from buildflow.api import NodePlan, ProcessorPlan
 
 
 class FileIoTest(unittest.TestCase):
@@ -173,6 +174,38 @@ class FileIoTest(unittest.TestCase):
         # read all jsons in the folder
         ray_dataset = ray.data.read_json(path)
         self.assertEqual([{"field": 1}, {"field": 2}], ray_dataset.take_all())
+
+    def test_file_io_plan(self):
+        path = os.path.join(self.output_path, "output.parquet")
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="process",
+                    source_resources={"source_type": "EmptySource"},
+                    sink_resources={"sink_type": "FileSink", "file_path": path},
+                )
+            ],
+        )
+
+        @self.app.processor(
+            source=buildflow.EmptySource(
+                inputs=[
+                    {
+                        "field": 1,
+                    },
+                    {"field": 2},
+                ]
+            ),
+            sink=buildflow.FileSink(
+                file_path=path, file_format=buildflow.FileFormat.PARQUET
+            ),
+        )
+        def process(elem):
+            return elem
+
+        plan = self.app.plan()
+        self.assertEqual(expected_plan, plan)
 
 
 if __name__ == "__main__":

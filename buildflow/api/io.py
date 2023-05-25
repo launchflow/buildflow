@@ -1,6 +1,6 @@
 from enum import Enum
 import inspect
-from typing import Any, Callable, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
 from buildflow.api.depends import DependsPublisher
 
@@ -18,6 +18,9 @@ class _BaseIO:
         # TODO: we should probably make this configurable though to help
         # prevent OOMs.
         return 0.1
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        pass
 
 
 class Source(_BaseIO):

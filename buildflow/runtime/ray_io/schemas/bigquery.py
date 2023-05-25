@@ -55,20 +55,20 @@ def dataclass_to_bq_schema(fields: dataclasses.Field) -> List[bigquery.SchemaFie
     return bq_fields
 
 
-def _schema_field_to_dict(schema_field: bigquery.SchemaField) -> Dict[str, Any]:
+def schema_field_to_dict(schema_field: bigquery.SchemaField) -> Dict[str, Any]:
     field_dict = {
         "name": schema_field.name,
         "type": schema_field.field_type,
         "mode": schema_field.mode,
     }
     if schema_field.fields:
-        field_dict["fields"] = [_schema_field_to_dict(f) for f in schema_field.fields]
+        field_dict["fields"] = [schema_field_to_dict(f) for f in schema_field.fields]
 
     return field_dict
 
 
 def schema_fields_to_str(schema_fields: List[bigquery.SchemaField]) -> str:
     yaml_objs = [
-        yaml.dump(_schema_field_to_dict(f), sort_keys=False) for f in schema_fields
+        yaml.dump(schema_field_to_dict(f), sort_keys=False) for f in schema_fields
     ]
     return "\n\n".join(yaml_objs)

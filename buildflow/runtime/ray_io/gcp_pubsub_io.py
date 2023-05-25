@@ -33,6 +33,17 @@ fetch pubsub_subscription
 """
 
 
+@dataclasses.dataclass(frozen=True)
+class _PubSubSourcePlan:
+    topic: str
+    subscription: str
+
+
+@dataclasses.dataclass(frozen=True)
+class _PubSubSinkPlan:
+    topic: str
+
+
 class PubSubPublisher(Publisher):
     def __init__(self, topic: str, project: str):
         self.client = clients.get_publisher_client(project)
@@ -72,6 +83,14 @@ class GCPPubSubSource(io.StreamingSource):
         if not self.billing_project:
             split_sub = self.subscription.split("/")
             self.billing_project = split_sub[1]
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        plan_dict = dataclasses.asdict(
+            _PubSubSourcePlan(topic=self.topic, subscription=self.subscription)
+        )
+        if not plan_dict["topic"]:
+            del plan_dict["topic"]
+        return plan_dict
 
     def setup(self):
         gcp_pubsub_utils.maybe_create_subscription(
@@ -148,6 +167,9 @@ class GCPPubSubSink(io.Sink):
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return PubSubSinkActor.remote(remote_fn, self)
+
+    def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
+        return dataclasses.asdict(_PubSubSinkPlan(topic=self.topic))
 
 
 @ray.remote(num_cpus=GCPPubSubSource.num_cpus())

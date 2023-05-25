@@ -1,6 +1,8 @@
-from typing import Any, Iterable
+from dataclasses import dataclass
+from typing import Any, Dict, Iterable, Optional
 
 from buildflow.api.io import SourceType, SinkType
+from buildflow.api.options import AutoscalingOptions
 
 
 class ProcessorAPI:
@@ -32,3 +34,13 @@ class ProcessorAPI:
 
     def num_cpus(self) -> float:
         return 0.5
+
+    def autoscaling_options(self) -> AutoscalingOptions:
+        return AutoscalingOptions()
+
+
+@dataclass
+class ProcessorPlan:
+    name: str
+    source_resources: Dict[str, Any]
+    sink_resources: Optional[Dict[str, Any]]

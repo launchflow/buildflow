@@ -14,13 +14,25 @@ async def shutdown(results):
 
 
 class DeploymentGrid(grid.GridAPI):
-    def deploy(self):
-        asyncio.run(self._deploy_async())
+    def deploy(
+        self,
+        disable_usage_stats: bool = False,
+        disable_resource_creation: bool = False,
+    ):
+        asyncio.run(self._deploy_async(disable_usage_stats, disable_resource_creation))
 
-    async def _deploy_async(self):
+    async def _deploy_async(
+        self, disable_usage_stats: bool, disable_resource_creation: bool
+    ):
         results = []
         for node in self.nodes.values():
-            results.append(node.node.run(blocking=False))
+            results.append(
+                node.node.run(
+                    blocking=False,
+                    disable_usage_stats=disable_usage_stats,
+                    disable_resource_creation=disable_resource_creation,
+                )
+            )
 
         coros = [result.output(register_shutdown=False) for result in results]
         loop = asyncio.get_event_loop()

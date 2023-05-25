@@ -19,7 +19,7 @@ from typing import List
 import ray
 from ray.autoscaler.sdk import request_resources
 
-from buildflow.api.options import StreamingOptions
+from buildflow.api.options import AutoscalingOptions
 
 _TARGET_UTILIZATION = 0.5
 
@@ -37,7 +37,7 @@ def get_recommended_num_replicas(
     events_processed_per_replica: List[int],
     non_empty_ratio_per_replica: List[float],
     time_since_last_check: float,
-    autoscaling_options: StreamingOptions,
+    autoscaling_options: AutoscalingOptions,
     cpus_per_replica: float,
 ) -> int:
     non_empty_ratio_sum = sum(non_empty_ratio_per_replica)

@@ -1,7 +1,7 @@
-from typing import Any, Optional
+import dataclasses
+from typing import Any, Iterable, Optional
 
-from buildflow.api import options
-from buildflow.api.processor import ProcessorAPI
+from buildflow.api.processor import ProcessorAPI, ProcessorPlan
 
 
 class NodeResults:
@@ -17,6 +17,12 @@ class NodeResults:
         pass
 
 
+@dataclasses.dataclass
+class NodePlan:
+    name: Optional[str]
+    processors: Iterable[ProcessorPlan]
+
+
 class NodeAPI:
     def __init__(self, name) -> None:
         self.name = name
@@ -29,9 +35,14 @@ class NodeAPI:
 
     def run(
         *,
-        streaming_options: options.StreamingOptions = options.StreamingOptions(),
         disable_usage_stats: bool = False,
-        enable_resource_creation: bool = True,
+        disable_resource_creation: bool = True,
         blocking: bool = True,
     ):
+        pass
+
+    def plan(self) -> NodePlan:
+        pass
+
+    def setup():
         pass

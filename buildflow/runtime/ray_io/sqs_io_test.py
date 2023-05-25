@@ -8,11 +8,12 @@ import unittest
 from unittest import mock
 
 import boto3
-from moto import mock_sqs
+from moto import mock_sqs, mock_sts
 import pyarrow.parquet as pq
 import pytest
 
 import buildflow
+from buildflow.api import NodePlan, ProcessorPlan
 
 
 class FakeSqsClient:
@@ -161,7 +162,7 @@ class SqsIoTest(unittest.TestCase):
         def process(element):
             return element["Body"]
 
-        runner = self.app.run(enable_resource_creation=False, blocking=False)
+        runner = self.app.run(disable_resource_creation=True, blocking=False)
 
         time.sleep(10)
         table = pq.read_table(path)
@@ -171,6 +172,31 @@ class SqsIoTest(unittest.TestCase):
 
         # Should not be called because setup is not being called.
         boto_mock.assert_not_called()
+
+    @mock_sqs
+    @mock_sts
+    def test_sqs_source_plan(self):
+        expected_plan = NodePlan(
+            name="",
+            processors=[
+                ProcessorPlan(
+                    name="sqs_process",
+                    source_resources={
+                        "source_type": "SQSSource",
+                        "queue_url": "https://sqs.us-east-1.amazonaws.com/123456789012/queue_name",
+                    },
+                    sink_resources=None,
+                )
+            ],
+        )
+        app = buildflow.Node()
+
+        @app.processor(source=buildflow.SQSSource(queue_name="queue_name"))
+        def sqs_process(elem):
+            pass
+
+        plan = app.plan()
+        self.assertEqual(expected_plan, plan)
 
 
 if __name__ == "__main__":
