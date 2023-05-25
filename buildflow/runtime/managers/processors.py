@@ -27,13 +27,14 @@ class ProcessActor(object):
         print(f"Running processor setup: {self._processor.__class__}")
         # NOTE: This is where the setup lifecycle method is called.
         self._processor.setup()
+        job_id = ray.get_runtime_context().get_job_id()
         self.process_time_gauge = Gauge(
             "process_time",
             description="Current process time of the actor. Goes up and down.",
-            tag_keys=("actor_name",),
+            tag_keys=("actor_name", "JobID"),
         )
         self.process_time_gauge.set_default_tags(
-            {"actor_name": self.__class__.__name__}
+            {"actor_name": self.__class__.__name__, "JobID": job_id}
         )
 
     def process(self, *args, **kwargs):
