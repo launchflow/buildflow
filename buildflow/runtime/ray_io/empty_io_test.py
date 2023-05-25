@@ -83,6 +83,20 @@ class EmptyTest(unittest.TestCase):
         self.assertEqual(len(output), 1)
         self.assertEqual(output, {"process": {"local": [{"a": 1}, {"a": 2}, {"a": 3}]}})
 
+    def test_end_to_end_with_leave_existing_data_class(self):
+        @self.app.processor(
+            source=buildflow.EmptySource(
+                inputs=[Input(1), asdict(Input(2)), asdict(Input(3))]
+            )
+        )
+        def process(elem: Input) -> Input:
+            return asdict(elem)
+
+        output = self.app.run()
+
+        self.assertEqual(len(output), 1)
+        self.assertEqual(output, {"process": {"local": [{"a": 1}, {"a": 2}, {"a": 3}]}})
+
 
 if __name__ == "__main__":
     unittest.main()

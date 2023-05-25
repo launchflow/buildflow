@@ -124,10 +124,17 @@ class RaySource:
 
     async def _send_batch_to_sinks_and_await(self, elements):
         if dataclasses.is_dataclass(self.processor_input_type):
-            elements = [
-                dacite.from_dict(data_class=self.processor_input_type, data=elem)
-                for elem in elements
-            ]
+            new_elements = []
+            for elem in elements:
+                if not dataclasses.is_dataclass(elem):
+                    new_elements.append(
+                        dacite.from_dict(
+                            data_class=self.processor_input_type, data=elem
+                        )
+                    )
+                else:
+                    new_elements.append(elem)
+            elements = new_elements
         result_keys = []
         task_refs = []
         for name, ray_sink in self.ray_sinks.items():
