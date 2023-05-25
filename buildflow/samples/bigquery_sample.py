@@ -39,3 +39,7 @@ gcs_bucket = os.environ["GCS_BUCKET"]
 def process_query_result(dataset: ray.data.Dataset) -> Output:
     # TODO: process the dataset (bq query result).
     return dataset
+
+
+if __name__ == "__main__":
+    app.run()

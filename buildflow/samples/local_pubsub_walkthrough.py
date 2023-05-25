@@ -26,10 +26,14 @@ input_sub = buildflow.GCPPubSubSource(
 # Set up a FileSink for writing to a file locally.
 sink = buildflow.FileSink(file_path=file_path, file_format=buildflow.FileFormat.PARQUET)
 
-node = Node()
+app = Node()
 
 
 # Define our processor.
-@node.processor(source=input_sub, sink=sink)
+@app.processor(source=input_sub, sink=sink)
 def process(element: Dict[str, Any]):
     return element
+
+
+if __name__ == "__main__":
+    app.run()

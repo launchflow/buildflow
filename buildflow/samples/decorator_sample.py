@@ -25,3 +25,7 @@ app = Node()
 def process(taxi_info):
     print(taxi_info)
     return taxi_info
+
+
+if __name__ == "__main__":
+    app.run()

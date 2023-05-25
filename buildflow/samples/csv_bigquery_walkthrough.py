@@ -79,3 +79,7 @@ def process(gcs_file_event: buildflow.GCSFileEvent) -> List[AggregateWikiPageVie
             )
 
     return list(aggregate_stats.values())
+
+
+if __name__ == "__main__":
+    app.run()

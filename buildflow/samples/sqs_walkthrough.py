@@ -25,3 +25,7 @@ app = Node()
 @app.processor(source=source, sink=sink)
 def process(element: Dict[str, Any]):
     return json.loads(element["Body"])
+
+
+if __name__ == "__main__":
+    app.run()
