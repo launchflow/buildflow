@@ -203,11 +203,8 @@ class PubSubSourceActor(base.StreamingRaySource):
                     await pubsub_client.acknowledge(
                         ack_ids=ack_ids, subscription=self.subscription
                     )
-                except Exception as e:
-                    logging.error(
-                        ("Failed to process message, " "will not be acked: error: %s"),
-                        e,
-                    )
+                except Exception:
+                    logging.exception("Failed to process message, will not be acked.")
                     # This nacks the messages. See:
                     # https://github.com/googleapis/python-pubsub/pull/123/files
                     ack_deadline_seconds = 0

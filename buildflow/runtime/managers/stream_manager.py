@@ -96,13 +96,14 @@ class _StreamManagerActor:
         self._sink_actor = None
         self._replicas = {}
         self._proc_input_type = proc_input_type
+        job_id = ray.get_runtime_context().get_job_id()
         self.num_replicas_gauge = Gauge(
             "num_replicas",
             description="Current number of replicas. Goes up and down.",
-            tag_keys=("actor_name",),
+            tag_keys=("actor_name", "JobID"),
         )
         self.num_replicas_gauge.set_default_tags(
-            {"actor_name": self.__class__.__name__}
+            {"actor_name": self.__class__.__name__, "JobID": job_id}
         )
         self.cpu_per_replica = (
             processor_ref.sink.num_cpus()
@@ -112,10 +113,10 @@ class _StreamManagerActor:
         self.num_events_counter = Counter(
             "num_events_processed",
             description=("Number of events processed by the actor. Goes up and down."),
-            tag_keys=("actor_name",),
+            tag_keys=("actor_name", "JobID"),
         )
         self.num_events_counter.set_default_tags(
-            {"actor_name": self.__class__.__name__}
+            {"actor_name": self.__class__.__name__, "JobID": job_id}
         )
 
     def _add_replica(self):
@@ -242,6 +243,7 @@ class _StreamManagerActor:
                     new_num_replicas = start_replics
                 # Report new number of replicas from the scaling event.
                 self.num_replicas_gauge.set(new_num_replicas)
+                print("DO NOT SUBMIT: reporting num replicas: ", new_num_replicas)
                 if new_num_replicas > num_replicas:
                     replicas_to_add = new_num_replicas - num_replicas
                     for _ in range(replicas_to_add):
