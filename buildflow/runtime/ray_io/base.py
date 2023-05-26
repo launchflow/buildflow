@@ -48,8 +48,7 @@ class RaySink:
         elements: Union[ray.data.Dataset, Iterable[Dict[str, Any]]],
     ):
         raise NotImplementedError(
-            f"`_write` method not implemented for class {self.__class__}"
-        )
+            f"`_write` method not implemented for class {self.__class__}")
 
     async def write(
         self,
@@ -89,20 +88,25 @@ class RaySink:
         return await self._write(results)
 
 
+# TODO: Remove the need to pass processor_input_type around and use this:
+# processor_arg_spec = inspect.getfullargspec(processor.process)
+# if not processor_arg_spec.args:
+#     raise ValueError("Processor must have at least one argument.")
+# proc_input_type = processor_arg_spec.annotations.get(
+#     processor_arg_spec.args[0], None)
+
+
 class RaySource:
     """Base class for all ray sources."""
 
-    def __init__(
-        self, ray_sinks: Dict[str, RaySink], processor_input_type: Optional[Type]
-    ) -> None:
+    def __init__(self, ray_sinks: Dict[str, RaySink]) -> None:
         self.ray_sinks = ray_sinks
         self.processor_input_type = processor_input_type
         self.data_tracing_enabled = _data_tracing_enabled()
 
     async def run(self):
         raise NotImplementedError(
-            f"`run` method not implemented for class {self.__class__}"
-        )
+            f"`run` method not implemented for class {self.__class__}")
 
     @staticmethod
     def recommended_num_threads():
@@ -120,7 +124,7 @@ class RaySource:
         query, then the subsequent actors can each read a portion of that
         query.
         """
-        return [(io_ref,)] * num_replicas
+        return [(io_ref, )] * num_replicas
 
     async def _send_batch_to_sinks_and_await(self, elements):
         if dataclasses.is_dataclass(self.processor_input_type):
@@ -128,10 +132,8 @@ class RaySource:
             for elem in elements:
                 if not dataclasses.is_dataclass(elem):
                     new_elements.append(
-                        dacite.from_dict(
-                            data_class=self.processor_input_type, data=elem
-                        )
-                    )
+                        dacite.from_dict(data_class=self.processor_input_type,
+                                         data=elem))
                 else:
                     new_elements.append(elem)
             elements = new_elements
@@ -147,6 +149,7 @@ class RaySource:
 
 
 class StreamingRaySource(RaySource):
+
     def __init__(
         self,
         ray_sinks: Dict[str, RaySink],
@@ -190,5 +193,4 @@ class StreamingRaySource(RaySource):
         to ensure we have acked all of our pending messages before exiting.
         """
         raise NotImplementedError(
-            "shutdown should be implemented for all streaming sources."
-        )
+            "shutdown should be implemented for all streaming sources.")

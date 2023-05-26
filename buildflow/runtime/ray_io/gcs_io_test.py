@@ -27,6 +27,7 @@ class FakeTopic:
 
 
 class GCSIOTest(unittest.TestCase):
+
     @mock.patch("google.cloud.pubsub.PublisherClient")
     @mock.patch("google.cloud.pubsub.SubscriberClient")
     @mock.patch("google.cloud.storage.Client")
@@ -52,38 +53,36 @@ class GCSIOTest(unittest.TestCase):
 
         storage_mock.create_bucket.return_value.project_number = "123"  # noqa: E501
 
-        gcs_source = gcs_io.GCSFileNotifications(
-            bucket_name="bucket", project_id="project", event_types=["A", "B"]
-        )
+        gcs_source = gcs_io.GCSFileNotifications(bucket_name="bucket",
+                                                 project_id="project",
+                                                 event_types=["A", "B"])
         gcs_source.setup()
 
         pub_mock.create_topic.assert_called_once_with(
-            name="projects/project/topics/bucket_notifications"
-        )
+            name="projects/project/topics/bucket_notifications")
         expected_set_policy = iam_policy_pb2.SetIamPolicyRequest(
             resource="name",
-            policy=policy_pb2.Policy(
-                bindings=[
-                    policy_pb2.Binding(
-                        role="roles/pubsub.publisher",
-                        members=[
-                            "serviceAccount:service-123@gs-project-accounts.iam.gserviceaccount.com"  # noqa: E501
-                        ],
-                    )
-                ]
-            ),
+            policy=policy_pb2.Policy(bindings=[
+                policy_pb2.Binding(
+                    role="roles/pubsub.publisher",
+                    members=[
+                        "serviceAccount:service-123@gs-project-accounts.iam.gserviceaccount.com"  # noqa: E501
+                    ],
+                )
+            ]),
         )
-        pub_mock.set_iam_policy.assert_called_once_with(request=expected_set_policy)
+        pub_mock.set_iam_policy.assert_called_once_with(
+            request=expected_set_policy)
         sub_mock.create_subscription.assert_called_once_with(
             name="projects/project/subscriptions/bucket_subscriber",
             topic="projects/project/topics/bucket_notifications",
             ack_deadline_seconds=600,
         )
-        storage_mock.create_bucket.assert_called_once_with("bucket", project="project")
+        storage_mock.create_bucket.assert_called_once_with("bucket",
+                                                           project="project")
 
         notification_mock = (
-            storage_mock.create_bucket.return_value.notification
-        )  # noqa: E501
+            storage_mock.create_bucket.return_value.notification)  # noqa: E501
         notification_mock.assert_called_once_with(
             topic_name="bucket_notifications",
             topic_project="project",
@@ -121,8 +120,7 @@ class GCSIOTest(unittest.TestCase):
         storage_mock.create_bucket.assert_not_called()
 
         notification_mock = (
-            storage_mock.create_bucket.return_value.notification
-        )  # noqa: E501
+            storage_mock.create_bucket.return_value.notification)  # noqa: E501
         notification_mock.assert_not_called()
 
     def test_gcs_notifications_plan_source(self):
@@ -132,25 +130,25 @@ class GCSIOTest(unittest.TestCase):
                 ProcessorPlan(
                     name="gcs_process",
                     source_resources={
-                        "source_type": "GCSFileNotifications",
-                        "bucket_name": "bucket",
-                        "pubsub_topic": "projects/p/topics/bucket_notifications",
-                        "pubsub_subscription": (
-                            "projects/p/subscriptions/bucket_subscriber"
-                        ),
+                        "source_type":
+                        "GCSFileNotifications",
+                        "bucket_name":
+                        "bucket",
+                        "pubsub_topic":
+                        "projects/p/topics/bucket_notifications",
+                        "pubsub_subscription":
+                        ("projects/p/subscriptions/bucket_subscriber"),
                     },
                     sink_resources=None,
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
-        @app.processor(
-            source=gcs_io.GCSFileNotifications(
-                bucket_name="bucket",
-                project_id="p",
-            )
-        )
+        @app.processor(source=gcs_io.GCSFileNotifications(
+            bucket_name="bucket",
+            project_id="p",
+        ))
         def gcs_process(elem):
             pass
 

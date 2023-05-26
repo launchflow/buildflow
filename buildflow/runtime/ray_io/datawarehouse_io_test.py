@@ -7,6 +7,7 @@ from buildflow.runtime.ray_io import datawarehouse_io
 
 
 class TestDataWarehouseIO(unittest.TestCase):
+
     def test_gcp_datawarehouse_io_plan(self):
         expected_plan = NodePlan(
             name="",
@@ -26,13 +27,13 @@ class TestDataWarehouseIO(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
         @app.processor(
             source=empty_io.EmptySource([]),
-            sink=datawarehouse_io.DataWarehouseSink(
-                cloud="gcp", name="table", project_id="p"
-            ),
+            sink=datawarehouse_io.DataWarehouseSink(cloud="gcp",
+                                                    name="table",
+                                                    project_id="p"),
         )
         def dw_process(elem):
             pass

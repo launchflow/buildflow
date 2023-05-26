@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 
-from buildflow import Node
+from buildflow import ComputeNode
 from buildflow.io import PubSub
 
-flow = Node()
+app = ComputeNode()
 
 
 @dataclass
@@ -19,7 +19,7 @@ class OutputMessage:
 
 
 # Compare to the FileUpload example in launchflow_provider.py.
-@flow.processor(
+@app.processor(
     source=PubSub(topic="projects/my-project/topics/my-topic1"),
     sink=PubSub(topic="projects/my-project/topics/my-topic2"),
 )

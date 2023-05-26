@@ -7,26 +7,27 @@ from buildflow.runtime.ray_io import gcp_pubsub_io
 
 
 class StreamProcessor1(Processor):
+
     def source(self):
         return gcp_pubsub_io.GCPPubSubSource(
-            subscription="projects/project/subscriptions/sub"
-        )
+            subscription="projects/project/subscriptions/sub")
 
     def process(self, payload):
         return payload
 
 
 class StreamProcessor2(Processor):
+
     def source(self):
         return gcp_pubsub_io.GCPPubSubSource(
-            subscription="projects/project/subscriptions/sub"
-        )
+            subscription="projects/project/subscriptions/sub")
 
     def process(self, payload):
         return payload
 
 
 class BatchProcessor1(Processor):
+
     def source(self):
         return bigquery_io.BigQuerySource(table_id="a.b.c")
 
@@ -35,6 +36,7 @@ class BatchProcessor1(Processor):
 
 
 class BatchProcessor2(Processor):
+
     def source(self):
         return bigquery_io.BigQuerySource(table_id="a.b.c")
 
@@ -46,6 +48,7 @@ _ERROR_TEXT = "Flows can only contain batch or streaming processors."
 
 
 class RunnerTest(unittest.TestCase):
+
     def test_add_multiple_streaming(self):
         runtime = runner.Runtime()
         runtime.register_processor(StreamProcessor1())

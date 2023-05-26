@@ -9,6 +9,7 @@ from buildflow.runtime.ray_io import gcp_pubsub_io as io
 
 
 class PubsubIOTest(unittest.TestCase):
+
     @mock.patch("google.auth.default")
     @mock.patch("google.cloud.pubsub.PublisherClient")
     @mock.patch("google.cloud.pubsub.SubscriberClient")
@@ -32,8 +33,7 @@ class PubsubIOTest(unittest.TestCase):
         pubsub_io.setup()
 
         pub_mock.create_topic.assert_called_once_with(
-            name="projects/project/topics/pubsub-topic"
-        )
+            name="projects/project/topics/pubsub-topic")
         sub_mock.create_subscription.assert_called_once_with(
             name="projects/project/subscriptions/pubsub-sub",
             topic="projects/project/topics/pubsub-topic",
@@ -101,11 +101,11 @@ class PubsubIOTest(unittest.TestCase):
         sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
 
         pubsub_io = io.GCPPubSubSource(
-            topic="", subscription="projects/project/subscriptions/pubsub-sub"
-        )
+            topic="", subscription="projects/project/subscriptions/pubsub-sub")
         with self.assertRaisesRegex(
-            ValueError,
-            "subscription: projects/project/subscriptions/pubsub-sub was " "not found",
+                ValueError,
+                "subscription: projects/project/subscriptions/pubsub-sub was "
+                "not found",
         ):
             pubsub_io.setup()
 
@@ -125,8 +125,7 @@ class PubsubIOTest(unittest.TestCase):
         pubsub_io.setup(None)
 
         pub_mock.create_topic.assert_called_once_with(
-            name="projects/project/topics/pubsub-topic"
-        )
+            name="projects/project/topics/pubsub-topic")
 
     def test_gcp_pubsub_plan_source(self):
         expected_plan = NodePlan(
@@ -143,14 +142,12 @@ class PubsubIOTest(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
-        @app.processor(
-            source=io.GCPPubSubSource(
-                subscription="/projects/p/subscriptions/sub",
-                topic="/projects/p/topics/topic",
-            )
-        )
+        @app.processor(source=io.GCPPubSubSource(
+            subscription="/projects/p/subscriptions/sub",
+            topic="/projects/p/topics/topic",
+        ))
         def gcp_ps_process(elem):
             pass
 
@@ -171,13 +168,10 @@ class PubsubIOTest(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
-        @app.processor(
-            source=io.GCPPubSubSource(
-                subscription="/projects/p/subscriptions/sub",
-            )
-        )
+        @app.processor(source=io.GCPPubSubSource(
+            subscription="/projects/p/subscriptions/sub", ))
         def gcp_ps_process(elem):
             pass
 
@@ -201,12 +195,11 @@ class PubsubIOTest(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
         @app.processor(
             source=io.GCPPubSubSource(
-                subscription="/projects/p/subscriptions/sub",
-            ),
+                subscription="/projects/p/subscriptions/sub", ),
             sink=io.GCPPubSubSink(topic="/projects/p/topics/topic2"),
         )
         def gcp_ps_process(elem):

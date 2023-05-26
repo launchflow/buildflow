@@ -7,7 +7,7 @@ steps to run:
 """
 
 import buildflow
-from buildflow import Node
+from buildflow import ComputeNode
 
 # TODO(developer): add a pub/sub info.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
@@ -15,7 +15,7 @@ _INPUT_SUBSCRIPTION = ""
 # topic format: 'projects/{PROJECT_ID}/topic/{SUBSCRIPTION_ID}'
 _OUTPUT_TOPIC = ""
 
-app = Node()
+app = ComputeNode()
 
 
 @app.processor(

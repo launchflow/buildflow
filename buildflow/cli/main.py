@@ -20,10 +20,8 @@ app = typer.Typer(help=BUILDFLOW_HELP)
 
 APP_DIR_OPTION = typer.Option(
     "",
-    help=(
-        "The directory to look for the app in, by adding this to `sys.path` "
-        "we default to looking in the directory."
-    ),
+    help=("The directory to look for the app in, by adding this to `sys.path` "
+          "we default to looking in the directory."),
 )
 
 
@@ -31,16 +29,14 @@ APP_DIR_OPTION = typer.Option(
 def run(
     app: str = typer.Argument(..., help="The node app to run"),
     disable_usage_stats: bool = typer.Option(
-        False, help="Disable buildflow usage stats"
-    ),
+        False, help="Disable buildflow usage stats"),
     disable_resource_creation: bool = typer.Option(
-        False, help="Disable resource creation"
-    ),
+        False, help="Disable resource creation"),
     app_dir: str = APP_DIR_OPTION,
 ):
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
-    if isinstance(imported, buildflow.Node):
+    if isinstance(imported, buildflow.ComputeNode):
         imported.run(
             disable_usage_stats=disable_usage_stats,
             disable_resource_creation=disable_resource_creation,
@@ -54,11 +50,9 @@ def run(
 def deploy(
     app: str = typer.Argument(..., help="The grid app to run"),
     disable_usage_stats: bool = typer.Option(
-        False, help="Disable buildflow usage stats"
-    ),
+        False, help="Disable buildflow usage stats"),
     disable_resource_creation: bool = typer.Option(
-        False, help="Disable resource creation"
-    ),
+        False, help="Disable resource creation"),
     app_dir: str = APP_DIR_OPTION,
 ):
     sys.path.insert(0, app_dir)
@@ -80,15 +74,14 @@ def plan(
 ):
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
-    if isinstance(imported, (buildflow.Node, buildflow.DeploymentGrid)):
+    if isinstance(imported, (buildflow.ComputeNode, buildflow.DeploymentGrid)):
         plan = imported.plan()
         print(yaml.dump(asdict(plan), sort_keys=False))
         print()
         user_input = ""
         while True:
             user_input = input(
-                "Would you like to setup the resources for this plan (Y/n)? "
-            )
+                "Would you like to setup the resources for this plan (Y/n)? ")
             if user_input.lower() not in ["y", "n"]:
                 print('Please enter "y" or "n"')
             else:

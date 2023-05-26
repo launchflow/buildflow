@@ -9,7 +9,7 @@ steps to run:
 import dataclasses
 import os
 
-from buildflow import Node
+from buildflow import ComputeNode
 import buildflow
 import ray
 from typing import Optional
@@ -20,7 +20,7 @@ class Output:
     count: Optional[int]
 
 
-app = Node()
+app = ComputeNode()
 
 input_table = os.environ["INPUT_TABLE"]
 output_table = os.environ["OUTPUT_TABLE"]
@@ -34,7 +34,8 @@ gcs_bucket = os.environ["GCS_BUCKET"]
         query=f"SELECT COUNT(*) as count FROM `{input_table}`",
         billing_project=input_table.split(".")[0],
     ),
-    sink=buildflow.BigQuerySink(table_id=output_table, temp_gcs_bucket=gcs_bucket),
+    sink=buildflow.BigQuerySink(table_id=output_table,
+                                temp_gcs_bucket=gcs_bucket),
 )
 def process_query_result(dataset: ray.data.Dataset) -> Output:
     # TODO: process the dataset (bq query result).

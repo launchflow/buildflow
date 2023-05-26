@@ -17,6 +17,7 @@ from buildflow.api import NodePlan, ProcessorPlan
 
 
 class FakeSqsClient:
+
     def __init__(self, responses: List[Dict[str, Any]]) -> None:
         self.calls = 0
         self.responses = responses
@@ -38,9 +39,10 @@ class FakeSqsClient:
 @pytest.mark.usefixtures("ray_fix")
 @pytest.mark.usefixtures("event_loop_instance")
 class SqsIoTest(unittest.TestCase):
+
     def setUp(self) -> None:
         self.output_path = tempfile.mkdtemp()
-        self.app = buildflow.Node()
+        self.app = buildflow.ComputeNode()
 
     def tearDown(self) -> None:
         shutil.rmtree(self.output_path)
@@ -55,7 +57,8 @@ class SqsIoTest(unittest.TestCase):
 
     @mock_sqs
     def test_sqs_setup_create_queue(self):
-        input_sqs = buildflow.SQSSource(queue_name="queue_name", region="us-east-2")
+        input_sqs = buildflow.SQSSource(queue_name="queue_name",
+                                        region="us-east-2")
 
         with self._caplog.at_level(logging.WARNING):
             input_sqs.setup()
@@ -75,7 +78,8 @@ class SqsIoTest(unittest.TestCase):
 
     @mock_sqs
     def test_sqs_setup_queue_exists(self):
-        input_sqs = buildflow.SQSSource(queue_name="queue_name", region="us-east-2")
+        input_sqs = buildflow.SQSSource(queue_name="queue_name",
+                                        region="us-east-2")
 
         client = boto3.client("sqs", region_name="us-east-2")
         client.create_queue(QueueName="queue_name")
@@ -87,34 +91,33 @@ class SqsIoTest(unittest.TestCase):
     def test_sqs_source(self):
         path = os.path.join(self.output_path, "output.parquet")
 
-        fake_sqs = FakeSqsClient(
-            responses=[
+        fake_sqs = FakeSqsClient(responses=[{
+            "Messages": [
                 {
-                    "Messages": [
-                        {
-                            "MessageId": "1",
-                            "ReceiptHandle": "2",
-                            "Body": {"field": 1},
-                        },
-                        {
-                            "MessageId": "3",
-                            "ReceiptHandle": "4",
-                            "Body": {"field": 2},
-                        },
-                    ]
-                }
+                    "MessageId": "1",
+                    "ReceiptHandle": "2",
+                    "Body": {
+                        "field": 1
+                    },
+                },
+                {
+                    "MessageId": "3",
+                    "ReceiptHandle": "4",
+                    "Body": {
+                        "field": 2
+                    },
+                },
             ]
-        )
+        }])
 
-        input_sqs = buildflow.SQSSource(
-            queue_name="queue_name", region="us-east-2", _test_sqs_client=fake_sqs
-        )
+        input_sqs = buildflow.SQSSource(queue_name="queue_name",
+                                        region="us-east-2",
+                                        _test_sqs_client=fake_sqs)
 
         @self.app.processor(
             source=input_sqs,
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.PARQUET
-            ),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.PARQUET),
         )
         def process(element):
             return element["Body"]
@@ -125,39 +128,39 @@ class SqsIoTest(unittest.TestCase):
         table = pq.read_table(path)
         self.assertEqual([{"field": 1}, {"field": 2}], table.to_pylist())
 
-        self.get_async_result(runner.shutdown())
+        self.get_async_result(runner.drain())
 
     @mock.patch("boto3.client")
-    def test_sqs_source_disable_resource_creation(self, boto_mock: mock.MagicMock):
+    def test_sqs_source_disable_resource_creation(self,
+                                                  boto_mock: mock.MagicMock):
         path = os.path.join(self.output_path, "output.parquet")
-        fake_sqs = FakeSqsClient(
-            responses=[
+        fake_sqs = FakeSqsClient(responses=[{
+            "Messages": [
                 {
-                    "Messages": [
-                        {
-                            "MessageId": "1",
-                            "ReceiptHandle": "2",
-                            "Body": {"field": 1},
-                        },
-                        {
-                            "MessageId": "3",
-                            "ReceiptHandle": "4",
-                            "Body": {"field": 2},
-                        },
-                    ]
-                }
+                    "MessageId": "1",
+                    "ReceiptHandle": "2",
+                    "Body": {
+                        "field": 1
+                    },
+                },
+                {
+                    "MessageId": "3",
+                    "ReceiptHandle": "4",
+                    "Body": {
+                        "field": 2
+                    },
+                },
             ]
-        )
+        }])
 
-        input_sqs = buildflow.SQSSource(
-            queue_name="queue_name", region="us-east-2", _test_sqs_client=fake_sqs
-        )
+        input_sqs = buildflow.SQSSource(queue_name="queue_name",
+                                        region="us-east-2",
+                                        _test_sqs_client=fake_sqs)
 
         @self.app.processor(
             source=input_sqs,
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.PARQUET
-            ),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.PARQUET),
         )
         def process(element):
             return element["Body"]
@@ -168,7 +171,7 @@ class SqsIoTest(unittest.TestCase):
         table = pq.read_table(path)
         self.assertEqual([{"field": 1}, {"field": 2}], table.to_pylist())
 
-        self.get_async_result(runner.shutdown())
+        self.get_async_result(runner.drain())
 
         # Should not be called because setup is not being called.
         boto_mock.assert_not_called()
@@ -183,14 +186,16 @@ class SqsIoTest(unittest.TestCase):
                 ProcessorPlan(
                     name="sqs_process",
                     source_resources={
-                        "source_type": "SQSSource",
-                        "queue_url": "https://sqs.us-east-9.amazonaws.com/123456789012/queue_name",
+                        "source_type":
+                        "SQSSource",
+                        "queue_url":
+                        "https://sqs.us-east-9.amazonaws.com/123456789012/queue_name",  # noqa: E501
                     },
                     sink_resources=None,
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
         @app.processor(source=buildflow.SQSSource(queue_name="queue_name"))
         def sqs_process(elem):

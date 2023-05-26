@@ -14,9 +14,10 @@ from buildflow.api import NodePlan, ProcessorPlan
 
 
 class FileIoTest(unittest.TestCase):
+
     def setUp(self) -> None:
         self.output_path = tempfile.mkdtemp()
-        self.app = buildflow.Node()
+        self.app = buildflow.ComputeNode()
 
     def tearDown(self) -> None:
         shutil.rmtree(self.output_path)
@@ -25,17 +26,16 @@ class FileIoTest(unittest.TestCase):
         path = os.path.join(self.output_path, "output.parquet")
 
         @self.app.processor(
-            source=buildflow.EmptySource(
-                inputs=[
-                    {
-                        "field": 1,
-                    },
-                    {"field": 2},
-                ]
-            ),
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.PARQUET
-            ),
+            source=buildflow.EmptySource(inputs=[
+                {
+                    "field": 1,
+                },
+                {
+                    "field": 2
+                },
+            ]),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.PARQUET),
         )
         def process(elem):
             return elem
@@ -48,19 +48,16 @@ class FileIoTest(unittest.TestCase):
         path = os.path.join(self.output_path, "output.parquet")
 
         @self.app.processor(
-            source=buildflow.EmptySource(
-                inputs=ray.data.from_items(
-                    [
-                        {
-                            "field": 1,
-                        },
-                        {"field": 2},
-                    ]
-                )
-            ),
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.PARQUET
-            ),
+            source=buildflow.EmptySource(inputs=ray.data.from_items([
+                {
+                    "field": 1,
+                },
+                {
+                    "field": 2
+                },
+            ])),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.PARQUET),
         )
         def process(elem):
             return elem
@@ -73,17 +70,16 @@ class FileIoTest(unittest.TestCase):
         path = os.path.join(self.output_path, "output.csv")
 
         @self.app.processor(
-            source=buildflow.EmptySource(
-                inputs=[
-                    {
-                        "field": 1,
-                    },
-                    {"field": 2},
-                ]
-            ),
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.CSV
-            ),
+            source=buildflow.EmptySource(inputs=[
+                {
+                    "field": 1,
+                },
+                {
+                    "field": 2
+                },
+            ]),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.CSV),
         )
         def process(elem):
             return elem
@@ -98,19 +94,16 @@ class FileIoTest(unittest.TestCase):
         path = os.path.join(self.output_path, "output.csv")
 
         @self.app.processor(
-            source=buildflow.EmptySource(
-                inputs=ray.data.from_items(
-                    [
-                        {
-                            "field": 1,
-                        },
-                        {"field": 2},
-                    ]
-                )
-            ),
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.CSV
-            ),
+            source=buildflow.EmptySource(inputs=ray.data.from_items([
+                {
+                    "field": 1,
+                },
+                {
+                    "field": 2
+                },
+            ])),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.CSV),
         )
         def process(elem):
             return elem
@@ -125,17 +118,16 @@ class FileIoTest(unittest.TestCase):
         path = os.path.join(self.output_path, "output.json")
 
         @self.app.processor(
-            source=buildflow.EmptySource(
-                inputs=[
-                    {
-                        "field": 1,
-                    },
-                    {"field": 2},
-                ]
-            ),
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.JSON
-            ),
+            source=buildflow.EmptySource(inputs=[
+                {
+                    "field": 1,
+                },
+                {
+                    "field": 2
+                },
+            ]),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.JSON),
         )
         def process(elem):
             return elem
@@ -152,19 +144,16 @@ class FileIoTest(unittest.TestCase):
         path = os.path.join(self.output_path, "output.json")
 
         @self.app.processor(
-            source=buildflow.EmptySource(
-                inputs=ray.data.from_items(
-                    [
-                        {
-                            "field": 1,
-                        },
-                        {"field": 2},
-                    ]
-                )
-            ),
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.JSON
-            ),
+            source=buildflow.EmptySource(inputs=ray.data.from_items([
+                {
+                    "field": 1,
+                },
+                {
+                    "field": 2
+                },
+            ])),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.JSON),
         )
         def process(elem):
             return elem
@@ -183,23 +172,25 @@ class FileIoTest(unittest.TestCase):
                 ProcessorPlan(
                     name="process",
                     source_resources={"source_type": "EmptySource"},
-                    sink_resources={"sink_type": "FileSink", "file_path": path},
+                    sink_resources={
+                        "sink_type": "FileSink",
+                        "file_path": path
+                    },
                 )
             ],
         )
 
         @self.app.processor(
-            source=buildflow.EmptySource(
-                inputs=[
-                    {
-                        "field": 1,
-                    },
-                    {"field": 2},
-                ]
-            ),
-            sink=buildflow.FileSink(
-                file_path=path, file_format=buildflow.FileFormat.PARQUET
-            ),
+            source=buildflow.EmptySource(inputs=[
+                {
+                    "field": 1,
+                },
+                {
+                    "field": 2
+                },
+            ]),
+            sink=buildflow.FileSink(file_path=path,
+                                    file_format=buildflow.FileFormat.PARQUET),
         )
         def process(elem):
             return elem

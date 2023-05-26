@@ -7,22 +7,22 @@ T = TypeVar("T")
 
 
 class UnsupportDepenendsSource(Exception):
+
     def __init__(self, source: io.Source):
         super().__init__(
-            f"Depends is not supported for sources of type: {type(source)}"
-        )
+            f"Depends is not supported for sources of type: {type(source)}")
 
 
 class InvalidProcessorSource(Exception):
+
     def __init__(self) -> None:
-        super().__init__(
-            "Could not determine source for processor. "
-            "Please use @classmethod source() or "
-            "source=... in the @processor decorator."
-        )
+        super().__init__("Could not determine source for processor. "
+                         "Please use @classmethod source() or "
+                         "source=... in the @processor decorator.")
 
 
 class PubSub(Generic[T]):
+
     def __init__(self, source: io.Source) -> None:
         self.source = source
         self.publisher = None
@@ -34,6 +34,7 @@ class PubSub(Generic[T]):
 
 
 def Depends(depends):
-    if isinstance(depends, (pubsub_io.PubSubSource, gcp_pubsub_io.GCPPubSubSource)):
+    if isinstance(depends,
+                  (pubsub_io.PubSubSource, gcp_pubsub_io.GCPPubSubSource)):
         return PubSub(depends)
     raise UnsupportDepenendsSource(depends)

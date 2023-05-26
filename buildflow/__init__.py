@@ -4,7 +4,7 @@ from typing import Optional
 from buildflow.api import *
 from buildflow.runtime.depends import Depends, PubSub
 from buildflow.runtime.grid import DeploymentGrid
-from buildflow.runtime.node import Node
+from buildflow.runtime.node import ComputeNode
 from buildflow.runtime.processor import Processor
 from buildflow.utils import *
 from buildflow.runtime.ray_io.bigquery_io import BigQuerySink, BigQuerySource

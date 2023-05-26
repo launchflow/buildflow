@@ -6,6 +6,7 @@ from buildflow.runtime.ray_io import pubsub_io
 
 
 class TestPubSubIO(unittest.TestCase):
+
     def test_pubsub_io_plan(self):
         expected_plan = NodePlan(
             name="",
@@ -24,11 +25,15 @@ class TestPubSubIO(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
         @app.processor(
-            source=pubsub_io.PubSubSource(cloud="gcp", name="source", project_id="p"),
-            sink=pubsub_io.PubSubSink(cloud="gcp", name="source", project_id="p"),
+            source=pubsub_io.PubSubSource(cloud="gcp",
+                                          name="source",
+                                          project_id="p"),
+            sink=pubsub_io.PubSubSink(cloud="gcp",
+                                      name="source",
+                                      project_id="p"),
         )
         def ps_process(elem):
             pass

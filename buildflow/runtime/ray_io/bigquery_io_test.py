@@ -31,6 +31,7 @@ class FakeRow:
 # NOTE: Async actors don't support local mode / mocks so this really only tests
 # the initial setup of the source by calling the source_args() source method.
 class BigQueryTest(unittest.TestCase):
+
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
     @mock.patch("google.cloud.bigquery_storage_v1.BigQueryReadClient")
@@ -73,15 +74,16 @@ class BigQueryTest(unittest.TestCase):
 
         query = "SELECT * FROM TABLE"
 
-        source = buildflow.BigQuerySource(
-            query=query, temp_dataset="p.ds", billing_project="tmp"
-        )
+        source = buildflow.BigQuerySource(query=query,
+                                          temp_dataset="p.ds",
+                                          billing_project="tmp")
         source.actor([], None)
 
         bq_client_mock = bq_mock.return_value
         bq_client_mock.create_dataset.assert_not_called()
         bq_client_mock.update_dataset.assert_not_called()
-        bq_client_mock.query.assert_called_once_with(query, job_config=mock.ANY)
+        bq_client_mock.query.assert_called_once_with(query,
+                                                     job_config=mock.ANY)
         bq_client_mock.get_table.assert_called_once()
 
         bq_storage_client.create_read_session.assert_called_once()
@@ -101,7 +103,8 @@ class BigQueryTest(unittest.TestCase):
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.return_value = FakeTable("p", "d", "t", 10)
 
-        source = buildflow.BigQuerySource(table_id="p.d.t", billing_project="tmp")
+        source = buildflow.BigQuerySource(table_id="p.d.t",
+                                          billing_project="tmp")
         source.actor([], None)
 
         bq_client_mock.create_dataset.assert_not_called()
@@ -120,11 +123,11 @@ class BigQueryTest(unittest.TestCase):
 
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
-    def test_bigquery_source_setup_table_id(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+    def test_bigquery_source_setup_table_id(self, auth_mock: mock.MagicMock,
+                                            bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
-        bq = bigquery_io.BigQuerySource(table_id="p.ds.t", billing_project="tmp")
+        bq = bigquery_io.BigQuerySource(table_id="p.ds.t",
+                                        billing_project="tmp")
 
         bq.setup()
 
@@ -132,9 +135,8 @@ class BigQueryTest(unittest.TestCase):
 
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
-    def test_bigquery_source_setup_query(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+    def test_bigquery_source_setup_query(self, auth_mock: mock.MagicMock,
+                                         bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq = bigquery_io.BigQuerySource(query="query", billing_project="tmp")
 
@@ -144,9 +146,8 @@ class BigQueryTest(unittest.TestCase):
 
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
-    def test_bigquery_sink_setup_create_table(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+    def test_bigquery_sink_setup_create_table(self, auth_mock: mock.MagicMock,
+                                              bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound("unused")
@@ -162,30 +163,37 @@ class BigQueryTest(unittest.TestCase):
 
         bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
-        bq_client_mock.create_dataset.assert_called_once_with("p.ds", exists_ok=True)
+        bq_client_mock.create_dataset.assert_called_once_with("p.ds",
+                                                              exists_ok=True)
 
         bq_client_mock.create_table.assert_called_once()
 
-        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][0]
+        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][
+            0]
         self.assertEqual(table_call.project, "p")
         self.assertEqual(table_call.dataset_id, "ds")
         self.assertEqual(table_call.table_id, "t")
         self.assertEqual(
             table_call.schema,
-            [bigquery.SchemaField(name="field", field_type="INTEGER", mode="REQUIRED")],
+            [
+                bigquery.SchemaField(
+                    name="field", field_type="INTEGER", mode="REQUIRED")
+            ],
         )
 
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
-    def test_bigquery_sink_setup_schema_mismatch(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+    def test_bigquery_sink_setup_schema_mismatch(self,
+                                                 auth_mock: mock.MagicMock,
+                                                 bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.return_value = bigquery.Table(
             "p.ds.j",
             schema=[
-                bigquery.SchemaField(name="field", field_type="FLOAT", mode="REQUIRED")
+                bigquery.SchemaField(name="field",
+                                     field_type="FLOAT",
+                                     mode="REQUIRED")
             ],
         )
 
@@ -203,17 +211,16 @@ class BigQueryTest(unittest.TestCase):
 
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
-    def test_bigquery_sink_setup_schema_match(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+    def test_bigquery_sink_setup_schema_match(self, auth_mock: mock.MagicMock,
+                                              bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.return_value = bigquery.Table(
             "p.ds.j",
             schema=[
-                bigquery.SchemaField(
-                    name="field", field_type="INTEGER", mode="REQUIRED"
-                )
+                bigquery.SchemaField(name="field",
+                                     field_type="INTEGER",
+                                     mode="REQUIRED")
             ],
         )
 
@@ -231,16 +238,15 @@ class BigQueryTest(unittest.TestCase):
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
     def test_bigquery_sink_setup_schema_no_output_type_not_validated(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+            self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.return_value = bigquery.Table(
             "p.ds.j",
             schema=[
-                bigquery.SchemaField(
-                    name="field", field_type="INTEGER", mode="REQUIRED"
-                )
+                bigquery.SchemaField(name="field",
+                                     field_type="INTEGER",
+                                     mode="REQUIRED")
             ],
         )
 
@@ -254,8 +260,7 @@ class BigQueryTest(unittest.TestCase):
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
     def test_bigquery_sink_setup_schema_no_output_type_value_error(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+            self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound("unused")
@@ -270,9 +275,9 @@ class BigQueryTest(unittest.TestCase):
 
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
-    def test_bigquery_sink_setup_create_table_list(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+    def test_bigquery_sink_setup_create_table_list(self,
+                                                   auth_mock: mock.MagicMock,
+                                                   bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound("unused")
@@ -288,24 +293,28 @@ class BigQueryTest(unittest.TestCase):
 
         bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
-        bq_client_mock.create_dataset.assert_called_once_with("p.ds", exists_ok=True)
+        bq_client_mock.create_dataset.assert_called_once_with("p.ds",
+                                                              exists_ok=True)
 
         bq_client_mock.create_table.assert_called_once()
 
-        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][0]
+        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][
+            0]
         self.assertEqual(table_call.project, "p")
         self.assertEqual(table_call.dataset_id, "ds")
         self.assertEqual(table_call.table_id, "t")
         self.assertEqual(
             table_call.schema,
-            [bigquery.SchemaField(name="field", field_type="INTEGER", mode="REQUIRED")],
+            [
+                bigquery.SchemaField(
+                    name="field", field_type="INTEGER", mode="REQUIRED")
+            ],
         )
 
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
     def test_bigquery_sink_setup_create_table_optional(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+            self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound("unused")
@@ -321,24 +330,28 @@ class BigQueryTest(unittest.TestCase):
 
         bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
-        bq_client_mock.create_dataset.assert_called_once_with("p.ds", exists_ok=True)
+        bq_client_mock.create_dataset.assert_called_once_with("p.ds",
+                                                              exists_ok=True)
 
         bq_client_mock.create_table.assert_called_once()
 
-        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][0]
+        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][
+            0]
         self.assertEqual(table_call.project, "p")
         self.assertEqual(table_call.dataset_id, "ds")
         self.assertEqual(table_call.table_id, "t")
         self.assertEqual(
             table_call.schema,
-            [bigquery.SchemaField(name="field", field_type="INTEGER", mode="REQUIRED")],
+            [
+                bigquery.SchemaField(
+                    name="field", field_type="INTEGER", mode="REQUIRED")
+            ],
         )
 
     @mock.patch("google.cloud.bigquery.Client")
     @mock.patch("google.auth.default")
     def test_bigquery_sink_setup_create_table_iterable(
-        self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock
-    ):
+            self, auth_mock: mock.MagicMock, bq_mock: mock.MagicMock):
         auth_mock.return_value = (None, None)
         bq_client_mock = bq_mock.return_value
         bq_client_mock.get_table.side_effect = exceptions.NotFound("unused")
@@ -354,17 +367,22 @@ class BigQueryTest(unittest.TestCase):
 
         bq.setup(process_arg_spec=inspect.getfullargspec(process))
 
-        bq_client_mock.create_dataset.assert_called_once_with("p.ds", exists_ok=True)
+        bq_client_mock.create_dataset.assert_called_once_with("p.ds",
+                                                              exists_ok=True)
 
         bq_client_mock.create_table.assert_called_once()
 
-        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][0]
+        table_call: bigquery.Table = bq_client_mock.create_table.call_args[0][
+            0]
         self.assertEqual(table_call.project, "p")
         self.assertEqual(table_call.dataset_id, "ds")
         self.assertEqual(table_call.table_id, "t")
         self.assertEqual(
             table_call.schema,
-            [bigquery.SchemaField(name="field", field_type="INTEGER", mode="REQUIRED")],
+            [
+                bigquery.SchemaField(
+                    name="field", field_type="INTEGER", mode="REQUIRED")
+            ],
         )
 
     def test_source_plan_table_id(self):
@@ -381,7 +399,7 @@ class BigQueryTest(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
         @app.processor(source=bigquery_io.BigQuerySource(table_id="p.ds.t"))
         def bq_process(elem):
@@ -404,13 +422,10 @@ class BigQueryTest(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
-        @app.processor(
-            source=bigquery_io.BigQuerySource(
-                query="select * from t", billing_project="p"
-            )
-        )
+        @app.processor(source=bigquery_io.BigQuerySource(
+            query="select * from t", billing_project="p"))
         def bq_process(elem):
             pass
 
@@ -437,7 +452,7 @@ class BigQueryTest(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
         @app.processor(
             source=bigquery_io.BigQuerySource(table_id="p.ds.t1"),
@@ -462,16 +477,19 @@ class BigQueryTest(unittest.TestCase):
                     sink_resources={
                         "sink_type": "BigQuerySink",
                         "table": {
-                            "table_id": "p.ds.t2",
-                            "schema": [
-                                {"name": "value", "type": "INTEGER", "mode": "REQUIRED"}
-                            ],
+                            "table_id":
+                            "p.ds.t2",
+                            "schema": [{
+                                "name": "value",
+                                "type": "INTEGER",
+                                "mode": "REQUIRED"
+                            }],
                         },
                     },
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
         @app.processor(
             source=bigquery_io.BigQuerySource(table_id="p.ds.t1"),
@@ -504,11 +522,12 @@ class BigQueryTest(unittest.TestCase):
                 )
             ],
         )
-        app = buildflow.Node()
+        app = buildflow.ComputeNode()
 
         @app.processor(
             source=bigquery_io.BigQuerySource(table_id="p.ds.t1"),
-            sink=bigquery_io.BigQuerySink(table_id="p.ds.t2", temp_gcs_bucket="bucket"),
+            sink=bigquery_io.BigQuerySink(table_id="p.ds.t2",
+                                          temp_gcs_bucket="bucket"),
         )
         def bq_process(elem):
             pass

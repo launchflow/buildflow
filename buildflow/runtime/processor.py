@@ -1,14 +1,17 @@
-import inspect
 from typing import Optional
 
 from buildflow import utils
-from buildflow.api import ProcessorAPI, AutoscalingOptions
-from buildflow.api.io import SinkType, SourceType
+from buildflow.api import (AutoscalingOptions, ProcessorAPI, SinkType,
+                           SourceType)
 from buildflow.runtime import Runtime
 from buildflow.runtime.ray_io import empty_io
 
 
 class Processor(ProcessorAPI):
+
+    def __init__(self, name: str = "") -> None:
+        self.name = name
+
     @classmethod
     def sink(self) -> SinkType:
         return empty_io.EmptySink()
@@ -22,16 +25,13 @@ class Processor(ProcessorAPI):
     def process(self, payload):
         return payload
 
-    def processor_arg_spec(self):
-        return inspect.getfullargspec(self.process)
-
 
 def processor(
-    runtime: Runtime,
-    source: SourceType,
-    sink: Optional[SinkType] = None,
-    num_cpus: float = 0.5,
-    autoscaling_options: AutoscalingOptions = AutoscalingOptions(),
+        runtime: Runtime,
+        source: SourceType,
+        sink: Optional[SinkType] = None,
+        num_cpus: float = 0.5,
+        autoscaling_options: AutoscalingOptions = AutoscalingOptions(),
 ):
     if sink is None:
         sink = empty_io.EmptySink()
@@ -46,26 +46,19 @@ def processor(
 
         _AdHocProcessor = type(
             class_name,
-            (object,),
+            (Processor, ),
             {
                 "source": lambda self: source,
                 "sink": lambda self: sink,
                 "sinks": lambda self: [],
                 "setup": lambda self: None,
                 "process": lambda self, payload: original_function(payload),
-                "processor_arg_spec": lambda self: inspect.getfullargspec(
-                    original_function
-                ),
-                "_process": lambda self, payload: original_function(
-                    self.source().preprocess(payload)
-                ),
-                "num_cpus": lambda self: num_cpus,
                 "__call__": wrapper_function,
-                "autoscaling_options": lambda self: autoscaling_options,
             },
         )
         processor_instance = _AdHocProcessor()
-        runtime.register_processor(processor_instance, processor_id=processor_id)
+        runtime.register_processor(processor_instance,
+                                   processor_id=processor_id)
 
         return processor_instance
 

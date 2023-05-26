@@ -11,6 +11,7 @@ class Cloud(Enum):
 
 
 class _BaseIO:
+
     @classmethod
     def num_cpus(cls) -> float:
         # IO options don't need much CPU pretty much just need enough keep it
@@ -20,16 +21,16 @@ class _BaseIO:
         return 0.1
 
     def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
-        pass
+        return {"source_type": type(self).__name__}
 
 
-class Source(_BaseIO):
+class SourceType(_BaseIO):
     """Super class for all source types."""
 
     def setup(self):
         """Perform any setup that is needed to connect to a source."""
 
-    def actor(self, ray_sinks, proc_input_type: Optional[Type]):
+    def actor(self, ray_sinks):
         """Returns the actor associated with the source."""
         pass
 
@@ -47,7 +48,8 @@ class Source(_BaseIO):
         return False
 
 
-class StreamingSource(Source, DependsPublisher):
+class StreamingSource(SourceType, DependsPublisher):
+
     def backlog(self) -> Optional[float]:
         """Returns an estimate of the backlog for the source.
 
@@ -55,15 +57,14 @@ class StreamingSource(Source, DependsPublisher):
         scale up the number of actor replicas.
         """
         raise NotImplementedError(
-            "backlog should be implemented for streaming sources."
-        )
+            "backlog should be implemented for streaming sources.")
 
     @classmethod
     def is_streaming(cls) -> bool:
         return True
 
 
-SourceType = TypeVar("SourceType", bound=Source)
+# SourceType = TypeVar("SourceType", bound=Source)
 
 
 class Sink(_BaseIO):

@@ -44,27 +44,25 @@ class _MetricsWrapper:
 
 
 async def _wait_for_metrics(
-    tasks: Dict[str, Awaitable]
-) -> Dict[str, Optional[_MetricsWrapper]]:
-    async def mark(key: str, coro: Awaitable) -> Tuple[str, Optional[_MetricsWrapper]]:
+        tasks: Dict[str, Awaitable]) -> Dict[str, Optional[_MetricsWrapper]]:
+
+    async def mark(key: str,
+                   coro: Awaitable) -> Tuple[str, Optional[_MetricsWrapper]]:
         try:
             num_events, empty_response_ratio, requests = await coro
-            return key, _MetricsWrapper(
-                num_events=num_events, non_empty_response_ratio=1 - empty_response_ratio
-            )
+            return key, _MetricsWrapper(num_events=num_events,
+                                        non_empty_response_ratio=1 -
+                                        empty_response_ratio)
         except asyncio.CancelledError:
-            logging.warning(
-                "timeout for metrics, this can happen when an "
-                "actor is pending creation."
-            )
+            logging.warning("timeout for metrics, this can happen when an "
+                            "actor is pending creation.")
             return key, None
         except Exception as e:
             logging.error("Actor died with following exception: %s", e)
             return key, _MetricsWrapper(0, 0, failed=True)
 
     done, pending = await asyncio.wait(
-        [mark(key, coro) for key, coro in tasks.items()], timeout=15
-    )
+        [mark(key, coro) for key, coro in tasks.items()], timeout=15)
 
     for p in pending:
         p.cancel()
@@ -80,6 +78,7 @@ async def _wait_for_metrics(
 
 @ray.remote
 class _StreamManagerActor:
+
     def __init__(
         self,
         options: AutoscalingOptions,
@@ -102,22 +101,23 @@ class _StreamManagerActor:
             description="Current number of replicas. Goes up and down.",
             tag_keys=("actor_name", "JobID"),
         )
-        self.num_replicas_gauge.set_default_tags(
-            {"actor_name": self.__class__.__name__, "JobID": job_id}
-        )
+        self.num_replicas_gauge.set_default_tags({
+            "actor_name": self.__class__.__name__,
+            "JobID": job_id
+        })
         self.cpu_per_replica = (
-            processor_ref.sink.num_cpus()
-            + processor_ref.source.num_cpus()
-            + self.processor_ref.processor_instance.num_cpus()
-        )
+            processor_ref.sink.num_cpus() + processor_ref.source.num_cpus() +
+            self.processor_ref.processor_instance.num_cpus())
         self.num_events_counter = Counter(
             "num_events_processed",
-            description=("Number of events processed by the actor. Goes up and down."),
+            description=(
+                "Number of events processed by the actor. Goes up and down."),
             tag_keys=("actor_name", "JobID"),
         )
-        self.num_events_counter.set_default_tags(
-            {"actor_name": self.__class__.__name__, "JobID": job_id}
-        )
+        self.num_events_counter.set_default_tags({
+            "actor_name": self.__class__.__name__,
+            "JobID": job_id
+        })
 
     def _add_replica(self):
         key = str(self.processor_ref.sink)
@@ -134,15 +134,15 @@ class _StreamManagerActor:
             namespace=self.proc_id,
         ).remote(self.processor_ref.get_processor_replica())
         sink_actor = self.processor_ref.sink.actor(
-            process_actor, self.processor_ref.source.is_streaming()
-        )
+            process_actor, self.processor_ref.source.is_streaming())
 
         replica_id = utils.uuid()
-        source_actor = self.processor_ref.source.actor(
-            {key: sink_actor}, self._proc_input_type
-        )
+        source_actor = self.processor_ref.source.actor({key: sink_actor},
+                                                       self._proc_input_type)
         num_threads = self.processor_ref.source.recommended_num_threads()
-        source_pool_tasks = [source_actor.run.remote() for _ in range(num_threads)]
+        source_pool_tasks = [
+            source_actor.run.remote() for _ in range(num_threads)
+        ]
         self._replicas[replica_id] = (source_actor, source_pool_tasks)
 
     async def _remove_replicas(self, replicas_to_remove: int):
@@ -154,7 +154,7 @@ class _StreamManagerActor:
             actor, tasks = self._replicas.pop(to_pop)
             all_tasks.extend(tasks)
             actors_to_kill.append(actor)
-            actor_shutdowns.append(actor.shutdown.remote())
+            actor_shutdowns.append(actor.drain.remote())
         _, pending = await asyncio.wait(actor_shutdowns, timeout=15)
         for task in pending:
             # This can happen if the actor is not started yet, we will just
@@ -175,7 +175,8 @@ class _StreamManagerActor:
             start_replics = self.options.num_replicas
         if start_replics <= 0:
             raise ValueError("min_replicas and num_replicas must be > 0")
-        max_replicas = auto_scaler.max_replicas_for_cluster(self.cpu_per_replica)
+        max_replicas = auto_scaler.max_replicas_for_cluster(
+            self.cpu_per_replica)
         if start_replics > max_replicas:
             logging.warning(
                 "requested more replicas than your current cluster can handle."
@@ -209,7 +210,8 @@ class _StreamManagerActor:
                 new_replicas = {}
                 for replica_id, metric in metrics.items():
                     if metric is not None and metric.failed:
-                        logging.warning("removing dead replica with ID: %s", replica_id)
+                        logging.warning("removing dead replica with ID: %s",
+                                        replica_id)
                         continue
                     new_replicas[replica_id] = self._replicas[replica_id]
                     if metric is None:
@@ -235,8 +237,7 @@ class _StreamManagerActor:
                             time_since_last_check=(now - last_check_in),
                             autoscaling_options=self.options,
                             cpus_per_replica=self.cpu_per_replica,
-                        )
-                    )
+                        ))
                 else:
                     # Ensure we restart any dead replicas to get back to what
                     # the user requested.
@@ -254,12 +255,13 @@ class _StreamManagerActor:
 
         await self._remove_replicas(len(self._replicas))
 
-    def shutdown(self):
+    def drain(self):
         self.running = False
         return True
 
 
 class StreamProcessManager:
+
     def __init__(
         self,
         processor_ref: processors.ProcessorRef,
@@ -276,14 +278,14 @@ class StreamProcessManager:
 
     def run(self):
         self.manager_task = self._actor.run.remote()
-        signal.signal(signal.SIGTERM, self.shutdown)
-        signal.signal(signal.SIGINT, self.shutdown)
+        signal.signal(signal.SIGTERM, self.drain)
+        signal.signal(signal.SIGINT, self.drain)
         return self.manager_task
 
     # NOTE: *args is added so this can be registered with SIGTERM
-    async def shutdown(self, *args):
-        await self._actor.shutdown.remote()
+    async def drain(self, *args):
+        await self._actor.drain.remote()
 
     def block(self):
         ray.get(self.manager_task)
-        self.shutdown()
+        self.drain()
