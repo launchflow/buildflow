@@ -1,10 +1,13 @@
 import dataclasses
 import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypeAlias
 from uuid import uuid4
 
+# create a UUID type
+UUID: TypeAlias = str
 
-def uuid(max_len: Optional[int] = None) -> str:
+
+def uuid(max_len: Optional[int] = None) -> UUID:
     if max_len is not None:
         return str(uuid4())[:max_len]
     return str(uuid4())
@@ -26,7 +29,8 @@ def dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
             val = val.isoformat()
         if dataclasses.is_dataclass(val):
             val = dataclass_to_json(val)
-        if isinstance(val, list) and len(val) > 0 and dataclasses.is_dataclass(val[0]):
+        if isinstance(val, list) and len(val) > 0 and dataclasses.is_dataclass(
+                val[0]):
             val = [dataclass_to_json(v) for v in val]
         to_ret[k] = val
     return to_ret

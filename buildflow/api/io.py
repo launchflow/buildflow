@@ -10,6 +10,22 @@ class Cloud(Enum):
     AWS = "aws"
 
 
+# TODO: Add Provider API for users who want to write their custom IO providers
+# for the BuildFlow runtime.
+
+
+class Pullable:
+
+    def pull(self):
+        raise NotImplementedError('pull not implemented')
+
+
+class Pushable:
+
+    def push(self):
+        raise NotImplementedError('push not implemented')
+
+
 class _BaseIO:
 
     @classmethod

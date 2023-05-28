@@ -4,39 +4,32 @@ from typing import Iterable
 from buildflow.api.processor import ProcessorAPI
 
 
-class NodeResult:
+class AsyncResult:
 
-    def __init__(self, node_name: str) -> None:
-        self.node_name = node_name
+    def run_until_complete(self) -> bool:
+        """This method will block until the async task is complete."""
+        raise NotImplementedError("run_until_complete not implemented")
 
 
-class NodeRunResult(NodeResult):
+class NodeRunResult(AsyncResult):
 
-    async def output(self, register_drain: bool = True):
-        """This method will block until runtime completion."""
-        pass
-
-    async def drain(self):
+    def drain(self, block: bool) -> bool:
         """Sends the drain signal to the running node."""
-        pass
-
-    async def stop(self):
-        """Sends the stop signal to the running node."""
-        pass
+        raise NotImplementedError("drain not implemented")
 
 
-class NodeApplyResult(NodeResult):
+class NodeApplyResult(AsyncResult):
 
-    async def output(self):
-        """This method will block until `node.apply(...)` completion."""
-        pass
+    def stop(self):
+        """Sends the stop signal to the async task."""
+        raise NotImplementedError("stop not implemented")
 
 
-class NodeDestroyResult(NodeResult):
+class NodeDestroyResult(AsyncResult):
 
-    async def output(self):
-        """This method will block until `node.destroy(...)` completion."""
-        pass
+    def stop(self):
+        """Sends the stop signal to the async task."""
+        raise NotImplementedError("stop not implemented")
 
 
 @dataclasses.dataclass
