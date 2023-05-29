@@ -1,8 +1,7 @@
 import dataclasses
 import json
 import logging
-from typing import Any, Dict, List
-import time
+from typing import Any, Dict, List, Tuple
 
 from buildflow.io.providers import PullProvider
 from buildflow.io.providers.gcp import clients as gcp_clients
@@ -36,13 +35,8 @@ class GCPPubSubProvider(PullProvider):
         self.publisher_client = gcp_clients.get_publisher_client(
             billing_project_id)
         # initial state
-        self.ack_ids: List[str] = []
 
-    async def pull(self) -> List[dict]:
-        t1 = time.time()
-        if self.ack_ids:
-            raise ValueError(
-                "ack_ids not empty, must ack before pulling again")
+    async def pull(self) -> Tuple[List[dict], List[str]]:
         try:
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
@@ -51,9 +45,10 @@ class GCPPubSubProvider(PullProvider):
             )
         except Exception as e:
             logging.error("pubsub pull failed with: %s", e)
-            return []
+            return [], []
 
         payloads = []
+        ack_ids = []
         for received_message in response.received_messages:
             json_loaded = {}
             if received_message.message.data:
@@ -68,14 +63,11 @@ class GCPPubSubProvider(PullProvider):
 
             payload = json_loaded
             payloads.append(payload)
-            self.ack_ids.append(received_message.ack_id)
+            ack_ids.append(received_message.ack_id)
 
-        t2 = time.time()
-        print("PULL TOOK: ", t2 - t1)
-        return payloads
+        return payloads, ack_ids
 
-    async def ack(self):
-        if self.ack_ids:
+    async def ack(self, ack_ids: List[str]):
+        if ack_ids:
             await self.subscriber_client.acknowledge(
-                ack_ids=self.ack_ids, subscription=self.subscription_id)
-        self.ack_ids = []
+                ack_ids=ack_ids, subscription=self.subscription_id)

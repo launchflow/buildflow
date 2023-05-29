@@ -9,20 +9,23 @@ from buildflow import utils
 from buildflow.api import RuntimeAPI, RuntimeSnapshot, RuntimeStatus
 from buildflow.core.runtime.actors.pull_process_push import PullProcessPushActor  # noqa
 from buildflow.core.processor.base import Processor
+from buildflow.core.runtime.config import RuntimeConfig
+# TODO: add ability to load from env vars so we can set num_cpus
+# from buildflow.utils import load_config_from_env
 
 
-@ray.remote(num_cpus=1)
-class ProcessorPoolActor(RuntimeAPI):
+@ray.remote(num_cpus=0.1)
+class ProcessorReplicaPoolActor(RuntimeAPI):
     """
     This actor acts as a proxy reference for a group of replica Processors.
     Runtime methods are forwarded to the replicas (i.e. "drain"). Includes
     methods for adding and removing replicas (for autoscaling).
     """
 
-    def __init__(self, processor: Processor) -> None:
+    def __init__(self, processor: Processor, config: RuntimeConfig) -> None:
         # configuration
         self.processor = processor
-        self.num_threads = 8
+        self.num_threads = config.num_threads_per_process
         # initial runtime state
         self.replicas: Dict[str, PullProcessPushActor] = {}
         self._status = RuntimeStatus.IDLE

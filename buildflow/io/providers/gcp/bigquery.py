@@ -1,7 +1,6 @@
 import asyncio
 import atexit
 from typing import Any, Dict, Iterable, List, TypeAlias, Union
-import time
 from google.cloud.bigquery.table import TableReference
 from google.cloud.bigquery_storage_v1.types import (AppendRowsRequest,
                                                     CreateWriteStreamRequest,
@@ -18,10 +17,22 @@ from buildflow.io.providers.gcp import clients as gcp_clients
 
 BigQueryInput: TypeAlias = Union[RayDataset, Iterable[Dict[str, Any]]]
 
+SCHEMA_SAMPLE = {
+    "ride_id": "bcf590c3-74ab-4fc2-88e2-b42575e5b9c1",
+    "point_idx": 509,
+    "latitude": 40.720870000000005,
+    "longitude": -73.98159000000001,
+    "timestamp": "2023-05-22T02:52:00.78627-04:00",
+    "meter_reading": 15.530334,
+    "meter_increment": 0.030511463,
+    "ride_status": "enroute",
+    "passenger_count": 5
+}
+
 
 def _build_append_rows_request(serialized_rows: Iterable[bytes],
-                               proto_class: Any, stream_name: str,
-                               include_schema: bool) -> AppendRowsRequest:
+                               proto_class: Any,
+                               stream_name: str) -> AppendRowsRequest:
     """
     Create AppendRowsRequest() with messages included.
     For the first request we need to include stream name and protobuf schema
@@ -31,16 +42,12 @@ def _build_append_rows_request(serialized_rows: Iterable[bytes],
 
     request = AppendRowsRequest()
     request.write_stream = stream_name
-    if include_schema:
-        proto_descriptor = DescriptorProto()
-        proto_class().DESCRIPTOR.CopyToProto(proto_descriptor)
-        request.proto_rows = AppendRowsRequest.ProtoData(
-            writer_schema=ProtoSchema(proto_descriptor=proto_descriptor),
-            rows=rows,
-        )
-    else:
-
-        request.proto_rows = AppendRowsRequest.ProtoData(rows=rows)
+    proto_descriptor = DescriptorProto()
+    proto_class().DESCRIPTOR.CopyToProto(proto_descriptor)
+    request.proto_rows = AppendRowsRequest.ProtoData(
+        writer_schema=ProtoSchema(proto_descriptor=proto_descriptor),
+        rows=rows,
+    )
 
     return request
 
@@ -70,29 +77,30 @@ class StreamingBigQueryProvider(PushProvider):
         return write_stream.name
 
     async def push(self, batch: List[dict]):
-        t1 = time.time()
         # Create the write stream if it doesn't exist
-        include_schema = False
         if self._write_stream_name is None:
-            include_schema = True
             self._write_stream_name = await self._create_write_stream()
 
+        if not batch:
+            print("EMPTY BATCH")
+            return
+
         # Convert the batch to a list of protobuf messages
-        self._proto_class, to_write = EasyProto.serialize(
-            batch, message_class=self._proto_class)
+        if self._proto_class is None:
+            self._proto_class, to_write = EasyProto.serialize(
+                batch, sample_data=SCHEMA_SAMPLE)
+        else:
+            self._proto_class, to_write = EasyProto.serialize(
+                batch, message_class=self._proto_class)
 
         # Convert the protobuf messages to an AppendRowsRequest
         request = _build_append_rows_request(to_write, self._proto_class,
-                                             self._write_stream_name,
-                                             include_schema)
+                                             self._write_stream_name)
 
         # Send the write request
         results = await self.bigquery_client.append_rows([request])
         async for result in results:
             pass
-
-        t2 = time.time()
-        print("PUSH TOOK: ", t2 - t1)
 
     async def cleanup(self):
         if self._write_stream_name is not None:

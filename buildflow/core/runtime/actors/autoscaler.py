@@ -126,9 +126,8 @@ def get_recommended_num_replicas(
 @ray.remote
 class AutoscalerActor:
 
-    def __self__(self) -> None:
-        self._state = {}
-        self._cache = {}
+    def __init__(self, config) -> None:
+        self.config = config
 
     def calc(self, current_num_replicas: int, backlog: float,
              events_processed_per_replica: List[int],
