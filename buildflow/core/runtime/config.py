@@ -9,7 +9,7 @@ class RuntimeConfig:
 
     @classmethod
     def IO_BOUND(cls, num_available_cores: int):
-        return cls(num_threads_per_process=20,
+        return cls(num_threads_per_process=10,
                    num_actors_per_core=1,
                    num_available_cores=num_available_cores)
 
