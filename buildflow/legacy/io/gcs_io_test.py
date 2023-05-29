@@ -9,7 +9,7 @@ from google.iam.v1 import policy_pb2
 
 import buildflow
 from buildflow.api import NodePlan, ProcessorPlan
-from buildflow.core.ray_io import gcs_io
+from buildflow.core.io import gcs_io
 
 
 @dataclasses.dataclass

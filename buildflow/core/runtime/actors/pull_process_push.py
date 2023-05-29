@@ -1,13 +1,10 @@
-import asyncio
-import signal
-from concurrent.futures import Future
-from typing import List
-
 import ray
 from ray.util.metrics import Counter
 
-from buildflow.api import RuntimeAPI, RuntimeSnapshot, RuntimeStatus
-from buildflow.core.processor import Processor
+from buildflow.api import RuntimeStatus
+from buildflow.core.processor.base import Processor
+from buildflow.io.providers.base import PullProvider, PushProvider
+import asyncio
 
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
@@ -16,67 +13,76 @@ from buildflow.core.processor import Processor
 # pass the global state down through the Environment object, and let each node
 # decide how to scale itself. Or maybe parent runtime nodes autoscale only
 # their children, and leaf nodes do not autoscale.
+# TODO: add Threadable interface for awaitable run() method
 @ray.remote
-class PullProcessPushActor(RuntimeAPI):
+class PullProcessPushActor:
 
-    def __init__(
-        self,
-        processor: Processor,
-        *,
-        num_threads=1,
-    ) -> None:
-        # configuration
-        self.num_threads = num_threads
+    def __init__(self, processor: Processor) -> None:
         # setup
-        self.pull_source = processor.source().provider()
-        self.process_fn = processor.process
-        self.push_sink = processor.sink().provider()
+        self.processor = processor
+
+        # validation
+        # TODO: Validate that the schemas & types are all compatible
+
         # initial runtime state
         self._status = RuntimeStatus.IDLE
-        self._tasks: List[Future] = []
+        self._num_running_threads = 0
         # metrics
         self.num_events_counter = Counter(
             "num_events_processed",
             description=(
                 "Number of events processed by the actor. Only increments."),
-            tag_keys=("processor_name"),
+            tag_keys=("processor_name", ),
         )
         self.num_events_counter.set_default_tags(
             {"processor_name": processor.name})
 
-    def run(self):
-        if self._status != RuntimeStatus.IDLE:
-            raise RuntimeError('Can only start an Idle Runtime.')
-        self._status = RuntimeStatus.RUNNING
-        # Do we need this here? Should every Runtime have it?
-        signal.signal(signal.SIGTERM, self.drain)
-        signal.signal(signal.SIGINT, self.drain)
-        self._tasks: List[Future] = [
-            self._run.remote().future() for _ in range(self.num_threads)
-        ]
+    async def run(self):
+        if self._status == RuntimeStatus.IDLE:
+            print('Starting PullProcessPushActor...')
+            self._status = RuntimeStatus.RUNNING
+        elif self._status == RuntimeStatus.DRAINING:
+            raise RuntimeError(
+                'Cannot run a PullProcessPushActor that is draining.')
 
-    def drain(self, block: bool):
-        self._status = RuntimeStatus.DRAINING
-        # NOTE: setting the status to DRAINING will cause the _run method to
-        # end the task loop
-        if block:
-            asyncio.run(asyncio.gather(*self._tasks))
-        return True
+        print('starting Thread...')
+        self._num_running_threads += 1
+        pull_provider: PullProvider = self.processor.source().provider()
+        process_fn = self.processor.process
+        push_provider: PushProvider = self.processor.sink().provider()
+        while self._status == RuntimeStatus.RUNNING:
+            # print('Starting Pull')
+            batch = await pull_provider.pull()
+            if not batch:
+                continue
+            # print('Starting Process')
+            batch_results = [process_fn(element) for element in batch]
+            # print('Starting Push')
+            await push_provider.push(batch_results)
+            # print('Starting Ack')
+            await pull_provider.ack()
+            self.num_events_counter.inc(len(batch))
+            # print('Ack Complete')
 
-    def status(self):
-        if self._status == RuntimeStatus.DRAINING:
-            for task in self._tasks:
-                task: Future
-                if not task.done():
-                    return RuntimeStatus.DRAINING
+        self._num_running_threads -= 1
+        if self._num_running_threads == 0:
             self._status = RuntimeStatus.IDLE
+            print('Thread Complete')
+
+        print('PullProcessPushActor Complete')
+
+    async def status(self):
+        # TODO: Have this method count the number of active threads
         return self._status
 
-    def snapshot(self):
-        return RuntimeSnapshot()
+    async def drain(self):
+        print('Draining PullProcessPushActor...')
+        self._status = RuntimeStatus.DRAINING
 
-    async def _run(self):
-        while self._status == RuntimeStatus.RUNNING:
-            batch = await self.pull_source.pull_batch()
-            batch_results = [self.process_fn(element) for element in batch]
-            await self.push_sink.push_batch(batch_results)
+        start_time = asyncio.get_running_loop().time()
+        while self._status == RuntimeStatus.DRAINING:
+            if asyncio.get_running_loop().time() - start_time > 10:
+                print('Drain timeout exceeded')
+                break
+            await asyncio.sleep(1)
+        return True

@@ -1,76 +1,66 @@
-import asyncio
-import dataclasses
-import signal
-from concurrent.futures import Future
-from typing import Iterable, List
+# import asyncio
+# from concurrent.futures import Future
+from typing import Iterable
 
 import ray
+import asyncio
 
 from buildflow.api import RuntimeAPI, RuntimeSnapshot, RuntimeStatus
-from buildflow.core.processor import Processor
-from buildflow.core.runtime import AutoscalerActor, ProcessorPoolActor
-
-
-@dataclasses.dataclass
-class Environment:
-    pass
+from buildflow.core.processor.base import Processor
+from buildflow.core.runtime.actors.autoscaler import AutoscalerActor
+from buildflow.core.runtime.actors.process_pool import ProcessorPoolActor
 
 
 @ray.remote
 class RuntimeActor(RuntimeAPI):
 
-    def __init__(self, env: Environment) -> None:
+    def __init__(self) -> None:
+        # configuration
+        self.num_replicas = 20
         # setup
-        self._autoscaler = AutoscalerActor.remote(env)
+        self._autoscaler = AutoscalerActor.remote()
         # initial runtime state
         self._status = RuntimeStatus.IDLE
-        self._tasks: List[Future] = []
+        self._actors = []
 
-    def run(self, *, processors: Iterable[Processor]):
+    def start(self, *, processors: Iterable[Processor]):
+        print('Starting Runtime...')
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError('Can only start an Idle Runtime.')
         self._status = RuntimeStatus.RUNNING
-        signal.signal(signal.SIGTERM, self.drain)
-        signal.signal(signal.SIGINT, self.drain)
-        self._tasks: List[Future] = [
-            self._handle_process_pool.remote(
-                ProcessorPoolActor(processor)).future()
-            for processor in processors
+        self._actors = [
+            ProcessorPoolActor.remote(processor) for processor in processors
         ]
+        for actor in self._actors:
+            actor.start.remote()
+            actor.add_replicas.remote(self.num_replicas)
 
-    def drain(self, block: bool) -> bool:
+    async def drain(self) -> bool:
+        print('Draining Runtime...')
         self._status = RuntimeStatus.DRAINING
-        # NOTE: setting the status to DRAINING will cause the
-        # _handle_process_pool method to start draining the processor pools
-        if block:
-            asyncio.run(asyncio.gather(*self._tasks))
+        drain_tasks = [actor.drain.remote() for actor in self._actors]
+        await asyncio.gather(*drain_tasks)
+        self._status = RuntimeStatus.IDLE
+        print('Drain Runtime complete')
         return True
 
-    def status(self):
+    async def status(self):
         if self._status == RuntimeStatus.DRAINING:
-            for task in self._tasks:
-                task: Future
-                if not task.done():
+            for actor in self._actors:
+                if await actor.status.remote() != RuntimeStatus.IDLE:
                     return RuntimeStatus.DRAINING
             self._status = RuntimeStatus.IDLE
         return self._status
 
-    def snapshot(self):
+    async def snapshot(self):
         return RuntimeSnapshot()
+
+    async def run_until_complete(self):
+        print('Blocking main thread on Runtime...')
+        while self._status != RuntimeStatus.IDLE:
+            print('main thread sleeping for 10 seconds')
+            await asyncio.sleep(10)
+        print('main thread unblocked')
 
     def is_active(self):
         return self._status != RuntimeStatus.IDLE
-
-    def run_until_complete(self) -> bool:
-        return self.drain(block=True)
-
-    # NOTE: Each handler runs in its own thread, so we can use blocking calls
-    async def _handle_process_pool(self, processor_pool: ProcessorPoolActor):
-        while self._status == RuntimeStatus.RUNNING:
-            pool_status = await processor_pool.status.remote()
-            recommendation = await self._autoscaler.recommendation.remote(
-                pool_status)
-
-            processor_pool.add_replicas(recommendation.num_replicas)
-        if self._status == RuntimeStatus.DRAINING:
-            await processor_pool.drain.remote(block=True)

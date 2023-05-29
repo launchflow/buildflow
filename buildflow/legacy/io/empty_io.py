@@ -7,7 +7,7 @@ from typing import Any, Callable, Iterable, List, Optional, Type
 import ray
 
 from buildflow.api import io
-from buildflow.core.ray_io import base
+from buildflow.core.io import base
 
 
 @dataclasses.dataclass
@@ -19,7 +19,7 @@ class EmptySource(io.Source):
 
 
 @dataclasses.dataclass
-class EmptySink(io.Sink):
+class EmptySink(io.SinkType):
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
         return EmptySinkActor.remote(remote_fn)

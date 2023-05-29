@@ -2,8 +2,8 @@ import unittest
 
 from buildflow.legacy import runner
 from buildflow.core import Processor
-from buildflow.core.ray_io import bigquery_io
-from buildflow.core.ray_io import gcp_pubsub_io
+from buildflow.core.io import bigquery_io
+from buildflow.core.io import gcp_pubsub_io
 
 
 class StreamProcessor1(Processor):

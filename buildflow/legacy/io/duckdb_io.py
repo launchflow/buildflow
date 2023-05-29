@@ -10,7 +10,7 @@ import pandas as pd
 import ray
 
 from buildflow.api import io
-from buildflow.core.ray_io import base
+from buildflow.core.io import base
 
 
 @dataclasses.dataclass
@@ -26,7 +26,7 @@ class DuckDBSource(io.Source):
 
 
 @dataclasses.dataclass
-class DuckDBSink(io.Sink):
+class DuckDBSink(io.SinkType):
     """Sink for writing to a table in a DuckDB database."""
 
     database: str

@@ -12,7 +12,7 @@ from google.cloud import bigquery_storage_v1
 
 import buildflow
 from buildflow.api import NodePlan, ProcessorPlan
-from buildflow.core.ray_io import bigquery_io
+from buildflow.core.io import bigquery_io
 
 
 @dataclass

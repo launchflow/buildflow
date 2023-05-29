@@ -2,7 +2,7 @@ import unittest
 
 import buildflow
 from buildflow.api import NodePlan, ProcessorPlan
-from buildflow.core.ray_io import pubsub_io
+from buildflow.core.io import pubsub_io
 
 
 class TestPubSubIO(unittest.TestCase):

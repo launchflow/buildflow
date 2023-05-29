@@ -1,7 +1,7 @@
 from typing import Optional, Type
 
 from buildflow.core.managers import processors
-from buildflow.core.ray_io import empty_io
+from buildflow.core.io import empty_io
 from buildflow import Processor
 
 

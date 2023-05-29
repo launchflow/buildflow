@@ -1,12 +1,54 @@
-from typing import List
+from typing import List, Optional
 
 import ray
+import signal
 
-from buildflow.api import NodeAPI, NodeApplyResult, NodeDestroyResult, NodePlan
+from buildflow.api import (NodeAPI, NodeApplyResult, NodeDestroyResult,
+                           NodePlan, SinkType, SourceType)
 from buildflow.core.node import _utils as node_utils
 from buildflow.core.node.infrastructure import Infrastructure
 from buildflow.core.processor import Processor
-from buildflow.core.runtime import Environment, Runtime, RuntimeActor
+from buildflow.core.runtime import RuntimeActor
+from buildflow.io.registry import EmptySink
+from buildflow import utils
+
+
+def processor_decorator(
+    node: 'Node',
+    source: SourceType,
+    sink: Optional[SinkType] = None,
+    *,
+    num_cpus: float = 0.5,
+):
+    if sink is None:
+        sink = EmptySink()
+
+    def decorator_function(original_function):
+        processor_id = original_function.__name__
+        # Dynamically define a new class with the same structure as Processor
+        class_name = f"AdHocProcessor_{utils.uuid(max_len=8)}"
+
+        def wrapper_function(*args, **kwargs):
+            return original_function(*args, **kwargs)
+
+        _AdHocProcessor = type(
+            class_name,
+            (Processor, ),
+            {
+                "source": lambda self: source,
+                "sink": lambda self: sink,
+                "sinks": lambda self: [],
+                "setup": lambda self: None,
+                "process": lambda self, payload: original_function(payload),
+                "__call__": wrapper_function,
+            },
+        )
+        processor_instance = _AdHocProcessor(name=processor_id)
+        node.add(processor_instance)
+
+        return processor_instance
+
+    return decorator_function
 
 
 # NOTE: Node implements NodeAPI, which is a combination of RuntimeAPI and
@@ -20,8 +62,20 @@ class Node(NodeAPI):
         self._runtime = RuntimeActor.remote()
         self._infrastructure = Infrastructure()
 
+    def processor(self,
+                  source: SourceType,
+                  sink: Optional[SinkType] = None,
+                  **kwargs):
+        # NOTE: processor_decorator is a function that returns an Ad Hoc
+        # Processor implementation.
+        return processor_decorator(node=self,
+                                   source=source,
+                                   sink=sink,
+                                   **kwargs)
+
     def add(self, processor: Processor):
-        if self._runtime.is_active.remote():
+        is_active = ray.get(self._runtime.is_active.remote())
+        if is_active:
             raise RuntimeError("Cannot add processor to running node.")
         self._processors.append(processor)
 
@@ -36,7 +90,7 @@ class Node(NodeAPI):
         disable_resource_creation: bool = True,
         blocking: bool = True,
         debug_run: bool = False,
-    ) -> Runtime:
+    ):
         # BuildFlow Usage Stats
         if not disable_usage_stats:
             node_utils.log_buildflow_usage()
@@ -44,12 +98,18 @@ class Node(NodeAPI):
         if not disable_resource_creation:
             self.apply()
         # BuildFlow Runtime
-        run_result: Runtime = ray.get(
-            self._runtime.run.remote(processors=self._processors,
-                                     env=Environment()))
+        # schedule cleanup
+        signal.signal(signal.SIGTERM, self.drain)
+        signal.signal(signal.SIGINT, self.drain)
+        ray.get(self._runtime.start.remote(processors=self._processors))
         if blocking:
-            run_result.run_until_complete()
-        return run_result
+            ray.get(self._runtime.run_until_complete.remote())
+
+    def drain(self, *args, **kwargs):
+        print("Draining node...")
+        ray.get(self._runtime.drain.remote())
+        print("...Finished draining node")
+        return True
 
     def apply(self) -> NodeApplyResult:
         print("Setting up resources...")

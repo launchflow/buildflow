@@ -7,7 +7,7 @@ import boto3
 import ray
 
 from buildflow.api import io
-from buildflow.core.ray_io import base
+from buildflow.core.io import base
 
 
 @dataclass

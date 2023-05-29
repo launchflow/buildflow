@@ -5,7 +5,7 @@ from google.api_core import exceptions
 
 import buildflow
 from buildflow.api import NodePlan, ProcessorPlan
-from buildflow.core.ray_io import gcp_pubsub_io as io
+from buildflow.core.io import gcp_pubsub_io as io
 
 
 class PubsubIOTest(unittest.TestCase):

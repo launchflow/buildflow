@@ -6,7 +6,7 @@ from google.api_core import exceptions
 from google.iam.v1 import iam_policy_pb2
 from google.iam.v1 import policy_pb2
 
-from buildflow.core.ray_io.gcp import clients
+from buildflow.core.io.gcp import clients
 
 
 def maybe_create_topic(*,

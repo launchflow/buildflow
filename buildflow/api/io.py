@@ -1,6 +1,6 @@
 from enum import Enum
 import inspect
-from typing import Any, Callable, Dict, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Optional
 
 from buildflow.api.depends import DependsPublisher
 
@@ -38,6 +38,9 @@ class _BaseIO:
 
     def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
         return {"source_type": type(self).__name__}
+
+    def provider(self):
+        raise NotImplementedError('provider not implemented')
 
 
 class SourceType(_BaseIO):
@@ -83,7 +86,7 @@ class StreamingSource(SourceType, DependsPublisher):
 # SourceType = TypeVar("SourceType", bound=Source)
 
 
-class Sink(_BaseIO):
+class SinkType(_BaseIO):
     """Super class for all sink types."""
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
@@ -97,6 +100,3 @@ class Sink(_BaseIO):
     def actor(self, remote_fn: Callable, is_streaming: bool):
         """Returns the actor associated with the sink."""
         pass
-
-
-SinkType = TypeVar("SinkType", bound=Sink)

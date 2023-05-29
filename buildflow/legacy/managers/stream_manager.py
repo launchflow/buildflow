@@ -28,7 +28,7 @@ from buildflow import utils
 from buildflow.api.options import AutoscalingOptions
 from buildflow.core.managers import auto_scaler
 from buildflow.core.managers import processors
-from buildflow.core.ray_io import empty_io
+from buildflow.core.io import empty_io
 
 # Even though our backlog calculation is based on 2 minute intervals we do an
 # auto scale check every 60 seconds. This helps ensure we use the ray resources
@@ -99,7 +99,10 @@ class _StreamManagerActor:
         self.num_replicas_gauge = Gauge(
             "num_replicas",
             description="Current number of replicas. Goes up and down.",
-            tag_keys=("actor_name", "JobID"),
+            tag_keys=(
+                "actor_name",
+                "JobID",
+            ),
         )
         self.num_replicas_gauge.set_default_tags({
             "actor_name": self.__class__.__name__,

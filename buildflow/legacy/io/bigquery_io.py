@@ -15,9 +15,9 @@ import ray
 
 from buildflow import utils
 from buildflow.api import io
-from buildflow.core.ray_io import base
-from buildflow.core.ray_io.gcp import clients
-from buildflow.core.ray_io.schemas import bigquery as bq_schemas
+from buildflow.core.io import base
+from buildflow.core.io.gcp import clients
+from buildflow.core.io.schemas import bigquery as bq_schemas
 
 _DEFAULT_TEMP_DATASET = "buildflow_temp"
 _DEFAULT_TEMP_BUCKET = "buildflow_temp"
@@ -153,7 +153,7 @@ class BigQuerySource(io.Source):
 
 
 @dataclasses.dataclass
-class BigQuerySink(io.Sink):
+class BigQuerySink(io.SinkType):
     """Sink for writing data to BigQuery."""
 
     # The BigQuery table to read from.

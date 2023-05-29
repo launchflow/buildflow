@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, Optional, Type, Union
 
 from buildflow.api import io
 from buildflow.api.depends import Publisher
-from buildflow.core.ray_io import gcp_pubsub_io
+from buildflow.core.io import gcp_pubsub_io
 
 
 class PubSubSource(io.StreamingSource):
@@ -49,7 +49,7 @@ class PubSubSource(io.StreamingSource):
         return self._cloud_source.publisher()
 
 
-class PubSubSink(io.Sink):
+class PubSubSink(io.SinkType):
 
     def __init__(self, cloud: Union[str, io.Cloud], name: str,
                  **kwargs) -> None:

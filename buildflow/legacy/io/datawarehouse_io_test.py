@@ -2,8 +2,8 @@ import unittest
 
 import buildflow
 from buildflow.api import NodePlan, ProcessorPlan
-from buildflow.core.ray_io import empty_io
-from buildflow.core.ray_io import datawarehouse_io
+from buildflow.core.io import empty_io
+from buildflow.core.io import datawarehouse_io
 
 
 class TestDataWarehouseIO(unittest.TestCase):

@@ -2,10 +2,10 @@ import inspect
 from typing import Any, Callable, Dict, Union
 
 from buildflow.api import io
-from buildflow.core.ray_io import bigquery_io
+from buildflow.core.io import bigquery_io
 
 
-class DataWarehouseSink(io.Sink):
+class DataWarehouseSink(io.SinkType):
 
     def __init__(self, cloud: Union[str, io.Cloud], name: str,
                  **kwargs) -> None:

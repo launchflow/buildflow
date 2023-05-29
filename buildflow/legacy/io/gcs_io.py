@@ -6,9 +6,9 @@ from typing import Any, Dict, List, Optional, Type
 from google.api_core import exceptions
 
 from buildflow.api import io
-from buildflow.core.ray_io import gcp_pubsub_io
-from buildflow.core.ray_io import gcp_pubsub_utils
-from buildflow.core.ray_io.gcp import clients
+from buildflow.core.io import gcp_pubsub_io
+from buildflow.core.io import gcp_pubsub_utils
+from buildflow.core.io.gcp import clients
 
 
 @dataclasses.dataclass

@@ -15,7 +15,7 @@ import pyarrow as pa
 import pyarrow.csv as pcsv
 
 from buildflow.api import io
-from buildflow.core.ray_io import base
+from buildflow.core.io import base
 
 
 class FileFormat(Enum):
@@ -31,7 +31,7 @@ class _FileSourcePlan:
 
 
 @dataclass
-class FileSink(io.Sink):
+class FileSink(io.SinkType):
     file_path: str
     file_format: FileFormat
 

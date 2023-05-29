@@ -16,18 +16,18 @@ class RuntimeStatus(enum.Enum):
 
 class RuntimeAPI:
 
-    def run(self) -> bool:
+    def start(self) -> bool:
         """Starts the runtime."""
-        raise NotImplementedError("run not implemented")
+        raise NotImplementedError("start not implemented")
 
-    def drain(self, block: bool) -> bool:
+    async def drain(self) -> bool:
         """Sends the drain signal to the runtime."""
         raise NotImplementedError("drain not implemented")
 
-    def status(self) -> RuntimeStatus:
+    async def status(self) -> RuntimeStatus:
         """Returns the current status of the runtime."""
         raise NotImplementedError("status not implemented")
 
-    def snapshot(self) -> RuntimeSnapshot:
+    async def snapshot(self) -> RuntimeSnapshot:
         """Returns a snapshot of the runtime's state."""
         raise NotImplementedError("snapshot not implemented")

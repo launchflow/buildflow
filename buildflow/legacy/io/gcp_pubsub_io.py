@@ -13,9 +13,9 @@ import ray
 from buildflow import utils
 from buildflow.api import io
 from buildflow.api.depends import Publisher
-from buildflow.core.ray_io import base
-from buildflow.core.ray_io import gcp_pubsub_utils
-from buildflow.core.ray_io.gcp import clients
+from buildflow.core.io import base
+from buildflow.core.io import gcp_pubsub_utils
+from buildflow.core.io.gcp import clients
 
 _BACKLOG_QUERY_TEMPLATE = """\
 fetch pubsub_subscription
@@ -147,7 +147,7 @@ class GCPPubSubSource(io.StreamingSource):
 
 
 @dataclasses.dataclass
-class GCPPubSubSink(io.Sink):
+class GCPPubSubSink(io.SinkType):
     """Source for writing to a Pub/Sub topic."""
 
     topic: str

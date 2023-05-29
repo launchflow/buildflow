@@ -22,7 +22,10 @@ class ProcessActor(object):
         self.process_time_gauge = Gauge(
             "process_time",
             description="Current process time of the actor. Goes up and down.",
-            tag_keys=("actor_name", "JobID"),
+            tag_keys=(
+                "actor_name",
+                "JobID",
+            ),
         )
         self.process_time_gauge.set_default_tags({
             "actor_name": self.__class__.__name__,

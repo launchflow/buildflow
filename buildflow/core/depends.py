@@ -1,7 +1,7 @@
 from typing import TypeVar, Generic
 
 from buildflow.api import io
-from buildflow.core.ray_io import gcp_pubsub_io, pubsub_io
+from buildflow.core.io import gcp_pubsub_io, pubsub_io
 
 T = TypeVar("T")
 
