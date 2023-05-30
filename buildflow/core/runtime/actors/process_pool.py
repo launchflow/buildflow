@@ -1,17 +1,70 @@
 import asyncio
+import dataclasses
 import random
-from typing import Dict
+from typing import Dict, List, Optional
 
 import ray
 from ray.util.metrics import Gauge
 
 from buildflow import utils
-from buildflow.api import RuntimeAPI, RuntimeSnapshot, RuntimeStatus
-from buildflow.core.runtime.actors.pull_process_push import PullProcessPushActor  # noqa
+from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot
 from buildflow.core.processor.base import Processor
+from buildflow.core.runtime.actors.pull_process_push import (
+    NUM_CPUS, PullProcessPushActor)
 from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.io.providers.base import PullProvider, PushProvider
+
 # TODO: add ability to load from env vars so we can set num_cpus
 # from buildflow.utils import load_config_from_env
+
+
+@dataclasses.dataclass
+class ProviderInfo:
+    provider_type: str
+    provider_config: dict
+
+
+@dataclasses.dataclass
+class SourceInfo:
+    backlog: float
+    provider: ProviderInfo
+
+
+@dataclasses.dataclass
+class SinkInfo:
+    provider: ProviderInfo
+
+
+@dataclasses.dataclass
+class RayActorInfo:
+    num_cpus: float
+
+
+# TODO: Explore using a UtilizationScore that each replica can update
+# and then we can use that to determine how many replicas we need.
+@dataclasses.dataclass
+class ReplicaInfo:
+    utilization_score: float
+    process_rate: float
+    actor_info: RayActorInfo
+
+
+@dataclasses.dataclass
+class ProcessorSnapshot(Snapshot):
+    processor_name: str
+    source: SourceInfo
+    sink: SinkInfo
+    replicas: List[ReplicaInfo]
+    # Does it make sense to store timestamps in nested snapshots?
+    # I _think_ so, since snapshot() is async and might happend at different
+    # times for each processor.
+    _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)
+
+    def get_timestamp_millis(self) -> int:
+        return self._timestamp
+
+    def as_dict(self) -> dict:
+        return dataclasses.asdict(self)
 
 
 @ray.remote(num_cpus=0.1)
@@ -29,6 +82,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         # initial runtime state
         self.replicas: Dict[str, PullProcessPushActor] = {}
         self._status = RuntimeStatus.IDLE
+        self._last_snapshot_timestamp: Optional[int] = None
         # metrics
         self.num_replicas_gauge = Gauge(
             "processor_pool_num_replicas",
@@ -113,6 +167,31 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             self._status = RuntimeStatus.IDLE
         return self._status
 
-    async def snapshot(self):
-        # TODO: Add info about sources and whatnot for autoscaler
-        return RuntimeSnapshot(...)
+    async def snapshot(self) -> ProcessorSnapshot:
+        source_provider: PullProvider = self.processor.source().provider()
+        source_backlog = await source_provider.backlog()
+        source_info = SourceInfo(backlog=source_backlog,
+                                 provider=ProviderInfo(
+                                     provider_type=type(source_provider),
+                                     provider_config={}))
+        sink_provider: PushProvider = self.processor.sink().provider()
+        sink_info = SinkInfo(provider=ProviderInfo(
+            provider_type=type(sink_provider), provider_config={}))
+
+        replica_info_list = []
+        for replica in self.replicas.values():
+            checkin_result = await replica.checkin.remote()
+            # TODO: Come up with a way to get this that also lets it be
+            # configurable.
+            actor_num_cpus = NUM_CPUS
+            replica_info = ReplicaInfo(
+                utilization_score=checkin_result.utilization_score,
+                process_rate=checkin_result.process_rate,
+                actor_info=RayActorInfo(num_cpus=actor_num_cpus),
+            )
+            replica_info_list.append(replica_info)
+
+        return ProcessorSnapshot(processor_name=self.processor.name,
+                                 source=source_info,
+                                 sink=sink_info,
+                                 replicas=replica_info_list)

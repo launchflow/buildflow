@@ -1,10 +1,12 @@
 import dataclasses
 import json
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 from buildflow.io.providers import PullProvider
+import datetime
 from buildflow.io.providers.gcp import clients as gcp_clients
+from google.cloud.monitoring_v3 import query
 
 
 @dataclasses.dataclass(frozen=True)
@@ -71,3 +73,37 @@ class GCPPubSubProvider(PullProvider):
         if ack_ids:
             await self.subscriber_client.acknowledge(
                 ack_ids=ack_ids, subscription=self.subscription_id)
+
+    # TODO: This should not be Optional (goes against Pullable base class)
+    async def backlog(self) -> Optional[int]:
+        split_sub = self.subscription_id.split("/")
+        project = split_sub[1]
+        sub_id = split_sub[3]
+        # TODO: Create a gcp metrics utility library
+        client = gcp_clients.get_metrics_client(project)
+        backlog_query = query.Query(
+            client=client,
+            project=project,
+            end_time=datetime.datetime.now(),
+            metric_type=("pubsub.googleapis.com/subscription"
+                         "/num_unacked_messages_by_region"),
+            minutes=5,
+        )
+        backlog_query = backlog_query.select_resources(subscription_id=sub_id)
+        last_timeseries = None
+        try:
+            for backlog_data in backlog_query.iter():
+                last_timeseries = backlog_data
+            if last_timeseries is None:
+                return None
+        except Exception:
+            logging.error(
+                "Failed to get backlog for subscription %s please ensure your "
+                "user has: roles/monitoring.viewer to read the backlog, "
+                "no autoscaling will happen.",
+                self.subscription_id,
+            )
+            return None
+        points = list(last_timeseries.points)
+        points.sort(key=lambda p: p.interval.end_time, reverse=True)
+        return points[0].value.int64_value

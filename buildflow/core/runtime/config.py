@@ -3,9 +3,14 @@ import dataclasses
 
 @dataclasses.dataclass
 class RuntimeConfig:
+    # initial setup options
     num_threads_per_process: int
     num_actors_per_core: int
     num_available_cores: int
+    # autoscale options
+    autoscale: bool = True
+    min_replicas: int = 1
+    max_replicas: int = 1000
 
     @classmethod
     def IO_BOUND(cls, num_available_cores: int):

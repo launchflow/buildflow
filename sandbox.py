@@ -1,8 +1,21 @@
 from buildflow import Node
 from buildflow.io import PubSubSubscription, BigQueryTable
 
+from buildflow.core.runtime.config import RuntimeConfig
+
+config = RuntimeConfig(
+    # initial setup options
+    num_threads_per_process=1,
+    num_actors_per_core=1,
+    num_available_cores=1,
+    # autoscale options
+    autoscale=True,
+    min_replicas=1,
+    max_replicas=10,
+)
+
 # Create a new Node
-app = Node()
+app = Node(runtime_config=config)
 # Define the source and sink
 pubsub_source = PubSubSubscription(
     subscription_id='projects/daring-runway-374503/subscriptions/taxiride-sub')

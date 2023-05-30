@@ -11,6 +11,7 @@ from buildflow.core.processor import Processor
 from buildflow.core.runtime import RuntimeActor
 from buildflow.io.registry import EmptySink
 from buildflow import utils
+from buildflow.core.runtime.config import RuntimeConfig
 
 
 def processor_decorator(
@@ -55,11 +56,15 @@ def processor_decorator(
 # InfrastructureAPI.
 class Node(NodeAPI):
 
-    def __init__(self, name: str = "") -> None:
+    def __init__(
+        self,
+        name: str = "",
+        runtime_config: RuntimeConfig = RuntimeConfig.DEBUG()
+    ) -> None:
         self.name = name
         self._processors: List[Processor] = []
         # The Node class is a wrapper around the Runtime and Infrastructure
-        self._runtime = RuntimeActor.remote()
+        self._runtime = RuntimeActor.remote(runtime_config)
         self._infrastructure = Infrastructure()
 
     def processor(self,

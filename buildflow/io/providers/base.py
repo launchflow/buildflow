@@ -25,6 +25,9 @@ class PullProvider(ProviderAPI):
     async def ack(self):
         raise NotImplementedError('ack not implemented')
 
+    async def backlog(self) -> int:
+        raise NotImplementedError('backlog not implemented')
+
 
 class PushProvider(ProviderAPI):
 

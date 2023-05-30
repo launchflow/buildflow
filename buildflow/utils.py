@@ -13,6 +13,10 @@ def uuid(max_len: Optional[int] = None) -> UUID:
     return str(uuid4())
 
 
+def timestamp_millis() -> int:
+    return int(datetime.datetime.now().timestamp() * 1000)
+
+
 def dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
     # NOTE: we roll our own asdict instead of using dataclasses.asdict because
     # of an issue with dataclasses and cloudpickle.
