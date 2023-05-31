@@ -17,34 +17,34 @@ import logging
 # TODO: Add a config with constructors like config.DEBUG() (see runtime)
 @ray.remote
 class InfrastructureActor(InfrastructureAPI):
-
-    def __init__(self, *, log_level: str = 'INFO'):
+    def __init__(self, *, log_level: str = "INFO"):
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(log_level)
 
     async def plan(self, *, processors: Iterable[Processor]):
-        raise NotImplementedError('Infrastructure.plan() is not implemented')
+        raise NotImplementedError("Infrastructure.plan() is not implemented")
 
     async def apply(self, *, processors: Iterable[Processor]):
         for processor in processors:
             source_provider = processor.source().provider()
             if isinstance(source_provider, SetupProvider):
-                successful = await source_provider.setup()
-                if not successful:
+                try:
+                    await source_provider.setup()
+                except Exception as e:
                     raise RuntimeError(
-                        'Failed to setup source provider: {}'.format(
-                            source_provider))
+                        "Failed to setup source provider: {}".format(source_provider)
+                    ) from e
             # TODO: Need to support .sinks() also (runtime also needs this)
             # This is assuming we use sinks() for containing any Depends()
             sink_provider = processor.sink().provider()
             if isinstance(sink_provider, SetupProvider):
-                successful = await sink_provider.setup()
-                if not successful:
+                try:
+                    await sink_provider.setup()
+                except Exception as e:
                     raise RuntimeError(
-                        'Failed to setup sink provider: {}'.format(
-                            sink_provider))
+                        "Failed to setup sink provider: {}".format(sink_provider)
+                    ) from e
 
     async def destroy(self, *, processors: Iterable[Processor]):
-        raise NotImplementedError(
-            'Infrastructure.destroy() is not implemented')
+        raise NotImplementedError("Infrastructure.destroy() is not implemented")

@@ -1,0 +1,218 @@
+import unittest
+from unittest import mock
+
+from google.api_core import exceptions
+import pytest
+
+from buildflow.io.providers.gcp import gcp_pub_sub
+
+
+@pytest.mark.usefixtures("event_loop_instance")
+class GCPPubsubTest(unittest.TestCase):
+    def get_async_result(self, coro):
+        """Run a coroutine synchronously."""
+        return self.event_loop.run_until_complete(coro)
+
+    @mock.patch("google.auth.default")
+    @mock.patch("google.cloud.pubsub.PublisherClient")
+    @mock.patch("google.cloud.pubsub.SubscriberClient")
+    def test_pubsub_source_setup_create_sub_and_topic(
+        self,
+        sub_client_mock: mock.MagicMock,
+        pub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
+    ):
+        auth_mock.return_value = (None, None)
+        pub_mock = pub_client_mock.return_value
+        sub_mock = sub_client_mock.return_value
+
+        pub_mock.get_topic.side_effect = exceptions.NotFound("unused")
+        sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
+
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="projects/project/topics/pubsub-topic",
+            subscription_id="projects/project/subscriptions/pubsub-sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        self.get_async_result(pubsub_provider.setup())
+
+        pub_mock.create_topic.assert_called_once_with(
+            name="projects/project/topics/pubsub-topic"
+        )
+        sub_mock.create_subscription.assert_called_once_with(
+            name="projects/project/subscriptions/pubsub-sub",
+            topic="projects/project/topics/pubsub-topic",
+            ack_deadline_seconds=600,
+        )
+
+    @mock.patch("google.auth.default")
+    @mock.patch("google.cloud.pubsub.PublisherClient")
+    @mock.patch("google.cloud.pubsub.SubscriberClient")
+    def test_pubsub_source_setup_create_only_sub(
+        self,
+        sub_client_mock: mock.MagicMock,
+        pub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
+    ):
+        auth_mock.return_value = (None, None)
+        pub_mock = pub_client_mock.return_value
+        sub_mock = sub_client_mock.return_value
+        sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
+
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="projects/project/topics/pubsub-topic",
+            subscription_id="projects/project/subscriptions/pubsub-sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        self.get_async_result(pubsub_provider.setup())
+
+        pub_mock.create_topic.assert_not_called()
+        sub_mock.create_subscription.assert_called_once_with(
+            name="projects/project/subscriptions/pubsub-sub",
+            topic="projects/project/topics/pubsub-topic",
+            ack_deadline_seconds=600,
+        )
+
+    @mock.patch("google.auth.default")
+    @mock.patch("google.cloud.pubsub.PublisherClient")
+    @mock.patch("google.cloud.pubsub.SubscriberClient")
+    def test_pubsub_source_setup_create_none_created(
+        self,
+        sub_client_mock: mock.MagicMock,
+        pub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
+    ):
+        auth_mock.return_value = (None, None)
+        pub_mock = pub_client_mock.return_value
+        sub_mock = sub_client_mock.return_value
+
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="projects/project/topics/pubsub-topic",
+            subscription_id="projects/project/subscriptions/pubsub-sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        self.get_async_result(pubsub_provider.setup())
+
+        pub_mock.create_topic.assert_not_called()
+        sub_mock.create_subscription.assert_not_called()
+
+    @mock.patch("google.auth.default")
+    @mock.patch("google.cloud.pubsub.SubscriberClient")
+    def test_pubsub__source_setup_create_sub_no_topic(
+        self,
+        sub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
+    ):
+        auth_mock.return_value = (None, None)
+        sub_mock = sub_client_mock.return_value
+        sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
+
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="",
+            subscription_id="projects/project/subscriptions/pubsub-sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "subscription: projects/project/subscriptions/pubsub-sub was " "not found",
+        ):
+            self.get_async_result(pubsub_provider.setup())
+
+    @pytest.mark.skip(reason="TODO: need to implement sink logic")
+    @mock.patch("google.auth.default")
+    @mock.patch("google.cloud.pubsub.PublisherClient")
+    def test_pubsub_setup_create_topic(
+        self,
+        pub_client_mock: mock.MagicMock,
+        auth_mock: mock.MagicMock,
+    ):
+        pass
+        # auth_mock.return_value = (None, None)
+        # pub_mock = pub_client_mock.return_value
+
+        # pub_mock.get_topic.side_effect = exceptions.NotFound("unused")
+
+        # pubsub_io = io.GCPPubSubSink("projects/project/topics/pubsub-topic")
+        # pubsub_io.setup(None)
+
+        # pub_mock.create_topic.assert_called_once_with(
+        #     name="projects/project/topics/pubsub-topic"
+        # )
+
+    def test_gcp_pubsub_plan_source(self):
+        expected_plan = {
+            "topic_id": "/projects/p/topics/topic",
+            "subscription_id": "/projects/p/subscriptions/sub",
+        }
+
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="/projects/p/topics/topic",
+            subscription_id="/projects/p/subscriptions/sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        plan = self.get_async_result(pubsub_provider.plan())
+
+        self.assertEqual(expected_plan, plan)
+
+    def test_gcp_pubsub_plan_source_no_topic(self):
+        expected_plan = {
+            "subscription_id": "/projects/p/subscriptions/sub",
+        }
+
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="",
+            subscription_id="/projects/p/subscriptions/sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        plan = self.get_async_result(pubsub_provider.plan())
+
+        self.assertEqual(expected_plan, plan)
+
+    @pytest.mark.skip(reason="TODO: need to implement sink logic")
+    def test_gcp_pubsub_plan_sink(self):
+        pass
+        # expected_plan = NodePlan(
+        #     name="",
+        #     processors=[
+        #         ProcessorPlan(
+        #             name="gcp_ps_process",
+        #             source_resources={
+        #                 "source_type": "GCPPubSubSource",
+        #                 "subscription": "/projects/p/subscriptions/sub",
+        #             },
+        #             sink_resources={
+        #                 "sink_type": "GCPPubSubSink",
+        #                 "topic": "/projects/p/topics/topic2",
+        #             },
+        #         )
+        #     ],
+        # )
+        # app = buildflow.Node()
+
+        # @app.processor(
+        #     source=io.GCPPubSubSource(
+        #         subscription="/projects/p/subscriptions/sub",
+        #     ),
+        #     sink=io.GCPPubSubSink(topic="/projects/p/topics/topic2"),
+        # )
+        # def gcp_ps_process(elem):
+        #     pass
+
+        # plan = app.plan()
+        # self.assertEqual(expected_plan, plan)
+
+
+if __name__ == "__main__":
+    unittest.main()

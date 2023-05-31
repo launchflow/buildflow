@@ -4,7 +4,7 @@ import logging
 import time
 
 import ray
-from ray.util.metrics import Counter
+from ray.util.metrics import Counter, Gauge
 
 from buildflow.api import RuntimeStatus
 from buildflow.core.processor.base import Processor
@@ -34,11 +34,7 @@ class PullProcessPushSnapshot(Snapshot):
 
 @ray.remote
 class PullProcessPushActor(AsyncRuntimeAPI):
-
-    def __init__(self,
-                 processor: Processor,
-                 *,
-                 log_level: str = 'INFO') -> None:
+    def __init__(self, processor: Processor, *, log_level: str = "INFO") -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(log_level)
@@ -59,24 +55,41 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         self._num_pull_requests = 0
         self._num_empty_pull_responses = 0
         # metrics
+        job_id = ray.get_runtime_context().get_job_id()
         self.num_events_counter = Counter(
-            'num_events_processed',
-            description=(
-                'Number of events processed by the actor. Only increments.'),
-            tag_keys=('processor_name', ),
+            "num_events_processed",
+            description=("Number of events processed by the actor. Only increments."),
+            tag_keys=(
+                "processor_name",
+                "JobId",
+            ),
         )
         self.num_events_counter.set_default_tags(
-            {'processor_name': processor.name})
+            {"processor_name": processor.name, "JobId": job_id}
+        )
+        self.process_time_gauge = Gauge(
+            "process_time",
+            description="Current process time of the actor. Goes up and down.",
+            tag_keys=(
+                "actor_name",
+                "JobID",
+            ),
+        )
+        self.process_time_gauge.set_default_tags(
+            {
+                "processor_name": processor.name,
+                "JobId": job_id,
+            }
+        )
 
     async def run(self):
         if self._status == RuntimeStatus.IDLE:
-            logging.info('Starting PullProcessPushActor...')
+            logging.info("Starting PullProcessPushActor...")
             self._status = RuntimeStatus.RUNNING
         elif self._status == RuntimeStatus.DRAINING:
-            raise RuntimeError(
-                'Cannot run a PullProcessPushActor that is draining.')
+            raise RuntimeError("Cannot run a PullProcessPushActor that is draining.")
 
-        logging.info('Starting Thread...')
+        logging.info("Starting Thread...")
         self._num_running_threads += 1
 
         process_fn = self.processor.process
@@ -89,7 +102,11 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 await asyncio.sleep(1)
                 continue
             # PROCESS
+            start_time = time.time()
             batch_results = [process_fn(element) for element in batch]
+            self.process_time_gauge.set(
+                (time.time() - start_time) * 1000 / len(batch_results)
+            )
             # PUSH
             await self.push_provider.push(batch_results)
             # ACK
@@ -101,23 +118,19 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         self._num_running_threads -= 1
         if self._num_running_threads == 0:
             self._status = RuntimeStatus.IDLE
-            logging.info('PullProcessPushActor Complete.')
+            logging.info("PullProcessPushActor Complete.")
 
-        logging.info('Thread Complete.')
+        logging.info("Thread Complete.")
 
     async def status(self):
         # TODO: Have this method count the number of active threads
         return self._status
 
     async def drain(self):
-        logging.info('Draining PullProcessPushActor...')
+        logging.info("Draining PullProcessPushActor...")
         self._status = RuntimeStatus.DRAINING
 
-        start_time = asyncio.get_running_loop().time()
         while self._status == RuntimeStatus.DRAINING:
-            if asyncio.get_running_loop().time() - start_time > 30:
-                logging.warning('Drain timeout exceeded.')
-                return False
             await asyncio.sleep(1)
         return True
 
@@ -125,10 +138,10 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         if self._num_pull_requests == 0:
             return PullProcessPushSnapshot(utilization_score=0, process_rate=0)
 
-        non_empty_ratio = 1 - (self._num_empty_pull_responses /
-                               self._num_pull_requests)
+        non_empty_ratio = 1 - (self._num_empty_pull_responses / self._num_pull_requests)
         process_rate = self._num_elements_processed / (
-            time.time() - self._last_snapshot_time)
+            time.time() - self._last_snapshot_time
+        )
         snapshot = PullProcessPushSnapshot(
             utilization_score=non_empty_ratio,
             process_rate=process_rate,

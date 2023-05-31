@@ -1,18 +1,31 @@
-import dataclasses
+import asyncio
+from dataclasses import asdict, dataclass
 import datetime
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from google.cloud.monitoring_v3 import query
 
-from buildflow.io.providers import PullProvider, SetupProvider
+from buildflow.io.providers import (
+    PlanProvider,
+    PullProvider,
+    SetupProvider,
+    PushProvider,
+)
+from buildflow.io.providers.base import Batch
 from buildflow.io.providers.gcp.utils import clients as gcp_clients
 from buildflow.io.providers.gcp.utils import setup_utils
 
 
-@dataclasses.dataclass(frozen=True)
-class PubsubMessage():
+@dataclass(frozen=True)
+class _PubSubSourcePlan:
+    topic_id: str
+    subscription_id: str
+
+
+@dataclass(frozen=True)
+class PubsubMessage:
     data: Dict[str, Any]
     attributes: Dict[str, Any]
 
@@ -20,15 +33,16 @@ class PubsubMessage():
         return json.dumps(self, default=lambda o: o.__dict__)
 
 
-class GCPPubSubProvider(PullProvider, SetupProvider):
-
-    def __init__(self,
-                 *,
-                 billing_project_id: str,
-                 topic_id: str,
-                 subscription_id: str,
-                 batch_size: str,
-                 include_attributes: bool = False):
+class GCPPubSubProvider(PullProvider, SetupProvider, PlanProvider, PushProvider):
+    def __init__(
+        self,
+        *,
+        billing_project_id: str,
+        topic_id: str,
+        subscription_id: str,
+        batch_size: str,
+        include_attributes: bool = False,
+    ):
         super().__init__()
         # configuration
         self.billing_project_id = billing_project_id
@@ -38,12 +52,24 @@ class GCPPubSubProvider(PullProvider, SetupProvider):
         self.include_attributes = include_attributes
         # setup
         self.subscriber_client = gcp_clients.get_async_subscriber_client(
-            billing_project_id)
-        self.publisher_client = gcp_clients.get_publisher_client(
-            billing_project_id)
+            billing_project_id
+        )
+        self.publisher_client = gcp_clients.get_async_publisher_client(
+            billing_project_id
+        )
         # initial state
 
-    async def pull(self) -> Tuple[List[dict], List[str]]:
+    async def push(self, batch: Batch):
+        coros = []
+        for elem in batch:
+            coros.append(
+                self.publisher_client.publish(
+                    self.topic, json.dumps(elem).encode("UTF-8")
+                )
+            )
+        await asyncio.gather(*coros)
+
+    async def pull(self) -> Tuple[List[Union[dict, PubsubMessage]], List[str]]:
         try:
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
@@ -51,7 +77,7 @@ class GCPPubSubProvider(PullProvider, SetupProvider):
                 return_immediately=True,
             )
         except Exception as e:
-            logging.error('pubsub pull failed with: %s', e)
+            logging.error("pubsub pull failed with: %s", e)
             return [], []
 
         payloads = []
@@ -61,14 +87,14 @@ class GCPPubSubProvider(PullProvider, SetupProvider):
             if received_message.message.data:
                 decoded_data = received_message.message.data.decode()
                 json_loaded = json.loads(decoded_data)
-            # if self.include_attributes:
-            #     att_dict = {}
-            #     attributes = received_message.message.attributes
-            #     for key, value in attributes.items():
-            #         att_dict[key] = value
-            #     payload = PubsubMessage(json_loaded, att_dict)
+                payload = json_loaded
+            if self.include_attributes:
+                att_dict = {}
+                attributes = received_message.message.attributes
+                for key, value in attributes.items():
+                    att_dict[key] = value
+                payload = PubsubMessage(json_loaded, att_dict)
 
-            payload = json_loaded
             payloads.append(payload)
             ack_ids.append(received_message.ack_id)
 
@@ -77,11 +103,12 @@ class GCPPubSubProvider(PullProvider, SetupProvider):
     async def ack(self, ack_ids: List[str]):
         if ack_ids:
             await self.subscriber_client.acknowledge(
-                ack_ids=ack_ids, subscription=self.subscription_id)
+                ack_ids=ack_ids, subscription=self.subscription_id
+            )
 
     # TODO: This should not be Optional (goes against Pullable base class)
     async def backlog(self) -> Optional[int]:
-        split_sub = self.subscription_id.split('/')
+        split_sub = self.subscription_id.split("/")
         project = split_sub[1]
         sub_id = split_sub[3]
         # TODO: Create a gcp metrics utility library
@@ -90,8 +117,9 @@ class GCPPubSubProvider(PullProvider, SetupProvider):
             client=client,
             project=project,
             end_time=datetime.datetime.now(),
-            metric_type=('pubsub.googleapis.com/subscription'
-                         '/num_unacked_messages_by_region'),
+            metric_type=(
+                "pubsub.googleapis.com/subscription" "/num_unacked_messages_by_region"
+            ),
             minutes=5,
         )
         backlog_query = backlog_query.select_resources(subscription_id=sub_id)
@@ -103,9 +131,9 @@ class GCPPubSubProvider(PullProvider, SetupProvider):
                 return None
         except Exception:
             logging.error(
-                'Failed to get backlog for subscription %s please ensure your '
-                'user has: roles/monitoring.viewer to read the backlog, '
-                'no autoscaling will happen.',
+                "Failed to get backlog for subscription %s please ensure your "
+                "user has: roles/monitoring.viewer to read the backlog, "
+                "no autoscaling will happen.",
                 self.subscription_id,
             )
             return None
@@ -113,13 +141,19 @@ class GCPPubSubProvider(PullProvider, SetupProvider):
         points.sort(key=lambda p: p.interval.end_time, reverse=True)
         return points[0].value.int64_value
 
-    async def setup(self) -> bool:
-        try:
-            setup_utils.maybe_create_subscription(
-                pubsub_subscription=self.subscription_id,
-                pubsub_topic=self.topic_id,
-                billing_project=self.billing_project_id,
+    async def plan(self) -> Dict[str, Any]:
+        plan_dict = asdict(
+            _PubSubSourcePlan(
+                topic_id=self.topic_id, subscription_id=self.subscription_id
             )
-        except Exception:
-            return False
-        return True
+        )
+        if not plan_dict["topic_id"]:
+            del plan_dict["topic_id"]
+        return plan_dict
+
+    async def setup(self) -> bool:
+        setup_utils.maybe_create_subscription(
+            pubsub_subscription=self.subscription_id,
+            pubsub_topic=self.topic_id,
+            billing_project=self.billing_project_id,
+        )
