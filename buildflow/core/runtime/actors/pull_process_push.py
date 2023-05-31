@@ -1,5 +1,6 @@
 import asyncio
 import dataclasses
+import inspect
 import logging
 import time
 
@@ -30,6 +31,10 @@ from buildflow.api.runtime import Snapshot, AsyncRuntimeAPI
 class PullProcessPushSnapshot(Snapshot):
     utilization_score: float
     process_rate: float
+
+
+def get_schema_converter(user_defined_type: Type):
+
 
 
 @ray.remote
@@ -93,9 +98,17 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         self._num_running_threads += 1
 
         process_fn = self.processor.process
+        full_arg_spec = inspect.getfullargspec(process_fn)
+        # TODO: get this from the full arg spec
+        input_type = ...
+        # TODO: get this from the full arg spec
+        output_type = ...
+        # TODO: add log an error if types are not provided
+        pull_converter = self.processor.source().provider().pull_converter(input_type)
+        push_converter = self.processor.source().provider().push_converter(output_type)
         while self._status == RuntimeStatus.RUNNING:
             # PULL
-            batch, ack_ids = await self.pull_provider.pull()
+            batch, ack_info = await self.pull_provider.pull()
             self._num_pull_requests += 1
             if not batch:
                 self._num_empty_pull_responses += 1
@@ -103,14 +116,17 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 continue
             # PROCESS
             start_time = time.time()
-            batch_results = [process_fn(element) for element in batch]
+            batch_results = [
+                push_converter(process_fn(pull_converter(element)))
+                for element in batch
+            ]
             self.process_time_gauge.set(
                 (time.time() - start_time) * 1000 / len(batch_results)
             )
             # PUSH
             await self.push_provider.push(batch_results)
             # ACK
-            await self.pull_provider.ack(ack_ids=ack_ids)
+            await self.pull_provider.ack(ack_info)
             self.num_events_counter.inc(len(batch))
             self._num_elements_processed += len(batch)
             # DONE -> LOOP

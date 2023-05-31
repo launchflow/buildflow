@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from buildflow import Node
 from buildflow.io import GCPPubSubSubscription, BigQueryTable
 
@@ -25,9 +27,25 @@ bigquery_sink = BigQueryTable(
     table_id='daring-runway-374503.taxi_ride_benchmark.buildflow')
 
 
+@dataclass
+class MyInput:
+    a: int
+    b: str
+    c: Optional[int] = None
+
+    @buildflow.from_bytes
+    def from_my_weird_ass_encoding():
+        ...
+
+    @buildflow.to_bytes
+    def to_my_weird_encoding(self):
+        ...
+
+
+
 # Attach a processor to the Node
 @app.processor(source=pubsub_source, sink=bigquery_sink)
-def process(pubsub_message):
+def process(pubsub_message: MyInput):
     # print('Process: ', pubsub_message)
     return pubsub_message
 

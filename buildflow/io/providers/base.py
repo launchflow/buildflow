@@ -10,6 +10,16 @@ class Batch:
         raise NotImplementedError("__iter__ not implemented")
 
 
+class AckInfo:
+    pass
+
+
+class PullResponse:
+    payload: Iterable[bytes]
+    ack_info: AckInfo
+
+
+
 class ProviderAPI:
     def __init__(self):
         pass
@@ -28,17 +38,20 @@ class PullProvider(ProviderAPI):
     - backlog()
     """
 
-    async def pull(self) -> Batch:
+    async def pull(self) -> PullResponse:
         """Pull returns a batch of data from the source."""
         raise NotImplementedError("pull not implemented")
 
-    async def ack(self):
+    async def ack(self: to_ack: AckInfo):
         """Ack acknowledges data pulled from the source."""
         raise NotImplementedError("ack not implemented")
 
     async def backlog(self) -> int:
         """Backlog returns an integer representing the number of items in the backlog"""
         raise NotImplementedError("backlog not implemented")
+
+    async def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
+        raise NotImplementedError("pull_converter not implemented")
 
 
 class PushProvider(ProviderAPI):
@@ -52,6 +65,9 @@ class PushProvider(ProviderAPI):
     async def push(self, batch: Batch):
         """Push pushes a batch of data to the source."""
         raise NotImplementedError("push not implemented")
+
+    async def push_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
+        raise NotImplementedError("push_converter not implemented")
 
 
 # TODO: Should we have InfraProvider instead that had plan, apply, destroy?
