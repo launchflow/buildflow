@@ -10,26 +10,26 @@ from buildflow.api import RuntimeStatus
 from buildflow.core.processor.base import Processor
 from buildflow.io.providers.base import PullProvider, PushProvider
 
+from buildflow.api.runtime import Snapshot, AsyncRuntimeAPI
+
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI
 # could autoscale itself based on some SchedulerAPI? The Runtime tree could
 # pass the global state down through the Environment object, and let each node
 # decide how to scale itself. Or maybe parent runtime nodes autoscale only
 # their children, and leaf nodes do not autoscale.
-# TODO: add Threadable interface for awaitable run() method
-
-# TODO: Make this configurable
+# TODO: Make this configurable, will probably need to use env vars
 NUM_CPUS = 1
 
 
 @dataclasses.dataclass
-class CheckinResult:
+class PullProcessPushSnapshot(Snapshot):
     utilization_score: float
     process_rate: float
 
 
 @ray.remote(num_cpus=NUM_CPUS)
-class PullProcessPushActor:
+class PullProcessPushActor(AsyncRuntimeAPI):
 
     def __init__(self,
                  processor: Processor,
@@ -50,7 +50,7 @@ class PullProcessPushActor:
         # initial runtime state
         self._status = RuntimeStatus.IDLE
         self._num_running_threads = 0
-        self._last_checkin_time = time.time()
+        self._last_snapshot_time = time.time()
         self._num_elements_processed = 0
         self._num_pull_requests = 0
         self._num_empty_pull_responses = 0
@@ -105,25 +105,6 @@ class PullProcessPushActor:
         # TODO: Have this method count the number of active threads
         return self._status
 
-    async def checkin(self):
-        if self._num_pull_requests == 0:
-            return CheckinResult(utilization_score=0, process_rate=0)
-
-        non_empty_ratio = 1 - (self._num_empty_pull_responses /
-                               self._num_pull_requests)
-        process_rate = self._num_elements_processed / (time.time() -
-                                                       self._last_checkin_time)
-        checkin_result = CheckinResult(
-            utilization_score=non_empty_ratio,
-            process_rate=process_rate,
-        )
-        # reset the counters
-        self._last_checkin_time = time.time()
-        self._num_elements_processed = 0
-        self._num_pull_requests = 0
-        self._num_empty_pull_responses = 0
-        return checkin_result
-
     async def drain(self):
         logging.info('Draining PullProcessPushActor...')
         self._status = RuntimeStatus.DRAINING
@@ -135,3 +116,22 @@ class PullProcessPushActor:
                 return False
             await asyncio.sleep(1)
         return True
+
+    async def snapshot(self):
+        if self._num_pull_requests == 0:
+            return PullProcessPushSnapshot(utilization_score=0, process_rate=0)
+
+        non_empty_ratio = 1 - (self._num_empty_pull_responses /
+                               self._num_pull_requests)
+        process_rate = self._num_elements_processed / (
+            time.time() - self._last_snapshot_time)
+        snapshot = PullProcessPushSnapshot(
+            utilization_score=non_empty_ratio,
+            process_rate=process_rate,
+        )
+        # reset the counters
+        self._last_snapshot_time = time.time()
+        self._num_elements_processed = 0
+        self._num_pull_requests = 0
+        self._num_empty_pull_responses = 0
+        return snapshot

@@ -19,7 +19,7 @@ from buildflow.core.runtime.config import RuntimeConfig
 @dataclasses.dataclass
 class RuntimeSnapshot(Snapshot):
     # TODO(nit): I dont like this name, but I'm not sure what else to call it.
-    processor_snapshots: List[ProcessorSnapshot]
+    processors: List[ProcessorSnapshot]
 
     _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)
 
@@ -45,7 +45,7 @@ class RuntimeActor(RuntimeAPI):
         self._processor_pool_actors = []
         self._runtime_loop_future = None
 
-    def start(self, *, processors: Iterable[Processor]):
+    def run(self, *, processors: Iterable[Processor]):
         logging.info('Starting Runtime...')
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError('Can only start an Idle Runtime.')
@@ -55,7 +55,7 @@ class RuntimeActor(RuntimeAPI):
             for processor in processors
         ]
         for actor in self._processor_pool_actors:
-            actor.start.remote()
+            actor.run.remote()
             actor.add_replicas.remote(self.config.num_replicas())
 
         self._runtime_loop_future = self._runtime_checkin_loop()
@@ -84,7 +84,7 @@ class RuntimeActor(RuntimeAPI):
             actor.snapshot.remote() for actor in self._processor_pool_actors
         ]
         processor_snapshots = await asyncio.gather(*snapshot_tasks)
-        return RuntimeSnapshot(processor_snapshots=processor_snapshots)
+        return RuntimeSnapshot(processors=processor_snapshots)
 
     async def run_until_complete(self):
         if self._runtime_loop_future is not None:

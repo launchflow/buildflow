@@ -151,7 +151,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
 
         self.num_replicas_gauge.set(len(self.replicas))
 
-    def start(self):
+    def run(self):
         logging.info(f'Starting ProcessorPool({self.processor.name})...')
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError('Can only start an Idle Runtime.')
@@ -189,13 +189,13 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
 
         replica_info_list = []
         for replica in list(self.replicas.values()):
-            checkin_result = await replica.checkin.remote()
+            snapshot = await replica.snapshot.remote()
             # TODO: Come up with a way to get this that also lets it be
             # configurable.
             actor_num_cpus = NUM_CPUS
             replica_info = ReplicaSnapshot(
-                utilization_score=checkin_result.utilization_score,
-                process_rate=checkin_result.process_rate,
+                utilization_score=snapshot.utilization_score,
+                process_rate=snapshot.process_rate,
                 actor_info=RayActorInfo(num_cpus=actor_num_cpus),
             )
             replica_info_list.append(replica_info)

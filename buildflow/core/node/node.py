@@ -20,7 +20,7 @@ def processor_decorator(
     source: SourceType,
     sink: Optional[SinkType] = None,
     *,
-    num_cpus: float = 0.5,
+    num_cpus: float = 1.0,
 ):
     if sink is None:
         sink = EmptySink()
@@ -110,7 +110,7 @@ class Node(NodeAPI):
         signal.signal(signal.SIGTERM, self.drain)
         signal.signal(signal.SIGINT, self.drain)
         # start the runtime
-        ray.get(self._runtime.start.remote(processors=self._processors))
+        ray.get(self._runtime.run.remote(processors=self._processors))
         if blocking:
             ray.get(self._runtime.run_until_complete.remote())
 
