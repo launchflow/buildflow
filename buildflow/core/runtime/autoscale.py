@@ -33,8 +33,7 @@ def _max_replicas_for_cluster(cpu_per_replica: float):
 
 def calculate_target_num_replicas(snapshot: ProcessorSnapshot,
                                   config: RuntimeConfig):
-    # Replicas all use the same number of cpu's
-    cpus_per_replica = snapshot.replicas[0].actor_info.num_cpus
+    cpus_per_replica = snapshot.actor_info.num_cpus
 
     current_num_replicas = len(snapshot.replicas)
     backlog = snapshot.source.backlog

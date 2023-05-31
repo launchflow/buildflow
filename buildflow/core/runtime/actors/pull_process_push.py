@@ -18,8 +18,12 @@ from buildflow.api.runtime import Snapshot, AsyncRuntimeAPI
 # pass the global state down through the Environment object, and let each node
 # decide how to scale itself. Or maybe parent runtime nodes autoscale only
 # their children, and leaf nodes do not autoscale.
-# TODO: Make this configurable, will probably need to use env vars
-NUM_CPUS = 1
+# Motivation: We currently have no feedback loop on the async Runtime actors,
+# so we essentially have to guess how many tasks to run concurrently. We could
+# use a feedback loop to dynamically scale the number of tasks based on the
+# current utilization of the tasks so that way we dont have to guess and under-
+# utilitize, and we also dont have to guess and over-utilitize and cause
+# contention / OOM (all pending pulled batches are kept in memory).
 
 
 @dataclasses.dataclass
@@ -28,7 +32,7 @@ class PullProcessPushSnapshot(Snapshot):
     process_rate: float
 
 
-@ray.remote(num_cpus=NUM_CPUS)
+@ray.remote
 class PullProcessPushActor(AsyncRuntimeAPI):
 
     def __init__(self,
