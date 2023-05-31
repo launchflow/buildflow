@@ -6,12 +6,13 @@ from typing import Dict, List, Optional
 
 import ray
 from ray.util.metrics import Gauge
+from ray.util.placement_group import placement_group, remove_placement_group
+from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
 from buildflow import utils
 from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot
 from buildflow.core.processor.base import Processor
-from buildflow.core.runtime.actors.pull_process_push import (
-    NUM_CPUS, PullProcessPushActor)
+from buildflow.core.runtime.actors.pull_process_push import PullProcessPushActor  # noqa: E501
 from buildflow.core.runtime.config import RuntimeConfig
 from buildflow.io.providers.base import PullProvider, PushProvider
 
@@ -47,7 +48,6 @@ class RayActorInfo:
 class ReplicaSnapshot(Snapshot):
     utilization_score: float
     process_rate: float
-    actor_info: RayActorInfo
 
     _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)
 
@@ -64,6 +64,7 @@ class ProcessorSnapshot(Snapshot):
     source: SourceInfo
     sink: SinkInfo
     replicas: List[ReplicaSnapshot]
+    actor_info: RayActorInfo
     # Does it make sense to store timestamps in nested snapshots?
     # I _think_ so, since snapshot() is async and might happend at different
     # times for each processor.
@@ -105,17 +106,32 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         self.num_replicas_gauge.set_default_tags(
             {'processor_name': self.processor.name})
 
-    def add_replicas(self, num_replicas: int):
+    async def add_replicas(self, num_replicas: int):
         if self._status != RuntimeStatus.RUNNING:
             raise RuntimeError(
                 'Can only replicas to a processor pool that is running.')
         for _ in range(num_replicas):
             replica_id = utils.uuid()
-            self.replicas[replica_id] = PullProcessPushActor.remote(
-                self.processor, log_level=self.config.log_level)
+
+            ray_placement_group = await placement_group(
+                [{
+                    "CPU": self.config.num_worker_cpus(),
+                }],
+                strategy="STRICT_PACK").ready()
+
+            replica_actor_handle = PullProcessPushActor.options(
+                num_cpus=self.config.num_worker_cpus(),
+                scheduling_strategy=PlacementGroupSchedulingStrategy(
+                    placement_group=ray_placement_group,
+                    placement_group_capture_child_tasks=True)).remote(
+                        self.processor, log_level=self.config.log_level)
+
             if self._status == RuntimeStatus.RUNNING:
                 for _ in range(self.config.num_threads_per_process):
-                    self.replicas[replica_id].run.remote()
+                    replica_actor_handle.run.remote()
+
+            self.replicas[replica_id] = (replica_actor_handle,
+                                         ray_placement_group)
 
         self.num_replicas_gauge.set(len(self.replicas))
 
@@ -129,12 +145,14 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         # TODO: (maybe) Dont choose randomly
         replicas_to_remove = random.sample(self.replicas.keys(), num_replicas)
 
+        placement_groups_to_remove = []
         actors_to_kill = []
         actor_drain_tasks = []
         for replica_id in replicas_to_remove:
-            replica = self.replicas.pop(replica_id)
-            actors_to_kill.append(replica)
-            actor_drain_tasks.append(replica.drain.remote())
+            replica_actor, ray_placement_group = self.replicas.pop(replica_id)
+            actors_to_kill.append(replica_actor)
+            actor_drain_tasks.append(replica_actor.drain.remote())
+            placement_groups_to_remove.append(ray_placement_group)
 
         _, pending_tasks = await asyncio.wait(actor_drain_tasks, timeout=60)
         # NOTE: Replicas run subtasks that each have a drain timeout of 30secs.
@@ -146,8 +164,11 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             for task in pending_tasks:
                 task.cancel()
 
-        for actor in actors_to_kill:
+        for actor, pg in zip(actors_to_kill, placement_groups_to_remove):
             ray.kill(actor, no_restart=True)
+            # Placement groups are scoped to the ProcessorPool, so we need to
+            # manually clean them up.
+            remove_placement_group(pg)
 
         self.num_replicas_gauge.set(len(self.replicas))
 
@@ -188,21 +209,14 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             provider_type=type(sink_provider), provider_config={}))
 
         replica_info_list = []
-        for replica in list(self.replicas.values()):
-            snapshot = await replica.snapshot.remote()
-            # TODO: Come up with a way to get this that also lets it be
-            # configurable.
-            actor_num_cpus = NUM_CPUS
-            replica_info = ReplicaSnapshot(
-                utilization_score=snapshot.utilization_score,
-                process_rate=snapshot.process_rate,
-                actor_info=RayActorInfo(num_cpus=actor_num_cpus),
-            )
-            replica_info_list.append(replica_info)
+        for replica_actor, _ in list(self.replicas.values()):
+            replica_snapshot = await replica_actor.snapshot.remote()
+            replica_info_list.append(replica_snapshot)
 
-        return ProcessorSnapshot(
-            processor_name=self.processor.name,
-            source=source_info,
-            sink=sink_info,
-            replicas=replica_info_list,
-        )
+        actor_info = RayActorInfo(num_cpus=self.config.num_worker_cpus())
+
+        return ProcessorSnapshot(processor_name=self.processor.name,
+                                 source=source_info,
+                                 sink=sink_info,
+                                 replicas=replica_info_list,
+                                 actor_info=actor_info)

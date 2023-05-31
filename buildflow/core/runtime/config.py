@@ -35,5 +35,5 @@ class RuntimeConfig:
     def num_replicas(self):
         return self.num_actors_per_core * self.num_available_cores
 
-    def num_cpus(self):
+    def num_worker_cpus(self):
         return 1 / self.num_actors_per_core
