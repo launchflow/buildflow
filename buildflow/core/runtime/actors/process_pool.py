@@ -12,7 +12,9 @@ from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from buildflow import utils
 from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot
 from buildflow.core.processor.base import Processor
-from buildflow.core.runtime.actors.pull_process_push import PullProcessPushActor  # noqa: E501
+from buildflow.core.runtime.actors.pull_process_push import (
+    PullProcessPushActor,
+)  # noqa: E501
 from buildflow.core.runtime.config import RuntimeConfig
 from buildflow.io.providers.base import PullProvider, PushProvider
 
@@ -79,11 +81,11 @@ class ProcessorSnapshot(Snapshot):
 
 @ray.remote(num_cpus=0.1)
 class ProcessorReplicaPoolActor(RuntimeAPI):
-    '''
+    """
     This actor acts as a proxy reference for a group of replica Processors.
     Runtime methods are forwarded to the replicas (i.e. 'drain'). Includes
     methods for adding and removing replicas (for autoscaling).
-    '''
+    """
 
     def __init__(self, processor: Processor, config: RuntimeConfig) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
@@ -98,49 +100,57 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         self._status = RuntimeStatus.IDLE
         self._last_snapshot_timestamp: Optional[int] = None
         # metrics
+        job_id = ray.get_runtime_context().get_job_id()
         self.num_replicas_gauge = Gauge(
-            'processor_pool_num_replicas',
-            description='Current number of replicas. Goes up and down.',
-            tag_keys=('processor_name', ),
+            "num_replicas",
+            description="Current number of replicas. Goes up and down.",
+            tag_keys=("processor_name",),
         )
         self.num_replicas_gauge.set_default_tags(
-            {'processor_name': self.processor.name})
+            {
+                "processor_name": self.processor.name,
+                "JobId": job_id,
+            }
+        )
 
     async def add_replicas(self, num_replicas: int):
         if self._status != RuntimeStatus.RUNNING:
-            raise RuntimeError(
-                'Can only replicas to a processor pool that is running.')
+            raise RuntimeError("Can only replicas to a processor pool that is running.")
         for _ in range(num_replicas):
             replica_id = utils.uuid()
 
             ray_placement_group = await placement_group(
-                [{
-                    "CPU": self.config.num_worker_cpus(),
-                }],
-                strategy="STRICT_PACK").ready()
+                [
+                    {
+                        "CPU": self.config.num_worker_cpus(),
+                    }
+                ],
+                strategy="STRICT_PACK",
+            ).ready()
 
             replica_actor_handle = PullProcessPushActor.options(
                 num_cpus=self.config.num_worker_cpus(),
                 scheduling_strategy=PlacementGroupSchedulingStrategy(
                     placement_group=ray_placement_group,
-                    placement_group_capture_child_tasks=True)).remote(
-                        self.processor, log_level=self.config.log_level)
+                    placement_group_capture_child_tasks=True,
+                ),
+            ).remote(self.processor, log_level=self.config.log_level)
 
             if self._status == RuntimeStatus.RUNNING:
                 for _ in range(self.config.num_threads_per_process):
                     replica_actor_handle.run.remote()
 
-            self.replicas[replica_id] = (replica_actor_handle,
-                                         ray_placement_group)
+            self.replicas[replica_id] = (replica_actor_handle, ray_placement_group)
 
         self.num_replicas_gauge.set(len(self.replicas))
 
     async def remove_replicas(self, num_replicas: int):
         if len(self.replicas) < num_replicas:
             raise ValueError(
-                f'Cannot remove {num_replicas} replicas from '
-                f'{self.processor.name}. Only {len(self.replicas)} replicas '
-                'exist.')
+                f"Cannot remove {num_replicas} replicas from "
+                f"{self.processor.name}. Only {len(self.replicas)} replicas "
+                "exist."
+            )
 
         # TODO: (maybe) Dont choose randomly
         replicas_to_remove = random.sample(self.replicas.keys(), num_replicas)
@@ -160,7 +170,8 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         # to drain and let the user know.
         if pending_tasks:
             logging.warning(
-                f'Killing {len(pending_tasks)} replicas that failed to drain.')
+                f"Killing {len(pending_tasks)} replicas that failed to drain."
+            )
             for task in pending_tasks:
                 task.cancel()
 
@@ -173,19 +184,19 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         self.num_replicas_gauge.set(len(self.replicas))
 
     def run(self):
-        logging.info(f'Starting ProcessorPool({self.processor.name})...')
+        logging.info(f"Starting ProcessorPool({self.processor.name})...")
         if self._status != RuntimeStatus.IDLE:
-            raise RuntimeError('Can only start an Idle Runtime.')
+            raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
         for replica in self.replicas.values():
             replica.run.remote()
 
     async def drain(self):
-        logging.info(f'Draining ProcessorPool({self.processor.name})...')
+        logging.info(f"Draining ProcessorPool({self.processor.name})...")
         self._status = RuntimeStatus.DRAINING
         await self.remove_replicas(len(self.replicas))
         self._status = RuntimeStatus.IDLE
-        logging.info(f'Drain ProcessorPool({self.processor.name}) complete.')
+        logging.info(f"Drain ProcessorPool({self.processor.name}) complete.")
         return True
 
     async def status(self):
@@ -201,12 +212,14 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         source_backlog = await source_provider.backlog()
         source_info = SourceInfo(
             backlog=source_backlog,
-            provider=ProviderInfo(provider_type=type(source_provider),
-                                  provider_config={}),
+            provider=ProviderInfo(
+                provider_type=type(source_provider), provider_config={}
+            ),
         )
         sink_provider: PushProvider = self.processor.sink().provider()
-        sink_info = SinkInfo(provider=ProviderInfo(
-            provider_type=type(sink_provider), provider_config={}))
+        sink_info = SinkInfo(
+            provider=ProviderInfo(provider_type=type(sink_provider), provider_config={})
+        )
 
         replica_info_list = []
         for replica_actor, _ in list(self.replicas.values()):
@@ -215,8 +228,10 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
 
         actor_info = RayActorInfo(num_cpus=self.config.num_worker_cpus())
 
-        return ProcessorSnapshot(processor_name=self.processor.name,
-                                 source=source_info,
-                                 sink=sink_info,
-                                 replicas=replica_info_list,
-                                 actor_info=actor_info)
+        return ProcessorSnapshot(
+            processor_name=self.processor.name,
+            source=source_info,
+            sink=sink_info,
+            replicas=replica_info_list,
+            actor_info=actor_info,
+        )
