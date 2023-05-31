@@ -9,17 +9,18 @@ steps to run:
 import time
 from typing import Any, Dict
 
-from buildflow import Node
+from buildflow import ComputeNode
 import buildflow
 
 # TODO(developer): Fill in with a pub/sub subscription.
 # subscription format: 'projects/{PROJECT_ID}/subscriptions/{SUBSCRIPTION_ID}'
 _SUBSCRIPTION = ""
 
-app = Node()
+app = ComputeNode()
 
 
 class MyProcessor(buildflow.Processor):
+
     def source(self):
         return buildflow.PubSub(subscription=_SUBSCRIPTION)
 

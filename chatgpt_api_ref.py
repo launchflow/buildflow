@@ -62,7 +62,7 @@ class MyClass(flow.Processor):
 
 # Simple use cases without shared state / clients can be setup using a
 # decorated function.
-@flow.processor(
+@flow.base(
     input=flow.PubSub(subscription="my-subscription"),
     output=flow.BigQuery(table="my-table"),
 )

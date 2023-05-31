@@ -9,17 +9,20 @@ import os
 from typing import Any, Dict
 
 import buildflow
-from buildflow import Node
-
+from buildflow import ComputeNode
 
 queue_name = os.environ["QUEUE_NAME"]
 region = os.environ.get("REGION", "us-east-1")
-file_path = os.environ.get("OUTPUT_FILE_PATH", "/tmp/buildflow/local_pubsub.parquet")
+file_path = os.environ.get("OUTPUT_FILE_PATH",
+                           "/tmp/buildflow/local_pubsub.parquet")
 
-source = buildflow.SQSSource(queue_name=queue_name, region=region, batch_size=1)
-sink = buildflow.FileSink(file_path=file_path, file_format=buildflow.FileFormat.PARQUET)
+source = buildflow.SQSSource(queue_name=queue_name,
+                             region=region,
+                             batch_size=1)
+sink = buildflow.FileSink(file_path=file_path,
+                          file_format=buildflow.FileFormat.PARQUET)
 
-app = Node()
+app = ComputeNode()
 
 
 @app.processor(source=source, sink=sink)

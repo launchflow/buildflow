@@ -4,7 +4,7 @@ import os
 from typing import Any, Dict
 
 import buildflow
-from buildflow import Node
+from buildflow import ComputeNode
 
 gcp_project = os.environ["GCP_PROJECT"]
 bigquery_table = os.environ["BIGQUERY_TABLE"]
@@ -18,8 +18,7 @@ input_sub = buildflow.GCPPubSubSource(
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 output_table = buildflow.BigQuerySink(
-    table_id=f"{gcp_project}.buildflow_walkthrough.{bigquery_table}"
-)
+    table_id=f"{gcp_project}.buildflow_walkthrough.{bigquery_table}")
 
 
 # Define an output type for our pipeline.
@@ -38,7 +37,7 @@ class TaxiOutput:
     passenger_count: int
 
 
-app = Node()
+app = ComputeNode()
 
 
 # Define our processor.
