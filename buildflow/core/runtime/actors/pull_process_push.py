@@ -130,11 +130,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         logging.info("Draining PullProcessPushActor...")
         self._status = RuntimeStatus.DRAINING
 
-        start_time = asyncio.get_running_loop().time()
         while self._status == RuntimeStatus.DRAINING:
-            if asyncio.get_running_loop().time() - start_time > 30:
-                logging.warning("Drain timeout exceeded.")
-                return False
             await asyncio.sleep(1)
         return True
 
