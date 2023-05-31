@@ -12,6 +12,7 @@ class GridPlan:
 
 
 class GridNode:
+
     def __init__(self, name: str, cluster_address: str, node: NodeAPI):
         self.name = name
         self.cluster_address = cluster_address
@@ -19,14 +20,15 @@ class GridNode:
 
 
 class GridAPI:
+
     def __init__(self):
         self.nodes: Dict[str, NodeAPI] = {}
 
     def add_node(
         self,
         node: NodeAPI,
-        name: str = "",
-        cluster_address: str = "",
+        name: str = '',
+        cluster_address: str = '',
     ):
         if not name:
             if node.name:
@@ -37,10 +39,8 @@ class GridAPI:
         try:
             self.nodes[name] = GridNode(name, cluster_address, node)
         except KeyError:
-            raise ValueError(
-                f"node with name {name} alreay exists in grid. "
-                "all node names must be unique."
-            )
+            raise ValueError(f'node with name {name} alreay exists in grid. '
+                             'all node names must be unique.')
 
     def deploy(self):
         pass

@@ -7,7 +7,7 @@ from tensorflow import keras
 from buildflow import ComputeNode
 from buildflow.io import HTTPEndpoint
 
-model = keras.models.load_model("path/to/location")
+model = keras.models.load_model('path/to/location')
 
 app = ComputeNode()
 
@@ -23,7 +23,7 @@ class Response:
 
 
 # Compare to the CloudRun example in launchflow_provider.py.
-@app.processor(source=HTTPEndpoint(host="localhost", port=3569))
+@app.processor(source=HTTPEndpoint(host='localhost', port=3569))
 def serve_model(payload: Request) -> Response:
     model_input = preprocess(payload)
     model_output = model.predict(model_input)

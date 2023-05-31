@@ -3,22 +3,22 @@ from typing import TypeVar, Generic
 from buildflow.api import io
 from buildflow.core.io import gcp_pubsub_io, pubsub_io
 
-T = TypeVar("T")
+T = TypeVar('T')
 
 
 class UnsupportDepenendsSource(Exception):
 
     def __init__(self, source: io.Source):
         super().__init__(
-            f"Depends is not supported for sources of type: {type(source)}")
+            f'Depends is not supported for sources of type: {type(source)}')
 
 
 class InvalidProcessorSource(Exception):
 
     def __init__(self) -> None:
-        super().__init__("Could not determine source for processor. "
-                         "Please use @classmethod source() or "
-                         "source=... in the @processor decorator.")
+        super().__init__('Could not determine source for processor. '
+                         'Please use @classmethod source() or '
+                         'source=... in the @processor decorator.')
 
 
 class PubSub(Generic[T]):

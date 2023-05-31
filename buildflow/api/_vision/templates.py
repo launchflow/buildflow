@@ -5,11 +5,11 @@ from buildflow.api.processor import ProcessorAPI, NodeAPI
 
 
 class NodeTemplate:
-    """Super class for all template types."""
+    '''Super class for all template types.'''
 
     # This instance method defines the reference to the managed Processor.
     def node(self) -> NodeAPI:
-        raise NotImplementedError("processor not implemented")
+        raise NotImplementedError('processor not implemented')
 
 
 @dataclasses.dataclass(frozen=True)

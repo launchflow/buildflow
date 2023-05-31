@@ -4,7 +4,7 @@ from buildflow.io.registry import EmptySink
 
 class Processor(ProcessorAPI):
 
-    def __init__(self, name: str = "") -> None:
+    def __init__(self, name: str = '') -> None:
         self.name = name
 
     @classmethod

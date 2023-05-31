@@ -1,4 +1,4 @@
-"""Tests for depends.py"""
+'''Tests for depends.py'''
 
 import unittest
 
@@ -13,9 +13,9 @@ class DependsTest(unittest.TestCase):
 
     def test_processor_annotation_depends(self):
 
-        @self.app.processor(source=buildflow.PubSubSource(cloud="gcp",
-                                                          name="p1_pubsub",
-                                                          project_id="unused"))
+        @self.app.processor(source=buildflow.PubSubSource(cloud='gcp',
+                                                          name='p1_pubsub',
+                                                          project_id='unused'))
         def processor1(element):
             pass
 
@@ -29,9 +29,9 @@ class DependsTest(unittest.TestCase):
 
             @classmethod
             def source(cls):
-                return buildflow.PubSubSource(cloud="gcp",
-                                              name="p1_pubsub",
-                                              project_id="unused")
+                return buildflow.PubSubSource(cloud='gcp',
+                                              name='p1_pubsub',
+                                              project_id='unused')
 
             def process(self, payload: int):
                 pass
@@ -50,5 +50,5 @@ class DependsTest(unittest.TestCase):
             buildflow.Depends(processor1.source())
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

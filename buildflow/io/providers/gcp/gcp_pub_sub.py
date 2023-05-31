@@ -1,12 +1,14 @@
 import dataclasses
+import datetime
 import json
 import logging
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from buildflow.io.providers import PullProvider
-import datetime
-from buildflow.io.providers.gcp import clients as gcp_clients
 from google.cloud.monitoring_v3 import query
+
+from buildflow.io.providers import PullProvider, SetupProvider
+from buildflow.io.providers.gcp.utils import clients as gcp_clients
+from buildflow.io.providers.gcp.utils import setup_utils
 
 
 @dataclasses.dataclass(frozen=True)
@@ -18,16 +20,19 @@ class PubsubMessage():
         return json.dumps(self, default=lambda o: o.__dict__)
 
 
-class GCPPubSubProvider(PullProvider):
+class GCPPubSubProvider(PullProvider, SetupProvider):
 
     def __init__(self,
                  *,
                  billing_project_id: str,
+                 topic_id: str,
                  subscription_id: str,
                  batch_size: str,
                  include_attributes: bool = False):
         super().__init__()
         # configuration
+        self.billing_project_id = billing_project_id
+        self.topic_id = topic_id
         self.subscription_id = subscription_id
         self.batch_size = batch_size
         self.include_attributes = include_attributes
@@ -46,7 +51,7 @@ class GCPPubSubProvider(PullProvider):
                 return_immediately=True,
             )
         except Exception as e:
-            logging.error("pubsub pull failed with: %s", e)
+            logging.error('pubsub pull failed with: %s', e)
             return [], []
 
         payloads = []
@@ -76,7 +81,7 @@ class GCPPubSubProvider(PullProvider):
 
     # TODO: This should not be Optional (goes against Pullable base class)
     async def backlog(self) -> Optional[int]:
-        split_sub = self.subscription_id.split("/")
+        split_sub = self.subscription_id.split('/')
         project = split_sub[1]
         sub_id = split_sub[3]
         # TODO: Create a gcp metrics utility library
@@ -85,8 +90,8 @@ class GCPPubSubProvider(PullProvider):
             client=client,
             project=project,
             end_time=datetime.datetime.now(),
-            metric_type=("pubsub.googleapis.com/subscription"
-                         "/num_unacked_messages_by_region"),
+            metric_type=('pubsub.googleapis.com/subscription'
+                         '/num_unacked_messages_by_region'),
             minutes=5,
         )
         backlog_query = backlog_query.select_resources(subscription_id=sub_id)
@@ -98,12 +103,23 @@ class GCPPubSubProvider(PullProvider):
                 return None
         except Exception:
             logging.error(
-                "Failed to get backlog for subscription %s please ensure your "
-                "user has: roles/monitoring.viewer to read the backlog, "
-                "no autoscaling will happen.",
+                'Failed to get backlog for subscription %s please ensure your '
+                'user has: roles/monitoring.viewer to read the backlog, '
+                'no autoscaling will happen.',
                 self.subscription_id,
             )
             return None
         points = list(last_timeseries.points)
         points.sort(key=lambda p: p.interval.end_time, reverse=True)
         return points[0].value.int64_value
+
+    async def setup(self) -> bool:
+        try:
+            setup_utils.maybe_create_subscription(
+                pubsub_subscription=self.subscription_id,
+                pubsub_topic=self.topic_id,
+                billing_project=self.billing_project_id,
+            )
+        except Exception:
+            return False
+        return True

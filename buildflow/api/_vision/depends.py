@@ -11,27 +11,27 @@ app = ComputeNode()
 
 
 @app.processor(
-    source=PubSub(topic="projects/my-project/topics/my-topic1"),
-    sink=BigQuery(table_id="project.dataset.table2"),
+    source=PubSub(topic='projects/my-project/topics/my-topic1'),
+    sink=BigQuery(table_id='project.dataset.table2'),
 )
 def dead_letter_queue(
         message: Any,
         db: Session = Depends(PostGres(...)),
 ) -> Any:
-    if message["status"] == "special_case":
+    if message['status'] == 'special_case':
         db.insert(message)
     return message
 
 
 @app.processor(
-    source=PubSub(topic="projects/my-project/topics/my-topic1"),
-    sink=BigQuery(table_id="project.dataset.table2"),
+    source=PubSub(topic='projects/my-project/topics/my-topic1'),
+    sink=BigQuery(table_id='project.dataset.table2'),
 )
 def stream_processor(
         message: Any,
         dlq: PubSub = Depends(dead_letter_queue),
 ) -> Any:
-    if message["status"] == "failed":
+    if message['status'] == 'failed':
         dlq.publish(message)
     return message
 

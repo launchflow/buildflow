@@ -17,4 +17,4 @@ class MyImplementation(SomeApi)
 
 
 
-Rule above applies to any configuration options, even in "owned" abstractions.
+Rule above applies to any configuration options, even in 'owned' abstractions.

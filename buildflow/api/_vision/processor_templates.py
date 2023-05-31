@@ -17,9 +17,9 @@ app = ComputeNode()
 # CloudRun creates a Cloud Run endpoint to host the processor.
 # Compare to the HTTP Endpoint example in process_endpoint.py.
 @app.processor(template=CloudRun(
-    project="my_project",
+    project='my_project',
     public_access=True,
-    endpoint=HTTPEndpoint(host="localhost", port=3569),
+    endpoint=HTTPEndpoint(host='localhost', port=3569),
 ))
 def cloud_run_processor(payload: Any) -> Any:
     pass
@@ -29,9 +29,9 @@ def cloud_run_processor(payload: Any) -> Any:
 # on the cron schedule.
 # Compare to the BigQuery example in process_batch.py.
 @app.processor(template=CloudScheduler(
-    cron_schedule="0 0 * * *",
-    source=BigQuery(table_id="project.dataset.table1"),
-    sink=BigQuery(table_id="project.dataset.table2"),
+    cron_schedule='0 0 * * *',
+    source=BigQuery(table_id='project.dataset.table1'),
+    sink=BigQuery(table_id='project.dataset.table2'),
 ))
 def scheduled_batch_processor(dataset: Dataset) -> Dataset:
     pass
@@ -41,9 +41,9 @@ def scheduled_batch_processor(dataset: Dataset) -> Dataset:
 # upload that matches the glob pattern.
 # Compare to the PubSub example in process_stream.py.
 @app.processor(template=GCSFileEventStream(
-    glob_pattern="gs://my-bucket/*",
-    pubsub=PubSub(topic="projects/project/topics/my-topic"),
-    sink=BigQuery(table_id="project.dataset.table2"),
+    glob_pattern='gs://my-bucket/*',
+    pubsub=PubSub(topic='projects/project/topics/my-topic'),
+    sink=BigQuery(table_id='project.dataset.table2'),
 ))
 def file_event_processor(file: TextIO) -> Any:
     pass

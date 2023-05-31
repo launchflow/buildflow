@@ -2,6 +2,7 @@
 # from concurrent.futures import Future
 import asyncio
 import dataclasses
+import logging
 from typing import Iterable, List
 
 import ray
@@ -9,9 +10,9 @@ import ray
 from buildflow import utils
 from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot
 from buildflow.core.processor.base import Processor
-from buildflow.core.runtime.actors.autoscaler import AutoscalerActor
 from buildflow.core.runtime.actors.process_pool import (
     ProcessorReplicaPoolActor, ProcessorSnapshot)
+from buildflow.core.runtime.autoscale import calculate_target_num_replicas
 from buildflow.core.runtime.config import RuntimeConfig
 
 
@@ -32,21 +33,20 @@ class RuntimeSnapshot(Snapshot):
 @ray.remote(num_cpus=0.1)
 class RuntimeActor(RuntimeAPI):
 
-    def __init__(
-        self,
-        config: RuntimeConfig,
-    ) -> None:
+    def __init__(self, config: RuntimeConfig) -> None:
+        # NOTE: Ray actors run in their own process, so we need to configure
+        # logging per actor / remote task.
+        logging.getLogger().setLevel(config.log_level)
+
         # configuration
         self.config = config
-        # setup
-        self._autoscaler = AutoscalerActor.remote(self.config)
         # initial runtime state
         self._status = RuntimeStatus.IDLE
         self._processor_pool_actors = []
-        self._autoscale_loop_task = None
+        self._runtime_loop_future = None
 
     def start(self, *, processors: Iterable[Processor]):
-        print('Starting Runtime...')
+        logging.info('Starting Runtime...')
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError('Can only start an Idle Runtime.')
         self._status = RuntimeStatus.RUNNING
@@ -58,17 +58,17 @@ class RuntimeActor(RuntimeAPI):
             actor.start.remote()
             actor.add_replicas.remote(self.config.num_replicas())
 
-        self._autoscale_loop_task = self._autoscale_loop()
+        self._runtime_loop_future = self._runtime_checkin_loop()
 
     async def drain(self) -> bool:
-        print('Draining Runtime...')
+        logging.info('Draining Runtime...')
         self._status = RuntimeStatus.DRAINING
         drain_tasks = [
             actor.drain.remote() for actor in self._processor_pool_actors
         ]
         await asyncio.gather(*drain_tasks)
         self._status = RuntimeStatus.IDLE
-        print('Drain Runtime complete')
+        logging.info('Drain Runtime complete.')
         return True
 
     async def status(self):
@@ -87,17 +87,14 @@ class RuntimeActor(RuntimeAPI):
         return RuntimeSnapshot(processor_snapshots=processor_snapshots)
 
     async def run_until_complete(self):
-        if self._autoscale_loop_task is None:
-            while self._status != RuntimeStatus.IDLE:
-                print('main thread sleeping for 10 seconds')
-                await asyncio.sleep(10)
-        else:
-            await self._autoscale_loop_task
+        if self._runtime_loop_future is not None:
+            await self._runtime_loop_future
 
     def is_active(self):
         return self._status != RuntimeStatus.IDLE
 
-    async def _autoscale_loop(self):
+    async def _runtime_checkin_loop(self):
+        logging.info('Runtime checkin loop started...')
         while self._status == RuntimeStatus.RUNNING:
 
             for processor_pool in self._processor_pool_actors:
@@ -110,9 +107,8 @@ class RuntimeActor(RuntimeAPI):
                 # also happening during initial setup
                 if current_num_replicas == 0:
                     continue
-                target_num_replicas = await (
-                    self._autoscaler.get_recommended_num_replicas.remote(
-                        processor_snapshot))
+                target_num_replicas = calculate_target_num_replicas(
+                    processor_snapshot, self.config)
 
                 num_replicas_delta = target_num_replicas - current_num_replicas
                 if num_replicas_delta > 0:
@@ -121,5 +117,5 @@ class RuntimeActor(RuntimeAPI):
                     processor_pool.remove_replicas.remote(
                         abs(num_replicas_delta))
 
-            # TODO: Add more control / ocnfiguration around the autoscaler loop
+            # TODO: Add more control / ocnfiguration around the checkin loop
             await asyncio.sleep(5)

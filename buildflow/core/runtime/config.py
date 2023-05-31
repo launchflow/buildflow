@@ -11,6 +11,8 @@ class RuntimeConfig:
     autoscale: bool = True
     min_replicas: int = 1
     max_replicas: int = 1000
+    # misc
+    log_level: str = 'INFO'
 
     @classmethod
     def IO_BOUND(cls, num_available_cores: int):

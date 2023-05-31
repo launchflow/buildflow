@@ -5,12 +5,12 @@ from buildflow.api import GridAPI
 
 
 async def drain(results):
-    print("Shutting down grid...")
+    print('Shutting down grid...')
     drain_tasks = []
     for result in results:
         drain_tasks.append(result.drain())
     await asyncio.gather(*drain_tasks)
-    print("...grid shut down.")
+    print('...grid shut down.')
 
 
 class DeploymentGrid(GridAPI):

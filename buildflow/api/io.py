@@ -6,8 +6,8 @@ from buildflow.api.depends import DependsPublisher
 
 
 class Cloud(Enum):
-    GCP = "gcp"
-    AWS = "aws"
+    GCP = 'gcp'
+    AWS = 'aws'
 
 
 # TODO: Add Provider API for users who want to write their custom IO providers
@@ -37,20 +37,20 @@ class _BaseIO:
         return 0.1
 
     def plan(self, process_arg_spec: inspect.FullArgSpec) -> Dict[str, Any]:
-        return {"source_type": type(self).__name__}
+        return {'source_type': type(self).__name__}
 
     def provider(self):
         raise NotImplementedError('provider not implemented')
 
 
 class SourceType(_BaseIO):
-    """Super class for all source types."""
+    '''Super class for all source types.'''
 
     def setup(self):
-        """Perform any setup that is needed to connect to a source."""
+        '''Perform any setup that is needed to connect to a source.'''
 
     def actor(self, ray_sinks):
-        """Returns the actor associated with the source."""
+        '''Returns the actor associated with the source.'''
         pass
 
     def preprocess(self, element: Any) -> Any:
@@ -70,33 +70,33 @@ class SourceType(_BaseIO):
 class StreamingSource(SourceType, DependsPublisher):
 
     def backlog(self) -> Optional[float]:
-        """Returns an estimate of the backlog for the source.
+        '''Returns an estimate of the backlog for the source.
 
         This method will be polled by our manager to determine if we need to
         scale up the number of actor replicas.
-        """
+        '''
         raise NotImplementedError(
-            "backlog should be implemented for streaming sources.")
+            'backlog should be implemented for streaming sources.')
 
     @classmethod
     def is_streaming(cls) -> bool:
         return True
 
 
-# SourceType = TypeVar("SourceType", bound=Source)
+# SourceType = TypeVar('SourceType', bound=Source)
 
 
 class SinkType(_BaseIO):
-    """Super class for all sink types."""
+    '''Super class for all sink types.'''
 
     def setup(self, process_arg_spec: inspect.FullArgSpec):
-        """Perform any setup that is needed to connect to a sink.
+        '''Perform any setup that is needed to connect to a sink.
 
         Args:
             process_arg_spec: The arg spec for the process function defined by
                 the user.
-        """
+        '''
 
     def actor(self, remote_fn: Callable, is_streaming: bool):
-        """Returns the actor associated with the sink."""
+        '''Returns the actor associated with the sink.'''
         pass

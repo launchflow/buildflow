@@ -27,7 +27,7 @@ def _get_gcp_creds(quota_project_id: str) -> Credentials:
             # credentials. This shouldn't normally happen, but can happen if
             # user is running on a machine with now default creds.
             logging.warning(
-                "no default credentials found, using anonymous credentials")
+                'no default credentials found, using anonymous credentials')
             _CREDS = google.auth.credentials.AnonymousCredentials()
     return _CREDS
 
