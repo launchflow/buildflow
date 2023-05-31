@@ -33,10 +33,6 @@ class PullProcessPushSnapshot(Snapshot):
     process_rate: float
 
 
-def get_schema_converter(user_defined_type: Type):
-
-
-
 @ray.remote
 class PullProcessPushActor(AsyncRuntimeAPI):
     def __init__(self, processor: Processor, *, log_level: str = "INFO") -> None:
@@ -99,13 +95,17 @@ class PullProcessPushActor(AsyncRuntimeAPI):
 
         process_fn = self.processor.process
         full_arg_spec = inspect.getfullargspec(process_fn)
-        # TODO: get this from the full arg spec
-        input_type = ...
-        # TODO: get this from the full arg spec
-        output_type = ...
-        # TODO: add log an error if types are not provided
+        output_type = None
+        input_type = None
+        if "return" in full_arg_spec.annotations:
+            output_type = full_arg_spec.annotations["return"]
+        if (
+            len(full_arg_spec.args) > 0
+            and full_arg_spec.args[0] in full_arg_spec.annotations
+        ):
+            input_type = full_arg_spec.annotations[full_arg_spec.args[0]]
         pull_converter = self.processor.source().provider().pull_converter(input_type)
-        push_converter = self.processor.source().provider().push_converter(output_type)
+        push_converter = self.processor.sink().provider().push_converter(output_type)
         while self._status == RuntimeStatus.RUNNING:
             # PULL
             batch, ack_info = await self.pull_provider.pull()
@@ -117,8 +117,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             # PROCESS
             start_time = time.time()
             batch_results = [
-                push_converter(process_fn(pull_converter(element)))
-                for element in batch
+                push_converter(process_fn(pull_converter(element))) for element in batch
             ]
             self.process_time_gauge.set(
                 (time.time() - start_time) * 1000 / len(batch_results)

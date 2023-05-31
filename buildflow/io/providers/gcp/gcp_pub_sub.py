@@ -1,9 +1,9 @@
 import asyncio
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 import datetime
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Type
 
 from google.cloud.monitoring_v3 import query
 
@@ -13,9 +13,10 @@ from buildflow.io.providers import (
     SetupProvider,
     PushProvider,
 )
-from buildflow.io.providers.base import PullResonse, SessionMetadata
+from buildflow.io.providers.base import PullResponse, AckInfo
 from buildflow.io.providers.gcp.utils import clients as gcp_clients
 from buildflow.io.providers.gcp.utils import setup_utils
+from buildflow.io.providers.schemas import converters
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,7 @@ class _PubSubSourcePlan:
     subscription_id: str
 
 
-class _PubsubAckInfo(SessionMetadata):
+class _PubsubAckInfo(AckInfo):
     ack_ids: Iterable[str]
 
 
@@ -63,7 +64,7 @@ class GCPPubSubProvider(PullProvider, SetupProvider, PlanProvider, PushProvider)
         )
         # initial state
 
-    async def push(self, batch: Batch):
+    async def push(self, batch: Iterable[Any]):
         coros = []
         for elem in batch:
             coros.append(
@@ -73,7 +74,7 @@ class GCPPubSubProvider(PullProvider, SetupProvider, PlanProvider, PushProvider)
             )
         await asyncio.gather(*coros)
 
-    async def pull(self) -> Tuple[List[Union[dict, PubsubMessage]], List[str]]:
+    async def pull(self) -> PullResponse:
         try:
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
@@ -87,7 +88,6 @@ class GCPPubSubProvider(PullProvider, SetupProvider, PlanProvider, PushProvider)
         payloads = []
         ack_ids = []
         for received_message in response.received_messages:
-            json_loaded = {}
             if received_message.message.data:
                 decoded_data = received_message.message.data.decode()
                 payload = decoded_data
@@ -101,43 +101,37 @@ class GCPPubSubProvider(PullProvider, SetupProvider, PlanProvider, PushProvider)
             payloads.append(payload)
             ack_ids.append(received_message.ack_id)
 
-        return PullResonse(payloads, _PubsubAckInfo(ack_ids))
+        return PullResponse(payloads, _PubsubAckInfo(ack_ids))
 
-    async def ack(self, metadata: _PubsubAckInfo):
-        if ack_ids:
+    async def ack(self, ack_info: _PubsubAckInfo):
+        if ack_info.ack_ids:
             await self.subscriber_client.acknowledge(
-                ack_ids=metadata.ack_ids, subscription=self.subscription_id
+                ack_ids=ack_info.ack_ids, subscription=self.subscription_id
             )
 
-    async def pull_converter(type_: Optional[Type]) -> Callable[[bytes], Any]:
-        if hasattr(type_, from_bytes):
+    def pull_converter(self, type_: Optional[Type]) -> Callable[[bytes], Any]:
+        if type_ is None:
+            return converters.identity()
+        elif hasattr(type_, "from_bytes"):
             return lambda output: type_.from_bytes(output)
         elif is_dataclass(type_):
-            # convert to json, to dataclass
-            def bytes_to_dataclass(pubsub_output):
-                ...
-            return to_json
+            return converters.bytes_to_dataclass(type_)
         elif issubclass(type_, bytes):
-            return lambda output: output
-        elif type_ is None:
-            return lambda output: output
+            return converters.identity()
         else:
-            raise ValueError("cannot convert type make this a better error")
+            raise ValueError("Cannot convert from bytes to type: `{type_}`")
 
-    async def push_converter(type_: Optional[Type]) -> Callable[[Any], bytes]:
-        if hasattr(type_, to_bytes):
+    def push_converter(self, type_: Optional[Type]) -> Callable[[Any], bytes]:
+        if type_ is None:
+            return converters.identity()
+        elif hasattr(type_, "to_bytes"):
             return lambda output: type_.to_bytes(output)
         elif is_dataclass(type_):
-            # convert to json, to dataclass
-            def dataclass_to_bytes(process_output: todo):
-                ...
-            return dataclass_to_bytes
-        elif isinstance(processor_output, bytes):
-            return lambda x: x
-        elif type_ is None:
-            return lambda x: x
+            return converters.dataclass_to_bytes()
+        elif issubclass(type_, bytes):
+            return converters.identity()
         else:
-            raise ValueError("cannot convert type make this a better error")
+            raise ValueError("Cannot convert from type to bytes: `{type_}`")
 
     # TODO: This should not be Optional (goes against Pullable base class)
     async def backlog(self) -> Optional[int]:

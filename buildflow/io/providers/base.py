@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any, Callable, Dict, Iterable, Type
 
 
 class Batch:
@@ -15,9 +15,8 @@ class AckInfo:
 
 
 class PullResponse:
-    payload: Iterable[bytes]
+    payload: Iterable[Any]
     ack_info: AckInfo
-
 
 
 class ProviderAPI:
@@ -42,7 +41,7 @@ class PullProvider(ProviderAPI):
         """Pull returns a batch of data from the source."""
         raise NotImplementedError("pull not implemented")
 
-    async def ack(self: to_ack: AckInfo):
+    async def ack(self, to_ack: AckInfo):
         """Ack acknowledges data pulled from the source."""
         raise NotImplementedError("ack not implemented")
 
@@ -50,7 +49,7 @@ class PullProvider(ProviderAPI):
         """Backlog returns an integer representing the number of items in the backlog"""
         raise NotImplementedError("backlog not implemented")
 
-    async def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
+    def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
         raise NotImplementedError("pull_converter not implemented")
 
 
@@ -66,7 +65,7 @@ class PushProvider(ProviderAPI):
         """Push pushes a batch of data to the source."""
         raise NotImplementedError("push not implemented")
 
-    async def push_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
+    def push_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
         raise NotImplementedError("push_converter not implemented")
 
 
