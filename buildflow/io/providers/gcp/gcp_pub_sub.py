@@ -100,11 +100,21 @@ class GCPPubSubProvider(PullProvider, SetupProvider, PlanProvider, PushProvider)
 
         return PullResponse(payloads, _PubsubAckInfo(ack_ids))
 
-    async def ack(self, ack_info: _PubsubAckInfo):
+    async def ack(self, ack_info: _PubsubAckInfo, success: bool):
         if ack_info.ack_ids:
-            await self.subscriber_client.acknowledge(
-                ack_ids=ack_info.ack_ids, subscription=self.subscription_id
-            )
+            if success:
+                await self.subscriber_client.acknowledge(
+                    ack_ids=ack_info.ack_ids, subscription=self.subscription_id
+                )
+            else:
+                # This nacks the messages. See:
+                # https://github.com/googleapis/python-pubsub/pull/123/files
+                ack_deadline_seconds = 0
+                await self.subscriber_client.modify_ack_deadline(
+                    subscription=self.subscription_id,
+                    ack_ids=ack_info.ack_ids,
+                    ack_deadline_seconds=ack_deadline_seconds,
+                )
 
     def pull_converter(self, type_: Optional[Type]) -> Callable[[bytes], Any]:
         if type_ is None:

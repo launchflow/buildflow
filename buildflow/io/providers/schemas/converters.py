@@ -1,7 +1,7 @@
 import datetime
 from dataclasses import is_dataclass
 import json
-from typing import Any, Dict, Callable, Type
+from typing import Any, Dict, Callable, Optional, Type
 
 
 def identity():
@@ -40,3 +40,16 @@ def dataclass_to_json() -> Callable[[Any], Dict[str, Any]]:
 
 def dataclass_to_bytes() -> Callable[[Any], bytes]:
     return lambda user_type: json.dumps(_dataclass_to_json(user_type)).encode()
+
+
+def dict_push_converter(type_: Optional[Type]) -> Callable[[Any], Dict[str, Any]]:
+    if type_ is None:
+        return identity()
+    elif hasattr(type_, "to_json"):
+        return lambda output: type_.to_json(output)
+    elif is_dataclass(type_):
+        return dataclass_to_json()
+    elif issubclass(type_, dict):
+        return identity()
+    else:
+        raise ValueError("Cannot convert from type to bytes: `{type_}`")

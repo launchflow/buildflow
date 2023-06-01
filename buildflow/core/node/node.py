@@ -24,9 +24,17 @@ from buildflow.core.runtime.config import RuntimeConfig
 
 
 def _attach_method(cls, func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        return func(*args, **kwargs)
+    if inspect.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            return await func(*args, **kwargs)
+
+    else:
+
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            return func(*args, **kwargs)
 
     sig = inspect.signature(func)
     params = [inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
