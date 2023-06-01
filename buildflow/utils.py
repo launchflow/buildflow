@@ -22,7 +22,6 @@ def dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
     # json.
     #   - datetime.datetime, datetime.date, datetime.time
 
-    # TODO: need to ensure we convert containers of dataclasses to json
     to_ret = {}
     for k in dataclass_instance.__dataclass_fields__:
         val = getattr(dataclass_instance, k)
