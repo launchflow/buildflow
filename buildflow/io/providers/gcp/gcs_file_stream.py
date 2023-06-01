@@ -1,13 +1,19 @@
 from dataclasses import asdict, dataclass
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from google.api_core import exceptions
 
-from buildflow.io.providers import PlanProvider, PullProvider, SetupProvider
+from buildflow.io.providers import (
+    PlanProvider,
+    PullProvider,
+    SetupProvider,
+)
+from buildflow.io.providers.base import PullResponse
 from buildflow.io.providers.gcp import gcp_pub_sub
 from buildflow.io.providers.gcp.utils import clients as gcp_clients
 from buildflow.io.providers.gcp.utils import setup_utils
+from buildflow.io.providers.schemas import converters
 
 
 @dataclass
@@ -90,7 +96,7 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
             include_attributes=True,
         )
 
-    async def pull(self) -> Tuple[List[dict], List[str]]:
+    async def pull(self) -> PullResponse:
         payloads, ack_ids = await self.pubsub_ref.pull()
         payloads = [
             GCSFileEvent(
@@ -98,7 +104,7 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
             )
             for payload in payloads
         ]
-        return payloads, ack_ids
+        return PullResponse(payloads=payloads, ack_ids=ack_ids)
 
     # TODO: This should not be Optional (goes against Pullable base class)
     async def backlog(self) -> Optional[int]:
@@ -106,6 +112,14 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
 
     async def ack(self, ack_ids: List[str]):
         return await self.pubsub_ref.ack(ack_ids)
+
+    def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
+        if (
+            not issubclass(user_defined_type, GCSFileEvent)
+            and user_defined_type is not None
+        ):
+            raise ValueError("Input type for GCS file stream should be: `GCSFileEvent`")
+        return converters.identity()
 
     async def plan(self) -> Dict[str, Any]:
         return asdict(

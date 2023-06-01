@@ -1,3 +1,5 @@
+from dataclasses import asdict, dataclass
+import json
 import unittest
 from unittest import mock
 
@@ -212,6 +214,88 @@ class GCPPubsubTest(unittest.TestCase):
 
         # plan = app.plan()
         # self.assertEqual(expected_plan, plan)
+
+    def test_gcp_pubsub_poll_converter_bytes(self):
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="/projects/p/topics/topic",
+            subscription_id="/projects/p/subscriptions/sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        input_data = "test".encode("utf-8")
+        converter = pubsub_provider.pull_converter(type(input_data))
+        self.assertEqual(input_data, converter(input_data))
+
+    def test_gcp_pubsub_poll_converter_dataclass(self):
+        @dataclass
+        class Test:
+            a: int
+
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="/projects/p/topics/topic",
+            subscription_id="/projects/p/subscriptions/sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        input_data = Test(a=1)
+        bytes_data = json.dumps(asdict(input_data)).encode("utf-8")
+        converter = pubsub_provider.pull_converter(type(input_data))
+        self.assertEqual(input_data, converter(bytes_data))
+
+    def test_gcp_pubsub_poll_converter_none(self):
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="/projects/p/topics/topic",
+            subscription_id="/projects/p/subscriptions/sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        input_data = "test".encode("utf-8")
+        converter = pubsub_provider.pull_converter(None)
+        self.assertEqual(input_data, converter(input_data))
+
+    def test_gcp_pubsub_push_converter_bytes(self):
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="/projects/p/topics/topic",
+            subscription_id="/projects/p/subscriptions/sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        input_data = "test".encode("utf-8")
+        converter = pubsub_provider.push_converter(type(input_data))
+        self.assertEqual(input_data, converter(input_data))
+
+    def test_gcp_pubsub_push_converter_dataclass(self):
+        @dataclass
+        class Test:
+            a: int
+
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="/projects/p/topics/topic",
+            subscription_id="/projects/p/subscriptions/sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        input_data = Test(a=1)
+        bytes_data = json.dumps(asdict(input_data)).encode("utf-8")
+        converter = pubsub_provider.push_converter(type(input_data))
+        self.assertEqual(bytes_data, converter(input_data))
+
+    def test_gcp_pubsub_push_converter_none(self):
+        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+            topic_id="/projects/p/topics/topic",
+            subscription_id="/projects/p/subscriptions/sub",
+            batch_size=1000,
+            include_attributes=False,
+            billing_project_id="project",
+        )
+        input_data = "test".encode("utf-8")
+        converter = pubsub_provider.push_converter(None)
+        self.assertEqual(input_data, converter(input_data))
 
 
 if __name__ == "__main__":
