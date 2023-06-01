@@ -46,7 +46,7 @@ def calculate_target_num_replicas(snapshot: ProcessorSnapshot, config: RuntimeCo
     # The code below is from the previous version of the autoscaler.
     # Could probably use another pass through; might be able to simplify
     # things with the new runtime setup
-    if avg_process_rate != 0:
+    if backlog is not None and avg_process_rate != 0:
         estimated_replicas = int(backlog / avg_process_rate)
     else:
         estimated_replicas = 0
