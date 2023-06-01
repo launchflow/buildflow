@@ -25,6 +25,7 @@ class _PubSubSourcePlan:
     subscription_id: str
 
 
+@dataclass(frozen=True)
 class _PubsubAckInfo(AckInfo):
     ack_ids: Iterable[str]
 
@@ -33,9 +34,6 @@ class _PubsubAckInfo(AckInfo):
 class PubsubMessage:
     data: bytes
     attributes: Dict[str, Any]
-
-    def to_json(self):
-        return json.dumps(self, default=lambda o: o.__dict__)
 
 
 class GCPPubSubProvider(PullProvider, SetupProvider, PlanProvider, PushProvider):
@@ -89,14 +87,13 @@ class GCPPubSubProvider(PullProvider, SetupProvider, PlanProvider, PushProvider)
         ack_ids = []
         for received_message in response.received_messages:
             if received_message.message.data:
-                decoded_data = received_message.message.data.decode()
-                payload = decoded_data
+                payload = received_message.message.data
             if self.include_attributes:
                 att_dict = {}
                 attributes = received_message.message.attributes
                 for key, value in attributes.items():
                     att_dict[key] = value
-                payload = PubsubMessage(decoded_data, att_dict)
+                payload = PubsubMessage(received_message.message.data, att_dict)
 
             payloads.append(payload)
             ack_ids.append(received_message.ack_id)

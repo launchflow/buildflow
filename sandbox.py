@@ -1,6 +1,8 @@
+from dataclasses import dataclass
+from datetime import datetime
+
 from buildflow import Node
 from buildflow.io import GCPPubSubSubscription, BigQueryTable
-
 from buildflow.core.runtime.config import RuntimeConfig
 
 config = RuntimeConfig(
@@ -16,6 +18,20 @@ config = RuntimeConfig(
     log_level="INFO",
 )
 
+
+@dataclass
+class TaxiOutput:
+    ride_id: str
+    point_idx: int
+    latitude: float
+    longitude: float
+    timestamp: datetime
+    meter_reading: float
+    meter_increment: float
+    ride_status: str
+    passenger_count: int
+
+
 # Create a new Node
 app = Node(runtime_config=config)
 # Define the source and sink
@@ -30,7 +46,7 @@ bigquery_sink = BigQueryTable(
 
 # Attach a processor to the Node
 @app.processor(source=pubsub_source, sink=bigquery_sink)
-def process(pubsub_message):
+def process(pubsub_message: TaxiOutput) -> TaxiOutput:
     # print('Process: ', pubsub_message)
     return pubsub_message
 

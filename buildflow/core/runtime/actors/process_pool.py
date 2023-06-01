@@ -104,7 +104,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         self.num_replicas_gauge = Gauge(
             "num_replicas",
             description="Current number of replicas. Goes up and down.",
-            tag_keys=("processor_name",),
+            tag_keys=("processor_name", "JobId"),
         )
         self.num_replicas_gauge.set_default_tags(
             {
@@ -164,16 +164,8 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             actor_drain_tasks.append(replica_actor.drain.remote())
             placement_groups_to_remove.append(ray_placement_group)
 
-        _, pending_tasks = await asyncio.wait(actor_drain_tasks, timeout=60)
-        # NOTE: Replicas run subtasks that each have a drain timeout of 30secs.
-        # If they aren't all done within 60secs, we should assume they failed
-        # to drain and let the user know.
-        if pending_tasks:
-            logging.warning(
-                f"Killing {len(pending_tasks)} replicas that failed to drain."
-            )
-            for task in pending_tasks:
-                task.cancel()
+        if actor_drain_tasks:
+            await asyncio.wait(actor_drain_tasks)
 
         for actor, pg in zip(actors_to_kill, placement_groups_to_remove):
             ray.kill(actor, no_restart=True)

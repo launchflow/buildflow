@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, Type
 
 
@@ -14,6 +15,7 @@ class AckInfo:
     pass
 
 
+@dataclass(frozen=True)
 class PullResponse:
     payload: Iterable[Any]
     ack_info: AckInfo

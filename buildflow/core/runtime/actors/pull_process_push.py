@@ -72,8 +72,8 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             "process_time",
             description="Current process time of the actor. Goes up and down.",
             tag_keys=(
-                "actor_name",
-                "JobID",
+                "processor_name",
+                "JobId",
             ),
         )
         self.process_time_gauge.set_default_tags(
@@ -100,24 +100,25 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         if "return" in full_arg_spec.annotations:
             output_type = full_arg_spec.annotations["return"]
         if (
-            len(full_arg_spec.args) > 0
-            and full_arg_spec.args[0] in full_arg_spec.annotations
+            len(full_arg_spec.args) > 1
+            and full_arg_spec.args[1] in full_arg_spec.annotations
         ):
-            input_type = full_arg_spec.annotations[full_arg_spec.args[0]]
+            input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
         pull_converter = self.processor.source().provider().pull_converter(input_type)
         push_converter = self.processor.sink().provider().push_converter(output_type)
         while self._status == RuntimeStatus.RUNNING:
             # PULL
-            batch, ack_info = await self.pull_provider.pull()
+            response = await self.pull_provider.pull()
             self._num_pull_requests += 1
-            if not batch:
+            if not response.payload:
                 self._num_empty_pull_responses += 1
                 await asyncio.sleep(1)
                 continue
             # PROCESS
             start_time = time.time()
             batch_results = [
-                push_converter(process_fn(pull_converter(element))) for element in batch
+                push_converter(process_fn(pull_converter(element)))
+                for element in response.payload
             ]
             self.process_time_gauge.set(
                 (time.time() - start_time) * 1000 / len(batch_results)
@@ -125,9 +126,9 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             # PUSH
             await self.push_provider.push(batch_results)
             # ACK
-            await self.pull_provider.ack(ack_info)
-            self.num_events_counter.inc(len(batch))
-            self._num_elements_processed += len(batch)
+            await self.pull_provider.ack(response.ack_info)
+            self.num_events_counter.inc(len(response.payload))
+            self._num_elements_processed += len(response.payload)
             # DONE -> LOOP
 
         self._num_running_threads -= 1

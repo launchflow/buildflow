@@ -34,5 +34,9 @@ def _dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
     return to_ret
 
 
+def dataclass_to_json() -> Callable[[Any], Dict[str, Any]]:
+    return lambda user_type: _dataclass_to_json(user_type)
+
+
 def dataclass_to_bytes() -> Callable[[Any], bytes]:
     return lambda user_type: json.dumps(_dataclass_to_json(user_type)).encode()
