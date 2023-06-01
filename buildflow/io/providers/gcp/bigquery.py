@@ -1,15 +1,12 @@
-from typing import Any, Callable, Dict, Iterable, Optional, List, Type, TypeAlias, Union
+from typing import Any, Callable, Dict, Optional, List, Type
 
 # from google.protobuf.message import Message
-from ray.data import Dataset as RayDataset
 
 # TODO: Make our own proto parsing library
 
 from buildflow.io.providers import PushProvider
 from buildflow.io.providers.gcp.utils import clients as gcp_clients
 from buildflow.io.providers.schemas import converters
-
-BigQueryInput: TypeAlias = Union[RayDataset, Iterable[Dict[str, Any]]]
 
 
 class StreamingBigQueryProvider(PushProvider):
