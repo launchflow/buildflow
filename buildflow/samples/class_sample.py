@@ -20,7 +20,6 @@ app = ComputeNode()
 
 
 class MyProcessor(buildflow.Processor):
-
     def source(self):
         return buildflow.PubSub(subscription=_SUBSCRIPTION)
 

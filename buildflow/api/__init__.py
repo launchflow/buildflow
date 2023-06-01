@@ -1,7 +1,14 @@
 # flake8: noqa
 from .io import SinkType, SourceType
-from .node import (NodeAPI, NodeApplyResult, NodeDestroyResult, NodePlan,
-                   NodeRunResult, ProcessorPlan, IOPlan)
+from .node import (
+    NodeAPI,
+    NodeApplyResult,
+    NodeDestroyResult,
+    NodePlan,
+    NodeRunResult,
+    ProcessorPlan,
+    IOPlan,
+)
 from .options import AutoscalingOptions
 from .processor import ProcessorAPI
 from .grid import GridAPI

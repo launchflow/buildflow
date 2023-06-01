@@ -6,5 +6,5 @@ class LOCAL:
 
 
 class USER:
-    user = os.environ.get('USER', None)
-    home = os.environ.get('HOME', None)
+    user = os.environ.get("USER", None)
+    home = os.environ.get("HOME", None)
