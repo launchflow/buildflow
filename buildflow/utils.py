@@ -1,13 +1,10 @@
 import dataclasses
 import datetime
-from typing import Any, Dict, Optional, TypeAlias
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
-# create a UUID type
-UUID: TypeAlias = str
 
-
-def uuid(max_len: Optional[int] = None) -> UUID:
+def uuid(max_len: Optional[int] = None) -> str:
     if max_len is not None:
         return str(uuid4())[:max_len]
     return str(uuid4())
