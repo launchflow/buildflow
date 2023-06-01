@@ -31,7 +31,7 @@ dependencies = [
     "opentelemetry-exporter-otlp",
     "opentelemetry-exporter-jaeger",
     "pandas",
-    "pulumi",
+    "pulumi==3.35.3",
     "pulumi_gcp",
     "pyarrow",
     "pyyaml",
