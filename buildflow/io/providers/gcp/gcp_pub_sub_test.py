@@ -33,7 +33,7 @@ class GCPPubsubTest(unittest.TestCase):
 
         pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="projects/project/topics/pubsub-topic",
-            subscription_id="projects/project/subscriptions/pubsub-sub",
+            subscription_name="pubsub-sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -65,7 +65,7 @@ class GCPPubsubTest(unittest.TestCase):
 
         pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="projects/project/topics/pubsub-topic",
-            subscription_id="projects/project/subscriptions/pubsub-sub",
+            subscription_name="pubsub-sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -94,7 +94,7 @@ class GCPPubsubTest(unittest.TestCase):
 
         pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="projects/project/topics/pubsub-topic",
-            subscription_id="projects/project/subscriptions/pubsub-sub",
+            subscription_name="pubsub-sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -117,7 +117,7 @@ class GCPPubsubTest(unittest.TestCase):
 
         pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="",
-            subscription_id="projects/project/subscriptions/pubsub-sub",
+            subscription_name="pubsub-sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -151,29 +151,13 @@ class GCPPubsubTest(unittest.TestCase):
 
     def test_gcp_pubsub_plan_source(self):
         expected_plan = {
-            "topic_id": "/projects/p/topics/topic",
-            "subscription_id": "/projects/p/subscriptions/sub",
+            "topic_id": "projects/other_project/topics/topic",
+            "subscription_id": "projects/project/subscriptions/sub",
         }
 
         pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
-            topic_id="/projects/p/topics/topic",
-            subscription_id="/projects/p/subscriptions/sub",
-            batch_size=1000,
-            include_attributes=False,
-            billing_project_id="project",
-        )
-        plan = self.get_async_result(pubsub_provider.plan())
-
-        self.assertEqual(expected_plan, plan)
-
-    def test_gcp_pubsub_plan_source_no_topic(self):
-        expected_plan = {
-            "subscription_id": "/projects/p/subscriptions/sub",
-        }
-
-        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
-            topic_id="",
-            subscription_id="/projects/p/subscriptions/sub",
+            topic_id="projects/other_project/topics/topic",
+            subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -192,11 +176,11 @@ class GCPPubsubTest(unittest.TestCase):
         #             name="gcp_ps_process",
         #             source_resources={
         #                 "source_type": "GCPPubSubSource",
-        #                 "subscription": "/projects/p/subscriptions/sub",
+        #                 "subscription": "projects/p/subscriptions/sub",
         #             },
         #             sink_resources={
         #                 "sink_type": "GCPPubSubSink",
-        #                 "topic": "/projects/p/topics/topic2",
+        #                 "topic": "projects/p/topics/topic2",
         #             },
         #         )
         #     ],
@@ -205,9 +189,9 @@ class GCPPubsubTest(unittest.TestCase):
 
         # @app.processor(
         #     source=io.GCPPubSubSource(
-        #         subscription="/projects/p/subscriptions/sub",
+        #         subscription="projects/p/subscriptions/sub",
         #     ),
-        #     sink=io.GCPPubSubSink(topic="/projects/p/topics/topic2"),
+        #     sink=io.GCPPubSubSink(topic="projects/p/topics/topic2"),
         # )
         # def gcp_ps_process(elem):
         #     pass
@@ -216,9 +200,9 @@ class GCPPubsubTest(unittest.TestCase):
         # self.assertEqual(expected_plan, plan)
 
     def test_gcp_pubsub_poll_converter_bytes(self):
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
-            topic_id="/projects/p/topics/topic",
-            subscription_id="/projects/p/subscriptions/sub",
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
+            topic_id="projects/p/topics/topic",
+            subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -232,9 +216,9 @@ class GCPPubsubTest(unittest.TestCase):
         class Test:
             a: int
 
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
-            topic_id="/projects/p/topics/topic",
-            subscription_id="/projects/p/subscriptions/sub",
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
+            topic_id="projects/p/topics/topic",
+            subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -245,9 +229,9 @@ class GCPPubsubTest(unittest.TestCase):
         self.assertEqual(input_data, converter(bytes_data))
 
     def test_gcp_pubsub_poll_converter_none(self):
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
-            topic_id="/projects/p/topics/topic",
-            subscription_id="/projects/p/subscriptions/sub",
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
+            topic_id="projects/p/topics/topic",
+            subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -257,9 +241,9 @@ class GCPPubsubTest(unittest.TestCase):
         self.assertEqual(input_data, converter(input_data))
 
     def test_gcp_pubsub_push_converter_bytes(self):
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
-            topic_id="/projects/p/topics/topic",
-            subscription_id="/projects/p/subscriptions/sub",
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
+            topic_id="projects/p/topics/topic",
+            subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -273,9 +257,9 @@ class GCPPubsubTest(unittest.TestCase):
         class Test:
             a: int
 
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
-            topic_id="/projects/p/topics/topic",
-            subscription_id="/projects/p/subscriptions/sub",
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
+            topic_id="projects/p/topics/topic",
+            subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",
@@ -286,9 +270,9 @@ class GCPPubsubTest(unittest.TestCase):
         self.assertEqual(bytes_data, converter(input_data))
 
     def test_gcp_pubsub_push_converter_none(self):
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
-            topic_id="/projects/p/topics/topic",
-            subscription_id="/projects/p/subscriptions/sub",
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
+            topic_id="projects/p/topics/topic",
+            subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
             billing_project_id="project",

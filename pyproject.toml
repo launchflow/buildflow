@@ -24,7 +24,7 @@ dependencies = [
     "google-cloud-pubsub",
     "google-cloud-storage",
     # TODO: https://github.com/grpc/grpc/issues/31885
-    "grpcio==1.48.2",
+    "grpcio<1.51.1",
     "fastparquet",
     "opentelemetry-api",
     "opentelemetry-sdk",
@@ -35,7 +35,7 @@ dependencies = [
     "pulumi_gcp",
     "pyarrow",
     "pyyaml",
-    "ray[default]",
+    "ray[default] > 2.0.0",
     "typer",
     "redis",
 ]

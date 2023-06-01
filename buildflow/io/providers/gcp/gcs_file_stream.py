@@ -48,7 +48,6 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
         pubsub_topic: str = "",
         pubsub_subscription: str = "",
         event_types: Optional[List[str]] = ("OBJECT_FINALIZE",),
-        billing_project: str = "",
     ):
         """
         Args:
@@ -68,7 +67,6 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
         self.pubsub_topic = pubsub_topic
         self.pubsub_subscription = pubsub_subscription
         self.event_types = event_types
-        self.billing_project = billing_project
         self._managed_publisher = True
         self._managed_subscriber = True
         if not self.pubsub_topic:
@@ -86,12 +84,10 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
             )
         else:
             self._managed_subscriber = False
-        if not self.billing_project:
-            self.billing_project = self.project_id
-        self.pubsub_ref = gcp_pub_sub.GCPPubSubProvider(
-            billing_project_id=self.billing_project,
+        self.pubsub_ref = gcp_pub_sub.GCPPubSubSubscriptionProvider(
+            billing_project_id=self.project_id,
             topic_id=self.pubsub_topic,
-            subscription_id=self.pubsub_subscription,
+            subscription_name=f"{self.bucket_name}_subscriber",
             batch_size=1000,
             include_attributes=True,
         )
@@ -99,9 +95,7 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
     async def pull(self) -> PullResponse:
         payloads, ack_ids = await self.pubsub_ref.pull()
         payloads = [
-            GCSFileEvent(
-                metadata=payload.attributes, billing_project=self.billing_project
-            )
+            GCSFileEvent(metadata=payload.attributes, billing_project=self.project_id)
             for payload in payloads
         ]
         return PullResponse(payloads=payloads, ack_ids=ack_ids)
@@ -133,7 +127,7 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
     async def setup(self) -> bool:
         # TODO: Can we make the pubsub setup easier by just running:
         #   self._pubsub_ref.set()?
-        storage_client = gcp_clients.get_storage_client(self.billing_project)
+        storage_client = gcp_clients.get_storage_client(self.project_id)
         bucket = None
         try:
             bucket = storage_client.get_bucket(self.bucket_name)
@@ -156,7 +150,7 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
             setup_utils.maybe_create_subscription(
                 pubsub_subscription=self.pubsub_subscription,
                 pubsub_topic=self.pubsub_topic,
-                billing_project=self.billing_project,
+                billing_project=self.project_id,
                 publisher_members=[gcs_notify_sa],
             )
         if self._managed_publisher:
