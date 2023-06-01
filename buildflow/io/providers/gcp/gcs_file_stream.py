@@ -110,8 +110,8 @@ class GCSFileStreamProvider(PullProvider, SetupProvider, PlanProvider):
     async def backlog(self) -> Optional[int]:
         return await self.pubsub_ref.backlog()
 
-    async def ack(self, ack_ids: List[str]):
-        return await self.pubsub_ref.ack(ack_ids)
+    async def ack(self, ack_ids: List[str], success: bool):
+        return await self.pubsub_ref.ack(ack_ids, success)
 
     def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
         if (

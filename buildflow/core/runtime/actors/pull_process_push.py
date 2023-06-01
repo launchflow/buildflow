@@ -93,8 +93,8 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         logging.info("Starting Thread...")
         self._num_running_threads += 1
 
-        process_fn = self.processor.process
-        full_arg_spec = inspect.getfullargspec(process_fn)
+        raw_process_fn = self.processor.process
+        full_arg_spec = inspect.getfullargspec(raw_process_fn)
         output_type = None
         input_type = None
         if "return" in full_arg_spec.annotations:
@@ -106,27 +106,48 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
         pull_converter = self.processor.source().provider().pull_converter(input_type)
         push_converter = self.processor.sink().provider().push_converter(output_type)
+
+        process_fn = raw_process_fn
+        if not inspect.iscoroutinefunction(raw_process_fn):
+            # Wrap the raw process function in an async function to make our calls below
+            # easier
+            async def wrapped_process_fn(x):
+                return raw_process_fn(x)
+
+            process_fn = wrapped_process_fn
+
         while self._status == RuntimeStatus.RUNNING:
             # PULL
-            response = await self.pull_provider.pull()
+            try:
+                response = await self.pull_provider.pull()
+            except Exception:
+                logging.exception("pull failed")
             self._num_pull_requests += 1
             if not response.payload:
                 self._num_empty_pull_responses += 1
                 await asyncio.sleep(1)
                 continue
             # PROCESS
-            start_time = time.time()
-            batch_results = [
-                push_converter(process_fn(pull_converter(element)))
-                for element in response.payload
-            ]
-            self.process_time_gauge.set(
-                (time.time() - start_time) * 1000 / len(batch_results)
-            )
-            # PUSH
-            await self.push_provider.push(batch_results)
-            # ACK
-            await self.pull_provider.ack(response.ack_info)
+            process_success = True
+            try:
+                start_time = time.time()
+                batch_results = [
+                    push_converter(await process_fn(pull_converter(element)))
+                    for element in response.payload
+                ]
+                self.process_time_gauge.set(
+                    (time.time() - start_time) * 1000 / len(batch_results)
+                )
+                # PUSH
+                await self.push_provider.push(batch_results)
+            except Exception:
+                logging.exception(
+                    "failed to process batch, messages will not be acknowledged"
+                )
+                process_success = False
+            finally:
+                # ACK
+                await self.pull_provider.ack(response.ack_info, process_success)
             self.num_events_counter.inc(len(response.payload))
             self._num_elements_processed += len(response.payload)
             # DONE -> LOOP

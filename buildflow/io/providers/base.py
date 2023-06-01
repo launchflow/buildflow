@@ -2,15 +2,6 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, Type
 
 
-class Batch:
-    @classmethod
-    def empty(cls):
-        raise NotImplementedError("empty not implemented")
-
-    def __iter__(self):
-        raise NotImplementedError("__iter__ not implemented")
-
-
 class AckInfo:
     pass
 
@@ -43,8 +34,14 @@ class PullProvider(ProviderAPI):
         """Pull returns a batch of data from the source."""
         raise NotImplementedError("pull not implemented")
 
-    async def ack(self, to_ack: AckInfo):
-        """Ack acknowledges data pulled from the source."""
+    async def ack(self, to_ack: AckInfo, success: bool):
+        """Ack acknowledges data pulled from the source.
+
+        Args:
+            to_ack: The ack info returned from the pull method. That should be acked.
+            success: Whether the data was successfully processed or not. If false it is
+                up to the provider to decide how to ack / nack.
+        """
         raise NotImplementedError("ack not implemented")
 
     async def backlog(self) -> int:
@@ -63,7 +60,7 @@ class PushProvider(ProviderAPI):
     - push()
     """
 
-    async def push(self, batch: Batch):
+    async def push(self, batch):
         """Push pushes a batch of data to the source."""
         raise NotImplementedError("push not implemented")
 

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+import random
 
 from buildflow import Node
 from buildflow.io import GCPPubSubSubscription, BigQueryTable
@@ -7,7 +8,7 @@ from buildflow.core.runtime.config import RuntimeConfig
 
 config = RuntimeConfig(
     # initial setup options
-    num_threads_per_process=1,
+    num_threads_per_process=10,
     num_actors_per_core=1,
     num_available_cores=1,
     # autoscale options
@@ -48,6 +49,9 @@ bigquery_sink = BigQueryTable(
 @app.processor(source=pubsub_source, sink=bigquery_sink)
 def process(pubsub_message: TaxiOutput) -> TaxiOutput:
     # print('Process: ', pubsub_message)
+    should_fail = random.randint(0, 1)
+    if should_fail:
+        raise ValueError("Randomly failing")
     return pubsub_message
 
 
