@@ -18,7 +18,8 @@ input_sub = buildflow.GCPPubSubSource(
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 output_table = buildflow.BigQuerySink(
-    table_id=f"{gcp_project}.buildflow_walkthrough.{bigquery_table}")
+    table_id=f"{gcp_project}.buildflow_walkthrough.{bigquery_table}"
+)
 
 
 # Define an output type for our pipeline.
