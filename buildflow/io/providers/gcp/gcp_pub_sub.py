@@ -1,9 +1,9 @@
 import asyncio
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 import datetime
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Type
 
 from google.cloud.monitoring_v3 import query
 import pulumi_gcp
@@ -16,10 +16,11 @@ from buildflow.io.providers import (
     PulumiProvider,
     PulumiResources,
 )
-from buildflow.io.providers.base import Batch
+from buildflow.io.providers.base import PullResponse, AckInfo
 from buildflow.io.providers.gcp.utils import clients as gcp_clients
 from buildflow.io.providers.gcp.utils import setup_utils
 from buildflow import utils
+from buildflow.io.providers.schemas import converters
 
 
 @dataclass(frozen=True)
@@ -29,12 +30,14 @@ class _PubSubSourcePlan:
 
 
 @dataclass(frozen=True)
-class PubsubMessage:
-    data: Dict[str, Any]
-    attributes: Dict[str, Any]
+class _PubsubAckInfo(AckInfo):
+    ack_ids: Iterable[str]
 
-    def to_json(self):
-        return json.dumps(self, default=lambda o: o.__dict__)
+
+@dataclass(frozen=True)
+class PubsubMessage:
+    data: bytes
+    attributes: Dict[str, Any]
 
 
 class GCPPubSubSubscriptionProvider(
@@ -80,7 +83,7 @@ class GCPPubSubSubscriptionProvider(
     # use. Would help make internal apis more visible / easier to track down bugs as
     # they originally start to happen.
     @utils.log_errors(endpoint="apis.buildflow.dev/...")
-    async def push(self, batch: Batch):
+    async def push(self, batch: Iterable[Any]):
         coros = []
         for elem in batch:
             coros.append(
@@ -90,7 +93,7 @@ class GCPPubSubSubscriptionProvider(
             )
         await asyncio.gather(*coros)
 
-    async def pull(self) -> Tuple[List[Union[dict, PubsubMessage]], List[str]]:
+    async def pull(self) -> PullResponse:
         try:
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
@@ -104,31 +107,59 @@ class GCPPubSubSubscriptionProvider(
         payloads = []
         ack_ids = []
         for received_message in response.received_messages:
-            json_loaded = {}
             if received_message.message.data:
-                decoded_data = received_message.message.data.decode()
-                json_loaded = json.loads(decoded_data)
-                payload = json_loaded
+                payload = received_message.message.data
             if self.include_attributes:
                 att_dict = {}
                 attributes = received_message.message.attributes
                 for key, value in attributes.items():
                     att_dict[key] = value
-                payload = PubsubMessage(json_loaded, att_dict)
+                payload = PubsubMessage(received_message.message.data, att_dict)
 
             payloads.append(payload)
             ack_ids.append(received_message.ack_id)
 
-        return payloads, ack_ids
+        return PullResponse(payloads, _PubsubAckInfo(ack_ids))
 
-    async def ack(self, ack_ids: List[str]):
-        try:
-            if ack_ids:
+    async def ack(self, ack_info: _PubsubAckInfo, success: bool):
+        if ack_info.ack_ids:
+            if success:
                 await self.subscriber_client.acknowledge(
-                    ack_ids=ack_ids, subscription=self.subscription_id
+                    ack_ids=ack_info.ack_ids, subscription=self.subscription_id
                 )
-        except Exception as e:
-            logging.error("pubsub ack failed with: %s", e)
+            else:
+                # This nacks the messages. See:
+                # https://github.com/googleapis/python-pubsub/pull/123/files
+                ack_deadline_seconds = 0
+                await self.subscriber_client.modify_ack_deadline(
+                    subscription=self.subscription_id,
+                    ack_ids=ack_info.ack_ids,
+                    ack_deadline_seconds=ack_deadline_seconds,
+                )
+
+    def pull_converter(self, type_: Optional[Type]) -> Callable[[bytes], Any]:
+        if type_ is None:
+            return converters.identity()
+        elif hasattr(type_, "from_bytes"):
+            return lambda output: type_.from_bytes(output)
+        elif is_dataclass(type_):
+            return converters.bytes_to_dataclass(type_)
+        elif issubclass(type_, bytes):
+            return converters.identity()
+        else:
+            raise ValueError("Cannot convert from bytes to type: `{type_}`")
+
+    def push_converter(self, type_: Optional[Type]) -> Callable[[Any], bytes]:
+        if type_ is None:
+            return converters.identity()
+        elif hasattr(type_, "to_bytes"):
+            return lambda output: type_.to_bytes(output)
+        elif is_dataclass(type_):
+            return converters.dataclass_to_bytes()
+        elif issubclass(type_, bytes):
+            return converters.identity()
+        else:
+            raise ValueError("Cannot convert from type to bytes: `{type_}`")
 
     # TODO: This should not be Optional (goes against Pullable base class)
     # Should always return an int and handle the case where the backlog is 0

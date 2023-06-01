@@ -19,6 +19,10 @@ class ProcessorAPI:
     def sinks(self) -> Iterable[SinkType]:
         raise NotImplementedError("sinks not implemented")
 
+    # This lifecycle method is called once per replica.
+    def setup(self):
+        raise NotImplementedError("setup not implemented")
+
     # This lifecycle method is called once per payload.
     def process(self, payload: Any, **kwargs):
         raise NotImplementedError("process not implemented")

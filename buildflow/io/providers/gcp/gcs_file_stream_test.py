@@ -129,7 +129,7 @@ class GCSFileStreamTest(unittest.TestCase):
         )  # noqa: E501
         notification_mock.assert_not_called()
 
-    def test_gcs_notifications_plan_source(self):
+    def test_gcs_file_stream_plan_source(self):
         expected_plan = {
             "bucket_name": "bucket",
             "pubsub_topic": "projects/project/topics/bucket_notifications",
@@ -141,6 +141,23 @@ class GCSFileStreamTest(unittest.TestCase):
         )
         plan = self.get_async_result(gcs_provider.plan())
         self.assertEqual(expected_plan, plan)
+
+    def test_gcs_file_stream_poll_converter_success(self):
+        gcs_provider = gcs_file_stream.GCSFileStreamProvider(
+            bucket_name="bucket",
+            project_id="project",
+        )
+        gcs_provider.pull_converter(gcs_file_stream.GCSFileEvent)
+
+    def test_gcs_file_stream_poll_converter_invalid_type(self):
+        gcs_provider = gcs_file_stream.GCSFileStreamProvider(
+            bucket_name="bucket",
+            project_id="project",
+        )
+        with self.assertRaisesRegex(
+            ValueError, "Input type for GCS file stream should be: `GCSFileEvent`"
+        ):
+            gcs_provider.pull_converter(str)
 
 
 if __name__ == "__main__":

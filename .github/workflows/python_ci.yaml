@@ -2,9 +2,9 @@ name: Python CI
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'v0.2']
   pull_request:
-    branches: ['main']
+    branches: ['main', 'v0.2']
 
 env:
   BUILDFLOW_USAGE_STATS_DISABLE: 1

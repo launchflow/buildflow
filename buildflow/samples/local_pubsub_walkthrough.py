@@ -9,8 +9,7 @@ from typing import Any, Dict
 import buildflow
 from buildflow import ComputeNode
 
-file_path = os.environ.get("OUTPUT_FILE_PATH",
-                           "/tmp/buildflow/local_pubsub.parquet")
+file_path = os.environ.get("OUTPUT_FILE_PATH", "/tmp/buildflow/local_pubsub.parquet")
 
 if "PUBSUB_EMULATOR_HOST" not in os.environ:
     # If this variable wasn't set. Set it to the same value we set in the
@@ -24,8 +23,7 @@ input_sub = buildflow.GCPPubSubSource(
     topic="projects/local-buildflow-example/topics/my-topic",
 )
 # Set up a FileSink for writing to a file locally.
-sink = buildflow.FileSink(file_path=file_path,
-                          file_format=buildflow.FileFormat.PARQUET)
+sink = buildflow.FileSink(file_path=file_path, file_format=buildflow.FileFormat.PARQUET)
 
 app = ComputeNode()
 

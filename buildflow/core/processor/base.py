@@ -14,5 +14,8 @@ class Processor(ProcessorAPI):
     def sink(self) -> SinkType:
         return EmptySink()
 
+    def setup(self):
+        pass
+
     def process(self, payload, **kwargs):
         return payload

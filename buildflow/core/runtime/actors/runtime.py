@@ -115,5 +115,5 @@ class RuntimeActor(RuntimeAPI):
                 elif num_replicas_delta < 0:
                     processor_pool.remove_replicas.remote(abs(num_replicas_delta))
 
-            # TODO: Add more control / ocnfiguration around the checkin loop
-            await asyncio.sleep(5)
+            # TODO: Add more control / configuration around the checkin loop
+            await asyncio.sleep(30)

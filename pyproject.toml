@@ -36,7 +36,6 @@ dependencies = [
     "ray[default]",
     "typer",
     "redis",
-    "xia-easy-proto",
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",

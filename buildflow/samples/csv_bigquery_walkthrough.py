@@ -15,12 +15,12 @@ table_name = os.environ["TABLE_NAME"]
 # Set up a subscriber for the source.
 # The source will setup a Pub/Sub topic and subscription to listen to new files
 # uploaded to the GCS bucket.
-source = buildflow.GCSFileNotifications(project_id=gcp_project,
-                                        bucket_name=bucket_name)
+source = buildflow.GCSFileNotifications(project_id=gcp_project, bucket_name=bucket_name)
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 sink = buildflow.BigQuerySink(
-    table_id=f"{gcp_project}.buildflow_walkthrough.{table_name}")
+    table_id=f"{gcp_project}.buildflow_walkthrough.{table_name}"
+)
 
 
 # Nested dataclasses can be used inside of your schemas.
@@ -48,15 +48,14 @@ app = ComputeNode()
 
 # Define our processor.
 @app.processor(source=source, sink=sink)
-def process(
-        gcs_file_event: buildflow.GCSFileEvent
-) -> List[AggregateWikiPageViews]:
+def process(gcs_file_event: buildflow.GCSFileEvent) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))
     aggregate_stats = {}
     for row in csv_reader:
-        timestamp = datetime.datetime.strptime(row["datehour"],
-                                               "%Y-%m-%d %H:%M:%S.%f %Z")
+        timestamp = datetime.datetime.strptime(
+            row["datehour"], "%Y-%m-%d %H:%M:%S.%f %Z"
+        )
         wiki = row["wiki"]
         title = row["title"]
         views = row["views"]

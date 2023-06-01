@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+from typing import Iterable, Any, Union
 
 from buildflow import utils
+from buildflow.io.providers.file_provider import FileFormat, FileProvider
+from buildflow.io.providers.pulsing_provider import PulsingProvider
 from buildflow.io.providers.gcp.bigquery import StreamingBigQueryProvider
 from buildflow.io.providers.gcp.gcp_pub_sub import GCPPubSubSubscriptionProvider
 from buildflow.io.providers.gcp.gcs_file_stream import GCSFileStreamProvider
@@ -47,6 +50,33 @@ class GCSFileStream(ResourceType):
         return GCSFileStreamProvider(
             bucket_name=self.bucket_name, project_id=self.project_id
         )
+
+
+@dataclass
+class Pulse:
+    """A reference that emits items at a given interval.
+
+    Once the end of the items is reached, it will start again from the beginning.
+    """
+
+    items: Iterable[Any]
+    pulse_interval_seconds: float
+
+    def provider(self):
+        return PulsingProvider(
+            items=self.items, pulse_interval_seconds=self.pulse_interval_seconds
+        )
+
+
+@dataclass
+class Files:
+    """A reference that emits items to files"""
+
+    file_path: str
+    file_format: Union[str, FileFormat]
+
+    def provider(self):
+        return FileProvider(file_path=self.file_path, file_format=self.file_format)
 
 
 @dataclass

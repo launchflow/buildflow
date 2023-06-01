@@ -1,5 +1,7 @@
 import logging
 import signal
+from functools import wraps
+import inspect
 from typing import List, Optional
 
 import ray
@@ -20,6 +22,26 @@ from buildflow.core.processor import Processor
 from buildflow.core.runtime import RuntimeActor
 from buildflow.core.runtime.config import RuntimeConfig
 from buildflow.io.registry import EmptySink
+
+
+def _attach_method(cls, func):
+    if inspect.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            return await func(*args, **kwargs)
+
+    else:
+
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            return func(*args, **kwargs)
+
+    sig = inspect.signature(func)
+    params = [inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+    params.extend(sig.parameters.values())
+    wrapper.__signature__ = sig.replace(parameters=params)
+    setattr(cls, "process", wrapper)
 
 
 def processor_decorator(
@@ -48,10 +70,10 @@ def processor_decorator(
                 "sink": lambda self: sink,
                 "sinks": lambda self: [],
                 "setup": lambda self: None,
-                "process": lambda self, payload: original_function(payload),
                 "__call__": wrapper_function,
             },
         )
+        _attach_method(_AdHocProcessor, original_function)
         processor_instance = _AdHocProcessor(name=processor_id)
         node.add(processor_instance)
 
