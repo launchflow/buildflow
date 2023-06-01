@@ -29,7 +29,7 @@ class GCPPubsubTest(unittest.TestCase):
         pub_mock.get_topic.side_effect = exceptions.NotFound("unused")
         sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
 
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="projects/project/topics/pubsub-topic",
             subscription_id="projects/project/subscriptions/pubsub-sub",
             batch_size=1000,
@@ -61,7 +61,7 @@ class GCPPubsubTest(unittest.TestCase):
         sub_mock = sub_client_mock.return_value
         sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
 
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="projects/project/topics/pubsub-topic",
             subscription_id="projects/project/subscriptions/pubsub-sub",
             batch_size=1000,
@@ -90,7 +90,7 @@ class GCPPubsubTest(unittest.TestCase):
         pub_mock = pub_client_mock.return_value
         sub_mock = sub_client_mock.return_value
 
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="projects/project/topics/pubsub-topic",
             subscription_id="projects/project/subscriptions/pubsub-sub",
             batch_size=1000,
@@ -113,7 +113,7 @@ class GCPPubsubTest(unittest.TestCase):
         sub_mock = sub_client_mock.return_value
         sub_mock.get_subscription.side_effect = exceptions.NotFound("unused")
 
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="",
             subscription_id="projects/project/subscriptions/pubsub-sub",
             batch_size=1000,
@@ -153,7 +153,7 @@ class GCPPubsubTest(unittest.TestCase):
             "subscription_id": "/projects/p/subscriptions/sub",
         }
 
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="/projects/p/topics/topic",
             subscription_id="/projects/p/subscriptions/sub",
             batch_size=1000,
@@ -169,7 +169,7 @@ class GCPPubsubTest(unittest.TestCase):
             "subscription_id": "/projects/p/subscriptions/sub",
         }
 
-        pubsub_provider = gcp_pub_sub.GCPPubSubProvider(
+        pubsub_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
             topic_id="",
             subscription_id="/projects/p/subscriptions/sub",
             batch_size=1000,

@@ -30,7 +30,7 @@ class ProviderInfo:
 
 @dataclasses.dataclass
 class SourceInfo:
-    backlog: float
+    backlog: Optional[float]
     provider: ProviderInfo
 
 
@@ -104,7 +104,10 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         self.num_replicas_gauge = Gauge(
             "num_replicas",
             description="Current number of replicas. Goes up and down.",
-            tag_keys=("processor_name",),
+            tag_keys=(
+                "processor_name",
+                "JobId",
+            ),
         )
         self.num_replicas_gauge.set_default_tags(
             {

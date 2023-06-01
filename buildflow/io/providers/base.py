@@ -1,4 +1,6 @@
-from typing import Dict, Any
+import dataclasses
+from typing import Dict, Any, Iterable
+import pulumi
 
 
 class Batch:
@@ -22,10 +24,9 @@ class PullProvider(ProviderAPI):
     """PullProvider is a provider that can be pulled from.
 
     The following methods should be implemented:
-
-    - pull()
-    - ack()
-    - backlog()
+        - pull()
+        - ack()
+        - backlog()
     """
 
     async def pull(self) -> Batch:
@@ -45,8 +46,7 @@ class PushProvider(ProviderAPI):
     """PushProvider is a provider that can have a batch of data pushed to it.
 
     The following methods should be implemented:
-
-    - push()
+        - push()
     """
 
     async def push(self, batch: Batch):
@@ -54,15 +54,12 @@ class PushProvider(ProviderAPI):
         raise NotImplementedError("push not implemented")
 
 
-# TODO: Should we have InfraProvider instead that had plan, apply, destroy?
-# Thoughts: Its nice to have a setup() option as a scape goat option for users
-# who dont want to implement the Infra api for their custom use case.
+# NOTE: SetupProviders set up resources at RUNTIME, not at BUILD_TIME.
 class SetupProvider(ProviderAPI):
-    """SetupProvider is a provider that sets up any reousrces needed.
+    """SetupProvider is a provider that sets up any resources needed.
 
     The following methods should be implemented:
-
-    - setup()
+        - setup()
     """
 
     async def setup(self):
@@ -70,14 +67,44 @@ class SetupProvider(ProviderAPI):
         raise NotImplementedError("setup not implemented")
 
 
+# Should we get rid of this? I could see a variant of this being useful.
 class PlanProvider(ProviderAPI):
     """PlanProvider is a provider that produces a plan of the resources it will use.
 
     The following methods should be implemented:
-
-    - plan()
+        - plan()
     """
 
     async def plan(self) -> Dict[str, Any]:
         """Plan produces a plan of the resources it will use."""
         raise NotImplementedError("plan not implemented")
+
+
+@dataclasses.dataclass
+class PulumiResources:
+    resources: Iterable[pulumi.Resource]
+    exports: Dict[str, Any]
+
+
+# NOTE: PulumiProviders set up resources at BUILD_TIME, not at RUNTIME.
+class PulumiProvider(ProviderAPI):
+    """PulumiProvider is a provider that sets up any resources needed using Pulumi.
+
+    Pulumi Docs: https://www.pulumi.com/docs/
+
+    Some Notes:
+        - BuildFlow uses Pulumi "Inline Programs"
+        - We do not currently support remote deployments (via pulumi cloud)
+            - All deployments use the LocalWorkspace interface (from pulumi.automation)
+        - Pulumi lets you "export" values from a resource so they can be viewed in the
+          console output.
+
+    The following methods should be implemented:
+        - pulumi()
+    """
+
+    # NOTE: You can return anything that inherits from pulumi.Resource
+    # (i.e. pulumi.ComponentResource)
+    def pulumi(self) -> PulumiResources:
+        """Provides a list of pulumi.Resources to setup prior to runtime."""
+        raise NotImplementedError("pulumi not implemented")
