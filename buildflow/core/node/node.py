@@ -1,11 +1,13 @@
+import logging
+import signal
 from functools import wraps
 import inspect
 from typing import List, Optional
 
 import ray
-import signal
-import logging
+import asyncio
 
+from buildflow import utils
 from buildflow.api import (
     NodeAPI,
     NodeApplyResult,
@@ -14,13 +16,12 @@ from buildflow.api import (
     SinkType,
     SourceType,
 )
-from buildflow.core.node import _utils as node_utils
-from buildflow.core.infrastructure import InfrastructureActor
+from buildflow.core.infra import PulumiInfraActor
+from buildflow.core.infra.config import InfraConfig
 from buildflow.core.processor import Processor
 from buildflow.core.runtime import RuntimeActor
-from buildflow.io.registry import EmptySink
-from buildflow import utils
 from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.io.registry import EmptySink
 
 
 def _attach_method(cls, func):
@@ -81,21 +82,19 @@ def processor_decorator(
     return decorator_function
 
 
-# NOTE: Node implements NodeAPI, which is a combination of RuntimeAPI and
-# InfrastructureAPI.
+# NOTE: Node implements NodeAPI, which is a combination of RuntimeAPI and InfraAPI.
 class Node(NodeAPI):
     def __init__(
         self,
         name: str = "",
         runtime_config: RuntimeConfig = RuntimeConfig.DEBUG(),
-        *,
-        log_level: str = "INFO",
+        infra_config: InfraConfig = InfraConfig.DEBUG(),
     ) -> None:
         self.name = name
         self._processors: List[Processor] = []
-        # The Node class is a wrapper around the Runtime and Infrastructure
+        # The Node class is a wrapper around the Runtime and Infra
         self._runtime = RuntimeActor.remote(runtime_config)
-        self._infrastructure = InfrastructureActor.remote(log_level=log_level)
+        self._infra = PulumiInfraActor.remote(infra_config)
 
     def processor(self, source: SourceType, sink: Optional[SinkType] = None, **kwargs):
         # NOTE: processor_decorator is a function that returns an Ad Hoc
@@ -108,48 +107,68 @@ class Node(NodeAPI):
             raise RuntimeError("Cannot add processor to running node.")
         self._processors.append(processor)
 
-    def plan(self) -> NodePlan:
-        return ray.get(self._infrastructure.plan.remote(processors=self._processors))
-
     def run(
         self,
         *,
         disable_usage_stats: bool = False,
-        disable_resource_creation: bool = True,
-        blocking: bool = True,
+        # runtime-only options
+        block_runtime: bool = True,
         debug_run: bool = False,
+        # infra-only options
+        apply_infrastructure: bool = False,
+        destroy_infrastructure: bool = False,
     ):
-        # BuildFlow Usage Stats
         if not disable_usage_stats:
-            node_utils.log_buildflow_usage()
-        # BuildFlow Resource Creation
-        if not disable_resource_creation:
-            self.apply()
-        # BuildFlow Runtime
-        # schedule cleanup
-        signal.signal(signal.SIGTERM, self.drain)
-        signal.signal(signal.SIGINT, self.drain)
-        # start the runtime
-        ray.get(self._runtime.run.remote(processors=self._processors))
-        if blocking:
-            ray.get(self._runtime.run_until_complete.remote())
+            utils.log_buildflow_usage()
 
-    def drain(self, *args, **kwargs):
+        if apply_infrastructure:
+            self.apply(debug_run=debug_run)
+
+        # handle interupt signals
+        signal.signal(
+            signal.SIGTERM,
+            lambda x, y: self.drain(destroy=destroy_infrastructure),
+        )
+        signal.signal(
+            signal.SIGINT,
+            lambda x, y: self.drain(destroy=destroy_infrastructure),
+        )
+
+        # start the runtime and (optionally) block until it's done
+        ray.get(self._runtime.run.remote(processors=self._processors))
+        remote_runtime_task = self._runtime.run_until_complete.remote()
+
+        if destroy_infrastructure:
+            runtime_future: asyncio.Future = asyncio.wrap_future(
+                remote_runtime_task.future()
+            )
+            # schedule the destroy to run after the runtime is done.
+            # NOTE: This will only run if the runtime finishes successfully.
+            runtime_future.add_done_callback(lambda _: self.destroy())
+
+        if block_runtime:
+            logging.info("Waiting for runtime to finish...")
+            ray.get(remote_runtime_task)
+
+    def drain(self, destroy: bool = False):
         logging.info(f"Draining Node({self.name})...")
         ray.get(self._runtime.drain.remote())
         logging.info(f"...Finished draining Node({self.name})")
+        if destroy:
+            self.destroy()
         return True
 
-    def apply(self) -> NodeApplyResult:
-        logging.info(f"Setting up infrastructure for Node({self.name})...")
-        result = ray.get(self._infrastructure.apply.remote(processors=self._processors))
-        logging.info(f"...Finished setting up infrastructure for Node({self.name})")
+    def plan(self) -> NodePlan:
+        return ray.get(self._infra.plan.remote(processors=self._processors))
+
+    def apply(self, debug_run: bool = False) -> NodeApplyResult:
+        logging.info(f"Setting up infra for Node({self.name})...")
+        result = ray.get(self._infra.apply.remote(processors=self._processors))
+        logging.info(f"...Finished setting up infra for Node({self.name})")
         return result
 
     def destroy(self) -> NodeDestroyResult:
-        logging.info(f"Tearing down infrastructure for Node({self.name})...")
-        result = ray.get(
-            self._infrastructure.destroy.remote(processors=self._processors)
-        )
-        logging.info(f"...Finished tearing down infrastructure for Node({self.name})")
+        logging.info(f"Tearing down infra for Node({self.name})...")
+        result = ray.get(self._infra.destroy.remote(processors=self._processors))
+        logging.info(f"...Finished tearing down infra for Node({self.name})")
         return result

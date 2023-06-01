@@ -33,7 +33,11 @@ class RuntimeConfig:
     @classmethod
     def DEBUG(cls):
         return cls(
-            num_threads_per_process=1, num_actors_per_core=1, num_available_cores=1
+            num_threads_per_process=1,
+            num_actors_per_core=1,
+            num_available_cores=1,
+            autoscale=False,
+            log_level="DEBUG",
         )
 
     def num_replicas(self):

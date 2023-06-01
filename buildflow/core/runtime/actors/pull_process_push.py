@@ -44,6 +44,9 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         self.processor = processor
         self.pull_provider: PullProvider = self.processor.source().provider()
         self.push_provider: PushProvider = self.processor.sink().provider()
+        # NOTE: This is where the setup Processor lifecycle method is called.
+        # TODO: Support Depends use case
+        self.processor.setup()
 
         # validation
         # TODO: Validate that the schemas & types are all compatible

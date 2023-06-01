@@ -1,36 +1,37 @@
 from dataclasses import dataclass
 from typing import Iterable, Any, Union
 
+from buildflow import utils
 from buildflow.io.providers.file_provider import FileFormat, FileProvider
 from buildflow.io.providers.pulsing_provider import PulsingProvider
-from buildflow.io.providers.gcp.gcp_pub_sub import GCPPubSubProvider
 from buildflow.io.providers.gcp.bigquery import StreamingBigQueryProvider
+from buildflow.io.providers.gcp.gcp_pub_sub import GCPPubSubSubscriptionProvider
 from buildflow.io.providers.gcp.gcs_file_stream import GCSFileStreamProvider
 
 
-@dataclass
-class GCPPubSubSubscription:
-    """A reference that pulls items from a GCP Pub/Sub subscription."""
+class ResourceType:
+    def provider(self):
+        raise NotImplementedError("provider not implemented")
 
-    topic_id: str
-    subscription_id: str
+
+@dataclass
+class GCPPubSubSubscription(ResourceType):
+    billing_project_id: str
+    topic_id: str  # format: projects/{project_id}/topics/{topic_name}
+    subscription_name: str = f"buildflow_subscription_{utils.uuid(max_len=6)}"
 
     def provider(self):
-        # 'projects/daring-runway-374503/subscriptions/taxiride-sub')
-        billing_project_id = self.subscription_id.split("/")[1]
         batch_size = 1000
-        return GCPPubSubProvider(
-            billing_project_id=billing_project_id,
+        return GCPPubSubSubscriptionProvider(
+            billing_project_id=self.billing_project_id,
             topic_id=self.topic_id,
-            subscription_id=self.subscription_id,
+            subscription_name=self.subscription_name,
             batch_size=batch_size,
         )
 
 
 @dataclass
-class BigQueryTable:
-    """A reference that pushes items to a BigQuery table."""
-
+class BigQueryTable(ResourceType):
     table_id: str
 
     def provider(self):
@@ -41,9 +42,7 @@ class BigQueryTable:
 
 
 @dataclass
-class GCSFileStream:
-    """A reference that emits items when a new filed is uploaded to a bucket."""
-
+class GCSFileStream(ResourceType):
     bucket_name: str
     project_id: str
 

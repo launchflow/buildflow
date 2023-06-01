@@ -44,7 +44,7 @@ class PullProcessPushTest(unittest.TestCase):
     def run_with_timeout(self, coro):
         """Run a coroutine synchronously."""
         try:
-            self.event_loop.run_until_complete(asyncio.wait_for(coro, timeout=2))
+            self.event_loop.run_until_complete(asyncio.wait_for(coro, timeout=5))
         except asyncio.TimeoutError:
             return
 

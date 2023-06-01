@@ -24,5 +24,5 @@ class ProcessorAPI:
         raise NotImplementedError("setup not implemented")
 
     # This lifecycle method is called once per payload.
-    def process(self, payload: Any):
+    def process(self, payload: Any, **kwargs):
         raise NotImplementedError("process not implemented")

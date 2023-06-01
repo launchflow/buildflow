@@ -30,7 +30,7 @@ class ProviderInfo:
 
 @dataclasses.dataclass
 class SourceInfo:
-    backlog: float
+    backlog: Optional[float]
     provider: ProviderInfo
 
 
