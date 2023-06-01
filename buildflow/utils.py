@@ -4,13 +4,14 @@ import inspect
 import json
 import logging
 import os
-from typing import Any, Dict, Optional, TypeAlias
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 import requests
 
-# create a UUID type
-UUID: TypeAlias = str
+# create a UUID type alias
+# NOTE: python 3.8 doesn't support typing.TypeAlias
+UUID: str
 
 
 def uuid(max_len: Optional[int] = None) -> str:
