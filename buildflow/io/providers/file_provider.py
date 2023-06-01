@@ -20,7 +20,7 @@ class FileFormat(Enum):
     JSON = 3
 
 
-class FilesProvider(PushProvider):
+class FileProvider(PushProvider):
     def __init__(
         self,
         file_path: str,
@@ -47,7 +47,7 @@ class FilesProvider(PushProvider):
         self.should_repeat = should_repeat
         self._to_emit = 0
 
-    async def push_converter(
+    def push_converter(
         self, user_defined_type: Type
     ) -> Callable[[Any], Dict[str, Any]]:
         return converters.dict_push_converter(user_defined_type)
@@ -61,7 +61,10 @@ class FilesProvider(PushProvider):
         elif self._format == FileFormat.CSV:
             if batch:
                 table = pa.Table.from_pylist(batch)
-                if Path(self.file_path).exists():
+                if (
+                    Path(self.file_path).exists()
+                    and os.path.getsize(self.file_path) > 0
+                ):
                     table = pa.concat_tables([table, pcsv.read_csv(self.file_path)])
                 pcsv.write_csv(table, self.file_path)
         elif self._format == FileFormat.JSON:

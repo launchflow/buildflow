@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Iterable, Any
+from typing import Iterable, Any, Union
 
+from buildflow.io.providers.file_provider import FileFormat, FileProvider
 from buildflow.io.providers.pulsing_provider import PulsingProvider
 from buildflow.io.providers.gcp.gcp_pub_sub import GCPPubSubProvider
 from buildflow.io.providers.gcp.bigquery import StreamingBigQueryProvider
@@ -66,6 +67,17 @@ class Pulse:
         return PulsingProvider(
             items=self.items, pulse_interval_seconds=self.pulse_interval_seconds
         )
+
+
+@dataclass
+class Files:
+    """A reference that emits items to files"""
+
+    file_path: str
+    file_format: Union[str, FileFormat]
+
+    def provider(self):
+        return FileProvider(file_path=self.file_path, file_format=self.file_format)
 
 
 @dataclass
