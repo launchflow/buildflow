@@ -28,6 +28,24 @@ class GCPPubSubSubscription:
 
 
 @dataclass
+class GCPPubSubTopic:
+    """A reference that pulls items from a GCP Pub/Sub subscription."""
+
+    topic_id: str
+
+    def provider(self):
+        # 'projects/daring-runway-374503/subscriptions/taxiride-sub')
+        billing_project_id = self.topic_id.split("/")[1]
+        batch_size = 1000
+        return GCPPubSubProvider(
+            billing_project_id=billing_project_id,
+            topic_id=self.topic_id,
+            subscription_id="",
+            batch_size=batch_size,
+        )
+
+
+@dataclass
 class BigQueryTable:
     """A reference that pushes items to a BigQuery table."""
 

@@ -40,7 +40,7 @@ def run(
 ):
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
-    if isinstance(imported, buildflow.ComputeNode):
+    if isinstance(imported, buildflow.Node):
         imported.run(
             disable_usage_stats=disable_usage_stats,
             disable_resource_creation=disable_resource_creation,

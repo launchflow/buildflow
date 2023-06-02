@@ -1,8 +1,8 @@
+import asyncio
 from functools import wraps
 import inspect
 from typing import List, Optional
 
-import ray
 import signal
 import logging
 
@@ -94,7 +94,8 @@ class Node(NodeAPI):
         self.name = name
         self._processors: List[Processor] = []
         # The Node class is a wrapper around the Runtime and Infrastructure
-        self._runtime = RuntimeActor.remote(runtime_config)
+        self._runtime_config = runtime_config
+        self._runtime = None
         self._infrastructure = InfrastructureActor.remote(log_level=log_level)
 
     def processor(self, source: SourceType, sink: Optional[SinkType] = None, **kwargs):
@@ -103,13 +104,15 @@ class Node(NodeAPI):
         return processor_decorator(node=self, source=source, sink=sink, **kwargs)
 
     def add(self, processor: Processor):
-        is_active = ray.get(self._runtime.is_active.remote())
-        if is_active:
+        if self._runtime is not None:
             raise RuntimeError("Cannot add processor to running node.")
         self._processors.append(processor)
 
     def plan(self) -> NodePlan:
-        return ray.get(self._infrastructure.plan.remote(processors=self._processors))
+        return asyncio.get_event_loop().run_until_complete(self._plan_async())
+
+    async def _plan_async(self) -> NodePlan:
+        return await self._infrastructure.plan.remote(processors=self._processors)
 
     def run(
         self,
@@ -119,37 +122,60 @@ class Node(NodeAPI):
         blocking: bool = True,
         debug_run: bool = False,
     ):
+        coro = self._run_async(
+            disable_usage_stats=disable_usage_stats,
+            disable_resource_creation=disable_resource_creation,
+            debug_run=debug_run,
+        )
+        if blocking:
+            asyncio.get_event_loop().run_until_complete(coro)
+        else:
+            return coro
+
+    async def _run_async(
+        self,
+        *,
+        disable_usage_stats: bool = False,
+        disable_resource_creation: bool = True,
+        debug_run: bool = False,
+    ):
+        self._runtime = RuntimeActor.remote(self._runtime_config)
+
         # BuildFlow Usage Stats
         if not disable_usage_stats:
             node_utils.log_buildflow_usage()
         # BuildFlow Resource Creation
         if not disable_resource_creation:
-            self.apply()
+            await self._apply_async()
         # BuildFlow Runtime
         # schedule cleanup
-        signal.signal(signal.SIGTERM, self.drain)
-        signal.signal(signal.SIGINT, self.drain)
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(self._drain()))
         # start the runtime
-        ray.get(self._runtime.run.remote(processors=self._processors))
-        if blocking:
-            ray.get(self._runtime.run_until_complete.remote())
+        await self._runtime.run.remote(processors=self._processors)
+        return await self._runtime.run_until_complete.remote()
 
-    def drain(self, *args, **kwargs):
+    async def _drain(self, *args, **kwargs):
         logging.info(f"Draining Node({self.name})...")
-        ray.get(self._runtime.drain.remote())
+        await self._runtime.drain.remote()
         logging.info(f"...Finished draining Node({self.name})")
         return True
 
     def apply(self) -> NodeApplyResult:
+        return asyncio.get_event_loop().run_until_complete(self._apply_async())
+
+    async def _apply_async(self) -> NodeApplyResult:
         logging.info(f"Setting up infrastructure for Node({self.name})...")
-        result = ray.get(self._infrastructure.apply.remote(processors=self._processors))
+        result = await self._infrastructure.apply.remote(processors=self._processors)
         logging.info(f"...Finished setting up infrastructure for Node({self.name})")
         return result
 
     def destroy(self) -> NodeDestroyResult:
+        return asyncio.get_event_loop().run_until_complete(self._destroy_async())
+
+    async def _destroy_async(self) -> NodeDestroyResult:
         logging.info(f"Tearing down infrastructure for Node({self.name})...")
-        result = ray.get(
-            self._infrastructure.destroy.remote(processors=self._processors)
-        )
+        result = await self._infrastructure.destroy.remote(processors=self._processors)
         logging.info(f"...Finished tearing down infrastructure for Node({self.name})")
         return result

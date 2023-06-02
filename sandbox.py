@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime
-import random
 
 from buildflow import Node
 from buildflow.io import GCPPubSubSubscription, BigQueryTable
@@ -49,15 +48,13 @@ bigquery_sink = BigQueryTable(
 @app.processor(source=pubsub_source, sink=bigquery_sink)
 def process(pubsub_message: TaxiOutput) -> TaxiOutput:
     # print('Process: ', pubsub_message)
-    should_fail = random.randint(0, 1)
-    if should_fail:
-        raise ValueError("Randomly failing")
     return pubsub_message
 
 
-app.run(
-    disable_usage_stats=True,
-    disable_resource_creation=False,
-    blocking=True,
-    debug_run=False,
-)
+if __name__ == "__main__":
+    app.run(
+        disable_usage_stats=True,
+        disable_resource_creation=False,
+        blocking=True,
+        debug_run=False,
+    )
