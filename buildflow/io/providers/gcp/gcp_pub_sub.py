@@ -102,7 +102,7 @@ class GCPPubSubSubscriptionProvider(
             )
         except Exception as e:
             logging.error("pubsub pull failed with: %s", e)
-            return [], []
+            return PullResponse([], _PubsubAckInfo([]))
 
         payloads = []
         ack_ids = []

@@ -112,6 +112,21 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
                 "JobId": job_id,
             }
         )
+        self.concurrency_gauge = Gauge(
+            "ppp_concurrency",
+            description="Current number of concurrency per replica. Goes up and down.",
+            tag_keys=(
+                "processor_name",
+                "JobId",
+            ),
+        )
+        self.concurrency_gauge.set_default_tags(
+            {
+                "processor_name": processor.name,
+                "JobId": job_id,
+            }
+        )
+        self.concurrency_gauge.set(config.num_threads_per_process)
 
     async def add_replicas(self, num_replicas: int):
         if self._status != RuntimeStatus.RUNNING:
