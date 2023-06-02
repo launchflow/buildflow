@@ -157,6 +157,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 response = await self.pull_provider.pull()
             except Exception:
                 logging.exception("pull failed")
+                continue
             self._num_pull_requests += 1
             if not response.payload:
                 self._num_empty_pull_responses += 1

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime
-import random
 
 from buildflow import Node
 from buildflow.io import GCPPubSubSubscription, BigQueryTable

@@ -33,44 +33,48 @@ def run(
     disable_usage_stats: bool = typer.Option(
         False, help="Disable buildflow usage stats"
     ),
-    disable_resource_creation: bool = typer.Option(
-        False, help="Disable resource creation"
+    apply_infrastructure: bool = typer.Option(
+        False, help="Whether resources should be created"
+    ),
+    destroy_infrastructure: bool = typer.Option(
+        False, help="Whether resources should be destroyed."
     ),
     app_dir: str = APP_DIR_OPTION,
 ):
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
-    if isinstance(imported, buildflow.ComputeNode):
+    if isinstance(imported, buildflow.Node):
         imported.run(
             disable_usage_stats=disable_usage_stats,
-            disable_resource_creation=disable_resource_creation,
+            apply_infrastructure=apply_infrastructure,
+            destroy_infrastructure=destroy_infrastructure,
         )
     else:
         typer.echo(f"{app} is not a buildflow node.")
         raise typer.Exit(1)
 
 
-@app.command(help="Deploy a buildflow grid.")
-def deploy(
-    app: str = typer.Argument(..., help="The grid app to run"),
-    disable_usage_stats: bool = typer.Option(
-        False, help="Disable buildflow usage stats"
-    ),
-    disable_resource_creation: bool = typer.Option(
-        False, help="Disable resource creation"
-    ),
-    app_dir: str = APP_DIR_OPTION,
-):
-    sys.path.insert(0, app_dir)
-    imported = utils.import_from_string(app)
-    if isinstance(imported, buildflow.DeploymentGrid):
-        imported.deploy(
-            disable_usage_stats=disable_usage_stats,
-            disable_resource_creation=disable_resource_creation,
-        )
-    else:
-        typer.echo(f"{app} is not a buildflow node.")
-        raise typer.Exit(1)
+# @app.command(help="Deploy a buildflow grid.")
+# def deploy(
+#     app: str = typer.Argument(..., help="The grid app to run"),
+#     disable_usage_stats: bool = typer.Option(
+#         False, help="Disable buildflow usage stats"
+#     ),
+#     disable_resource_creation: bool = typer.Option(
+#         False, help="Disable resource creation"
+#     ),
+#     app_dir: str = APP_DIR_OPTION,
+# ):
+#     sys.path.insert(0, app_dir)
+#     imported = utils.import_from_string(app)
+#     if isinstance(imported, buildflow.DeploymentGrid):
+#         imported.deploy(
+#             disable_usage_stats=disable_usage_stats,
+#             disable_resource_creation=disable_resource_creation,
+#         )
+#     else:
+#         typer.echo(f"{app} is not a buildflow node.")
+#         raise typer.Exit(1)
 
 
 @app.command(help="Output all resources used by a buildflow node or grid")
@@ -80,7 +84,8 @@ def plan(
 ):
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
-    if isinstance(imported, (buildflow.ComputeNode, buildflow.DeploymentGrid)):
+    # TODO: Add support for deployment grids
+    if isinstance(imported, (buildflow.Node)):
         plan = imported.plan()
         print(yaml.dump(asdict(plan), sort_keys=False))
         print()

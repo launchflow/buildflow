@@ -5,13 +5,27 @@ from buildflow import utils
 from buildflow.io.providers.file_provider import FileFormat, FileProvider
 from buildflow.io.providers.pulsing_provider import PulsingProvider
 from buildflow.io.providers.gcp.bigquery import StreamingBigQueryProvider
-from buildflow.io.providers.gcp.gcp_pub_sub import GCPPubSubSubscriptionProvider
+from buildflow.io.providers.gcp.gcp_pub_sub import (
+    GCPPubSubSubscriptionProvider,
+    GCPPubSubTopicProvider,
+)
 from buildflow.io.providers.gcp.gcs_file_stream import GCSFileStreamProvider
 
 
 class ResourceType:
     def provider(self):
         raise NotImplementedError("provider not implemented")
+
+
+@dataclass
+class GCPPubSubTopic(ResourceType):
+    billing_project_id: str
+    topic_name: str
+
+    def provider(self):
+        return GCPPubSubTopicProvider(
+            billing_project_id=self.billing_project_id, topic_name=self.topic_name
+        )
 
 
 @dataclass
