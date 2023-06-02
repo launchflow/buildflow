@@ -220,7 +220,8 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             return PullProcessPushSnapshot(utilization_score=0, process_rate=0)
 
         # Previous utilitization metric option:
-        # non_empty_ratio = 1 - (self._num_empty_pull_responses / self._num_pull_requests)
+        # non_empty_ratio = 1 - (
+        #     self._num_empty_pull_responses / self._num_pull_requests)
         # utilization_score = non_empty_ratio
 
         utilization_score = self._pull_percentage / self._num_pull_requests
