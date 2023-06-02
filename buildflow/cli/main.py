@@ -1,8 +1,6 @@
-from dataclasses import asdict
 import sys
 
 import typer
-import yaml
 
 import buildflow
 from buildflow.cli import utils
@@ -87,7 +85,7 @@ def plan(
     # TODO: Add support for deployment grids
     if isinstance(imported, (buildflow.Node)):
         plan = imported.plan()
-        print(yaml.dump(asdict(plan), sort_keys=False))
+        print(plan)
         print()
         user_input = ""
         while True:
@@ -101,7 +99,7 @@ def plan(
 
         if user_input == "n":
             return
-        imported.setup()
+        imported.apply()
 
     else:
         typer.echo("plan must be run on a node, or deployment grid")

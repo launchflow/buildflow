@@ -65,6 +65,7 @@ class PulumiInfraActor(InfraAPI):
 
         # TODO: print a more useful change summary
         logging.info(f"plan: {preview_result.change_summary}")
+        return preview_result.stdout
 
     async def apply(self, *, processors: Iterable[Processor]):
         logging.info(f"Applying Pulumi stack: {self.stack_name}")
