@@ -58,6 +58,8 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         self._num_elements_processed = 0
         self._num_pull_requests = 0
         self._num_empty_pull_responses = 0
+        self._num_pulls = 0
+        self._pull_percentage = 0.0
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
         self.num_events_counter = Counter(
@@ -80,6 +82,34 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             ),
         )
         self.process_time_gauge.set_default_tags(
+            {
+                "processor_name": processor.name,
+                "JobId": job_id,
+            }
+        )
+        self.batch_time_gauge = Gauge(
+            "batch_time",
+            description="Current batch process time of the actor. Goes up and down.",
+            tag_keys=(
+                "processor_name",
+                "JobId",
+            ),
+        )
+        self.batch_time_gauge.set_default_tags(
+            {
+                "processor_name": processor.name,
+                "JobId": job_id,
+            }
+        )
+        self.total_time_gauge = Gauge(
+            "total_time",
+            description="Current total process time of the actor. Goes up and down.",
+            tag_keys=(
+                "processor_name",
+                "JobId",
+            ),
+        )
+        self.total_time_gauge.set_default_tags(
             {
                 "processor_name": processor.name,
                 "JobId": job_id,
@@ -121,6 +151,8 @@ class PullProcessPushActor(AsyncRuntimeAPI):
 
         while self._status == RuntimeStatus.RUNNING:
             # PULL
+            total_start_time = time.time()
+            self._num_pulls += 1
             try:
                 response = await self.pull_provider.pull()
             except Exception:
@@ -128,19 +160,27 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             self._num_pull_requests += 1
             if not response.payload:
                 self._num_empty_pull_responses += 1
+                # Mainly for debugging purposes
+                self._pull_percentage += 0.0
                 await asyncio.sleep(1)
                 continue
             # PROCESS
             process_success = True
             try:
-                start_time = time.time()
+                # TODO: Make this batch size configurable. Currently it is hardcoded
+                # to 1000 for the pubsub source.
+                batch_size = 1000
+                process_start_time = time.time()
+                self._pull_percentage += len(response.payload) / batch_size
                 batch_results = [
                     push_converter(await process_fn(pull_converter(element)))
                     for element in response.payload
                 ]
                 self.process_time_gauge.set(
-                    (time.time() - start_time) * 1000 / len(batch_results)
+                    (time.time() - process_start_time) * 1000 / len(batch_results)
                 )
+                self.batch_time_gauge.set((time.time() - process_start_time) * 1000)
+
                 # PUSH
                 await self.push_provider.push(batch_results)
             except Exception:
@@ -154,6 +194,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             self.num_events_counter.inc(len(response.payload))
             self._num_elements_processed += len(response.payload)
             # DONE -> LOOP
+            self.total_time_gauge.set((time.time() - total_start_time) * 1000)
 
         self._num_running_threads -= 1
         if self._num_running_threads == 0:
@@ -178,16 +219,25 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         if self._num_pull_requests == 0:
             return PullProcessPushSnapshot(utilization_score=0, process_rate=0)
 
-        non_empty_ratio = 1 - (self._num_empty_pull_responses / self._num_pull_requests)
+        # Previous utilitization metric option:
+        # non_empty_ratio = 1 - (
+        #     self._num_empty_pull_responses / self._num_pull_requests)
+        # utilization_score = non_empty_ratio
+
+        utilization_score = self._pull_percentage / self._num_pull_requests
+
         process_rate = self._num_elements_processed / (
             time.time() - self._last_snapshot_time
         )
         snapshot = PullProcessPushSnapshot(
-            utilization_score=non_empty_ratio,
+            utilization_score=utilization_score,
             process_rate=process_rate,
         )
         # reset the counters
         self._last_snapshot_time = time.time()
+        self._num_pull_requests = 0
+        self._num_empty_pull_responses = 0
+        self._pull_percentage = 0.0
         self._num_elements_processed = 0
         self._num_pull_requests = 0
         self._num_empty_pull_responses = 0

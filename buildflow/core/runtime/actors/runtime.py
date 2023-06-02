@@ -6,6 +6,7 @@ import logging
 from typing import Iterable, List
 
 import ray
+from ray.util.metrics import Gauge
 
 from buildflow import utils
 from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot
@@ -45,6 +46,23 @@ class RuntimeActor(RuntimeAPI):
         self._status = RuntimeStatus.IDLE
         self._processor_pool_actors = []
         self._runtime_loop_future = None
+        # metrics
+        job_id = ray.get_runtime_context().get_job_id()
+        self.current_backlog_gauge = Gauge(
+            "current_backlog",
+            description="Current backlog of the actor. Goes up and down.",
+            tag_keys=(
+                "processor_name",
+                "JobId",
+            ),
+        )
+        self.current_backlog_gauge.set_default_tags(
+            {
+                # In the case where we could not get the processor name
+                "processor_name": "unknown",
+                "JobId": job_id,
+            }
+        )
 
     def run(self, *, processors: Iterable[Processor]):
         logging.info("Starting Runtime...")
@@ -100,6 +118,18 @@ class RuntimeActor(RuntimeAPI):
                     break
 
                 processor_snapshot = await processor_pool.snapshot.remote()
+                # Updates the current backlog gauge (metric: ray_current_backlog)
+                current_backlog = processor_snapshot.source.backlog
+                if current_backlog is None:
+                    current_backlog = 0
+                self.current_backlog_gauge.set(
+                    current_backlog,
+                    tags={
+                        # set the processor name to index the metric by
+                        "processor_name": processor_snapshot.processor_name
+                    },
+                )
+
                 current_num_replicas = len(processor_snapshot.replicas)
                 # TODO: This is a valid case we need to handle, but this is
                 # also happening during initial setup

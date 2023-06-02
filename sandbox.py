@@ -11,13 +11,13 @@ from buildflow.core.infra.config import InfraConfig, SchemaValidation
 
 runtime_config = RuntimeConfig(
     # initial setup options
-    num_threads_per_process=10,
-    num_actors_per_core=1,
-    num_available_cores=1,
+    num_threads_per_process=8,
+    num_actors_per_core=2,
+    num_available_cores=10,
     # autoscale options
     autoscale=True,
     min_replicas=1,
-    max_replicas=10,
+    max_replicas=20,
     # misc
     log_level="INFO",
 )
