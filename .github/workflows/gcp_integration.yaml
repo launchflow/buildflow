@@ -1,9 +1,10 @@
 name: GCP Integration Tests
 
 on:
-  workflow_dispatch
-push:
-    branches: ['main', 'v0.2']
+  workflow_dispatch:
+
+  push:
+      branches: ['main', 'v0.2']
 
 env:
   BUILDFLOW_USAGE_STATS_DISABLE: 1
