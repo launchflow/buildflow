@@ -39,6 +39,8 @@ jobs:
 
       - name: Run Pub/Sub Integration Test
         run: |
+          curl -fsSL https://get.pulumi.com | sh
+          pulumi login --local
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
           cd integration_tests/pubsub_to_pubsub
           ./pubsub_integration.sh
