@@ -4,8 +4,11 @@ from datetime import datetime
 from buildflow import Node
 from buildflow.io import GCPPubSubSubscription, BigQueryTable
 from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.core.infra.config import InfraConfig, SchemaValidation
 
-config = RuntimeConfig(
+# Fleshing options out to show all global defaults while developing
+
+runtime_config = RuntimeConfig(
     # initial setup options
     num_threads_per_process=10,
     num_actors_per_core=1,
@@ -16,6 +19,12 @@ config = RuntimeConfig(
     max_replicas=10,
     # misc
     log_level="INFO",
+)
+
+infra_config = InfraConfig(
+    schema_validation=SchemaValidation.LOG_WARNING,
+    require_confirmation=False,
+    log_level="WARNING",
 )
 
 
@@ -33,11 +42,12 @@ class TaxiOutput:
 
 
 # Create a new Node
-app = Node(runtime_config=config)
+app = Node(runtime_config=runtime_config, infra_config=infra_config)
+
 # Define the source and sink
 pubsub_source = GCPPubSubSubscription(
     topic_id="projects/pubsub-public-data/topics/taxirides-realtime",
-    subscription_id="projects/daring-runway-374503/subscriptions/taxiride-sub",
+    billing_project_id="daring-runway-374503",
 )
 bigquery_sink = BigQueryTable(
     table_id="daring-runway-374503.taxi_ride_benchmark.buildflow"
@@ -48,13 +58,23 @@ bigquery_sink = BigQueryTable(
 @app.processor(source=pubsub_source, sink=bigquery_sink)
 def process(pubsub_message: TaxiOutput) -> TaxiOutput:
     # print('Process: ', pubsub_message)
+    # should_fail = random.randint(0, 1)
+    # if should_fail:
+    #     raise ValueError("Randomly failing")
     return pubsub_message
 
 
-if __name__ == "__main__":
-    app.run(
-        disable_usage_stats=True,
-        disable_resource_creation=False,
-        blocking=True,
-        debug_run=False,
-    )
+app.run(
+    disable_usage_stats=True,
+    # runtime-only options
+    block_runtime=True,
+    debug_run=False,
+    # infra-only options.
+    apply_infrastructure=True,
+    destroy_infrastructure=True,  # Ad hoc infra is really nice for quick demos / tests
+)
+
+# these should also work:
+# app.plan()
+# app.apply()
+# app.destroy()

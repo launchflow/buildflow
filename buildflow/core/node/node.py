@@ -1,11 +1,11 @@
 import asyncio
+import logging
+import signal
 from functools import wraps
 import inspect
 from typing import List, Optional
 
-import signal
-import logging
-
+from buildflow import utils
 from buildflow.api import (
     NodeAPI,
     NodeApplyResult,
@@ -14,13 +14,12 @@ from buildflow.api import (
     SinkType,
     SourceType,
 )
-from buildflow.core.node import _utils as node_utils
-from buildflow.core.infrastructure import InfrastructureActor
+from buildflow.core.infra import PulumiInfraActor
+from buildflow.core.infra.config import InfraConfig
 from buildflow.core.processor import Processor
 from buildflow.core.runtime import RuntimeActor
-from buildflow.io.registry import EmptySink
-from buildflow import utils
 from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.io.registry import EmptySink
 
 
 def _attach_method(cls, func):
@@ -81,22 +80,20 @@ def processor_decorator(
     return decorator_function
 
 
-# NOTE: Node implements NodeAPI, which is a combination of RuntimeAPI and
-# InfrastructureAPI.
+# NOTE: Node implements NodeAPI, which is a combination of RuntimeAPI and InfraAPI.
 class Node(NodeAPI):
     def __init__(
         self,
         name: str = "",
         runtime_config: RuntimeConfig = RuntimeConfig.DEBUG(),
-        *,
-        log_level: str = "INFO",
+        infra_config: InfraConfig = InfraConfig.DEBUG(),
     ) -> None:
         self.name = name
         self._processors: List[Processor] = []
         # The Node class is a wrapper around the Runtime and Infrastructure
         self._runtime_config = runtime_config
         self._runtime = None
-        self._infrastructure = InfrastructureActor.remote(log_level=log_level)
+        self._infra = PulumiInfraActor.remote(infra_config)
 
     def processor(self, source: SourceType, sink: Optional[SinkType] = None, **kwargs):
         # NOTE: processor_decorator is a function that returns an Ad Hoc
@@ -108,26 +105,24 @@ class Node(NodeAPI):
             raise RuntimeError("Cannot add processor to running node.")
         self._processors.append(processor)
 
-    def plan(self) -> NodePlan:
-        return asyncio.get_event_loop().run_until_complete(self._plan_async())
-
-    async def _plan_async(self) -> NodePlan:
-        return await self._infrastructure.plan.remote(processors=self._processors)
-
     def run(
         self,
         *,
         disable_usage_stats: bool = False,
-        disable_resource_creation: bool = True,
-        blocking: bool = True,
+        # runtime-only options
+        block_runtime: bool = True,
         debug_run: bool = False,
+        # infra-only options
+        apply_infrastructure: bool = False,
+        destroy_infrastructure: bool = False,
     ):
         coro = self._run_async(
             disable_usage_stats=disable_usage_stats,
-            disable_resource_creation=disable_resource_creation,
+            apply_infrastructure=apply_infrastructure,
+            destroy_infrastructure=destroy_infrastructure,
             debug_run=debug_run,
         )
-        if blocking:
+        if block_runtime:
             asyncio.get_event_loop().run_until_complete(coro)
         else:
             return coro
@@ -136,38 +131,60 @@ class Node(NodeAPI):
         self,
         *,
         disable_usage_stats: bool = False,
-        disable_resource_creation: bool = True,
+        apply_infrastructure: bool = False,
+        destroy_infrastructure: bool = False,
         debug_run: bool = False,
     ):
         self._runtime = RuntimeActor.remote(self._runtime_config)
-
         # BuildFlow Usage Stats
         if not disable_usage_stats:
-            node_utils.log_buildflow_usage()
+            utils.log_buildflow_usage()
         # BuildFlow Resource Creation
-        if not disable_resource_creation:
+        if apply_infrastructure:
             await self._apply_async()
         # BuildFlow Runtime
         # schedule cleanup
         loop = asyncio.get_event_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, lambda: asyncio.create_task(self._drain()))
+            loop.add_signal_handler(
+                sig,
+                lambda: asyncio.create_task(
+                    self._drain(destroy=destroy_infrastructure)
+                ),
+            )
         # start the runtime
         await self._runtime.run.remote(processors=self._processors)
-        return await self._runtime.run_until_complete.remote()
 
-    async def _drain(self, *args, **kwargs):
+        remote_runtime_task = self._runtime.run_until_complete.remote()
+        if destroy_infrastructure:
+            runtime_future: asyncio.Future = asyncio.wrap_future(
+                remote_runtime_task.future()
+            )
+            # schedule the destroy to run after the runtime is done.
+            # NOTE: This will only run if the runtime finishes successfully.
+            runtime_future.add_done_callback(lambda _: self._destroy_async())
+        return await remote_runtime_task
+
+    async def _drain(self, destroy: bool = False):
         logging.info(f"Draining Node({self.name})...")
         await self._runtime.drain.remote()
         logging.info(f"...Finished draining Node({self.name})")
+        if destroy:
+            await self._destroy_async()
         return True
+
+    def plan(self) -> NodePlan:
+        return asyncio.get_event_loop().run_until_complete(self._plan_async())
+
+    async def _plan_async(self) -> NodePlan:
+        return await self._infra.plan.remote(processors=self._processors)
 
     def apply(self) -> NodeApplyResult:
         return asyncio.get_event_loop().run_until_complete(self._apply_async())
 
     async def _apply_async(self) -> NodeApplyResult:
         logging.info(f"Setting up infrastructure for Node({self.name})...")
-        result = await self._infrastructure.apply.remote(processors=self._processors)
+        result = await self._infra.apply.remote(processors=self._processors)
         logging.info(f"...Finished setting up infrastructure for Node({self.name})")
         return result
 
@@ -176,6 +193,6 @@ class Node(NodeAPI):
 
     async def _destroy_async(self) -> NodeDestroyResult:
         logging.info(f"Tearing down infrastructure for Node({self.name})...")
-        result = await self._infrastructure.destroy.remote(processors=self._processors)
+        result = await self._infra.destroy.remote(processors=self._processors)
         logging.info(f"...Finished tearing down infrastructure for Node({self.name})")
         return result

@@ -1,13 +1,17 @@
 import json
+import os
 from concurrent.futures import TimeoutError
 
 from google.cloud import pubsub_v1
 
 
-# CREATE THE VALIDATION SUBSCRIPTION
+gcp_project = os.environ["GCP_PROJECT"]
+validation_sub = os.environ["VALIDATION_SUB"]
+
+
 # this is used out side of buildflow so we have to create it.
 subscriber = pubsub_v1.SubscriberClient()
-subscription_path = subscriber.subscription_path("pubsub-test-project", "validation")
+subscription_path = subscriber.subscription_path(gcp_project, validation_sub)
 
 expected_data = {"output_val": 2}
 

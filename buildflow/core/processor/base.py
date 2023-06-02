@@ -1,4 +1,4 @@
-from buildflow.api import ProcessorAPI, SinkType
+from buildflow.api import ProcessorAPI, SinkType, SourceType
 from buildflow.io.registry import EmptySink
 
 
@@ -7,11 +7,15 @@ class Processor(ProcessorAPI):
         self.name = name
 
     @classmethod
+    def source(cls) -> SourceType:
+        raise NotImplementedError("source not implemented")
+
+    @classmethod
     def sink(self) -> SinkType:
         return EmptySink()
 
     def setup(self):
         pass
 
-    def process(self, payload):
+    def process(self, payload, **kwargs):
         return payload

@@ -53,3 +53,16 @@ def dict_push_converter(type_: Optional[Type]) -> Callable[[Any], Dict[str, Any]
         return identity()
     else:
         raise ValueError("Cannot convert from type to bytes: `{type_}`")
+
+
+def bytes_push_converter(type_: Optional[Type]) -> Callable[[Any], bytes]:
+    if type_ is None:
+        return identity()
+    elif hasattr(type_, "to_bytes"):
+        return lambda output: type_.to_bytes(output)
+    elif is_dataclass(type_):
+        return dataclass_to_bytes()
+    elif issubclass(type_, bytes):
+        return identity()
+    else:
+        raise ValueError("Cannot convert from type to bytes: `{type_}`")
