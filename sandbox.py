@@ -64,17 +64,19 @@ def process(pubsub_message: TaxiOutput) -> TaxiOutput:
     return pubsub_message
 
 
-app.run(
-    disable_usage_stats=True,
-    # runtime-only options
-    block_runtime=True,
-    debug_run=False,
-    # infra-only options.
-    apply_infrastructure=True,
-    destroy_infrastructure=True,  # Ad hoc infra is really nice for quick demos / tests
-)
+if __name__ == "__main__":
+    app.run(
+        disable_usage_stats=True,
+        # runtime-only options
+        block_runtime=True,
+        debug_run=False,
+        # infra-only options.
+        apply_infrastructure=True,
+        # Ad hoc infra is really nice for quick demos / tests
+        destroy_infrastructure=True,
+    )
 
-# these should also work:
-# app.plan()
-# app.apply()
-# app.destroy()
+    # these should also work:
+    # app.plan()
+    # app.apply()
+    # app.destroy()
