@@ -58,6 +58,10 @@ bigquery_sink = BigQueryTable(
 # Attach a processor to the Node
 @app.processor(source=pubsub_source, sink=bigquery_sink)
 def process(pubsub_message: TaxiOutput) -> TaxiOutput:
+    # print('Process: ', pubsub_message)
+    # should_fail = random.randint(0, 1)
+    # if should_fail:
+    #     raise ValueError("Randomly failing")
     return pubsub_message
 
 
