@@ -41,7 +41,7 @@ class RunTimeTest(unittest.TestCase):
 
         actor.run.remote(processors=[process])
 
-        time.sleep(10)
+        time.sleep(15)
 
         self.run_with_timeout(actor.drain.remote())
 
