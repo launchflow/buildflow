@@ -17,7 +17,7 @@ from buildflow.api import (
 )
 from buildflow.core.infra import PulumiInfraActor
 from buildflow.core.infra.config import InfraConfig
-from buildflow.core.processor import Processor, ProcessorID
+from buildflow.core.processor import Processor
 from buildflow.core.runtime import RuntimeActor
 from buildflow.core.runtime.config import RuntimeConfig, ReplicaConfig
 from buildflow.io.registry import EmptySink
