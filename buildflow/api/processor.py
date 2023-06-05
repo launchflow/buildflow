@@ -3,7 +3,12 @@ from typing import Any, Iterable
 from buildflow.api.io import SinkType, SourceType
 
 
+ProcessorID = str
+
+
 class ProcessorAPI:
+    processor_id: ProcessorID
+
     # This lifecycle method defines the input reference for the processor.
     @classmethod
     def source(cls) -> SourceType:

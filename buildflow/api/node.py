@@ -46,7 +46,12 @@ class NodePlan:
     processors: Iterable[ProcessorPlan]
 
 
+NodeID = str
+
+
 class NodeAPI:
+    node_id: NodeID
+
     def add(self, processor: ProcessorAPI):
         raise NotImplementedError("add not implemented")
 

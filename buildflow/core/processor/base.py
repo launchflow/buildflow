@@ -1,10 +1,10 @@
-from buildflow.api import ProcessorAPI, SinkType, SourceType
+from buildflow.api import ProcessorAPI, SinkType, SourceType, ProcessorID
 from buildflow.io.registry import EmptySink
 
 
 class Processor(ProcessorAPI):
-    def __init__(self, name: str = "") -> None:
-        self.name = name
+    def __init__(self, processor_id: ProcessorID = "") -> None:
+        self.processor_id = processor_id
 
     @classmethod
     def source(cls) -> SourceType:

@@ -52,14 +52,14 @@ class RuntimeActor(RuntimeAPI):
             "current_backlog",
             description="Current backlog of the actor. Goes up and down.",
             tag_keys=(
-                "processor_name",
+                "processor_id",
                 "JobId",
             ),
         )
         self.current_backlog_gauge.set_default_tags(
             {
                 # In the case where we could not get the processor name
-                "processor_name": "unknown",
+                "processor_id": "unknown",
                 "JobId": job_id,
             }
         )
@@ -69,10 +69,14 @@ class RuntimeActor(RuntimeAPI):
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
-        self._processor_pool_actors = [
-            ProcessorReplicaPoolActor.remote(processor, self.config)
-            for processor in processors
-        ]
+        self._processor_pool_actors = []
+        for processor in processors:
+            # NOTE: the replica configs dictionary is a defaultdict
+            replica_config = self.config.replica_configs[processor.processor_id]
+            self._processor_pool_actors.append(
+                ProcessorReplicaPoolActor.remote(processor, replica_config)
+            )
+
         # TODO: these can fail sometimes when the converter isn't provided correctly.
         # i.e. a user provides a type that we don't know how to convert for a source /
         # sink. Right now we just log the error but keep trying.
@@ -80,7 +84,7 @@ class RuntimeActor(RuntimeAPI):
             # Ensure we can start the actor. This might fail if the processor is
             # misconfigured.
             actor.run.remote()
-            actor.add_replicas.remote(self.config.num_replicas())
+            actor.add_replicas.remote(self.config.num_replicas)
 
         self._runtime_loop_future = self._runtime_checkin_loop()
 
@@ -131,7 +135,7 @@ class RuntimeActor(RuntimeAPI):
                     current_backlog,
                     tags={
                         # set the processor name to index the metric by
-                        "processor_name": processor_snapshot.processor_name
+                        "processor_id": processor_snapshot.processor_id
                     },
                 )
 
