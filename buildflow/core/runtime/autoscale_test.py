@@ -6,12 +6,12 @@ import pytest
 
 from buildflow.core.runtime import autoscale
 from buildflow.core.runtime.actors.process_pool import (
+    ProcessorSnapshot,
     RayActorInfo,
     ReplicaSnapshot,
     SourceInfo,
-    ProcessorSnapshot,
 )
-from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.core.runtime.config import AutoscalerConfig
 
 
 @mock.patch("ray.available_resources", return_value={"CPU": 32})
@@ -43,11 +43,8 @@ class AutoScalerTest(unittest.TestCase):
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
                 ),
-                config=RuntimeConfig(
-                    num_threads_per_process=1,
-                    num_actors_per_core=1,
-                    num_available_cores=1,
-                    autoscale=True,
+                config=AutoscalerConfig(
+                    enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=10000,
                 ),
@@ -88,11 +85,8 @@ class AutoScalerTest(unittest.TestCase):
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
                 ),
-                config=RuntimeConfig(
-                    num_threads_per_process=1,
-                    num_actors_per_core=1,
-                    num_available_cores=1,
-                    autoscale=True,
+                config=AutoscalerConfig(
+                    enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=10000,
                 ),
@@ -128,11 +122,8 @@ class AutoScalerTest(unittest.TestCase):
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
                 ),
-                config=RuntimeConfig(
-                    num_threads_per_process=1,
-                    num_actors_per_core=1,
-                    num_available_cores=1,
-                    autoscale=True,
+                config=AutoscalerConfig(
+                    enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=5,
                 ),
@@ -173,11 +164,8 @@ class AutoScalerTest(unittest.TestCase):
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.5),
                 ),
-                config=RuntimeConfig(
-                    num_threads_per_process=1,
-                    num_actors_per_core=1,
-                    num_available_cores=1,
-                    autoscale=True,
+                config=AutoscalerConfig(
+                    enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=1000,
                 ),
@@ -218,11 +206,8 @@ class AutoScalerTest(unittest.TestCase):
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
                 ),
-                config=RuntimeConfig(
-                    num_threads_per_process=1,
-                    num_actors_per_core=1,
-                    num_available_cores=1,
-                    autoscale=True,
+                config=AutoscalerConfig(
+                    enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=84,
                 ),
@@ -262,11 +247,8 @@ class AutoScalerTest(unittest.TestCase):
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
                 ),
-                config=RuntimeConfig(
-                    num_threads_per_process=1,
-                    num_actors_per_core=1,
-                    num_available_cores=1,
-                    autoscale=True,
+                config=AutoscalerConfig(
+                    enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=1000,
                 ),
@@ -309,11 +291,8 @@ class AutoScalerTest(unittest.TestCase):
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
                 ),
-                config=RuntimeConfig(
-                    num_threads_per_process=1,
-                    num_actors_per_core=1,
-                    num_available_cores=1,
-                    autoscale=True,
+                config=AutoscalerConfig(
+                    enable_autoscaler=True,
                     min_replicas=18,
                     max_replicas=1000,
                 ),

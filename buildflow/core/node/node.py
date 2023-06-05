@@ -143,7 +143,7 @@ class Node(NodeAPI):
         self._runtime_config.replica_configs[processor.processor_id] = ReplicaConfig(
             num_cpus=num_cpus,
             num_concurrent_tasks=num_concurrent_tasks,
-            log_level=self._runtime_config.log_level,
+            log_level=log_level,
         )
         self._processors.append(processor)
 
