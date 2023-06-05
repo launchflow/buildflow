@@ -92,16 +92,16 @@ def _processor_decorator(
 class Node(NodeAPI):
     def __init__(
         self,
-        node_id: NodeID = "",
-        runtime_config: RuntimeConfig = RuntimeConfig.DEBUG(),
-        infra_config: InfraConfig = InfraConfig.DEBUG(),
+        node_id: NodeID = f"node_{utils.uuid(max_len=8)}",
+        runtime_config: Optional[RuntimeConfig] = None,
+        infra_config: Optional[InfraConfig] = None,
     ) -> None:
         self.node_id = node_id
         self._processors: List[Processor] = []
         # The Node class is a wrapper around the Runtime and Infrastructure
-        self._runtime_config = runtime_config
+        self._runtime_config = runtime_config or RuntimeConfig.DEBUG()
         self._runtime_actor = None
-        self._infra_config = infra_config
+        self._infra_config = infra_config or InfraConfig.DEBUG()
 
     def processor(
         self,

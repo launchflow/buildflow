@@ -69,12 +69,14 @@ class RuntimeActor(RuntimeAPI):
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
-        self._processor_pool_actors = [
-            ProcessorReplicaPoolActor.remote(
-                processor, self.config.replica_configs.get(processor.processor_id)
+        self._processor_pool_actors = []
+        for processor in processors:
+            # NOTE: the replica configs dictionary is a defaultdict
+            replica_config = self.config.replica_configs[processor.processor_id]
+            self._processor_pool_actors.append(
+                ProcessorReplicaPoolActor.remote(processor, replica_config)
             )
-            for processor in processors
-        ]
+
         # TODO: these can fail sometimes when the converter isn't provided correctly.
         # i.e. a user provides a type that we don't know how to convert for a source /
         # sink. Right now we just log the error but keep trying.

@@ -14,7 +14,7 @@ class ReplicaConfig:
 
     @classmethod
     def DEBUG(cls):
-        return cls(num_cpus=1, num_concurrent_tasks=1)
+        return cls(num_cpus=0.5, num_concurrent_tasks=1)
 
     @classmethod
     def IO_BOUND(cls):

@@ -88,10 +88,10 @@ class PullProcessPushTest(unittest.TestCase):
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=Files(file_path=self.output_path, file_format="csv"),
         )
-        async def process_async(payload):
+        async def process(payload):
             return payload
 
-        actor = PullProcessPushActor.remote(processor=process_async)
+        actor = PullProcessPushActor.remote(processor=process)
 
         self.run_with_timeout(actor.run.remote())
 
