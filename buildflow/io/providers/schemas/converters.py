@@ -3,9 +3,15 @@ from dataclasses import is_dataclass
 import json
 from typing import Any, Dict, Callable, Optional, Type
 
+from buildflow.core import exceptions
+
 
 def identity():
     return lambda x: x
+
+
+def bytes_to_dict() -> Callable[[bytes], Dict[str, Any]]:
+    return lambda bytes_: json.loads(bytes_.decode())
 
 
 def bytes_to_dataclass(type_: Type) -> Callable[[bytes], Any]:
@@ -52,7 +58,9 @@ def dict_push_converter(type_: Optional[Type]) -> Callable[[Any], Dict[str, Any]
     elif issubclass(type_, dict):
         return identity()
     else:
-        raise ValueError("Cannot convert from type to bytes: `{type_}`")
+        raise exceptions.CannotConvertSinkException(
+            "Cannot convert from type to bytes: `{type_}`"
+        )
 
 
 def bytes_push_converter(type_: Optional[Type]) -> Callable[[Any], bytes]:
@@ -65,4 +73,6 @@ def bytes_push_converter(type_: Optional[Type]) -> Callable[[Any], bytes]:
     elif issubclass(type_, bytes):
         return identity()
     else:
-        raise ValueError("Cannot convert from type to bytes: `{type_}`")
+        raise exceptions.CannotConvertSinkException(
+            "Cannot convert from type to bytes: `{type_}`"
+        )

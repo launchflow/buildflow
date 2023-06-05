@@ -115,6 +115,22 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 "JobId": job_id,
             }
         )
+        full_arg_spec = inspect.getfullargspec(self.processor.process)
+        output_type = None
+        input_type = None
+        if "return" in full_arg_spec.annotations:
+            output_type = full_arg_spec.annotations["return"]
+        if (
+            len(full_arg_spec.args) > 1
+            and full_arg_spec.args[1] in full_arg_spec.annotations
+        ):
+            input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
+        self.pull_converter = (
+            self.processor.source().provider().pull_converter(input_type)
+        )
+        self.push_converter = (
+            self.processor.sink().provider().push_converter(output_type)
+        )
 
     async def run(self):
         if self._status == RuntimeStatus.IDLE:
@@ -127,19 +143,6 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         self._num_running_threads += 1
 
         raw_process_fn = self.processor.process
-        full_arg_spec = inspect.getfullargspec(raw_process_fn)
-        output_type = None
-        input_type = None
-        if "return" in full_arg_spec.annotations:
-            output_type = full_arg_spec.annotations["return"]
-        if (
-            len(full_arg_spec.args) > 1
-            and full_arg_spec.args[1] in full_arg_spec.annotations
-        ):
-            input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
-        pull_converter = self.processor.source().provider().pull_converter(input_type)
-        push_converter = self.processor.sink().provider().push_converter(output_type)
-
         process_fn = raw_process_fn
         if not inspect.iscoroutinefunction(raw_process_fn):
             # Wrap the raw process function in an async function to make our calls below
@@ -174,7 +177,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 process_start_time = time.time()
                 self._pull_percentage += len(response.payload) / batch_size
                 batch_results = [
-                    push_converter(await process_fn(pull_converter(element)))
+                    self.push_converter(await process_fn(self.pull_converter(element)))
                     for element in response.payload
                 ]
                 self.process_time_gauge.set(

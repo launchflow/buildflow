@@ -1,7 +1,7 @@
 import dataclasses
 import pulumi
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, Type
+from typing import Any, Callable, Dict, Iterable, Optional, Type
 
 
 class AckInfo:
@@ -119,6 +119,6 @@ class PulumiProvider(ProviderAPI):
 
     # NOTE: You can return anything that inherits from pulumi.Resource
     # (i.e. pulumi.ComponentResource)
-    def pulumi(self) -> PulumiResources:
+    def pulumi(self, type_: Optional[Type]) -> PulumiResources:
         """Provides a list of pulumi.Resources to setup prior to runtime."""
         raise NotImplementedError("pulumi not implemented")
