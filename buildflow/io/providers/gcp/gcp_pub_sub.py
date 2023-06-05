@@ -20,6 +20,7 @@ from buildflow.io.providers.gcp.utils import clients as gcp_clients
 from buildflow.io.providers.gcp.utils import setup_utils
 from buildflow import utils
 from buildflow.io.providers.schemas import converters
+from buildflow.core import exceptions
 
 
 @dataclass(frozen=True)
@@ -141,10 +142,17 @@ class GCPPubSubSubscriptionProvider(
             return lambda output: type_.from_bytes(output)
         elif is_dataclass(type_):
             return converters.bytes_to_dataclass(type_)
-        elif issubclass(type_, bytes):
-            return converters.identity()
         else:
-            raise ValueError("Cannot convert from bytes to type: `{type_}`")
+            if hasattr(type_, "__origin__"):
+                type_ = type_.__origin__
+            if issubclass(type_, bytes):
+                return converters.identity()
+            elif issubclass(type_, dict):
+                return converters.bytes_to_dict()
+            else:
+                raise exceptions.CannotConvertSourceException(
+                    f"Cannot convert from bytes to type: `{type_}`"
+                )
 
     def push_converter(self, type_: Optional[Type]) -> Callable[[Any], bytes]:
         return converters.bytes_push_converter(type_)
@@ -202,7 +210,7 @@ class GCPPubSubSubscriptionProvider(
             billing_project=self.billing_project_id,
         )
 
-    def pulumi(self) -> PulumiResources:
+    def pulumi(self, type_: Optional[Type]) -> PulumiResources:
         # TODO: Add support for all pulumi inputs
         subscription_resource = pulumi_gcp.pubsub.Subscription(
             # NOTE: resource_name is the name of the resource in Pulumi state, not gcp
@@ -248,7 +256,10 @@ class GCPPubSubTopicProvider(PushProvider, SetupProvider, PlanProvider, PulumiPr
     async def plan(self):
         return asdict(_PubSubTopicPlan(topic_id=self.topic_id))
 
-    def pulumi(self) -> PulumiResources:
+    def pulumi(
+        self,
+        type_: Optional[Type],
+    ) -> PulumiResources:
         # TODO: Add support for all pulumi inputs
         topic_resource = pulumi_gcp.pubsub.Topic(
             self.topic_name, name=self.topic_name, project=self.billing_project_id

@@ -11,8 +11,6 @@ ray start --head --num-cpus=2
 
 final_output=1
 
-
-
 buildflow run pubsub_main:app --apply-infrastructure --destroy-infrastructure &
 main_pid=$!
 

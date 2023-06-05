@@ -150,7 +150,6 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
                     placement_group_capture_child_tasks=True,
                 ),
             ).remote(self.processor, log_level=self.config.log_level)
-
             if self._status == RuntimeStatus.RUNNING:
                 for _ in range(self.config.num_concurrent_tasks):
                     replica_actor_handle.run.remote()

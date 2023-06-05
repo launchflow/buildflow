@@ -18,7 +18,7 @@ class RuntimeStatus(enum.Enum):
 
 
 class RuntimeAPI:
-    def run(self, block: bool) -> bool:
+    async def run(self, block: bool) -> bool:
         """Starts the runtime."""
         raise NotImplementedError("run not implemented")
 

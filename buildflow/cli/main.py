@@ -106,6 +106,41 @@ def plan(
         typer.Exit(1)
 
 
+@app.command(help="Apply all resources used by a buildflow node or grid")
+def apply(
+    app: str = typer.Argument(..., help="The app to plan"),
+    app_dir: str = APP_DIR_OPTION,
+):
+    sys.path.insert(0, app_dir)
+    imported = utils.import_from_string(app)
+    # TODO: Add support for deployment grids
+    if isinstance(imported, (buildflow.Node)):
+        plan = imported.plan()
+        print(plan)
+        print()
+        imported.apply()
+
+    else:
+        typer.echo("plan must be run on a node, or deployment grid")
+        typer.Exit(1)
+
+
+@app.command(help="Destroy all resources used by a buildflow node or grid")
+def destroy(
+    app: str = typer.Argument(..., help="The app to plan"),
+    app_dir: str = APP_DIR_OPTION,
+):
+    sys.path.insert(0, app_dir)
+    imported = utils.import_from_string(app)
+    # TODO: Add support for deployment grids
+    if isinstance(imported, (buildflow.Node)):
+        imported.destroy()
+
+    else:
+        typer.echo("plan must be run on a node, or deployment grid")
+        typer.Exit(1)
+
+
 def main():
     app()
 
