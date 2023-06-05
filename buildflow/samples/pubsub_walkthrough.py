@@ -51,7 +51,7 @@ app = Node(infra_config=infra_config)
 
 # Define our processor.
 @app.processor(source=input_sub, sink=output_table)
-def process(element: Dict[str, Any]) -> TaxiOutput:
+def process(element: Dict[str, Any]) -> int:
     return TaxiOutput(**element)
 
 

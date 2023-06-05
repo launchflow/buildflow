@@ -64,7 +64,7 @@ class RuntimeActor(RuntimeAPI):
             }
         )
 
-    async def run(self, *, processors: Iterable[Processor]):
+    def run(self, *, processors: Iterable[Processor]):
         logging.info("Starting Runtime...")
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
@@ -73,17 +73,11 @@ class RuntimeActor(RuntimeAPI):
             ProcessorReplicaPoolActor.remote(processor, self.config)
             for processor in processors
         ]
-        initial_coros = []
         for actor in self._processor_pool_actors:
-            initial_coros.append(actor.run.remote())
-            initial_coros.append(actor.add_replicas.remote(self.config.num_replicas()))
-        try:
-            # We wait on the initial setup to ensure we can successfully start the
-            # runtime.
-            await asyncio.gather(*initial_coros)
-        except Exception:
-            logging.exception("Failed to start Runtime.")
-            return
+            # Ensure we can start the actor. This might fail if the processor is
+            # misconfigured.
+            actor.run.remote()
+            actor.add_replicas.remote(self.config.num_replicas())
 
         self._runtime_loop_future = self._runtime_checkin_loop()
 
