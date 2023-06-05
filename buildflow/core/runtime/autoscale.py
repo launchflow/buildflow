@@ -19,7 +19,7 @@ import ray
 from ray.autoscaler.sdk import request_resources
 
 from buildflow.core.runtime.actors.process_pool import ProcessorSnapshot
-from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.core.runtime.config import AutoscalerConfig
 
 # TODO: Make this configurable
 _TARGET_UTILIZATION = 0.5
@@ -31,7 +31,9 @@ def _available_replicas(cpu_per_replica: float):
     return int(num_cpus / cpu_per_replica)
 
 
-def calculate_target_num_replicas(snapshot: ProcessorSnapshot, config: RuntimeConfig):
+def calculate_target_num_replicas(
+    snapshot: ProcessorSnapshot, config: AutoscalerConfig
+):
     cpus_per_replica = snapshot.actor_info.num_cpus
 
     current_num_replicas = len(snapshot.replicas)

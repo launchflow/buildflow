@@ -8,9 +8,10 @@ from .node import (
     NodeRunResult,
     ProcessorPlan,
     IOPlan,
+    NodeID,
 )
 from .options import AutoscalingOptions
-from .processor import ProcessorAPI
+from .processor import ProcessorAPI, ProcessorID
 from .grid import GridAPI
 from .runtime import RuntimeAPI, Snapshot, RuntimeStatus, AsyncRuntimeAPI
 from .infra import InfraAPI

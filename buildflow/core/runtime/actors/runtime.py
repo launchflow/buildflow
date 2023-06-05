@@ -52,14 +52,14 @@ class RuntimeActor(RuntimeAPI):
             "current_backlog",
             description="Current backlog of the actor. Goes up and down.",
             tag_keys=(
-                "processor_name",
+                "processor_id",
                 "JobId",
             ),
         )
         self.current_backlog_gauge.set_default_tags(
             {
                 # In the case where we could not get the processor name
-                "processor_name": "unknown",
+                "processor_id": "unknown",
                 "JobId": job_id,
             }
         )
@@ -70,12 +70,14 @@ class RuntimeActor(RuntimeAPI):
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
         self._processor_pool_actors = [
-            ProcessorReplicaPoolActor.remote(processor, self.config)
+            ProcessorReplicaPoolActor.remote(
+                processor, self.config.replica_configs.get(processor.processor_id)
+            )
             for processor in processors
         ]
         for actor in self._processor_pool_actors:
             actor.run.remote()
-            actor.add_replicas.remote(self.config.num_replicas())
+            actor.add_replicas.remote(self.config.num_replicas)
 
         self._runtime_loop_future = self._runtime_checkin_loop()
 
@@ -126,7 +128,7 @@ class RuntimeActor(RuntimeAPI):
                     current_backlog,
                     tags={
                         # set the processor name to index the metric by
-                        "processor_name": processor_snapshot.processor_name
+                        "processor_id": processor_snapshot.processor_id
                     },
                 )
 

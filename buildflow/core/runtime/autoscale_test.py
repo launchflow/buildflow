@@ -37,7 +37,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
-                    processor_name="test",
+                    processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
                     replicas=replicas,
@@ -82,7 +82,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
-                    processor_name="test",
+                    processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
                     replicas=replicas,
@@ -122,7 +122,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
-                    processor_name="test",
+                    processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
                     replicas=replicas,
@@ -167,7 +167,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
-                    processor_name="test",
+                    processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
                     replicas=replicas,
@@ -212,7 +212,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
-                    processor_name="test",
+                    processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
                     replicas=replicas,
@@ -256,7 +256,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
-                    processor_name="test",
+                    processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
                     replicas=replicas,
@@ -303,7 +303,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
-                    processor_name="test",
+                    processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
                     replicas=replicas,
