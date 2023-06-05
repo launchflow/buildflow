@@ -73,6 +73,9 @@ class RuntimeActor(RuntimeAPI):
             ProcessorReplicaPoolActor.remote(processor, self.config)
             for processor in processors
         ]
+        # TODO: these can fail sometimes when the converter isn't provided correctly.
+        # i.e. a user provides a type that we don't know how to convert for a source /
+        # sink. Right now we just log the error but keep trying.
         for actor in self._processor_pool_actors:
             # Ensure we can start the actor. This might fail if the processor is
             # misconfigured.
