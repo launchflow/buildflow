@@ -139,7 +139,6 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
         pull_converter = self.processor.source().provider().pull_converter(input_type)
         push_converter = self.processor.sink().provider().push_converter(output_type)
-
         process_fn = raw_process_fn
         if not inspect.iscoroutinefunction(raw_process_fn):
             # Wrap the raw process function in an async function to make our calls below

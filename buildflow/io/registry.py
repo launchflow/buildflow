@@ -47,11 +47,16 @@ class GCPPubSubSubscription(ResourceType):
 @dataclass
 class BigQueryTable(ResourceType):
     table_id: str
+    include_dataset: bool = True
+    destroy_protection: bool = True
 
     def provider(self):
         billing_project_id = self.table_id.split(".")[0]
         return StreamingBigQueryProvider(
-            billing_project_id=billing_project_id, table_id=self.table_id
+            billing_project_id=billing_project_id,
+            table_id=self.table_id,
+            include_dataset=self.include_dataset,
+            destroy_protection=self.destroy_protection,
         )
 
 

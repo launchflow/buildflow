@@ -1,3 +1,4 @@
+import inspect
 import logging
 from typing import Iterable
 
@@ -122,10 +123,20 @@ class PulumiInfraActor(InfraAPI):
     def _create_pulumi_program(self, processors: Iterable[Processor]):
         def pulumi_program():
             for processor in processors:
+                full_arg_spec = inspect.getfullargspec(processor.process)
+                output_type = None
+                input_type = None
+                if "return" in full_arg_spec.annotations:
+                    output_type = full_arg_spec.annotations["return"]
+                if (
+                    len(full_arg_spec.args) > 1
+                    and full_arg_spec.args[1] in full_arg_spec.annotations
+                ):
+                    input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
                 # Fetch the Pulumi Resources from the source provider (if any)
                 source_provider = processor.source().provider()
                 if isinstance(source_provider, PulumiProvider):
-                    pulumi_resources = source_provider.pulumi()
+                    pulumi_resources = source_provider.pulumi(input_type)
                     logging.debug(f"pulumi_resources: {pulumi_resources}")
                     for key, value in pulumi_resources.exports.items():
                         pulumi.export(key, value)
@@ -134,7 +145,7 @@ class PulumiInfraActor(InfraAPI):
                 # Fetch the Pulumi Resources from the sink provider (if any)
                 sink_provider = processor.sink().provider()
                 if isinstance(sink_provider, PulumiProvider):
-                    pulumi_resources = sink_provider.pulumi()
+                    pulumi_resources = sink_provider.pulumi(output_type)
                     logging.debug(f"pulumi_resources: {pulumi_resources}")
                     for key, value in pulumi_resources.exports.items():
                         pulumi.export(key, value)

@@ -1,29 +1,36 @@
+from dataclasses import is_dataclass
 from typing import Any, Callable, Dict, Optional, List, Type
 
-# from google.protobuf.message import Message
+import pulumi
+import pulumi_gcp
 
-# TODO: Make our own proto parsing library
-
-from buildflow.io.providers import PushProvider
+from buildflow.io.providers import PulumiProvider, PushProvider
+from buildflow.io.providers.base import PulumiResources
 from buildflow.io.providers.gcp.utils import clients as gcp_clients
+from buildflow.io.providers.schemas import bigquery_schemas
 from buildflow.io.providers.schemas import converters
 
 
-class StreamingBigQueryProvider(PushProvider):
+class StreamingBigQueryProvider(PushProvider, PulumiProvider):
     # TODO: should make this configure able.
     _BATCH_SIZE = 10_000
 
-    def __init__(self, *, billing_project_id: str, table_id: str):
+    def __init__(
+        self,
+        *,
+        billing_project_id: str,
+        table_id: str,
+        include_dataset: bool = True,
+        destroy_protection: bool = True,
+    ):
         super().__init__()
         # configuration
         self.billing_project = billing_project_id
         self.table_id = table_id
+        self.include_dataset = include_dataset
+        self.destroy_protection = destroy_protection
         # setup
         self.bq_client = gcp_clients.get_bigquery_client(self.billing_project)
-        # initial state
-        self._proto_class = None
-        self._write_stream_name = None
-        # schedule cleanup
 
     async def push(self, batch: List[dict]):
         for i in range(0, len(batch), self._BATCH_SIZE):
@@ -36,3 +43,44 @@ class StreamingBigQueryProvider(PushProvider):
         self, user_defined_type: Optional[Type]
     ) -> Callable[[Any], Dict[str, Any]]:
         return converters.dict_push_converter(user_defined_type)
+
+    def pulumi(
+        self,
+        type_: Optional[Type],
+    ) -> PulumiResources:
+        # TODO: add additional options for dataset and table creation.
+        project, dataset, table = self.table_id.split(".")
+        resources = []
+        exports = {}
+        if self.include_dataset:
+            dataset_resource = pulumi_gcp.bigquery.Dataset(
+                resource_name=f"{project}.{dataset}",
+                project=project,
+                dataset_id=dataset,
+            )
+            resources.append(dataset_resource)
+            exports["gcp.bigquery.dataset_id"] = f"{project}.{dataset}"
+
+        schema = None
+        if type_ and is_dataclass(type_):
+            schema = bigquery_schemas.dataclass_to_json_bq_schema(type_)
+
+        parent = dataset_resource if self.include_dataset else None
+        table_resource = pulumi_gcp.bigquery.Table(
+            opts=pulumi.ResourceOptions(parent=parent),
+            resource_name=self.table_id,
+            project=project,
+            dataset_id=dataset,
+            table_id=table,
+            schema=schema,
+            deletion_protection=(
+                self.destroy_protection if not self.destroy_protection else None
+            ),
+        )
+
+        resources.append(table_resource)
+        exports["gcp.biquery.table_id"] = self.table_id
+
+        if schema is not None:
+            exports[f"gcp.bigquery.schema.{self.table_id}"] = schema
+        return PulumiResources(resources=resources, exports=exports)

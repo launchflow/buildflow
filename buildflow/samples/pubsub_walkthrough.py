@@ -4,21 +4,24 @@ import os
 from typing import Any, Dict
 
 import buildflow
-from buildflow import ComputeNode
+from buildflow import Node, InfraConfig, SchemaValidation
 
 gcp_project = os.environ["GCP_PROJECT"]
 bigquery_table = os.environ["BIGQUERY_TABLE"]
+subscription = os.environ["SUBSCRIPTION"]
 
 # Set up a subscriber for the source.
 # If this subscriber does not exist yet BuildFlow will create it.
-input_sub = buildflow.GCPPubSubSource(
-    subscription=f"projects/{gcp_project}/subscriptions/taxiride-sub",
-    topic="projects/pubsub-public-data/topics/taxirides-realtime",
+input_sub = buildflow.io.GCPPubSubSubscription(
+    billing_project_id=gcp_project,
+    subscription_name=subscription,
+    topic_id="projects/pubsub-public-data/topics/taxirides-realtime",
 )
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
-output_table = buildflow.BigQuerySink(
-    table_id=f"{gcp_project}.buildflow_walkthrough.{bigquery_table}"
+output_table = buildflow.io.BigQueryTable(
+    table_id=f"{gcp_project}.buildflow_walkthrough.{bigquery_table}",
+    destroy_protection=False,
 )
 
 
@@ -38,13 +41,18 @@ class TaxiOutput:
     passenger_count: int
 
 
-app = ComputeNode()
+infra_config = InfraConfig(
+    schema_validation=SchemaValidation.LOG_WARNING,
+    require_confirmation=False,
+    log_level="WARNING",
+)
+app = Node(infra_config=infra_config)
 
 
 # Define our processor.
 @app.processor(source=input_sub, sink=output_table)
-def process(element: Dict[str, Any]) -> TaxiOutput:
-    return element
+def process(element: Dict[str, Any]) -> int:
+    return TaxiOutput(**element)
 
 
 if __name__ == "__main__":
