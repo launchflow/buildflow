@@ -53,19 +53,19 @@ class PulumiInfraActor(InfraAPI):
         )
 
     async def plan(self, *, processors: Iterable[Processor]):
-        logging.info(f"Planning Pulumi stack: {self.stack_name}")
+        logging.debug(f"Planning Pulumi stack: {self.stack_name}")
         stack = self._create_or_select_stack(processors)
         preview_result: auto.PreviewResult = stack.preview()
 
         # should we log any of this on debug level?
 
         # log pulumi's stdout and stderr
-        logging.info(f"plan: {preview_result.stdout}")
+        logging.debug(f"plan: {preview_result.stdout}")
         if preview_result.stderr:
             logging.error(f"plan: {preview_result.stderr}")
 
         # TODO: print a more useful change summary
-        logging.info(f"plan: {preview_result.change_summary}")
+        logging.debug(f"plan: {preview_result.change_summary}")
         return preview_result.stdout
 
     async def apply(self, *, processors: Iterable[Processor]):

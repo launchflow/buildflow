@@ -22,5 +22,5 @@ class InfraConfig:
         return cls(
             schema_validation=SchemaValidation.LOG_WARNING,
             require_confirmation=True,
-            log_level="DEBUG",
+            log_level="INFO",
         )

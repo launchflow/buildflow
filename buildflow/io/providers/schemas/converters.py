@@ -48,6 +48,21 @@ def dataclass_to_bytes() -> Callable[[Any], bytes]:
     return lambda user_type: json.dumps(_dataclass_to_json(user_type)).encode()
 
 
+def _type_hint_contains_dataclasses(type_hint):
+    if (
+        getattr(type_hint, "__origin__", None) is list
+        or getattr(type_hint, "__origin__", None) is set
+    ):
+        args = getattr(type_hint, "__args__", [])
+        if args and len(args) == 1 and is_dataclass(args[0]):
+            return True
+    return False
+
+
+def _dataclass_container_to_json():
+    return lambda container: [_dataclass_to_json(v) for v in container]
+
+
 def dict_push_converter(type_: Optional[Type]) -> Callable[[Any], Dict[str, Any]]:
     if type_ is None:
         return identity()
@@ -55,6 +70,8 @@ def dict_push_converter(type_: Optional[Type]) -> Callable[[Any], Dict[str, Any]
         return lambda output: type_.to_json(output)
     elif is_dataclass(type_):
         return dataclass_to_json()
+    elif _type_hint_contains_dataclasses(type_):
+        return _dataclass_container_to_json()
     elif issubclass(type_, dict):
         return identity()
     else:

@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Optional
 from uuid import uuid4
 
 import requests
@@ -22,27 +22,6 @@ def uuid(max_len: Optional[int] = None) -> str:
 
 def timestamp_millis() -> int:
     return int(datetime.datetime.now().timestamp() * 1000)
-
-
-def dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
-    # NOTE: we roll our own asdict instead of using dataclasses.asdict because
-    # of an issue with dataclasses and cloudpickle.
-    # https://github.com/cloudpipe/cloudpickle/issues/386
-    # This also converts some field types that we know aren't serializable to
-    # json.
-    #   - datetime.datetime, datetime.date, datetime.time
-
-    to_ret = {}
-    for k in dataclass_instance.__dataclass_fields__:
-        val = getattr(dataclass_instance, k)
-        if isinstance(val, (datetime.datetime, datetime.date, datetime.time)):
-            val = val.isoformat()
-        if dataclasses.is_dataclass(val):
-            val = dataclass_to_json(val)
-        if isinstance(val, list) and len(val) > 0 and dataclasses.is_dataclass(val[0]):
-            val = [dataclass_to_json(v) for v in val]
-        to_ret[k] = val
-    return to_ret
 
 
 def get_fn_args(fn) -> inspect.FullArgSpec:

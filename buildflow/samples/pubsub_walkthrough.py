@@ -7,8 +7,9 @@ import buildflow
 from buildflow import Node, InfraConfig, SchemaValidation
 
 gcp_project = os.environ["GCP_PROJECT"]
-bigquery_table = os.environ["BIGQUERY_TABLE"]
-subscription = os.environ["SUBSCRIPTION"]
+bigquery_table = os.environ.get("BIGQUERY_TABLE", "taxi_rides")
+subscription = os.environ.get("SUBSCRIPTION", "taxi-rides-sub")
+dataset = os.environ.get("DATASET", "buildflow_walkthrough")
 
 # Set up a subscriber for the source.
 # If this subscriber does not exist yet BuildFlow will create it.
@@ -20,7 +21,7 @@ input_sub = buildflow.io.GCPPubSubSubscription(
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 output_table = buildflow.io.BigQueryTable(
-    table_id=f"{gcp_project}.buildflow_walkthrough.{bigquery_table}",
+    table_id=f"{gcp_project}.{dataset}.{bigquery_table}",
     destroy_protection=False,
 )
 
@@ -51,7 +52,7 @@ app = Node(infra_config=infra_config)
 
 # Define our processor.
 @app.processor(source=input_sub, sink=output_table)
-def process(element: Dict[str, Any]) -> int:
+def process(element: Dict[str, Any]) -> TaxiOutput:
     return TaxiOutput(**element)
 
 

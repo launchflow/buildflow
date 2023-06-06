@@ -47,6 +47,8 @@ class GCPPubSubSubscription(ResourceType):
 @dataclass
 class BigQueryTable(ResourceType):
     table_id: str
+
+    # Resource management options
     include_dataset: bool = True
     destroy_protection: bool = True
 
@@ -65,9 +67,14 @@ class GCSFileStream(ResourceType):
     bucket_name: str
     project_id: str
 
+    # Resource management options
+    force_destroy: bool = False
+
     def provider(self):
         return GCSFileStreamProvider(
-            bucket_name=self.bucket_name, project_id=self.project_id
+            bucket_name=self.bucket_name,
+            project_id=self.project_id,
+            force_destroy=self.force_destroy,
         )
 
 
