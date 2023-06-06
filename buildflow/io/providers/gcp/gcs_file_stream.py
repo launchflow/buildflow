@@ -94,7 +94,7 @@ class GCSFileStreamProvider(PullProvider, PulumiProvider):
             raise ValueError("Input type for GCS file stream should be: `GCSFileEvent`")
         return converters.identity()
 
-    def pulumi(self, type_: Any | None) -> PulumiResources:
+    def pulumi(self, type_: Optional[Type]) -> PulumiResources:
         # TODO: should support additional parameters for all resource creation.
         # probably most importantly the bucket (location, ttl, etc..)
         resources = []
