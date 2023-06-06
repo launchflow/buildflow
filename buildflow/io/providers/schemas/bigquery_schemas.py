@@ -21,6 +21,9 @@ _PY_TYPE_TO_BQ_TYPE = {
 }
 
 
+# TODO: Find a better fix for this.
+# Context: dataclasses.fields(type) is not working inside a remote ray Actor / task when
+# the type arg is fetched using inspect.getfullargspec(...).annotations['return']
 def _dataclass_fields(class_or_instance):
     """Return a tuple describing the fields of this dataclass.
 
