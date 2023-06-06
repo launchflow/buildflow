@@ -92,16 +92,16 @@ def _processor_decorator(
 class Node(NodeAPI):
     def __init__(
         self,
-        node_id: NodeID = f"node_{utils.uuid(max_len=8)}",
+        node_id: NodeID = "buildflow-node",
         runtime_config: Optional[RuntimeConfig] = None,
         infra_config: Optional[InfraConfig] = None,
     ) -> None:
         self.node_id = node_id
         self._processors: List[Processor] = []
         # The Node class is a wrapper around the Runtime and Infrastructure
-        self._runtime_config = runtime_config or RuntimeConfig.DEBUG()
+        self._runtime_config = runtime_config or RuntimeConfig.IO_BOUND()
         self._runtime_actor = None
-        self._infra_config = infra_config or InfraConfig.DEBUG()
+        self._infra_config = infra_config or InfraConfig.DEFAULT()
 
     def processor(
         self,
@@ -220,7 +220,9 @@ class Node(NodeAPI):
 
     async def _plan_async(self) -> NodePlan:
         logging.info(f"Planning infrastructure for Node({self.node_id})...")
-        infra_actor = PulumiInfraActor.remote(self._infra_config)
+        infra_actor = PulumiInfraActor.remote(
+            self._infra_config, stack_name=self.node_id
+        )
         result = await infra_actor.plan.remote(processors=self._processors)
         logging.info(f"...Finished planning infrastructure for Node({self.node_id})")
         return result
