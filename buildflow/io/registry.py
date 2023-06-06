@@ -1,15 +1,15 @@
 from dataclasses import dataclass
-from typing import Iterable, Any, Union
+from typing import Any, Iterable, Optional, Union
 
 from buildflow import utils
 from buildflow.io.providers.file_provider import FileFormat, FileProvider
-from buildflow.io.providers.pulsing_provider import PulsingProvider
 from buildflow.io.providers.gcp.bigquery import StreamingBigQueryProvider
 from buildflow.io.providers.gcp.gcp_pub_sub import (
     GCPPubSubSubscriptionProvider,
     GCPPubSubTopicProvider,
 )
 from buildflow.io.providers.gcp.gcs_file_stream import GCSFileStreamProvider
+from buildflow.io.providers.pulsing_provider import PulsingProvider
 
 
 class ResourceType:
@@ -32,7 +32,12 @@ class GCPPubSubTopic(ResourceType):
 class GCPPubSubSubscription(ResourceType):
     billing_project_id: str
     topic_id: str  # format: projects/{project_id}/topics/{topic_name}
-    subscription_name: str = f"buildflow_subscription_{utils.uuid(max_len=6)}"
+    subscription_name: Optional[str] = None
+
+    def __post_init__(self):
+        if self.subscription_name is None:
+            topic_hash = utils.stable_hash(self.topic_id)
+            self.subscription_name = f"buildflow_subscription_{topic_hash[:8]}"
 
     def provider(self):
         batch_size = 1000
