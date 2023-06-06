@@ -1,5 +1,4 @@
 from dataclasses import is_dataclass
-import logging
 from typing import Any, Callable, Dict, Optional, List, Type
 
 import pulumi
@@ -39,7 +38,6 @@ class StreamingBigQueryProvider(PushProvider, PulumiProvider):
     async def push(self, batch: List[dict]):
         for i in range(0, len(batch), self._BATCH_SIZE):
             rows = batch[i : i + self._BATCH_SIZE]
-            logging.error("sending %s rows to bigquery", len(rows))
             errors = self.bq_client.insert_rows_json(self.table_id, rows)
             if errors:
                 raise RuntimeError(f"BigQuery streaming insert failed: {errors}")
@@ -47,7 +45,7 @@ class StreamingBigQueryProvider(PushProvider, PulumiProvider):
     def push_converter(
         self, user_defined_type: Optional[Type]
     ) -> Callable[[Any], Dict[str, Any]]:
-        return converters.dict_push_converter(user_defined_type)
+        return converters.json_push_converter(user_defined_type)
 
     def pulumi(
         self,

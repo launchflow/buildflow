@@ -50,7 +50,7 @@ class FileProvider(PushProvider):
     def push_converter(
         self, user_defined_type: Type
     ) -> Callable[[Any], Dict[str, Any]]:
-        return converters.dict_push_converter(user_defined_type)
+        return converters.json_push_converter(user_defined_type)
 
     async def push(self, batch: Iterable[Dict[str, Any]]):
         if self._format == FileFormat.PARQUET:

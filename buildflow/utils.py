@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import os
-from typing import Optional
+from typing import Any, Optional, TypeVar
 from uuid import uuid4
 import hashlib
 
@@ -84,3 +84,6 @@ def log_buildflow_usage():
         logging.debug("recorded run in session %s", session)
     else:
         logging.debug("failed to record usage stats.")
+
+
+T = TypeVar("T")
