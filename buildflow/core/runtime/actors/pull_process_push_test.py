@@ -116,8 +116,12 @@ class PullProcessPushTest(unittest.TestCase):
 
         table = pcsv.read_csv(Path(self.output_path))
         table_list = table.to_pylist()
-        self.assertGreaterEqual(len(table_list), 2)
-        self.assertCountEqual([{"field": 2}, {"field": 2}], table_list[0:2])
+        self.assertGreaterEqual(len(table_list), 4)
+
+        first_two = table_list[0:2]
+        # Assert that the first two rows are the same.
+        # This should always be true because we are returning the same payload twice.
+        self.assertTrue(first_two[0] == first_two[1])
 
 
 if __name__ == "__main__":
