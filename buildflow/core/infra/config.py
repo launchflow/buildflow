@@ -13,7 +13,8 @@ class InfraConfig:
     # plan options
     schema_validation: SchemaValidation = SchemaValidation.STRICT
     # apply & destroy options (These are basically inverses of eachother)
-    require_confirmation: bool = True
+    # TODO: make this default to True once users can provide input
+    require_confirmation: bool = False
     # misc
     log_level: str = "INFO"
 
@@ -21,6 +22,14 @@ class InfraConfig:
     def DEBUG(cls):
         return cls(
             schema_validation=SchemaValidation.LOG_WARNING,
-            require_confirmation=True,
+            require_confirmation=False,
+            log_level="DEBUG",
+        )
+
+    @classmethod
+    def DEFAULT(cls):
+        return cls(
+            schema_validation=SchemaValidation.LOG_WARNING,
+            require_confirmation=False,
             log_level="INFO",
         )

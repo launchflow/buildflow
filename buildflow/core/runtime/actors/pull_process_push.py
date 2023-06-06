@@ -155,6 +155,14 @@ class PullProcessPushActor(AsyncRuntimeAPI):
 
             process_fn = wrapped_process_fn
 
+        async def process_element(element):
+            results = await process_fn(pull_converter(element))
+            print("DEBUG: results ", results)
+            if isinstance(results, (list, tuple)):
+                return [push_converter(result) for result in results]
+            else:
+                return push_converter(results)
+
         while self._status == RuntimeStatus.RUNNING:
             # PULL
             total_start_time = time.time()
@@ -179,15 +187,17 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 batch_size = 1000
                 process_start_time = time.time()
                 self._pull_percentage += len(response.payload) / batch_size
-                batch_results = []
+                coros = []
                 for element in response.payload:
-                    results = await process_fn(pull_converter(element))
-                    if isinstance(results, (list, tuple)):
-                        for result in results:
-                            batch_results.append(push_converter(result))
+                    coros.append(process_element(element))
+                flattened_results = await asyncio.gather(*coros)
+                batch_results = []
+                for results in flattened_results:
+                    if isinstance(results, list):
+                        batch_results.extend(results)
                     else:
-                        batch_results.append(push_converter(results))
-
+                        batch_results.append(results)
+                print("DEBUG: batch results ", batch_results)
                 self.process_time_gauge.set(
                     (time.time() - process_start_time) * 1000 / len(batch_results)
                 )

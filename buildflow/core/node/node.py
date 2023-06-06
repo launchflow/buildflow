@@ -99,9 +99,9 @@ class Node(NodeAPI):
         self.node_id = node_id
         self._processors: List[Processor] = []
         # The Node class is a wrapper around the Runtime and Infrastructure
-        self._runtime_config = runtime_config or RuntimeConfig.DEBUG()
+        self._runtime_config = runtime_config or RuntimeConfig.IO_BOUND()
         self._runtime_actor = None
-        self._infra_config = infra_config or InfraConfig.DEBUG()
+        self._infra_config = infra_config or InfraConfig.DEFAULT()
 
     def processor(
         self,
