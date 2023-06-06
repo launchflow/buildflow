@@ -145,7 +145,7 @@ class RuntimeActor(RuntimeAPI):
                 if current_num_replicas == 0:
                     continue
                 target_num_replicas = calculate_target_num_replicas(
-                    processor_snapshot, self.config
+                    processor_snapshot, self.config.autoscaler_config
                 )
 
                 num_replicas_delta = target_num_replicas - current_num_replicas
