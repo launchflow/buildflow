@@ -1,7 +1,17 @@
-"""Tests for bigquery.py"""
+"""Tests for bigquery.py
+
+TODO: these tests don't actually validate the pulumi resources unfortunately.
+
+The `@pulumi.runtime.test` annotation only awaits what is returned so need
+to refactor this. It's still worth keeping the tests though cause they
+do test the basics of pulumi resources.
+
+Actually maybe they are? it's very unclear.. but need to dig into it more
+"""
 
 from dataclasses import dataclass
 import unittest
+from unittest import mock
 
 import pulumi
 import pytest
@@ -22,22 +32,18 @@ class MyMocks(pulumi.runtime.Mocks):
         return {}
 
 
-@pytest.fixture(scope="class")
-def pulumi_mocks(request):
-    """Add the pulumi_mocks as an attribute to the unittest style test class."""
-    pulumi.runtime.set_mocks(
-        MyMocks(),
-        preview=False,
-    )
-
-
 pulumi.runtime.set_mocks(
     MyMocks(),
     preview=False,
 )
 
 
+@pytest.mark.usefixtures("event_loop_instance")
 class BigQueryTest(unittest.TestCase):
+    def get_async_result(self, coro):
+        """Run a coroutine synchronously."""
+        return self.event_loop.run_until_complete(coro)
+
     @pulumi.runtime.test
     def test_bigquery_table_pulumi_base(self):
         provider = StreamingBigQueryProvider(
@@ -86,9 +92,6 @@ class BigQueryTest(unittest.TestCase):
             {
                 "gcp.bigquery.dataset_id": "project.ds",
                 "gcp.biquery.table_id": "project.ds.table",
-                "gcp.bigquery.schema.project.ds.table": (
-                    '[{"name": "value", "type": "INTEGER", "mode": "REQUIRED"}]'
-                ),
             },
         )
 
@@ -112,6 +115,7 @@ class BigQueryTest(unittest.TestCase):
             self.assertEqual(delete_protect, False)
 
         pulumi.Output.all(
+            table_resource.urn,
             table_resource.deletion_protection,
         ).apply(check_table)
 
@@ -150,6 +154,20 @@ class BigQueryTest(unittest.TestCase):
 
         self.assertFalse(hasattr(table_resource, "opts"))
         self.assertNotIn("gcp.bigquery.dataset_id", exports)
+
+    @mock.patch("buildflow.io.providers.gcp.utils.clients.get_bigquery_client")
+    def test_bigquery_push(self, bq_client_mock: mock.MagicMock):
+        insert_rows_mock = bq_client_mock.return_value.insert_rows_json
+        insert_rows_mock.return_value = []
+
+        provider = StreamingBigQueryProvider(
+            billing_project_id="test", table_id="project.ds.table"
+        )
+
+        rows = [FakeRow(1)] * 20000
+        self.get_async_result(provider.push(rows))
+
+        self.assertEqual(insert_rows_mock.call_count, 2)
 
 
 if __name__ == "__main__":

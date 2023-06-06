@@ -2,7 +2,7 @@ import asyncio
 import os
 from pathlib import Path
 import tempfile
-from typing import Dict, Iterable
+from typing import Dict, Iterable, List
 import unittest
 
 import pyarrow.csv as pcsv
@@ -99,6 +99,29 @@ class PullProcessPushTest(unittest.TestCase):
         table_list = table.to_pylist()
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
+
+    def test_end_to_end_with_processor_decorator_flatten(self):
+        node = Node()
+
+        @node.processor(
+            source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
+            sink=Files(file_path=self.output_path, file_format="csv"),
+        )
+        async def process(payload) -> List[Dict[str, int]]:
+            return [payload, payload]
+
+        actor = PullProcessPushActor.remote(processor=process)
+
+        self.run_with_timeout(actor.run.remote())
+
+        table = pcsv.read_csv(Path(self.output_path))
+        table_list = table.to_pylist()
+        self.assertGreaterEqual(len(table_list), 4)
+
+        first_two = table_list[0:2]
+        # Assert that the first two rows are the same.
+        # This should always be true because we are returning the same payload twice.
+        self.assertTrue(first_two[0] == first_two[1])
 
 
 if __name__ == "__main__":

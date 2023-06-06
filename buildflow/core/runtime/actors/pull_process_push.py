@@ -8,10 +8,9 @@ import ray
 from ray.util.metrics import Counter, Gauge
 
 from buildflow.api import RuntimeStatus
+from buildflow.api.runtime import Snapshot, AsyncRuntimeAPI
 from buildflow.core.processor.base import Processor
 from buildflow.io.providers.base import PullProvider, PushProvider
-
-from buildflow.api.runtime import Snapshot, AsyncRuntimeAPI
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI
@@ -132,6 +131,14 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         input_type = None
         if "return" in full_arg_spec.annotations:
             output_type = full_arg_spec.annotations["return"]
+            if (
+                hasattr(output_type, "__origin__")
+                and (output_type.__origin__ is list or output_type.__origin__ is tuple)
+                and hasattr(output_type, "__args__")
+            ):
+                # We will flatten the return type if the outter most type is a tuple or
+                # list.
+                output_type = output_type.__args__[0]
         if (
             len(full_arg_spec.args) > 1
             and full_arg_spec.args[1] in full_arg_spec.annotations
@@ -172,10 +179,15 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 batch_size = 1000
                 process_start_time = time.time()
                 self._pull_percentage += len(response.payload) / batch_size
-                batch_results = [
-                    push_converter(await process_fn(pull_converter(element)))
-                    for element in response.payload
-                ]
+                batch_results = []
+                for element in response.payload:
+                    results = await process_fn(pull_converter(element))
+                    if isinstance(results, (list, tuple)):
+                        for result in results:
+                            batch_results.append(push_converter(result))
+                    else:
+                        batch_results.append(push_converter(results))
+
                 self.process_time_gauge.set(
                     (time.time() - process_start_time) * 1000 / len(batch_results)
                 )

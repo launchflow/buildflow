@@ -13,6 +13,9 @@ from buildflow.io.providers.schemas import converters
 
 class StreamingBigQueryProvider(PushProvider, PulumiProvider):
     # TODO: should make this configure able.
+    # We should probably also chunk this up based on data size instead
+    # of just number of rows. If the data is too big, we will get an error
+    # from BigQuery.
     _BATCH_SIZE = 10_000
 
     def __init__(
@@ -34,15 +37,15 @@ class StreamingBigQueryProvider(PushProvider, PulumiProvider):
 
     async def push(self, batch: List[dict]):
         for i in range(0, len(batch), self._BATCH_SIZE):
-            batch = batch[i : i + self._BATCH_SIZE]
-            errors = self.bq_client.insert_rows_json(self.table_id, batch)
+            rows = batch[i : i + self._BATCH_SIZE]
+            errors = self.bq_client.insert_rows_json(self.table_id, rows)
             if errors:
                 raise RuntimeError(f"BigQuery streaming insert failed: {errors}")
 
     def push_converter(
         self, user_defined_type: Optional[Type]
     ) -> Callable[[Any], Dict[str, Any]]:
-        return converters.dict_push_converter(user_defined_type)
+        return converters.json_push_converter(user_defined_type)
 
     def pulumi(
         self,
@@ -62,6 +65,9 @@ class StreamingBigQueryProvider(PushProvider, PulumiProvider):
             exports["gcp.bigquery.dataset_id"] = f"{project}.{dataset}"
 
         schema = None
+        if hasattr(type_, "__args__"):
+            # Using a composite type hint like List or Optional
+            type_ = type_.__args__[0]
         if type_ and is_dataclass(type_):
             schema = bigquery_schemas.dataclass_to_json_bq_schema(type_)
 
@@ -81,6 +87,4 @@ class StreamingBigQueryProvider(PushProvider, PulumiProvider):
         resources.append(table_resource)
         exports["gcp.biquery.table_id"] = self.table_id
 
-        if schema is not None:
-            exports[f"gcp.bigquery.schema.{self.table_id}"] = schema
         return PulumiResources(resources=resources, exports=exports)
