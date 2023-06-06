@@ -6,12 +6,18 @@ import logging
 import os
 from typing import Optional
 from uuid import uuid4
+import hashlib
 
 import requests
 
 # create a UUID type alias
 # NOTE: python 3.8 doesn't support typing.TypeAlias
 UUID: str
+
+
+def stable_hash(obj: Any):
+    """Creates a hash thats stable across runs."""
+    return hashlib.sha256(str(obj).encode("utf-8")).hexdigest()
 
 
 def uuid(max_len: Optional[int] = None) -> str:

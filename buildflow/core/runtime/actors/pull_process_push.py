@@ -66,24 +66,24 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             "num_events_processed",
             description=("Number of events processed by the actor. Only increments."),
             tag_keys=(
-                "processor_name",
+                "processor_id",
                 "JobId",
             ),
         )
         self.num_events_counter.set_default_tags(
-            {"processor_name": processor.name, "JobId": job_id}
+            {"processor_id": processor.processor_id, "JobId": job_id}
         )
         self.process_time_gauge = Gauge(
             "process_time",
             description="Current process time of the actor. Goes up and down.",
             tag_keys=(
-                "processor_name",
+                "processor_id",
                 "JobId",
             ),
         )
         self.process_time_gauge.set_default_tags(
             {
-                "processor_name": processor.name,
+                "processor_id": processor.processor_id,
                 "JobId": job_id,
             }
         )
@@ -91,13 +91,13 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             "batch_time",
             description="Current batch process time of the actor. Goes up and down.",
             tag_keys=(
-                "processor_name",
+                "processor_id",
                 "JobId",
             ),
         )
         self.batch_time_gauge.set_default_tags(
             {
-                "processor_name": processor.name,
+                "processor_id": processor.processor_id,
                 "JobId": job_id,
             }
         )
@@ -105,13 +105,13 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             "total_time",
             description="Current total process time of the actor. Goes up and down.",
             tag_keys=(
-                "processor_name",
+                "processor_id",
                 "JobId",
             ),
         )
         self.total_time_gauge.set_default_tags(
             {
-                "processor_name": processor.name,
+                "processor_id": processor.processor_id,
                 "JobId": job_id,
             }
         )

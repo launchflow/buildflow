@@ -10,12 +10,12 @@ from ray.util.placement_group import placement_group, remove_placement_group
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
 from buildflow import utils
-from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot
+from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot, ProcessorID
 from buildflow.core.processor.base import Processor
 from buildflow.core.runtime.actors.pull_process_push import (
     PullProcessPushActor,
 )  # noqa: E501
-from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.core.runtime.config import ReplicaConfig
 from buildflow.io.providers.base import PullProvider, PushProvider
 
 # TODO: add ability to load from env vars so we can set num_cpus
@@ -62,7 +62,7 @@ class ReplicaSnapshot(Snapshot):
 
 @dataclasses.dataclass
 class ProcessorSnapshot(Snapshot):
-    processor_name: str
+    processor_id: ProcessorID
     source: SourceInfo
     sink: SinkInfo
     replicas: List[ReplicaSnapshot]
@@ -87,7 +87,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
     methods for adding and removing replicas (for autoscaling).
     """
 
-    def __init__(self, processor: Processor, config: RuntimeConfig) -> None:
+    def __init__(self, processor: Processor, config: ReplicaConfig) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(config.log_level)
@@ -104,11 +104,11 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         self.num_replicas_gauge = Gauge(
             "num_replicas",
             description="Current number of replicas. Goes up and down.",
-            tag_keys=("processor_name", "JobId"),
+            tag_keys=("processor_id", "JobId"),
         )
         self.num_replicas_gauge.set_default_tags(
             {
-                "processor_name": self.processor.name,
+                "processor_id": self.processor.processor_id,
                 "JobId": job_id,
             }
         )
@@ -116,17 +116,17 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             "ppp_concurrency",
             description="Current number of concurrency per replica. Goes up and down.",
             tag_keys=(
-                "processor_name",
+                "processor_id",
                 "JobId",
             ),
         )
         self.concurrency_gauge.set_default_tags(
             {
-                "processor_name": processor.name,
+                "processor_id": processor.processor_id,
                 "JobId": job_id,
             }
         )
-        self.concurrency_gauge.set(config.num_threads_per_process)
+        self.concurrency_gauge.set(config.num_concurrent_tasks)
 
     async def add_replicas(self, num_replicas: int):
         if self._status != RuntimeStatus.RUNNING:
@@ -137,21 +137,21 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             ray_placement_group = await placement_group(
                 [
                     {
-                        "CPU": self.config.num_worker_cpus(),
+                        "CPU": self.config.num_cpus,
                     }
                 ],
                 strategy="STRICT_PACK",
             ).ready()
 
             replica_actor_handle = PullProcessPushActor.options(
-                num_cpus=self.config.num_worker_cpus(),
+                num_cpus=self.config.num_cpus,
                 scheduling_strategy=PlacementGroupSchedulingStrategy(
                     placement_group=ray_placement_group,
                     placement_group_capture_child_tasks=True,
                 ),
             ).remote(self.processor, log_level=self.config.log_level)
             if self._status == RuntimeStatus.RUNNING:
-                for _ in range(self.config.num_threads_per_process):
+                for _ in range(self.config.num_concurrent_tasks):
                     replica_actor_handle.run.remote()
 
             self.replicas[replica_id] = (replica_actor_handle, ray_placement_group)
@@ -162,7 +162,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         if len(self.replicas) < num_replicas:
             raise ValueError(
                 f"Cannot remove {num_replicas} replicas from "
-                f"{self.processor.name}. Only {len(self.replicas)} replicas "
+                f"{self.processor.processor_id}. Only {len(self.replicas)} replicas "
                 "exist."
             )
 
@@ -190,7 +190,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         self.num_replicas_gauge.set(len(self.replicas))
 
     def run(self):
-        logging.info(f"Starting ProcessorPool({self.processor.name})...")
+        logging.info(f"Starting ProcessorPool({self.processor.processor_id})...")
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
@@ -198,11 +198,11 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             replica.run.remote()
 
     async def drain(self):
-        logging.info(f"Draining ProcessorPool({self.processor.name})...")
+        logging.info(f"Draining ProcessorPool({self.processor.processor_id})...")
         self._status = RuntimeStatus.DRAINING
         await self.remove_replicas(len(self.replicas))
         self._status = RuntimeStatus.IDLE
-        logging.info(f"Drain ProcessorPool({self.processor.name}) complete.")
+        logging.info(f"Drain ProcessorPool({self.processor.processor_id}) complete.")
         return True
 
     async def status(self):
@@ -232,10 +232,10 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             replica_snapshot = await replica_actor.snapshot.remote()
             replica_info_list.append(replica_snapshot)
 
-        actor_info = RayActorInfo(num_cpus=self.config.num_worker_cpus())
+        actor_info = RayActorInfo(num_cpus=self.config.num_cpus)
 
         return ProcessorSnapshot(
-            processor_name=self.processor.name,
+            processor_id=self.processor.processor_id,
             source=source_info,
             sink=sink_info,
             replicas=replica_info_list,

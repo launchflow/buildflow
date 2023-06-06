@@ -80,6 +80,7 @@ class PulumiInfraActor(InfraAPI):
             if response != "yes":
                 print("Aborting.")
                 return
+            print("Applying...")
 
         noop_changes_filtered_out = {
             k: v

@@ -37,7 +37,7 @@ class RunTimeTest(unittest.TestCase):
         def process(payload):
             return payload
 
-        actor = RuntimeActor.remote(config=RuntimeConfig.CPU_BOUND(1))
+        actor = RuntimeActor.remote(config=RuntimeConfig.DEBUG())
 
         actor.run.remote(processors=[process])
 

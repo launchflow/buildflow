@@ -1,47 +1,90 @@
 import dataclasses
+from typing import Dict
+
+from buildflow.api import ProcessorID
+from collections import defaultdict
 
 
 @dataclasses.dataclass
-class RuntimeConfig:
-    # initial setup options
-    num_threads_per_process: int
-    num_actors_per_core: int
-    num_available_cores: int
-    # autoscale options
-    autoscale: bool = True
-    min_replicas: int = 1
-    max_replicas: int = 1000
+class ReplicaConfig:
+    num_cpus: float
+    num_concurrent_tasks: int
     # misc
     log_level: str = "INFO"
 
     @classmethod
-    def IO_BOUND(cls, num_available_cores: int):
+    def DEBUG(cls):
+        return cls(num_cpus=0.5, num_concurrent_tasks=1)
+
+    @classmethod
+    def IO_BOUND(cls):
+        return cls(num_cpus=0.2, num_concurrent_tasks=4)
+
+    @classmethod
+    def CPU_BOUND(cls):
+        return cls(num_cpus=1, num_concurrent_tasks=1)
+
+
+@dataclasses.dataclass
+class AutoscalerConfig:
+    enable_autoscaler: bool
+    min_replicas: int
+    max_replicas: int
+    # misc
+    log_level: str = "INFO"
+
+    @classmethod
+    def DEBUG(cls):
+        return cls(enable_autoscaler=False, min_replicas=1, max_replicas=1)
+
+
+@dataclasses.dataclass
+class RuntimeConfig:
+    # the configuration of each replica
+    replica_configs: Dict[ProcessorID, ReplicaConfig] = dataclasses.field(
+        default_factory=lambda: defaultdict(ReplicaConfig.DEBUG)
+    )
+    # the configuration of the autoscaler
+    autoscaler_config: AutoscalerConfig = AutoscalerConfig.DEBUG()
+    # the number of replicas to start with (will scale up/down if autoscale is enabled)
+    num_replicas: int = 1
+    # misc
+    log_level: str = "INFO"
+
+    @classmethod
+    def IO_BOUND(cls, autoscale=True):
+        # defaults to the DEBUG autoscaler config
+        autoscaler_config = AutoscalerConfig.DEBUG()
+        if autoscale:
+            autoscaler_config = AutoscalerConfig(
+                enable_autoscaler=True,
+                min_replicas=1,
+                max_replicas=1000,
+            )
         return cls(
-            num_threads_per_process=10,
-            num_actors_per_core=1,
-            num_available_cores=num_available_cores,
+            replica_configs=defaultdict(ReplicaConfig.IO_BOUND),
+            autoscaler_config=autoscaler_config,
         )
 
     @classmethod
-    def CPU_BOUND(cls, num_available_cores: int):
+    def CPU_BOUND(cls, autoscale=True):
+        # defaults to the DEBUG autoscaler config
+        autoscaler_config = AutoscalerConfig.DEBUG()
+        if autoscale:
+            autoscaler_config = AutoscalerConfig(
+                enable_autoscaler=True,
+                min_replicas=1,
+                max_replicas=1000,
+            )
         return cls(
-            num_threads_per_process=1,
-            num_actors_per_core=2,
-            num_available_cores=num_available_cores,
+            replica_configs=defaultdict(ReplicaConfig.CPU_BOUND),
+            autoscaler_config=autoscaler_config,
         )
 
     @classmethod
     def DEBUG(cls):
         return cls(
-            num_threads_per_process=1,
-            num_actors_per_core=1,
-            num_available_cores=1,
-            autoscale=False,
+            replica_configs=defaultdict(ReplicaConfig.DEBUG),
+            autoscaler_config=AutoscalerConfig.DEBUG(),
             log_level="DEBUG",
         )
-
-    def num_replicas(self):
-        return self.num_actors_per_core * self.num_available_cores
-
-    def num_worker_cpus(self):
-        return 1 / self.num_actors_per_core
