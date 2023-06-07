@@ -36,7 +36,7 @@ pubsub_source = GCPPubSubSubscription(
     billing_project_id="daring-runway-374503",
 )
 bigquery_sink = BigQueryTable(
-    table_id="daring-runway-374503.taxi_ride_benchmark.buildflow"
+    table_id="daring-runway-374503.taxi_ride_benchmark2.buildflow2"
 )
 
 

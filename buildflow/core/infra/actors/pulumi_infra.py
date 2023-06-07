@@ -13,6 +13,11 @@ from buildflow.io.providers import PulumiProvider
 import os
 
 
+# TODO: reconcile the session file with more general `WorkspaceAPI` of sorts
+_PULUMI_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow", "pulumi")
+os.makedirs(_PULUMI_DIR, exist_ok=True)
+
+
 @ray.remote
 class PulumiInfraActor(InfraAPI):
     def __init__(
@@ -23,6 +28,7 @@ class PulumiInfraActor(InfraAPI):
         project_name: str = "buildflow-app",
         stack_name: str = "buildflow-infra",
         passphrase: str = "",
+        backend_url: str = f"file://{_PULUMI_DIR}",
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -50,6 +56,11 @@ class PulumiInfraActor(InfraAPI):
                     config={"gcp:project": self.project_name}
                 )
             },
+            project_settings=auto.ProjectSettings(
+                name=self.project_name,
+                runtime="python",
+                backend=auto.ProjectBackend(backend_url),
+            ),
         )
 
     async def plan(self, *, processors: Iterable[Processor]):
