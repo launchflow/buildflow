@@ -25,8 +25,8 @@ class PulumiInfraActor(InfraAPI):
         config: InfraConfig,
         *,
         # TODO: Support more pulumi options
+        stack_name: str,
         project_name: str = "buildflow-app",
-        stack_name: str = "buildflow-infra",
         passphrase: str = "",
         backend_url: str = f"file://{_PULUMI_DIR}",
     ) -> None:
