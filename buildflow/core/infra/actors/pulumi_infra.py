@@ -15,6 +15,7 @@ import os
 
 # TODO: reconcile the session file with more general `WorkspaceAPI` of sorts
 _PULUMI_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow", "pulumi")
+os.makedirs(_PULUMI_DIR, exist_ok=True)
 
 
 @ray.remote

@@ -36,7 +36,7 @@ pubsub_source = GCPPubSubSubscription(
     billing_project_id="daring-runway-374503",
 )
 bigquery_sink = BigQueryTable(
-    table_id="daring-runway-374503.taxi_ride_benchmark.buildflow"
+    table_id="daring-runway-374503.taxi_ride_benchmark2.buildflow2"
 )
 
 
@@ -59,9 +59,9 @@ if __name__ == "__main__":
         block_runtime=True,
         debug_run=False,
         # infra-only options.
-        apply_infrastructure=False,
+        apply_infrastructure=True,
         # Ad hoc infra is really nice for quick demos / tests
-        destroy_infrastructure=False,
+        destroy_infrastructure=True,
     )
 
     # these should also work:
