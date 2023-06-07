@@ -6,7 +6,6 @@
 
 **BuildFlow**, is an open source framework that lets you build a data pipeline by simply attaching a decorator to a Python function. All you need to do is describe where your input is coming from and where your output should be written, and BuildFlow handles the rest. No configuration outside of the code is required.
 
-
 Key Features:
 
 - Unified **batch** and **streaming** [Processor API](https://www.buildflow.dev/docs/processors/overview)
@@ -18,7 +17,7 @@ Key Features:
 
 ## Quick Links
 
-- **Docs**: https://www.buildflow.dev/docs/intro
+- **Docs**: https://www.buildflow.dev/docs
 - **Walkthroughs**: https://www.buildflow.dev/docs/category/walk-throughs
 - **Discord**: https://discordapp.com/invite/wz7fjHyrCA
 
@@ -65,8 +64,9 @@ Our runtime is built on [Ray](https://ray.io/), where Windows support is current
 
 We use [black](https://github.com/psf/black) and [ruff](https://github.com/charliermarsh/ruff) with [pre-commit](https://pre-commit.com/) hooks to perform health checks.
 To setup these locally:
-* Clone the repo
-* Install the `dev` dependencies like `python -m pip install .[dev]
-* Check if pre-commit is installed correctly by running `pre-commit --version`
-* Setup pre-commit to run before every commit on staged changes by running `pre-commit install`
-* Pre-commit can also be ran manually as `pre-commit run --all-files`
+
+- Clone the repo
+- Install the `dev` dependencies like `python -m pip install .[dev]
+- Check if pre-commit is installed correctly by running `pre-commit --version`
+- Setup pre-commit to run before every commit on staged changes by running `pre-commit install`
+- Pre-commit can also be ran manually as `pre-commit run --all-files`
