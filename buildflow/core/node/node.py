@@ -232,7 +232,9 @@ class Node(NodeAPI):
 
     async def _apply_async(self) -> NodeApplyResult:
         logging.info(f"Setting up infrastructure for Node({self.node_id})...")
-        infra_actor = PulumiInfraActor.remote(self._infra_config)
+        infra_actor = PulumiInfraActor.remote(
+            self._infra_config, stack_name=self.node_id
+        )
         result = await infra_actor.apply.remote(processors=self._processors)
         logging.info(f"...Finished setting up infrastructure for Node({self.node_id})")
         return result
@@ -242,7 +244,9 @@ class Node(NodeAPI):
 
     async def _destroy_async(self) -> NodeDestroyResult:
         logging.info(f"Tearing down infrastructure for Node({self.node_id})...")
-        infra_actor = PulumiInfraActor.remote(self._infra_config)
+        infra_actor = PulumiInfraActor.remote(
+            self._infra_config, stack_name=self.node_id
+        )
         result = await infra_actor.destroy.remote(processors=self._processors)
         logging.info(
             f"...Finished tearing down infrastructure for Node({self.node_id})"
