@@ -157,7 +157,6 @@ class PullProcessPushActor(AsyncRuntimeAPI):
 
         async def process_element(element):
             results = await process_fn(pull_converter(element))
-            print("DEBUG: results ", results)
             if isinstance(results, (list, tuple)):
                 return [push_converter(result) for result in results]
             else:
@@ -197,7 +196,6 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                         batch_results.extend(results)
                     else:
                         batch_results.append(results)
-                print("DEBUG: batch results ", batch_results)
                 self.process_time_gauge.set(
                     (time.time() - process_start_time) * 1000 / len(batch_results)
                 )
