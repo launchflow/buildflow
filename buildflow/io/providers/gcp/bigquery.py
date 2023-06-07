@@ -21,14 +21,14 @@ class StreamingBigQueryProvider(PushProvider, PulumiProvider):
     def __init__(
         self,
         *,
-        billing_project_id: str,
+        project_id: str,
         table_id: str,
         include_dataset: bool = True,
         destroy_protection: bool = True,
     ):
         super().__init__()
         # configuration
-        self.billing_project = billing_project_id
+        self.billing_project = project_id
         self.table_id = table_id
         self.include_dataset = include_dataset
         self.destroy_protection = destroy_protection

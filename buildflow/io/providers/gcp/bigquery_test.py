@@ -47,7 +47,7 @@ class BigQueryTest(unittest.TestCase):
     @pulumi.runtime.test
     def test_bigquery_table_pulumi_base(self):
         provider = StreamingBigQueryProvider(
-            billing_project_id="test", table_id="project.ds.table"
+            project_id="test", table_id="project.ds.table"
         )
 
         pulumi_resources = provider.pulumi(type_=FakeRow)
@@ -97,7 +97,7 @@ class BigQueryTest(unittest.TestCase):
 
     def test_bigquery_table_pulumi_no_protect(self):
         provider = StreamingBigQueryProvider(
-            billing_project_id="test",
+            project_id="test",
             table_id="project.ds.table",
             destroy_protection=False,
         )
@@ -121,7 +121,7 @@ class BigQueryTest(unittest.TestCase):
 
     def test_bigquery_table_pulumi_no_dataset(self):
         provider = StreamingBigQueryProvider(
-            billing_project_id="test",
+            project_id="test",
             table_id="project.ds.table",
             include_dataset=False,
         )
@@ -161,7 +161,7 @@ class BigQueryTest(unittest.TestCase):
         insert_rows_mock.return_value = []
 
         provider = StreamingBigQueryProvider(
-            billing_project_id="test", table_id="project.ds.table"
+            project_id="test", table_id="project.ds.table"
         )
 
         rows = [FakeRow(1)] * 20000

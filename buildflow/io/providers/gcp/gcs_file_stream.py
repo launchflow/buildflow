@@ -64,7 +64,7 @@ class GCSFileStreamProvider(PullProvider, PulumiProvider):
         self._subscription_name = f"{self.bucket_name}_subscriber"
         self._pubsub_topic = f"projects/{self.project_id}/topics/{self._topic_name}"
         self.subscription_provider = gcp_pub_sub.GCPPubSubSubscriptionProvider(
-            billing_project_id=self.project_id,
+            project_id=self.project_id,
             topic_id=self._pubsub_topic,
             subscription_name=self._subscription_name,
             batch_size=1000,

@@ -32,7 +32,7 @@ class MyProcessor(buildflow.Processor):
     @classmethod
     def source(cls):
         return buildflow.io.GCPPubSubSubscription(
-            billing_project_id=gcp_project,
+            project_id=gcp_project,
             subscription_name=main_sub,
             topic_id=f"projects/{gcp_project}/topics/{incoming_topic}",
         )
@@ -40,7 +40,7 @@ class MyProcessor(buildflow.Processor):
     @classmethod
     def sink(cls):
         return buildflow.io.GCPPubSubTopic(
-            billing_project_id=gcp_project,
+            project_id=gcp_project,
             topic_name=outgoing_topic,
         )
 

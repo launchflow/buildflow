@@ -33,7 +33,7 @@ app = Node()
 # Define the source and sink
 pubsub_source = GCPPubSubSubscription(
     topic_id="projects/pubsub-public-data/topics/taxirides-realtime",
-    billing_project_id="daring-runway-374503",
+    project_id="daring-runway-374503",
 )
 bigquery_sink = BigQueryTable(
     table_id="daring-runway-374503.taxi_ride_benchmark2.buildflow2"
