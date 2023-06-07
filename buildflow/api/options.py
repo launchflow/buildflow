@@ -15,3 +15,9 @@ class AutoscalingOptions:
     # set to false your pipeline will always maintain the same number of
     # replicas as it started with.
     autoscaling: bool = True
+
+
+@dataclass
+class ProcessorOptions:
+    # The autoscaling options for the processor.
+    autoscaling_options: AutoscalingOptions = AutoscalingOptions()

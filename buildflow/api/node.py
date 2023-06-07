@@ -1,48 +1,68 @@
 import dataclasses
-from typing import Any, Iterable, Optional
+from typing import Iterable
 
-from buildflow.api.processor import ProcessorAPI, ProcessorPlan
+from buildflow.api.processor import ProcessorAPI
 
 
-class NodeResults:
-    def __init__(self, node_name: str) -> None:
-        self.node_name = node_name
+class AsyncResult:
+    def run_until_complete(self) -> bool:
+        """This method will block until the async task is complete."""
+        raise NotImplementedError("run_until_complete not implemented")
 
-    async def output(self, register_shutdown: bool = True):
-        """This method will block the flow until completion."""
-        pass
 
-    async def shutdown(self):
-        """Sends the shutdown signal to the running flow."""
-        pass
+class NodeRunResult(AsyncResult):
+    def drain(self, block: bool) -> bool:
+        """Sends the drain signal to the running node."""
+        raise NotImplementedError("drain not implemented")
+
+
+class NodeApplyResult(AsyncResult):
+    def stop(self):
+        """Sends the stop signal to the async task."""
+        raise NotImplementedError("stop not implemented")
+
+
+class NodeDestroyResult(AsyncResult):
+    def stop(self):
+        """Sends the stop signal to the async task."""
+        raise NotImplementedError("stop not implemented")
+
+
+@dataclasses.dataclass
+class IOPlan:
+    name: str
+
+
+@dataclasses.dataclass
+class ProcessorPlan:
+    name: str
+    sources: Iterable[IOPlan]
+    sinks: Iterable[IOPlan]
 
 
 @dataclasses.dataclass
 class NodePlan:
-    name: Optional[str]
+    name: str
     processors: Iterable[ProcessorPlan]
 
 
+NodeID = str
+
+
 class NodeAPI:
-    def __init__(self, name) -> None:
-        self.name = name
+    node_id: NodeID
 
-    def processor(input, output: Optional[Any] = None):
-        pass
-
-    def add_processor(self, processor: ProcessorAPI):
-        pass
-
-    def run(
-        *,
-        disable_usage_stats: bool = False,
-        disable_resource_creation: bool = True,
-        blocking: bool = True,
-    ):
-        pass
+    def add(self, processor: ProcessorAPI):
+        raise NotImplementedError("add not implemented")
 
     def plan(self) -> NodePlan:
-        pass
+        raise NotImplementedError("plan not implemented")
 
-    def setup():
-        pass
+    def run(self) -> NodeRunResult:
+        raise NotImplementedError("run not implemented")
+
+    def apply(self) -> NodeApplyResult:
+        raise NotImplementedError("apply not implemented")
+
+    def destroy(self) -> NodeDestroyResult:
+        raise NotImplementedError("destroy not implemented")

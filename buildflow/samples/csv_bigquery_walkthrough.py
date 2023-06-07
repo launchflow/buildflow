@@ -6,20 +6,23 @@ import io
 from typing import List
 
 import buildflow
-from buildflow import Node
+from buildflow import Node, InfraConfig, SchemaValidation
 
 gcp_project = os.environ["GCP_PROJECT"]
 bucket_name = os.environ["BUCKET_NAME"]
-table_name = os.environ["TABLE_NAME"]
+bigquery_table = os.environ.get("BIGQUERY_TABLE", "wiki-page-views")
+dataset = os.environ.get("DATASET", "buildflow_walkthrough")
 
 # Set up a subscriber for the source.
 # The source will setup a Pub/Sub topic and subscription to listen to new files
 # uploaded to the GCS bucket.
-source = buildflow.GCSFileNotifications(project_id=gcp_project, bucket_name=bucket_name)
+source = buildflow.io.GCSFileStream(
+    project_id=gcp_project, bucket_name=bucket_name, force_destroy=True
+)
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
-sink = buildflow.BigQuerySink(
-    table_id=f"{gcp_project}.buildflow_walkthrough.{table_name}"
+sink = buildflow.io.BigQueryTable(
+    table_id=f"{gcp_project}.{dataset}.{bigquery_table}", destroy_protection=False
 )
 
 
@@ -43,12 +46,17 @@ class AggregateWikiPageViews:
     min_page_views_per_hour: HourAggregate
 
 
-app = Node()
+infra_config = InfraConfig(
+    schema_validation=SchemaValidation.LOG_WARNING,
+    require_confirmation=False,
+    log_level="WARNING",
+)
+app = Node(infra_config=infra_config)
 
 
 # Define our processor.
 @app.processor(source=source, sink=sink)
-def process(gcs_file_event: buildflow.GCSFileEvent) -> List[AggregateWikiPageViews]:
+def process(gcs_file_event: buildflow.io.GCSFileEvent) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))
     aggregate_stats = {}

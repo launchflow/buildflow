@@ -1,13 +1,16 @@
 name: GCP Integration Tests
 
 on:
-  workflow_dispatch
+  workflow_dispatch:
+
+  push:
+      branches: ['main', 'v0.2']
 
 env:
   BUILDFLOW_USAGE_STATS_DISABLE: 1
 
 jobs:
-  pub_sub_integration_test:
+  pub_sub_to_pub_sub_test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -34,17 +37,15 @@ jobs:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
 
-      - name: Run Pub/Sub Walkthrough
+      - name: Run Pub/Sub Integration Test
         run: |
-          bq_table=$(uuidgen)
+          curl -fsSL https://get.pulumi.com | sh
+          pulumi login --local
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-          export BIGQUERY_TABLE=$bq_table
-          timeout -s SIGINT --preserve-status 120 buildflow run buildflow.samples.pubsub_walkthrough:app
-          query="SELECT COUNT(*) as count FROM \`buildflow-integration-tests.buildflow_walkthrough.${bq_table}\`"
-          num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
-          if [[ $num_rows > 0 ]]; then exit 0; else exit 1; fi
+          cd integration_tests/pubsub_to_pubsub
+          ./test.sh
 
-  bigquery_integration_test:
+  pub_sub_walkthrough_test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -64,24 +65,20 @@ jobs:
       - name: Setup GCP Auth
         uses: 'google-github-actions/auth@v1'
         with:
-          # NOTE: We use a key file here because pyarrow doesn't support
-          # authenticating with workflow identity federation.
+          # NOTE: We use a key file here because changing the quota project
+          # doesn't work with WIF.
           credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
+
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
 
-      - name: Run BigQuery Sample
+      - name: Run Pub/Sub Integration Test
         run: |
-          output_table=${{ secrets.GCP_PROJECT }}.testing_output.$(uuidgen)
-          export OUTPUT_TABLE=$output_table
-          export GCS_BUCKET=${{ secrets.GCP_BQ_OUTPUT_BUCKET }}
-          export INPUT_TABLE=${{ secrets.GCP_PROJECT }}.testing_input.bq_to_bq_input
-          buildflow run buildflow.samples.bigquery_sample:app
-          query="SELECT COUNT(*) as count FROM \`${output_table}\`"
-          echo $query
-          bq query --nouse_legacy_sql $query
-          num_rows=$(bq query --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
-          if [[ $num_rows > 0 ]]; then exit 0; else exit 1; fi
+          curl -fsSL https://get.pulumi.com | sh
+          pulumi login --local
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          cd integration_tests/pubsub_to_bigquery
+          ./test.sh
 
   gcs_integration_test:
     runs-on: ubuntu-latest
@@ -112,14 +109,7 @@ jobs:
 
       - name: Run CSV -> BigQuery Walkthrough
         run: |
-          bq_table=$(uuidgen)
+          curl -fsSL https://get.pulumi.com | sh
+          pulumi login --local
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-          export BUCKET_NAME=${{ secrets.GCP_BUCKET }}
-          export TABLE_NAME=$bq_table
-          buildflow run buildflow.samples.csv_bigquery_walkthrough:app &
-          sleep 30
-          gsutil cp buildflow/samples/wiki_page_views.csv gs://${{ secrets.GCP_BUCKET }}
-          sleep 60
-          query="SELECT COUNT(*) as count FROM \`${{ secrets.GCP_PROJECT }}.buildflow_walkthrough.${bq_table}\`"
-          num_rows=$(bq query --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
-          if [[ $num_rows > 0 ]]; then exit 0; else exit 1; fi
+          ./integration_tests/gcs_to_bigquery/test.sh
