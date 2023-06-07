@@ -19,18 +19,23 @@ class ResourceType:
 
 @dataclass
 class GCPPubSubTopic(ResourceType):
-    billing_project_id: str
-    topic_name: str
+    project_id: str
+    topic_name: Optional[None]
+
+    def __post_init__(self):
+        if self.topic_name is None:
+            project_hash = utils.stable_hash(self.project_id)
+            self.topic_name = f"buildflow_topic_{project_hash[:8]}"
 
     def provider(self):
         return GCPPubSubTopicProvider(
-            billing_project_id=self.billing_project_id, topic_name=self.topic_name
+            project_id=self.project_id, topic_name=self.topic_name
         )
 
 
 @dataclass
 class GCPPubSubSubscription(ResourceType):
-    billing_project_id: str
+    project_id: str
     topic_id: str  # format: projects/{project_id}/topics/{topic_name}
     subscription_name: Optional[str] = None
 
@@ -42,7 +47,7 @@ class GCPPubSubSubscription(ResourceType):
     def provider(self):
         batch_size = 1000
         return GCPPubSubSubscriptionProvider(
-            billing_project_id=self.billing_project_id,
+            project_id=self.project_id,
             topic_id=self.topic_id,
             subscription_name=self.subscription_name,
             batch_size=batch_size,
@@ -58,9 +63,9 @@ class BigQueryTable(ResourceType):
     destroy_protection: bool = True
 
     def provider(self):
-        billing_project_id = self.table_id.split(".")[0]
+        project_id = self.table_id.split(".")[0]
         return StreamingBigQueryProvider(
-            billing_project_id=billing_project_id,
+            project_id=project_id,
             table_id=self.table_id,
             include_dataset=self.include_dataset,
             destroy_protection=self.destroy_protection,

@@ -54,7 +54,7 @@ class GCPPubSubSubscriptionProvider(
         # common options
         subscription_name: str,
         topic_id: str,
-        billing_project_id: str,
+        project_id: str,
         # io-only options
         batch_size: str,
         include_attributes: bool = False,
@@ -66,23 +66,19 @@ class GCPPubSubSubscriptionProvider(
         # configuration
         self.subscription_name = subscription_name
         self.topic_id = topic_id
-        self.billing_project_id = billing_project_id
+        self.project_id = project_id
         self.batch_size = batch_size
         self.include_attributes = include_attributes
         self.ack_deadline_seconds = ack_deadline_seconds
         self.message_retention_duration = message_retention_duration
         # setup
-        self.subscriber_client = gcp_clients.get_async_subscriber_client(
-            billing_project_id
-        )
-        self.publisher_client = gcp_clients.get_async_publisher_client(
-            billing_project_id
-        )
+        self.subscriber_client = gcp_clients.get_async_subscriber_client(project_id)
+        self.publisher_client = gcp_clients.get_async_publisher_client(project_id)
         # initial state
 
     @property
     def subscription_id(self):
-        return f"projects/{self.billing_project_id}/subscriptions/{self.subscription_name}"  # noqa: E501
+        return f"projects/{self.project_id}/subscriptions/{self.subscription_name}"  # noqa: E501
 
     # TODO: Explore the idea of logging errors to a remote console for contributors to
     # use. Would help make internal apis more visible / easier to track down bugs as
@@ -207,7 +203,7 @@ class GCPPubSubSubscriptionProvider(
         setup_utils.maybe_create_subscription(
             pubsub_subscription=self.subscription_id,
             pubsub_topic=self.topic_id,
-            billing_project=self.billing_project_id,
+            billing_project=self.project_id,
         )
 
     def pulumi(self, type_: Optional[Type]) -> PulumiResources:
@@ -217,7 +213,7 @@ class GCPPubSubSubscriptionProvider(
             self.subscription_name,
             name=self.subscription_name,
             topic=self.topic_id,
-            project=self.billing_project_id,
+            project=self.project_id,
             ack_deadline_seconds=self.ack_deadline_seconds,
             message_retention_duration=self.message_retention_duration,
         )
@@ -235,16 +231,14 @@ class _PubSubTopicPlan:
 
 
 class GCPPubSubTopicProvider(PushProvider, SetupProvider, PlanProvider, PulumiProvider):
-    def __init__(self, *, billing_project_id: str, topic_name: str):
-        self.billing_project_id = billing_project_id
+    def __init__(self, *, project_id: str, topic_name: str):
+        self.project_id = project_id
         self.topic_name = topic_name
-        self.publisher_client = gcp_clients.get_async_publisher_client(
-            billing_project_id
-        )
+        self.publisher_client = gcp_clients.get_async_publisher_client(project_id)
 
     @property
     def topic_id(self):
-        return f"projects/{self.billing_project_id}/topics/{self.topic_name}"
+        return f"projects/{self.project_id}/topics/{self.topic_name}"
 
     @utils.log_errors(endpoint="apis.buildflow.dev/...")
     async def push(self, batch: Iterable[Any]):
@@ -262,7 +256,7 @@ class GCPPubSubTopicProvider(PushProvider, SetupProvider, PlanProvider, PulumiPr
     ) -> PulumiResources:
         # TODO: Add support for all pulumi inputs
         topic_resource = pulumi_gcp.pubsub.Topic(
-            self.topic_name, name=self.topic_name, project=self.billing_project_id
+            self.topic_name, name=self.topic_name, project=self.project_id
         )
 
         resources = [topic_resource]

@@ -36,7 +36,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="pubsub-sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         self.get_async_result(pubsub_provider.setup())
 
@@ -68,7 +68,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="pubsub-sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         self.get_async_result(pubsub_provider.setup())
 
@@ -97,7 +97,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="pubsub-sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         self.get_async_result(pubsub_provider.setup())
 
@@ -120,7 +120,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="pubsub-sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         with self.assertRaisesRegex(
             ValueError,
@@ -160,7 +160,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         plan = self.get_async_result(pubsub_provider.plan())
 
@@ -205,7 +205,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         input_data = "test".encode("utf-8")
         converter = pubsub_provider.pull_converter(type(input_data))
@@ -221,7 +221,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         input_data = Test(a=1)
         bytes_data = json.dumps(asdict(input_data)).encode("utf-8")
@@ -234,7 +234,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         input_data = "test".encode("utf-8")
         converter = pubsub_provider.pull_converter(None)
@@ -246,7 +246,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         input_data = "test".encode("utf-8")
         converter = pubsub_provider.push_converter(type(input_data))
@@ -262,7 +262,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         input_data = Test(a=1)
         bytes_data = json.dumps(asdict(input_data)).encode("utf-8")
@@ -275,7 +275,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="sub",
             batch_size=1000,
             include_attributes=False,
-            billing_project_id="project",
+            project_id="project",
         )
         input_data = "test".encode("utf-8")
         converter = pubsub_provider.push_converter(None)

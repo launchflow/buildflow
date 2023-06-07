@@ -14,7 +14,7 @@ dataset = os.environ.get("DATASET", "buildflow_walkthrough")
 # Set up a subscriber for the source.
 # If this subscriber does not exist yet BuildFlow will create it.
 input_sub = buildflow.io.GCPPubSubSubscription(
-    billing_project_id=gcp_project,
+    project_id=gcp_project,
     subscription_name=subscription,
     topic_id="projects/pubsub-public-data/topics/taxirides-realtime",
 )
