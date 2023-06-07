@@ -59,9 +59,9 @@ if __name__ == "__main__":
         block_runtime=True,
         debug_run=False,
         # infra-only options.
-        apply_infrastructure=True,
+        apply_infrastructure=False,
         # Ad hoc infra is really nice for quick demos / tests
-        destroy_infrastructure=True,
+        destroy_infrastructure=False,
     )
 
     # these should also work:
