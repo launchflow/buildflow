@@ -72,12 +72,8 @@ class GCPPubSubSubscriptionProvider(
         self.ack_deadline_seconds = ack_deadline_seconds
         self.message_retention_duration = message_retention_duration
         # setup
-        self.subscriber_client = gcp_clients.get_async_subscriber_client(
-            project_id
-        )
-        self.publisher_client = gcp_clients.get_async_publisher_client(
-            project_id
-        )
+        self.subscriber_client = gcp_clients.get_async_subscriber_client(project_id)
+        self.publisher_client = gcp_clients.get_async_publisher_client(project_id)
         # initial state
 
     @property
@@ -238,9 +234,7 @@ class GCPPubSubTopicProvider(PushProvider, SetupProvider, PlanProvider, PulumiPr
     def __init__(self, *, project_id: str, topic_name: str):
         self.project_id = project_id
         self.topic_name = topic_name
-        self.publisher_client = gcp_clients.get_async_publisher_client(
-            project_id
-        )
+        self.publisher_client = gcp_clients.get_async_publisher_client(project_id)
 
     @property
     def topic_id(self):
