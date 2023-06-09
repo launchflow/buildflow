@@ -26,10 +26,18 @@ from buildflow.io.providers.base import PullProvider, PushProvider
 # contention / OOM (all pending pulled batches are kept in memory).
 
 
+# TODO: Explore using a UtilizationScore that each replica can update
+# and then we can use that to determine how many replicas we need.
 @dataclasses.dataclass
 class PullProcessPushSnapshot(Snapshot):
     utilization_score: float
     process_rate: float
+
+    def get_timestamp_millis(self) -> int:
+        return int(time.time() * 1000)
+
+    def as_dict(self) -> dict:
+        return dataclasses.asdict(self)
 
 
 @ray.remote

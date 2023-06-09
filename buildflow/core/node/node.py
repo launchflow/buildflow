@@ -1,25 +1,28 @@
 import asyncio
+import inspect
 import logging
 import signal
 from functools import wraps
-import inspect
 from typing import List, Optional
+
+from ray import serve
 
 from buildflow import utils
 from buildflow.api import (
     NodeAPI,
     NodeApplyResult,
     NodeDestroyResult,
+    NodeID,
     NodePlan,
     SinkType,
     SourceType,
-    NodeID,
 )
 from buildflow.core.infra import PulumiInfraActor
 from buildflow.core.infra.config import InfraConfig
+from buildflow.core.node.server import NodeServer
 from buildflow.core.processor import Processor
 from buildflow.core.runtime import RuntimeActor
-from buildflow.core.runtime.config import RuntimeConfig, ReplicaConfig
+from buildflow.core.runtime.config import ReplicaConfig, RuntimeConfig
 from buildflow.io.registry import EmptySink
 
 
@@ -157,12 +160,19 @@ class Node(NodeAPI):
         # infra-only options
         apply_infrastructure: bool = False,
         destroy_infrastructure: bool = False,
+        # node server options
+        start_node_server: bool = False,
+        node_server_host: str = "127.0.0.1",
+        node_server_port: int = 9653,
     ):
         coro = self._run_async(
             disable_usage_stats=disable_usage_stats,
             apply_infrastructure=apply_infrastructure,
             destroy_infrastructure=destroy_infrastructure,
             debug_run=debug_run,
+            start_node_server=start_node_server,
+            node_server_host=node_server_host,
+            node_server_port=node_server_port,
         )
         if block_runtime:
             asyncio.get_event_loop().run_until_complete(coro)
@@ -172,18 +182,42 @@ class Node(NodeAPI):
     async def _run_async(
         self,
         *,
-        disable_usage_stats: bool = False,
-        apply_infrastructure: bool = False,
-        destroy_infrastructure: bool = False,
-        debug_run: bool = False,
+        disable_usage_stats: bool,
+        apply_infrastructure: bool,
+        destroy_infrastructure: bool,
+        debug_run: bool,
+        start_node_server: bool,
+        node_server_host: str,
+        node_server_port: int,
     ):
-        self._runtime_actor = RuntimeActor.remote(self._runtime_config)
         # BuildFlow Usage Stats
         if not disable_usage_stats:
             utils.log_buildflow_usage()
+
+        self._runtime_actor = RuntimeActor.remote(self._runtime_config)
+
+        # BuildFlow Node Server
+        if start_node_server:
+            node_server = NodeServer.bind(runtime_actor=self._runtime_actor)
+            serve.run(
+                node_server,
+                host=node_server_host,
+                port=node_server_port,
+            )
+            server_log_message = (
+                "-" * 80
+                + "\n\n"
+                + f"Node Server running at http://{node_server_host}:{node_server_port}\n\n"
+                + "-" * 80
+                + "\n\n"
+            )
+            logging.info(server_log_message)
+            print(server_log_message)
+
         # BuildFlow Resource Creation
         if apply_infrastructure:
             await self._apply_async()
+
         # BuildFlow Runtime
         # schedule cleanup
         loop = asyncio.get_event_loop()

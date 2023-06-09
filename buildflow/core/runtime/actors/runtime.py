@@ -30,7 +30,10 @@ class RuntimeSnapshot(Snapshot):
         return self._timestamp
 
     def as_dict(self):
-        return dataclasses.asdict(self)
+        return {
+            "processors": [p.as_dict() for p in self.processors],
+            "timestamp": self._timestamp,
+        }
 
 
 @ray.remote(num_cpus=0.1)

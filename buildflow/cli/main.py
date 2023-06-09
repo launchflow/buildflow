@@ -37,6 +37,15 @@ def run(
     destroy_infrastructure: bool = typer.Option(
         False, help="Whether resources should be destroyed."
     ),
+    start_node_server: bool = typer.Option(
+        False, help="Whether to start the server for the running node."
+    ),
+    node_server_host: str = typer.Option(
+        "127.0.0.1", help="The host to use for the node server."
+    ),
+    node_server_port: int = typer.Option(
+        9653, help="The port to use for the node server."
+    ),
     app_dir: str = APP_DIR_OPTION,
 ):
     sys.path.insert(0, app_dir)
@@ -46,6 +55,9 @@ def run(
             disable_usage_stats=disable_usage_stats,
             apply_infrastructure=apply_infrastructure,
             destroy_infrastructure=destroy_infrastructure,
+            start_node_server=start_node_server,
+            node_server_host=node_server_host,
+            node_server_port=node_server_port,
         )
     else:
         typer.echo(f"{app} is not a buildflow node.")
