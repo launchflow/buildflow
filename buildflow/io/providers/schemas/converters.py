@@ -28,10 +28,6 @@ def str_to_datetime(s: str) -> datetime.datetime:
     return pd.Timestamp(s).to_pydatetime()
 
 
-def datetime_to_str(dt: datetime.datetime) -> str:
-    return dt.isoformat()
-
-
 def identity():
     return lambda x: x
 
