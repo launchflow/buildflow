@@ -122,7 +122,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         elif self._status == RuntimeStatus.DRAINING:
             raise RuntimeError("Cannot run a PullProcessPushActor that is draining.")
 
-        logging.info("Starting Thread...")
+        logging.debug("Starting Thread...")
         self._num_running_threads += 1
 
         raw_process_fn = self.processor.process
@@ -221,7 +221,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             self._status = RuntimeStatus.IDLE
             logging.info("PullProcessPushActor Complete.")
 
-        logging.info("Thread Complete.")
+        logging.debug("Thread Complete.")
 
     async def status(self):
         # TODO: Have this method count the number of active threads
