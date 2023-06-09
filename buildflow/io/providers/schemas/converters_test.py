@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+import datetime
 import json
 from typing import Dict, List, Optional, Set
 import unittest
@@ -18,6 +19,7 @@ class InputDataClass:
     b: int
     nested: Optional[Nested] = None
     nested_list: Optional[List[Nested]] = None
+    timestamp: Optional[datetime.datetime] = None
 
 
 class ConvertersTest(unittest.TestCase):
@@ -31,9 +33,15 @@ class ConvertersTest(unittest.TestCase):
 
     def test_bytes_to_dataclass(self):
         expected_output = InputDataClass(
-            a=1, b=2, nested=Nested(c=3), nested_list=[Nested(c=4)]
+            a=1,
+            b=2,
+            nested=Nested(c=3),
+            nested_list=[Nested(c=4)],
+            timestamp=datetime.datetime.now(),
         )
-        intput_bytes = json.dumps(asdict(expected_output)).encode("utf-8")
+        output_dict = asdict(expected_output)
+        output_dict["timestamp"] = output_dict["timestamp"].isoformat()
+        intput_bytes = json.dumps(output_dict).encode("utf-8")
 
         converter = converters.bytes_to_dataclass(InputDataClass)
 
@@ -41,9 +49,14 @@ class ConvertersTest(unittest.TestCase):
 
     def test_dataclass_to_json(self):
         input_class = InputDataClass(
-            a=1, b=2, nested=Nested(c=3), nested_list=[Nested(c=4)]
+            a=1,
+            b=2,
+            nested=Nested(c=3),
+            nested_list=[Nested(c=4)],
+            timestamp=datetime.datetime.now(),
         )
         expected_output = asdict(input_class)
+        expected_output["timestamp"] = expected_output["timestamp"].isoformat()
 
         converter = converters.dataclass_to_json()
 
