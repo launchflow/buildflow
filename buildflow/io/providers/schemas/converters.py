@@ -19,8 +19,13 @@ import json
 from typing import Any, Dict, Callable, Optional, Type
 
 import dacite
+import pandas as pd
 
 from buildflow.core import exceptions
+
+
+def str_to_datetime(s: str) -> datetime.datetime:
+    return pd.Timestamp(s).to_pydatetime()
 
 
 def identity():
@@ -32,7 +37,11 @@ def bytes_to_dict() -> Callable[[bytes], Dict[str, Any]]:
 
 
 def bytes_to_dataclass(type_: Type) -> Callable[[bytes], Any]:
-    return lambda bytes_: dacite.from_dict(type_, json.loads(bytes_.decode()))
+    return lambda bytes_: dacite.from_dict(
+        type_,
+        json.loads(bytes_.decode()),
+        config=dacite.Config(type_hooks={datetime.datetime: str_to_datetime}),
+    )
 
 
 def _dataclass_to_json(dataclass_instance) -> Dict[str, Any]:
