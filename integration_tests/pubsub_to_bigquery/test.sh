@@ -9,7 +9,7 @@ ray start --head --num-cpus=2
 buildflow run buildflow.samples.pubsub_walkthrough:app --apply-infrastructure &
 main_pid=$!
 
-sleep 30
+sleep 45
 query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.$DATASET.$BIGQUERY_TABLE\`"
 echo "Running query: $query"
 num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
@@ -18,8 +18,7 @@ kill $main_pid
 wait $main_pid
 ray stop --force
 
-if [[ $num_rows > 0 ]];
-then
+if [[ $num_rows > 0 ]]; then
   echo "Found $num_rows rows"
   echo "Test passed!"
   exit 0
