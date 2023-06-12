@@ -8,7 +8,7 @@ from buildflow.core.runtime import autoscale
 from buildflow.core.runtime.actors.process_pool import (
     ProcessorSnapshot,
     RayActorInfo,
-    ReplicaSnapshot,
+    PullProcessPushSnapshot,
     SourceInfo,
 )
 from buildflow.core.runtime.config import AutoscalerConfig
@@ -29,7 +29,7 @@ class AutoScalerTest(unittest.TestCase):
         events_processed_per_replica = 12_000
         non_empty_ratio_per_replica = 1
         replicas = [
-            ReplicaSnapshot(
+            PullProcessPushSnapshot(
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -71,7 +71,7 @@ class AutoScalerTest(unittest.TestCase):
         # the backlog can be burned down.
         non_empty_ratio_per_replica = 0.1
         replicas = [
-            ReplicaSnapshot(
+            PullProcessPushSnapshot(
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -108,7 +108,7 @@ class AutoScalerTest(unittest.TestCase):
         events_processed_per_replica = 12_000
         non_empty_ratio_per_replica = 1
         replicas = [
-            ReplicaSnapshot(
+            PullProcessPushSnapshot(
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -150,7 +150,7 @@ class AutoScalerTest(unittest.TestCase):
         events_processed_per_replica = 100
         non_empty_ratio_per_replica = 1
         replicas = [
-            ReplicaSnapshot(
+            PullProcessPushSnapshot(
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -192,7 +192,7 @@ class AutoScalerTest(unittest.TestCase):
         events_processed_per_replica = 100
         non_empty_ratio_per_replica = 1
         replicas = [
-            ReplicaSnapshot(
+            PullProcessPushSnapshot(
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -233,7 +233,7 @@ class AutoScalerTest(unittest.TestCase):
         # replicas to achieve a utilization of .5
         non_empty_ratio_per_replica = 0.3
         replicas = [
-            ReplicaSnapshot(
+            PullProcessPushSnapshot(
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -277,7 +277,7 @@ class AutoScalerTest(unittest.TestCase):
         non_empty_ratio_per_replica = 0.3
 
         replicas = [
-            ReplicaSnapshot(
+            PullProcessPushSnapshot(
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
