@@ -14,6 +14,7 @@ from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot, ProcessorID
 from buildflow.core.processor.base import Processor
 from buildflow.core.runtime.actors.pull_process_push import (
     PullProcessPushActor,
+    PullProcessPushSnapshot,
 )  # noqa: E501
 from buildflow.core.runtime.config import ReplicaConfig
 from buildflow.io.providers.base import PullProvider, PushProvider
@@ -44,28 +45,12 @@ class RayActorInfo:
     num_cpus: float
 
 
-# TODO: Explore using a UtilizationScore that each replica can update
-# and then we can use that to determine how many replicas we need.
-@dataclasses.dataclass
-class ReplicaSnapshot(Snapshot):
-    utilization_score: float
-    process_rate: float
-
-    _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)
-
-    def get_timestamp_millis(self) -> int:
-        return self._timestamp
-
-    def as_dict(self) -> dict:
-        return dataclasses.asdict(self)
-
-
 @dataclasses.dataclass
 class ProcessorSnapshot(Snapshot):
     processor_id: ProcessorID
     source: SourceInfo
     sink: SinkInfo
-    replicas: List[ReplicaSnapshot]
+    replicas: List[PullProcessPushSnapshot]
     actor_info: RayActorInfo
     # Does it make sense to store timestamps in nested snapshots?
     # I _think_ so, since snapshot() is async and might happend at different
@@ -76,7 +61,14 @@ class ProcessorSnapshot(Snapshot):
         return self._timestamp
 
     def as_dict(self) -> dict:
-        return dataclasses.asdict(self)
+        return {
+            "processor_id": self.processor_id,
+            "source": dataclasses.asdict(self.source),
+            "sink": dataclasses.asdict(self.sink),
+            "replicas": [r.as_dict() for r in self.replicas],
+            "actor_info": dataclasses.asdict(self.actor_info),
+            "timestamp": self._timestamp,
+        }
 
 
 @ray.remote(num_cpus=0.1)
@@ -219,12 +211,14 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         source_info = SourceInfo(
             backlog=source_backlog,
             provider=ProviderInfo(
-                provider_type=type(source_provider), provider_config={}
+                provider_type=source_provider.__class__.__name__, provider_config={}
             ),
         )
         sink_provider: PushProvider = self.processor.sink().provider()
         sink_info = SinkInfo(
-            provider=ProviderInfo(provider_type=type(sink_provider), provider_config={})
+            provider=ProviderInfo(
+                provider_type=sink_provider.__class__.__name__, provider_config={}
+            )
         )
 
         replica_info_list = []

@@ -36,6 +36,7 @@ dependencies = [
     "pyarrow",
     "pyyaml",
     "ray[default] > 2.0.0",
+    "ray[serve] > 2.0.0",
     "typer",
     "redis",
 ]
