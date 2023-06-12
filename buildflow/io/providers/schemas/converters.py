@@ -36,32 +36,12 @@ def bytes_to_dict() -> Callable[[bytes], Dict[str, Any]]:
     return lambda bytes_: json.loads(bytes_.decode())
 
 
-import traceback
-
-
-def _temp(type_, bytes_):
-    temp = bytes_.decode()
-    try:
-        result = dacite.from_dict(
-            type_,
-            json.loads(temp),
-            config=dacite.Config(type_hooks={datetime.datetime: str_to_datetime}),
-        )
-    except Exception as e:
-        traceback.print_exc()
-        print("Exception: ", e)
-        print("type_: ", type_)
-        print("temp: ", json.loads(temp))
-    return result
-
-
 def bytes_to_dataclass(type_: Type) -> Callable[[bytes], Any]:
-    # return lambda bytes_: dacite.from_dict(
-    #     type_,
-    #     json.loads(bytes_.decode()),
-    #     config=dacite.Config(type_hooks={datetime.datetime: str_to_datetime}),
-    # )
-    return lambda bytes_: _temp(type_, bytes_)
+    return lambda bytes_: dacite.from_dict(
+        type_,
+        json.loads(bytes_.decode()),
+        config=dacite.Config(type_hooks={datetime.datetime: str_to_datetime}),
+    )
 
 
 def _dataclass_to_json(dataclass_instance) -> Dict[str, Any]:

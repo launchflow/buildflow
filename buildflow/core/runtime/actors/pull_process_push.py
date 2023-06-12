@@ -37,7 +37,11 @@ class PullProcessPushSnapshot(Snapshot):
         return int(time.time() * 1000)
 
     def as_dict(self) -> dict:
-        return dataclasses.asdict(self)
+        return {
+            "utilization_score": self.utilization_score,
+            "process_rate": self.process_rate,
+            "timestamp": self.get_timestamp_millis(),
+        }
 
 
 @ray.remote
