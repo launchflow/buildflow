@@ -65,7 +65,6 @@ if __name__ == "__main__":
         apply_infrastructure=False,
         # Ad hoc infra is really nice for quick demos / tests
         destroy_infrastructure=False,
-        start_node_server=True,
     )
 
     # these should also work:

@@ -60,15 +60,13 @@ class NodeServer:
 
     @app.post("/runtime/drain")
     async def runtime_drain(self):
-        # we dont want to block the request, so we return immediately after sending the
-        # drain request
+        # we dont want to block the request, so we dont await the drain
         self.runtime_actor.drain.remote()
         return "Drain request sent."
 
     @app.get("/runtime/snapshot")
     async def runtime_snapshot(self):
         result = await self.runtime_actor.snapshot.remote()
-        print("result: ", result.as_dict())
         return result.as_dict()
 
     @app.get("/infra/snapshot")
