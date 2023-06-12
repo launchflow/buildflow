@@ -40,7 +40,7 @@ index_html = """
         </div>
     </body>
 </html>
-"""
+"""  # noqa: E501
 
 
 @serve.deployment(route_prefix="/", ray_actor_options={"num_cpus": 0.1})
