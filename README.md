@@ -40,6 +40,7 @@ Installing Pulumi unlocks:
 - **Docs**: https://www.buildflow.dev/docs
 - **Walkthroughs**: https://www.buildflow.dev/docs/walkthroughs/realtime-image-classification
 - **Discord**: https://discordapp.com/invite/wz7fjHyrCA
+- **Contribute**: https://www.buildflow.dev/docs/contribute
 
 ## Code Health Checks
 
