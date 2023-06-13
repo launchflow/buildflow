@@ -94,11 +94,12 @@ class RuntimeActor(RuntimeAPI):
         self._runtime_loop_future = self._runtime_checkin_loop()
 
     async def drain(self) -> bool:
-        logging.info("Draining Runtime...")
         if self._status == RuntimeStatus.DRAINING:
             logging.warning("Received drain single twice. Killing remaining actors.")
             [ray.kill(actor) for actor in self._processor_pool_actors]
         else:
+            logging.info("Draining Runtime...")
+            logging.info("-- Attempting to drain again will force stop the runtime.")
             self._status = RuntimeStatus.DRAINING
             drain_tasks = [
                 actor.drain.remote() for actor in self._processor_pool_actors
