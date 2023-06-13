@@ -4,6 +4,7 @@ from unittest import mock
 
 import pytest
 
+from buildflow.api import RuntimeStatus
 from buildflow.core.runtime import autoscale
 from buildflow.core.runtime.actors.process_pool import (
     ProcessorSnapshot,
@@ -30,6 +31,7 @@ class AutoScalerTest(unittest.TestCase):
         non_empty_ratio_per_replica = 1
         replicas = [
             PullProcessPushSnapshot(
+                status=RuntimeStatus.RUNNING,
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -37,6 +39,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
+                    status=RuntimeStatus.RUNNING,
                     processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
@@ -72,6 +75,7 @@ class AutoScalerTest(unittest.TestCase):
         non_empty_ratio_per_replica = 0.1
         replicas = [
             PullProcessPushSnapshot(
+                status=RuntimeStatus.RUNNING,
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -79,6 +83,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
+                    status=RuntimeStatus.RUNNING,
                     processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
@@ -109,6 +114,7 @@ class AutoScalerTest(unittest.TestCase):
         non_empty_ratio_per_replica = 1
         replicas = [
             PullProcessPushSnapshot(
+                status=RuntimeStatus.RUNNING,
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -116,6 +122,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
+                    status=RuntimeStatus.RUNNING,
                     processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
@@ -151,6 +158,7 @@ class AutoScalerTest(unittest.TestCase):
         non_empty_ratio_per_replica = 1
         replicas = [
             PullProcessPushSnapshot(
+                status=RuntimeStatus.RUNNING,
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -158,6 +166,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
+                    status=RuntimeStatus.RUNNING,
                     processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
@@ -193,6 +202,7 @@ class AutoScalerTest(unittest.TestCase):
         non_empty_ratio_per_replica = 1
         replicas = [
             PullProcessPushSnapshot(
+                status=RuntimeStatus.RUNNING,
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -200,6 +210,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
+                    status=RuntimeStatus.RUNNING,
                     processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
@@ -234,6 +245,7 @@ class AutoScalerTest(unittest.TestCase):
         non_empty_ratio_per_replica = 0.3
         replicas = [
             PullProcessPushSnapshot(
+                status=RuntimeStatus.RUNNING,
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -241,6 +253,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
+                    status=RuntimeStatus.RUNNING,
                     processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,
@@ -278,6 +291,7 @@ class AutoScalerTest(unittest.TestCase):
 
         replicas = [
             PullProcessPushSnapshot(
+                status=RuntimeStatus.RUNNING,
                 utilization_score=non_empty_ratio_per_replica,
                 process_rate=events_processed_per_replica,
             )
@@ -285,6 +299,7 @@ class AutoScalerTest(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING):
             rec_replicas = autoscale.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
+                    status=RuntimeStatus.RUNNING,
                     processor_id="test",
                     source=SourceInfo(backlog=backlog, provider=None),
                     sink=None,

@@ -31,6 +31,7 @@ class RuntimeSnapshot(Snapshot):
 
     def as_dict(self):
         return {
+            "status": self.status.name,
             "processors": [p.as_dict() for p in self.processors],
             "timestamp": self._timestamp,
         }
@@ -92,12 +93,19 @@ class RuntimeActor(RuntimeAPI):
         self._runtime_loop_future = self._runtime_checkin_loop()
 
     async def drain(self) -> bool:
-        logging.info("Draining Runtime...")
-        self._status = RuntimeStatus.DRAINING
-        drain_tasks = [actor.drain.remote() for actor in self._processor_pool_actors]
-        await asyncio.gather(*drain_tasks)
-        self._status = RuntimeStatus.IDLE
-        logging.info("Drain Runtime complete.")
+        if self._status == RuntimeStatus.DRAINING:
+            logging.warning("Received drain single twice. Killing remaining actors.")
+            [ray.kill(actor) for actor in self._processor_pool_actors]
+        else:
+            logging.info("Draining Runtime...")
+            logging.info("-- Attempting to drain again will force stop the runtime.")
+            self._status = RuntimeStatus.DRAINING
+            drain_tasks = [
+                actor.drain.remote() for actor in self._processor_pool_actors
+            ]
+            await asyncio.gather(*drain_tasks)
+            self._status = RuntimeStatus.IDLE
+            logging.info("Drain Runtime complete.")
         return True
 
     async def status(self):
@@ -113,7 +121,7 @@ class RuntimeActor(RuntimeAPI):
             actor.snapshot.remote() for actor in self._processor_pool_actors
         ]
         processor_snapshots = await asyncio.gather(*snapshot_tasks)
-        return RuntimeSnapshot(processors=processor_snapshots)
+        return RuntimeSnapshot(status=self._status, processors=processor_snapshots)
 
     async def run_until_complete(self):
         if self._runtime_loop_future is not None:
