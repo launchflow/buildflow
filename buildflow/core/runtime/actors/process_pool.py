@@ -47,6 +47,7 @@ class RayActorInfo:
 
 @dataclasses.dataclass
 class ProcessorSnapshot(Snapshot):
+    status: RuntimeStatus
     processor_id: ProcessorID
     source: SourceInfo
     sink: SinkInfo
@@ -62,6 +63,7 @@ class ProcessorSnapshot(Snapshot):
 
     def as_dict(self) -> dict:
         return {
+            "status": self.status.name,
             "processor_id": self.processor_id,
             "source": dataclasses.asdict(self.source),
             "sink": dataclasses.asdict(self.sink),
@@ -229,6 +231,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         actor_info = RayActorInfo(num_cpus=self.config.num_cpus)
 
         return ProcessorSnapshot(
+            status=self._status,
             processor_id=self.processor.processor_id,
             source=source_info,
             sink=sink_info,

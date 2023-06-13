@@ -30,6 +30,7 @@ from buildflow.io.providers.base import PullProvider, PushProvider
 # and then we can use that to determine how many replicas we need.
 @dataclasses.dataclass
 class PullProcessPushSnapshot(Snapshot):
+    status: RuntimeStatus
     utilization_score: float
     process_rate: float
 
@@ -38,6 +39,7 @@ class PullProcessPushSnapshot(Snapshot):
 
     def as_dict(self) -> dict:
         return {
+            "status": self.status.name,
             "utilization_score": self.utilization_score,
             "process_rate": self.process_rate,
             "timestamp": self.get_timestamp_millis(),
@@ -249,7 +251,9 @@ class PullProcessPushActor(AsyncRuntimeAPI):
 
     async def snapshot(self):
         if self._num_pull_requests == 0:
-            return PullProcessPushSnapshot(utilization_score=0, process_rate=0)
+            return PullProcessPushSnapshot(
+                status=self._status, utilization_score=0, process_rate=0
+            )
 
         # Previous utilitization metric option:
         # non_empty_ratio = 1 - (
@@ -262,6 +266,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             time.time() - self._last_snapshot_time
         )
         snapshot = PullProcessPushSnapshot(
+            status=self._status,
             utilization_score=utilization_score,
             process_rate=process_rate,
         )
