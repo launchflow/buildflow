@@ -1,7 +1,17 @@
+from dataclasses import dataclass
 import enum
 
 
+class RuntimeStatus(enum.Enum):
+    IDLE = enum.auto()
+    RUNNING = enum.auto()
+    DRAINING = enum.auto()
+
+
+@dataclass
 class Snapshot:
+    status: RuntimeStatus
+
     def get_timestamp_millis(self) -> int:
         """Returns the timestamp of the snapshot (as millis since epoch)"""
         raise NotImplementedError("get_timestamp not implemented")
@@ -9,12 +19,6 @@ class Snapshot:
     def as_dict(self) -> dict:
         """Returns a dictionary representation of the snapshot"""
         raise NotImplementedError("as_dict not implemented")
-
-
-class RuntimeStatus(enum.Enum):
-    IDLE = enum.auto()
-    RUNNING = enum.auto()
-    DRAINING = enum.auto()
 
 
 class RuntimeAPI:

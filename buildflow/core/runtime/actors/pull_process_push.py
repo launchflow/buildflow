@@ -30,7 +30,6 @@ from buildflow.io.providers.base import PullProvider, PushProvider
 # and then we can use that to determine how many replicas we need.
 @dataclasses.dataclass
 class PullProcessPushSnapshot(Snapshot):
-    status: RuntimeStatus
     utilization_score: float
     process_rate: float
 

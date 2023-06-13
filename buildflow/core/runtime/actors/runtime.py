@@ -22,7 +22,6 @@ from buildflow.core.runtime.config import RuntimeConfig
 @dataclasses.dataclass
 class RuntimeSnapshot(Snapshot):
     # TODO(nit): I dont like this name, but I'm not sure what else to call it.
-    status: RuntimeStatus
     processors: List[ProcessorSnapshot]
 
     _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)

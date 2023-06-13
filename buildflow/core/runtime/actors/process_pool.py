@@ -47,7 +47,6 @@ class RayActorInfo:
 
 @dataclasses.dataclass
 class ProcessorSnapshot(Snapshot):
-    status: RuntimeStatus
     processor_id: ProcessorID
     source: SourceInfo
     sink: SinkInfo
