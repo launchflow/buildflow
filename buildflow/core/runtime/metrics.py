@@ -22,6 +22,11 @@ class RateCalculation:
 AggregationFn = Callable[[Iterable[Any]], float]
 
 
+# NOTE: This class is supposed to mimic this prometheus query:
+# avg_over_time({aggregation_fn}_over_time(counter_name)[1s])[{rate_sec}]
+# where the final average result is stored as: (rate_buckets_sum, num_rate_buckets)
+# so we can combine results together before calculating the final average.
+# i.e.: average_across_replicas = sum(rate_buckets_sum) / sum(num_rate_buckets)
 class RateMetric:
     def __init__(self, rate_secs: int, aggregation_fn: AggregationFn):
         self.rate_secs = rate_secs
@@ -67,6 +72,8 @@ class RateMetric:
         return RateCalculation(rate_buckets_sum, num_rate_buckets)
 
 
+# NOTE: This class is supposed to mimic this prometheus query:
+# avg_over_time(sum_over_time(counter_name)[1s])[{rate_sec}]
 class RateCounterMetric(RateMetric):
     def __init__(
         self,
@@ -94,6 +101,12 @@ def avg(x):
     return sum(x) / len(x)
 
 
+# NOTE: This class is supposed to mimic this prometheus query:
+# avg_over_time(avg_over_time(gauge_name)[1s])[{rate_sec}]
+# which I think is mostly the same as:
+# avg_over_time(rate(gauge_name)[1s])[{rate_sec}]
+# except that prometheus rate is supposed to be used with counters, not gauges.
+# https://prometheus.io/docs/prometheus/latest/querying/functions/#rate
 class RateGaugeMetric(RateMetric):
     def __init__(
         self,
