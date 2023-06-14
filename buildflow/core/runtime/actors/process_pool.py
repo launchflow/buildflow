@@ -5,7 +5,6 @@ import random
 from typing import Dict, List, Optional
 
 import ray
-from ray.util.metrics import Gauge
 from ray.util.placement_group import placement_group, remove_placement_group
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
@@ -18,6 +17,8 @@ from buildflow.core.runtime.actors.pull_process_push import (
 )  # noqa: E501
 from buildflow.core.runtime.config import ReplicaConfig
 from buildflow.io.providers.base import PullProvider, PushProvider
+from buildflow.core.runtime.metrics import SimpleGaugeMetric
+
 
 # TODO: add ability to load from env vars so we can set num_cpus
 # from buildflow.utils import load_config_from_env
@@ -52,6 +53,10 @@ class ProcessorSnapshot(Snapshot):
     sink: SinkInfo
     replicas: List[PullProcessPushSnapshot]
     actor_info: RayActorInfo
+    # metrics
+    num_replicas: float
+    num_concurrent_tasks: float
+
     # Does it make sense to store timestamps in nested snapshots?
     # I _think_ so, since snapshot() is async and might happend at different
     # times for each processor.
@@ -68,6 +73,8 @@ class ProcessorSnapshot(Snapshot):
             "sink": dataclasses.asdict(self.sink),
             "replicas": [r.as_dict() for r in self.replicas],
             "actor_info": dataclasses.asdict(self.actor_info),
+            "num_replicas": self.num_replicas,
+            "num_concurrent_tasks": self.num_concurrent_tasks,
             "timestamp": self._timestamp,
         }
 
@@ -94,31 +101,23 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         self._last_snapshot_timestamp: Optional[int] = None
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
-        self.num_replicas_gauge = Gauge(
+        self.num_replicas_gauge = SimpleGaugeMetric(
             "num_replicas",
             description="Current number of replicas. Goes up and down.",
-            tag_keys=("processor_id", "JobId"),
-        )
-        self.num_replicas_gauge.set_default_tags(
-            {
+            default_tags={
                 "processor_id": self.processor.processor_id,
                 "JobId": job_id,
-            }
+            },
         )
-        self.concurrency_gauge = Gauge(
+        self.concurrency_gauge = SimpleGaugeMetric(
             "ppp_concurrency",
             description="Current number of concurrency per replica. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.concurrency_gauge.set_default_tags(
-            {
+            default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
-            }
+            },
         )
+
         self.concurrency_gauge.set(config.num_concurrent_tasks)
 
     async def add_replicas(self, num_replicas: int):
@@ -236,4 +235,6 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             sink=sink_info,
             replicas=replica_info_list,
             actor_info=actor_info,
+            num_replicas=self.num_replicas_gauge.get(),
+            num_concurrent_tasks=self.concurrency_gauge.get(),
         )

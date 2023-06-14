@@ -5,12 +5,17 @@ import logging
 import time
 
 import ray
-from ray.util.metrics import Counter, Gauge
 
 from buildflow.api import RuntimeStatus
 from buildflow.api.runtime import Snapshot, AsyncRuntimeAPI
 from buildflow.core.processor.base import Processor
 from buildflow.io.providers.base import PullProvider, PushProvider
+from buildflow.core.runtime.metrics import (
+    RateCounterMetric,
+    RateGaugeMetric,
+    RateCalculation,
+    SimpleGaugeMetric,
+)
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI
@@ -31,7 +36,11 @@ from buildflow.io.providers.base import PullProvider, PushProvider
 @dataclasses.dataclass
 class PullProcessPushSnapshot(Snapshot):
     utilization_score: float
-    process_rate: float
+    # metrics
+    num_events_processed_rate: RateCalculation
+    process_time_rate: RateCalculation
+    batch_time_rate: RateCalculation
+    total_time_rate: RateCalculation
 
     def get_timestamp_millis(self) -> int:
         return int(time.time() * 1000)
@@ -39,9 +48,12 @@ class PullProcessPushSnapshot(Snapshot):
     def as_dict(self) -> dict:
         return {
             "status": self.status.name,
-            "utilization_score": self.utilization_score,
-            "process_rate": self.process_rate,
             "timestamp": self.get_timestamp_millis(),
+            "utilization_score": self.utilization_score,
+            "num_events_processed_rate": self.num_events_processed_rate.as_dict(),
+            "process_time_rate": self.process_time_rate.as_dict(),
+            "batch_time_rate": self.batch_time_rate.as_dict(),
+            "total_time_rate": self.total_time_rate.as_dict(),
         }
 
 
@@ -74,58 +86,36 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         self._pull_percentage = 0.0
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
-        self.num_events_counter = Counter(
+        self.num_events_counter = RateCounterMetric(
             "num_events_processed",
-            description=("Number of events processed by the actor. Only increments."),
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
+            description="Number of events processed by the actor. Only increments.",
+            default_tags={"processor_id": processor.processor_id, "JobId": job_id},
         )
-        self.num_events_counter.set_default_tags(
-            {"processor_id": processor.processor_id, "JobId": job_id}
-        )
-        self.process_time_gauge = Gauge(
+
+        self.process_time_gauge = RateGaugeMetric(
             "process_time",
             description="Current process time of the actor. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.process_time_gauge.set_default_tags(
-            {
+            default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
-            }
+            },
         )
-        self.batch_time_gauge = Gauge(
+
+        self.batch_time_gauge = RateGaugeMetric(
             "batch_time",
             description="Current batch process time of the actor. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.batch_time_gauge.set_default_tags(
-            {
+            default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
-            }
+            },
         )
-        self.total_time_gauge = Gauge(
+        self.total_time_gauge = RateGaugeMetric(
             "total_time",
             description="Current total process time of the actor. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.total_time_gauge.set_default_tags(
-            {
+            default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
-            }
+            },
         )
 
     async def run(self):
@@ -251,23 +241,23 @@ class PullProcessPushActor(AsyncRuntimeAPI):
     async def snapshot(self):
         if self._num_pull_requests == 0:
             return PullProcessPushSnapshot(
-                status=self._status, utilization_score=0, process_rate=0
+                status=self._status,
+                utilization_score=0,
+                num_events_processed_rate=0,
+                process_time_rate=0,
+                batch_time_rate=0,
+                total_time_rate=0,
             )
-
-        # Previous utilitization metric option:
-        # non_empty_ratio = 1 - (
-        #     self._num_empty_pull_responses / self._num_pull_requests)
-        # utilization_score = non_empty_ratio
 
         utilization_score = self._pull_percentage / self._num_pull_requests
 
-        process_rate = self._num_elements_processed / (
-            time.time() - self._last_snapshot_time
-        )
         snapshot = PullProcessPushSnapshot(
             status=self._status,
             utilization_score=utilization_score,
-            process_rate=process_rate,
+            num_events_processed_rate=self.num_events_counter.calculate(),
+            process_time_rate=self.process_time_gauge.calculate(),
+            batch_time_rate=self.batch_time_gauge.calculate(),
+            total_time_rate=self.total_time_gauge.calculate(),
         )
         # reset the counters
         self._last_snapshot_time = time.time()

@@ -6,10 +6,13 @@ import logging
 from typing import Iterable, List
 
 import ray
-from ray.util.metrics import Gauge
 
 from buildflow import utils
-from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot
+from buildflow.api import (
+    RuntimeAPI,
+    RuntimeStatus,
+    Snapshot,
+)
 from buildflow.core.processor.base import Processor
 from buildflow.core.runtime.actors.process_pool import (
     ProcessorReplicaPoolActor,
@@ -17,12 +20,15 @@ from buildflow.core.runtime.actors.process_pool import (
 )
 from buildflow.core.runtime.autoscale import calculate_target_num_replicas
 from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.core.runtime.metrics import SimpleGaugeMetric
 
 
 @dataclasses.dataclass
 class RuntimeSnapshot(Snapshot):
     # TODO(nit): I dont like this name, but I'm not sure what else to call it.
     processors: List[ProcessorSnapshot]
+    # metrics
+    backlog: float
 
     _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)
 
@@ -33,6 +39,7 @@ class RuntimeSnapshot(Snapshot):
         return {
             "status": self.status.name,
             "processors": [p.as_dict() for p in self.processors],
+            "backlog": self.backlog,
             "timestamp": self._timestamp,
         }
 
@@ -52,20 +59,14 @@ class RuntimeActor(RuntimeAPI):
         self._runtime_loop_future = None
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
-        self.current_backlog_gauge = Gauge(
+        self.current_backlog_gauge = SimpleGaugeMetric(
             "current_backlog",
             description="Current backlog of the actor. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.current_backlog_gauge.set_default_tags(
-            {
+            default_tags={
                 # In the case where we could not get the processor name
                 "processor_id": "unknown",
                 "JobId": job_id,
-            }
+            },
         )
 
     def run(self, *, processors: Iterable[Processor]):
@@ -121,7 +122,11 @@ class RuntimeActor(RuntimeAPI):
             actor.snapshot.remote() for actor in self._processor_pool_actors
         ]
         processor_snapshots = await asyncio.gather(*snapshot_tasks)
-        return RuntimeSnapshot(status=self._status, processors=processor_snapshots)
+        return RuntimeSnapshot(
+            status=self._status,
+            processors=processor_snapshots,
+            backlog=self.current_backlog_gauge.get(),
+        )
 
     async def run_until_complete(self):
         if self._runtime_loop_future is not None:

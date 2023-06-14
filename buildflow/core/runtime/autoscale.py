@@ -38,8 +38,14 @@ def calculate_target_num_replicas(
 
     current_num_replicas = len(snapshot.replicas)
     backlog = snapshot.source.backlog
-    total_process_rate = sum(replica.process_rate for replica in snapshot.replicas)
-    avg_process_rate = total_process_rate / current_num_replicas
+    total_process_rate = sum(
+        replica.num_events_processed_rate.rate_buckets_sum
+        for replica in snapshot.replicas
+    )
+    avg_process_rate = total_process_rate / sum(
+        replica.num_events_processed_rate.num_rate_buckets
+        for replica in snapshot.replicas
+    )
     total_utilization_score = sum(
         replica.utilization_score for replica in snapshot.replicas
     )
