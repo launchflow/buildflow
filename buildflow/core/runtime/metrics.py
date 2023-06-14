@@ -28,7 +28,10 @@ AggregationFn = Callable[[Iterable[Any]], float]
 # so we can combine results together before calculating the final average.
 # i.e.: average_across_replicas = sum(rate_buckets_sum) / sum(num_rate_buckets)
 class RateMetric:
-    def __init__(self, rate_secs: int, aggregation_fn: AggregationFn):
+    # NOTE: I _think_ we always want to use sum for counters and avg for gauges
+    # because counters are always increasing, so we want to sum the values,
+    # whereas gauges can go up and down, so we want to average the values.
+    def __init__(self, rate_secs: int, aggregation_fn: AggregationFn = sum):
         self.rate_secs = rate_secs
         self.aggregation_fn = aggregation_fn
         # Each entry is a list that will hold data points for a given second

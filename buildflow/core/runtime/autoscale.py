@@ -31,6 +31,12 @@ def _available_replicas(cpu_per_replica: float):
     return int(num_cpus / cpu_per_replica)
 
 
+# TODO: Explore making the entire runtime autoscale
+# to maximize resource utilization, we can sample the buffer size of each task
+# and scale up/down based on that. We can target to use 80% of the available
+# resources in the worst case scenario (99.7% of samples contained by 80% of resources).
+
+
 def calculate_target_num_replicas(
     snapshot: ProcessorSnapshot, config: AutoscalerConfig
 ):
