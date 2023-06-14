@@ -19,7 +19,7 @@ class TaxiOutput:
 
 
 # Create a new Node with all the defaults set
-runtime_config = RuntimeConfig.IO_BOUND(autoscale=False)
+runtime_config = RuntimeConfig.IO_BOUND(autoscale=True, max_replicas=4)
 # infra_config = InfraConfig(
 #     schema_validation=SchemaValidation.LOG_WARNING,
 #     require_confirmation=False,
@@ -45,7 +45,10 @@ bigquery_sink = BigQueryTable(
 
 # Attach a processor to the Node
 @app.processor(
-    source=pubsub_source, sink=bigquery_sink, num_cpus=0.5, num_concurrent_tasks=8
+    source=pubsub_source,
+    sink=bigquery_sink,
+    num_cpus=0.5,
+    num_concurrency=8,
 )
 def process(pubsub_message: TaxiOutput) -> TaxiOutput:
     # print('Process: ', pubsub_message)

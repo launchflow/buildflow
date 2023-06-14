@@ -16,9 +16,14 @@ class Snapshot:
         """Returns the timestamp of the snapshot (as millis since epoch)"""
         raise NotImplementedError("get_timestamp not implemented")
 
+    # TODO: Do we ever need the entire state? Or should we just use summary exclusively?
     def as_dict(self) -> dict:
         """Returns a dictionary representation of the snapshot"""
         raise NotImplementedError("as_dict not implemented")
+
+    def summarize(self) -> dict:
+        """Returns a summary of the snapshot (status + metrics)"""
+        raise NotImplementedError("summarize not implemented")
 
 
 class RuntimeAPI:

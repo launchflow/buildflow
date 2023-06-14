@@ -37,10 +37,26 @@ from buildflow.core.runtime.metrics import (
 class PullProcessPushSnapshot(Snapshot):
     utilization_score: float
     # metrics
-    num_events_processed_rate: RateCalculation
-    process_time_rate: RateCalculation
-    batch_time_rate: RateCalculation
-    total_time_rate: RateCalculation
+    num_events_processed_per_sec: RateCalculation
+    avg_process_time_millis: RateCalculation
+    avg_process_batch_time_millis: RateCalculation
+    avg_pull_to_ack_time_millis: RateCalculation
+
+    # TODO: Split RateCalculation into a Counter and a Gauge types so we can
+    # get rid of these weird methods
+    @staticmethod
+    def __counter_metric_fields__():
+        return [
+            "num_events_processed_per_sec",
+        ]
+
+    @staticmethod
+    def __gauge_metric_fields__():
+        return [
+            "avg_process_time_millis",
+            "avg_process_batch_time_millis",
+            "avg_pull_to_ack_time_millis",
+        ]
 
     def get_timestamp_millis(self) -> int:
         return int(time.time() * 1000)
@@ -50,10 +66,20 @@ class PullProcessPushSnapshot(Snapshot):
             "status": self.status.name,
             "timestamp": self.get_timestamp_millis(),
             "utilization_score": self.utilization_score,
-            "num_events_processed_rate": self.num_events_processed_rate.as_dict(),
-            "process_time_rate": self.process_time_rate.as_dict(),
-            "batch_time_rate": self.batch_time_rate.as_dict(),
-            "total_time_rate": self.total_time_rate.as_dict(),
+            "num_events_processed_per_sec": self.num_events_processed_per_sec.as_dict(),
+            "avg_process_time_millis": self.avg_process_time_millis.as_dict(),
+            "avg_process_batch_time_millis": self.avg_process_batch_time_millis.as_dict(),
+            "avg_pull_to_ack_time_millis": self.avg_pull_to_ack_time_millis.as_dict(),
+        }
+
+    def summarize(self) -> dict:
+        return {
+            "status": self.status.name,
+            "timestamp": self.get_timestamp_millis(),
+            "num_events_processed_per_sec": self.num_events_processed_per_sec.rate(),
+            "avg_process_time_millis": self.avg_process_time_millis.rate(),
+            "avg_process_batch_time_millis": self.avg_process_batch_time_millis.rate(),
+            "avg_pull_to_ack_time_millis": self.avg_pull_to_ack_time_millis.rate(),
         }
 
 
@@ -243,10 +269,10 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             return PullProcessPushSnapshot(
                 status=self._status,
                 utilization_score=0,
-                num_events_processed_rate=0,
-                process_time_rate=0,
-                batch_time_rate=0,
-                total_time_rate=0,
+                num_events_processed_per_sec=RateCalculation(0.0, 0),
+                avg_process_time_millis=RateCalculation(0.0, 0),
+                avg_process_batch_time_millis=RateCalculation(0.0, 0),
+                avg_pull_to_ack_time_millis=RateCalculation(0.0, 0),
             )
 
         utilization_score = self._pull_percentage / self._num_pull_requests
@@ -254,10 +280,10 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         snapshot = PullProcessPushSnapshot(
             status=self._status,
             utilization_score=utilization_score,
-            num_events_processed_rate=self.num_events_counter.calculate(),
-            process_time_rate=self.process_time_gauge.calculate(),
-            batch_time_rate=self.batch_time_gauge.calculate(),
-            total_time_rate=self.total_time_gauge.calculate(),
+            num_events_processed_per_sec=self.num_events_counter.calculate(),
+            avg_process_time_millis=self.process_time_gauge.calculate(),
+            avg_process_batch_time_millis=self.batch_time_gauge.calculate(),
+            avg_pull_to_ack_time_millis=self.total_time_gauge.calculate(),
         )
         # reset the counters
         self._last_snapshot_time = time.time()

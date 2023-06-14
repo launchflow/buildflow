@@ -18,6 +18,41 @@ class RateCalculation:
             "num_rate_buckets": self.num_rate_buckets,
         }
 
+    def rate(self) -> float:
+        """Returns the average rate per bucket."""
+        if self.num_rate_buckets == 0:
+            return 0.0
+        return self.rate_buckets_sum / self.num_rate_buckets
+
+    @classmethod
+    def average_rate(
+        cls,
+        rate_calculations: Iterable["RateCalculation"],
+    ) -> "RateCalculation":
+        """Merges multiple rate calculations into a single rate calculation."""
+        rate_buckets_sum = 0.0
+        num_rate_buckets = 0
+        for rate_calculation in rate_calculations:
+            rate_buckets_sum += rate_calculation.rate_buckets_sum
+            num_rate_buckets += rate_calculation.num_rate_buckets
+        return RateCalculation(rate_buckets_sum, num_rate_buckets)
+
+    @classmethod
+    def combined_rate(
+        cls,
+        rate_calculations: Iterable["RateCalculation"],
+    ) -> "RateCalculation":
+        """Merges multiple rate calculations into a single rate calculation."""
+        rate_buckets_sum = 0.0
+        num_rate_buckets = 0
+        for rate_calculation in rate_calculations:
+            rate_buckets_sum += rate_calculation.rate_buckets_sum
+            num_rate_buckets += rate_calculation.num_rate_buckets
+
+        average_num_rate_buckets = num_rate_buckets / len(rate_calculations)
+        print(average_num_rate_buckets)
+        return RateCalculation(rate_buckets_sum, average_num_rate_buckets)
+
 
 AggregationFn = Callable[[Iterable[Any]], float]
 

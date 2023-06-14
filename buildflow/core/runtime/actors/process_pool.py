@@ -17,7 +17,7 @@ from buildflow.core.runtime.actors.pull_process_push import (
 )  # noqa: E501
 from buildflow.core.runtime.config import ReplicaConfig
 from buildflow.io.providers.base import PullProvider, PushProvider
-from buildflow.core.runtime.metrics import SimpleGaugeMetric
+from buildflow.core.runtime.metrics import SimpleGaugeMetric, RateCalculation
 
 
 # TODO: add ability to load from env vars so we can set num_cpus
@@ -36,6 +36,7 @@ class SourceInfo:
     provider: ProviderInfo
 
 
+# Should we have ProviderAPI metrics / snapshots?
 @dataclasses.dataclass
 class SinkInfo:
     provider: ProviderInfo
@@ -54,8 +55,10 @@ class ProcessorSnapshot(Snapshot):
     replicas: List[PullProcessPushSnapshot]
     actor_info: RayActorInfo
     # metrics
+    # NOTE: backlog is also stored in SourceInfo, but might delete it.
+    source_backlog: float
     num_replicas: float
-    num_concurrent_tasks: float
+    num_concurrency_per_replica: float
 
     # Does it make sense to store timestamps in nested snapshots?
     # I _think_ so, since snapshot() is async and might happend at different
@@ -74,8 +77,39 @@ class ProcessorSnapshot(Snapshot):
             "replicas": [r.as_dict() for r in self.replicas],
             "actor_info": dataclasses.asdict(self.actor_info),
             "num_replicas": self.num_replicas,
-            "num_concurrent_tasks": self.num_concurrent_tasks,
+            "num_concurrency_per_replica": self.num_concurrency_per_replica,
             "timestamp": self._timestamp,
+        }
+
+    def summarize(self) -> dict:
+        merged_replica_metrics = {}
+        for metric_name in PullProcessPushSnapshot.__counter_metric_fields__():
+            merged_replica_metrics[metric_name] = RateCalculation.combined_rate(
+                [
+                    getattr(replica_snapshot, metric_name)
+                    for replica_snapshot in self.replicas
+                ]
+            ).rate()
+        for metric_name in PullProcessPushSnapshot.__gauge_metric_fields__():
+            merged_replica_metrics[metric_name] = RateCalculation.average_rate(
+                [
+                    getattr(replica_snapshot, metric_name)
+                    for replica_snapshot in self.replicas
+                ]
+            ).rate()
+
+        processor_metrics = {
+            "status": self.status.name,
+            "timestamp": self._timestamp,
+            "processor_id": self.processor_id,
+            "source_backlog": self.source_backlog,
+            "num_replicas": self.num_replicas,
+            "num_concurrency_per_replica": self.num_concurrency_per_replica,
+        }
+
+        return {
+            **processor_metrics,
+            **merged_replica_metrics,
         }
 
 
@@ -117,8 +151,16 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
                 "JobId": job_id,
             },
         )
-
-        self.concurrency_gauge.set(config.num_concurrent_tasks)
+        self.concurrency_gauge.set(config.num_concurrency)
+        self.current_backlog_gauge = SimpleGaugeMetric(
+            "current_backlog",
+            description="Current backlog of the actor. Goes up and down.",
+            default_tags={
+                # In the case where we could not get the processor name
+                "processor_id": processor.processor_id,
+                "JobId": job_id,
+            },
+        )
 
     async def add_replicas(self, num_replicas: int):
         if self._status != RuntimeStatus.RUNNING:
@@ -143,7 +185,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
                 ),
             ).remote(self.processor, log_level=self.config.log_level)
             if self._status == RuntimeStatus.RUNNING:
-                for _ in range(self.config.num_concurrent_tasks):
+                for _ in range(self.config.num_concurrency):
                     replica_actor_handle.run.remote()
 
             self.replicas[replica_id] = (replica_actor_handle, ray_placement_group)
@@ -208,6 +250,8 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
     async def snapshot(self) -> ProcessorSnapshot:
         source_provider: PullProvider = self.processor.source().provider()
         source_backlog = await source_provider.backlog()
+        # Log the current backlog so ray metrics can pick it up
+        self.current_backlog_gauge.set(source_backlog)
         source_info = SourceInfo(
             backlog=source_backlog,
             provider=ProviderInfo(
@@ -235,6 +279,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             sink=sink_info,
             replicas=replica_info_list,
             actor_info=actor_info,
+            source_backlog=self.current_backlog_gauge.get(),
             num_replicas=self.num_replicas_gauge.get(),
-            num_concurrent_tasks=self.concurrency_gauge.get(),
+            num_concurrency_per_replica=self.concurrency_gauge.get(),
         )
