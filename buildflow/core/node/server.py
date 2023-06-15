@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from ray import serve
+from ray import kill, serve
 
 from buildflow.core.infra import PulumiInfraActor
 from buildflow.core.runtime import RuntimeActor
@@ -68,6 +68,15 @@ class NodeServer:
     async def runtime_snapshot(self):
         result = await self.runtime_actor.snapshot.remote()
         return result.as_dict()
+
+    @app.post("/runtime/stop")
+    async def runtime_stop(self):
+        kill(self.runtime_actor)
+
+    @app.get("/runtime/status")
+    async def runtime_status(self):
+        status = await self.runtime_actor.status.remote()
+        return {"status": status.name}
 
     @app.get("/infra/snapshot")
     async def infra_snapshot(self):
