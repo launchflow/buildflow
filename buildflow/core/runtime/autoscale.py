@@ -20,7 +20,6 @@ from ray.autoscaler.sdk import request_resources
 
 from buildflow.core.runtime.actors.process_pool import ProcessorSnapshot
 from buildflow.core.runtime.config import AutoscalerConfig
-from buildflow.core.runtime.metrics import RateCalculation
 
 # TODO: Make this configurable
 _TARGET_UTILIZATION = 0.5

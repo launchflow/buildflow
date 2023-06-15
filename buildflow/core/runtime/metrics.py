@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, Union, Optional
+from typing import Any, Dict, Iterable, Union
 from ray.util.metrics import Gauge, Counter
 from collections import deque
 import time
