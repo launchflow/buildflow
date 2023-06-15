@@ -20,6 +20,7 @@ from ray.autoscaler.sdk import request_resources
 
 from buildflow.core.runtime.actors.process_pool import ProcessorSnapshot
 from buildflow.core.runtime.config import AutoscalerConfig
+from buildflow.core.runtime.metrics import RateCalculation
 
 # TODO: Make this configurable
 _TARGET_UTILIZATION = 0.5
@@ -44,14 +45,16 @@ def calculate_target_num_replicas(
 
     current_num_replicas = len(snapshot.replicas)
     backlog = snapshot.source.backlog
-    total_process_rate = sum(
-        replica.num_events_processed_per_sec.rate_buckets_sum
-        for replica in snapshot.replicas
-    )
-    avg_process_rate = total_process_rate / sum(
-        replica.num_events_processed_per_sec.num_rate_buckets
-        for replica in snapshot.replicas
-    )
+    # TODO: Remove this coupling by passing in the snapshot summary instead of snapshot
+    avg_process_rate = RateCalculation.merge(
+        [
+            getattr(replica, "num_events_processed_per_sec")
+            for replica in snapshot.replicas
+        ]
+    ).rate()
+
+    # TODO: Calculate utilization score inside the autoscaler, rather than on the
+    # replica.
     total_utilization_score = sum(
         replica.utilization_score for replica in snapshot.replicas
     )
@@ -115,7 +118,6 @@ def calculate_target_num_replicas(
         f"AUTOSCALER: {current_num_replicas} -> {new_num_replicas}\n"
         f"AVG Utilization: {avg_utilization_score}\n"
         f"AVG Process Rate: {avg_process_rate}\n"
-        f"TOTAL Proccess Rate {total_process_rate}\n"
         f"Backlog: {backlog}\n"
         f"Estimated Replicas: {estimated_replicas}\n"
         f"Max Cluster Replicas: {available_replicas}\n"

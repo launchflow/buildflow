@@ -1,4 +1,4 @@
-from typing import Any, Dict, Callable, Iterable
+from typing import Any, Dict, Iterable
 from ray.util.metrics import Gauge, Counter
 from collections import deque
 import time
@@ -11,6 +11,8 @@ class RateCalculation:
 
     rate_buckets_sum: float
     num_rate_buckets: int
+    # Is there a better way to model this?
+    num_buckets_merge_fn: str = "sum"
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -25,94 +27,41 @@ class RateCalculation:
         return self.rate_buckets_sum / self.num_rate_buckets
 
     @classmethod
-    def average_rate(
+    def merge(
         cls,
         rate_calculations: Iterable["RateCalculation"],
     ) -> "RateCalculation":
         """Merges multiple rate calculations into a single rate calculation."""
+        merge_fn = None
         rate_buckets_sum = 0.0
-        num_rate_buckets = 0
+        num_rate_buckets_sum = 0
+        num_rate_buckets_count = 0
         for rate_calculation in rate_calculations:
+            if merge_fn is None:
+                merge_fn = rate_calculation.num_buckets_merge_fn
+            elif merge_fn != rate_calculation.num_buckets_merge_fn:
+                raise ValueError(
+                    "Cannot merge rate calculations with different merge functions."
+                )
             rate_buckets_sum += rate_calculation.rate_buckets_sum
-            num_rate_buckets += rate_calculation.num_rate_buckets
-        return RateCalculation(rate_buckets_sum, num_rate_buckets)
+            num_rate_buckets_sum += rate_calculation.num_rate_buckets
+            num_rate_buckets_count += 1
 
-    @classmethod
-    def combined_rate(
-        cls,
-        rate_calculations: Iterable["RateCalculation"],
-    ) -> "RateCalculation":
-        """Merges multiple rate calculations into a single rate calculation."""
-        rate_buckets_sum = 0.0
-        num_rate_buckets = 0
-        for rate_calculation in rate_calculations:
-            rate_buckets_sum += rate_calculation.rate_buckets_sum
-            num_rate_buckets += rate_calculation.num_rate_buckets
+        if num_rate_buckets_count == 0:
+            return RateCalculation(0.0, 0, merge_fn)
 
-        average_num_rate_buckets = num_rate_buckets / len(rate_calculations)
-        print(average_num_rate_buckets)
-        return RateCalculation(rate_buckets_sum, average_num_rate_buckets)
-
-
-AggregationFn = Callable[[Iterable[Any]], float]
-
-
-# NOTE: This class is supposed to mimic this prometheus query:
-# avg_over_time({aggregation_fn}_over_time(counter_name)[1s])[{rate_sec}]
-# where the final average result is stored as: (rate_buckets_sum, num_rate_buckets)
-# so we can combine results together before calculating the final average.
-# i.e.: average_across_replicas = sum(rate_buckets_sum) / sum(num_rate_buckets)
-class RateMetric:
-    # NOTE: I _think_ we always want to use sum for counters and avg for gauges
-    # because counters are always increasing, so we want to sum the values,
-    # whereas gauges can go up and down, so we want to average the values.
-    def __init__(self, rate_secs: int, aggregation_fn: AggregationFn = sum):
-        self.rate_secs = rate_secs
-        self.aggregation_fn = aggregation_fn
-        # Each entry is a list that will hold data points for a given second
-        self.buckets = deque([[] for _ in range(self.rate_secs)])
-        self.last_update = int(time.time())
-
-    def update_rate_buckets(self, value: int):
-        now_second = int(time.time())
-        seconds_difference = now_second - self.last_update
-        self.last_update = now_second
-
-        # Check if more than rate_secs seconds have passed since the last update
-        if seconds_difference >= self.rate_secs:
-            # If so, clear all buckets
-            self.buckets = deque([[] for _ in range(self.rate_secs)])
+        if merge_fn == "sum":
+            num_rate_buckets = num_rate_buckets_sum
+        elif merge_fn == "avg":
+            num_rate_buckets = num_rate_buckets_sum / num_rate_buckets_count
         else:
-            # Otherwise, add new buckets for the seconds that have passed
-            for _ in range(int(seconds_difference)):
-                self.buckets.append([])  # append a new bucket for the current second
-                self.buckets.popleft()  # remove the oldest bucket
+            raise ValueError(f"Invalid merge_fn: {merge_fn}")
 
-        # Add the data point to the correct bucket
-        self.buckets[-1].append(value)
-
-    def calculate(self) -> RateCalculation:
-        """Calculates the average rate per bucket within the last rate_secs."""
-        now_second = int(time.time())
-        seconds_difference = now_second - self.last_update
-
-        if seconds_difference >= self.rate_secs:
-            return RateCalculation(0.0, 0)
-
-        # Calculate the sum of all buckets in the last rate_secs
-        rate_buckets_sum = 0.0
-        num_rate_buckets = 0
-        for bucket in self.buckets:
-            if bucket:
-                rate_buckets_sum += self.aggregation_fn(bucket)
-            num_rate_buckets += 1
-
-        return RateCalculation(rate_buckets_sum, num_rate_buckets)
+        return RateCalculation(rate_buckets_sum, num_rate_buckets, merge_fn)
 
 
-# NOTE: This class is supposed to mimic this prometheus query:
-# avg_over_time(sum_over_time(counter_name)[1s])[{rate_sec}]
-class RateCounterMetric(RateMetric):
+# NOTE: This is only an approximation and is not meant for precise calculations.
+class RateCounterMetric:
     def __init__(
         self,
         name: str,
@@ -120,12 +69,17 @@ class RateCounterMetric(RateMetric):
         default_tags: Dict[str, str] = None,
         rate_secs: int = 60,
     ):
-        super().__init__(rate_secs, aggregation_fn=sum)
-        self.name = name
-        # Ray Metrics API
+        # setup for in-memory metrics
+        self.rate_secs = rate_secs
+        self.buckets = deque([0.0 for _ in range(self.rate_secs)])
+        self.running_count = 0
+        self.running_sum = 0.0
+        self.last_update = int(time.monotonic())
+
+        # setup for ray metrics
         tag_keys = tuple(default_tags.keys()) if default_tags else None
         self._ray_counter = Counter(
-            name=self.name, description=description, tag_keys=tag_keys
+            name=name, description=description, tag_keys=tag_keys
         )
         self._ray_counter.set_default_tags(default_tags)
 
@@ -134,38 +88,49 @@ class RateCounterMetric(RateMetric):
         self._ray_counter.inc(n, *args, **kwargs)
         self.update_rate_buckets(n)
 
+    def update_rate_buckets(self, value: int):
+        """Updates the rate buckets with the given value."""
+        now_second = int(time.monotonic())
+        seconds_difference = now_second - self.last_update
+        self.last_update = now_second
 
-def avg(x):
-    return sum(x) / len(x)
+        # Check if more than rate_secs seconds have passed since the last update
+        if seconds_difference >= self.rate_secs:
+            # If so, clear all buckets
+            self.buckets = deque([0.0 for _ in range(self.rate_secs)])
+            self.running_count = 0
+            self.running_sum = 0.0
+        else:
+            # Otherwise, add new buckets for the seconds that have passed
+            for _ in range(seconds_difference):
+                self.buckets.append(0.0)  # append a new bucket for the current second
+                removed_value = self.buckets.popleft()  # remove the oldest bucket
+                if removed_value:
+                    self.running_count -= 1
+                self.running_sum -= removed_value
 
+        # Add the data point to the correct bucket
+        self.buckets[-1] += value
+        self.running_count += 1
+        self.running_sum += value
 
-# NOTE: This class is supposed to mimic this prometheus query:
-# avg_over_time(avg_over_time(gauge_name)[1s])[{rate_sec}]
-# which I think is mostly the same as:
-# avg_over_time(rate(gauge_name)[1s])[{rate_sec}]
-# except that prometheus rate is supposed to be used with counters, not gauges.
-# https://prometheus.io/docs/prometheus/latest/querying/functions/#rate
-class RateGaugeMetric(RateMetric):
-    def __init__(
-        self,
-        name: str,
-        description: str = "",
-        default_tags: Dict[str, str] = None,
-        rate_secs: int = 60,
-    ):
-        super().__init__(rate_secs, aggregation_fn=avg)
-        self.name = name
-        # Ray Metrics API
-        tag_keys = tuple(default_tags.keys()) if default_tags else None
-        self._ray_gauge = Gauge(
-            name=self.name, description=description, tag_keys=tag_keys
+    def value_per_second_rate(self) -> RateCalculation:
+        """Calculates average value/sec for the sliding window."""
+        # NOTE: This is supposed to mimic this prometheus query:
+        # rate(my_value_counter[{rate_secs}s])
+        # This is useful for metrics like avg throughput,
+        return RateCalculation(
+            self.running_sum, self.rate_secs, num_buckets_merge_fn="avg"
         )
-        self._ray_gauge.set_default_tags(default_tags)
 
-    def set(self, value: float, *args, **kwargs):
-        """Sets the gauge to value and updates the rate buckets."""
-        self._ray_gauge.set(value, *args, **kwargs)
-        self.update_rate_buckets(value)
+    def avg_value_size_rate(self) -> RateCalculation:
+        """Calculates average value size for the sliding window."""
+        # NOTE: This is supposed to mimic this prometheus query:
+        # rate(total_val_counter[{rate_secs}s]) / rate(num_vals_counter[{rate_secs}s])
+        # This is useful for metrics like avg process time, avg batch size, etc.
+        return RateCalculation(
+            self.running_sum, self.running_count, num_buckets_merge_fn="sum"
+        )
 
 
 class SimpleGaugeMetric:
@@ -175,14 +140,13 @@ class SimpleGaugeMetric:
         description: str = "",
         default_tags: Dict[str, str] = None,
     ):
-        self.name = name
-        # Ray Metrics API
-        tag_keys = tuple(default_tags.keys()) if default_tags else None
-        self._ray_gauge = Gauge(
-            name=self.name, description=description, tag_keys=tag_keys
-        )
-        self._ray_gauge.set_default_tags(default_tags)
+        # setup for in-memory metrics
         self._latest_value = None
+
+        # setup for ray metrics
+        tag_keys = tuple(default_tags.keys()) if default_tags else None
+        self._ray_gauge = Gauge(name=name, description=description, tag_keys=tag_keys)
+        self._ray_gauge.set_default_tags(default_tags)
 
     def set(self, value: float, *args, **kwargs):
         """Sets the gauge to value."""

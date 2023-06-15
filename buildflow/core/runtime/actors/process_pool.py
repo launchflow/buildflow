@@ -83,15 +83,15 @@ class ProcessorSnapshot(Snapshot):
 
     def summarize(self) -> dict:
         merged_replica_metrics = {}
-        for metric_name in PullProcessPushSnapshot.__counter_metric_fields__():
-            merged_replica_metrics[metric_name] = RateCalculation.combined_rate(
+        for metric_name in PullProcessPushSnapshot.__rate_metric_fields__():
+            print(
+                metric_name,
                 [
                     getattr(replica_snapshot, metric_name)
                     for replica_snapshot in self.replicas
-                ]
-            ).rate()
-        for metric_name in PullProcessPushSnapshot.__gauge_metric_fields__():
-            merged_replica_metrics[metric_name] = RateCalculation.average_rate(
+                ],
+            )
+            merged_replica_metrics[metric_name] = RateCalculation.merge(
                 [
                     getattr(replica_snapshot, metric_name)
                     for replica_snapshot in self.replicas
