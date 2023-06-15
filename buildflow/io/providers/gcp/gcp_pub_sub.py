@@ -87,6 +87,9 @@ class GCPPubSubSubscriptionProvider(
     async def push(self, batch: Iterable[Any]):
         await _push_to_topic(self.publisher_client, self.topic_id, batch)
 
+    def max_batch_size(self) -> int:
+        return self.batch_size
+
     async def pull(self) -> PullResponse:
         try:
             response = await self.subscriber_client.pull(

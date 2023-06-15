@@ -26,6 +26,9 @@ class PulsingProvider(PullProvider):
         self.pulse_interval_seconds = pulse_interval_seconds
         self._to_emit = 0
 
+    def max_batch_size(self) -> int:
+        return 1
+
     async def pull(self) -> PullResponse:
         await asyncio.sleep(self.pulse_interval_seconds)
         item = self.items[self._to_emit]

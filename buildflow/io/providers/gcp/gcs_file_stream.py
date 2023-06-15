@@ -71,6 +71,9 @@ class GCSFileStreamProvider(PullProvider, PulumiProvider):
             include_attributes=True,
         )
 
+    def max_batch_size(self) -> int:
+        return self.subscription_provider.max_batch_size()
+
     async def pull(self) -> PullResponse:
         pull_response = await self.subscription_provider.pull()
         payload = [

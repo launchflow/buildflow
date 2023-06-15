@@ -12,14 +12,33 @@ from buildflow.api import (
     RuntimeAPI,
     RuntimeStatus,
     Snapshot,
+    SnapshotSummary,
 )
 from buildflow.core.processor.base import Processor
 from buildflow.core.runtime.actors.process_pool import (
     ProcessorReplicaPoolActor,
     ProcessorSnapshot,
+    ProcessorSnapshotSummary,
 )
 from buildflow.core.runtime.autoscale import calculate_target_num_replicas
 from buildflow.core.runtime.config import RuntimeConfig
+
+
+@dataclasses.dataclass
+class RuntimeSnapshotSummary(SnapshotSummary):
+    status: RuntimeStatus
+    timestamp_millis: int
+    processors: List[ProcessorSnapshotSummary]
+
+    def as_dict(self):
+        return {
+            "status": self.status.name,
+            "timestamp": self.timestamp_millis,
+            "processors": {
+                processor_summary.processor_id: processor_summary
+                for processor_summary in self.processors
+            },
+        }
 
 
 @dataclasses.dataclass
@@ -40,15 +59,14 @@ class RuntimeSnapshot(Snapshot):
             "timestamp": self._timestamp,
         }
 
-    def summarize(self) -> dict:
-        return {
-            "status": self.status.name,
-            "timestamp": self._timestamp,
-            "processors": {
-                processor_snapshot.processor_id: processor_snapshot.summarize()
-                for processor_snapshot in self.processors
-            },
-        }
+    def summarize(self) -> RuntimeSnapshotSummary:
+        return RuntimeSnapshotSummary(
+            status=self.status,
+            timestamp_millis=self._timestamp,
+            processors=[
+                processor_snapshot.summarize() for processor_snapshot in self.processors
+            ],
+        )
 
 
 @ray.remote(num_cpus=0.1)
@@ -134,7 +152,9 @@ class RuntimeActor(RuntimeAPI):
                 if self._status != RuntimeStatus.RUNNING:
                     break
 
-                processor_snapshot = await processor_pool.snapshot.remote()
+                processor_snapshot: ProcessorSnapshot = (
+                    await processor_pool.snapshot.remote()
+                )
                 # Updates the current backlog gauge (metric: ray_current_backlog)
                 current_backlog = processor_snapshot.source.backlog
                 if current_backlog is None:

@@ -9,16 +9,16 @@ from ray.util.placement_group import placement_group, remove_placement_group
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
 from buildflow import utils
-from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot, ProcessorID
+from buildflow.api import ProcessorID, RuntimeAPI, RuntimeStatus, Snapshot
+from buildflow.api.runtime import SnapshotSummary
 from buildflow.core.processor.base import Processor
-from buildflow.core.runtime.actors.pull_process_push import (
+from buildflow.core.runtime.actors.pull_process_push import (  # noqa: E501
     PullProcessPushActor,
     PullProcessPushSnapshot,
-)  # noqa: E501
+)
 from buildflow.core.runtime.config import ReplicaConfig
+from buildflow.core.runtime.metrics import RateCalculation, SimpleGaugeMetric
 from buildflow.io.providers.base import PullProvider, PushProvider
-from buildflow.core.runtime.metrics import SimpleGaugeMetric, RateCalculation
-
 
 # TODO: add ability to load from env vars so we can set num_cpus
 # from buildflow.utils import load_config_from_env
@@ -48,6 +48,40 @@ class RayActorInfo:
 
 
 @dataclasses.dataclass
+class ProcessorSnapshotSummary(SnapshotSummary):
+    status: RuntimeStatus
+    timestamp_millis: int
+    processor_id: ProcessorID
+    source_backlog: float
+    num_replicas: float
+    num_concurrency_per_replica: float
+    total_events_processed_per_sec: float
+    total_pulls_per_sec: float
+    avg_num_elements_per_batch: float
+    avg_pull_percentage_per_batch: float
+    avg_process_time_millis_per_element: float
+    avg_process_time_millis_per_batch: float
+    avg_pull_to_ack_time_millis_per_batch: float
+
+    def as_dict(self) -> dict:
+        return {
+            "status": self.status.name,
+            "processor_id": self.processor_id,
+            "source_backlog": self.source_backlog,
+            "num_replicas": self.num_replicas,
+            "num_concurrency_per_replica": self.num_concurrency_per_replica,
+            "total_events_processed_per_sec": self.total_events_processed_per_sec,
+            "total_pulls_per_sec": self.total_pulls_per_sec,
+            "avg_num_elements_per_batch": self.avg_num_elements_per_batch,
+            "avg_pull_percentage_per_batch": self.avg_pull_percentage_per_batch,
+            "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
+            "avg_process_time_millis_per_batch": self.avg_process_time_millis_per_batch,  # noqa: E501
+            "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
+            "timestamp": self.timestamp_millis,
+        }
+
+
+@dataclasses.dataclass
 class ProcessorSnapshot(Snapshot):
     processor_id: ProcessorID
     source: SourceInfo
@@ -59,14 +93,11 @@ class ProcessorSnapshot(Snapshot):
     source_backlog: float
     num_replicas: float
     num_concurrency_per_replica: float
-
-    # Does it make sense to store timestamps in nested snapshots?
-    # I _think_ so, since snapshot() is async and might happend at different
-    # times for each processor.
-    _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)
+    # private fields
+    _timestamp_millis: int = dataclasses.field(default_factory=utils.timestamp_millis)
 
     def get_timestamp_millis(self) -> int:
-        return self._timestamp
+        return self._timestamp_millis
 
     def as_dict(self) -> dict:
         return {
@@ -78,32 +109,59 @@ class ProcessorSnapshot(Snapshot):
             "actor_info": dataclasses.asdict(self.actor_info),
             "num_replicas": self.num_replicas,
             "num_concurrency_per_replica": self.num_concurrency_per_replica,
-            "timestamp": self._timestamp,
+            "timestamp": self._timestamp_millis,
         }
 
-    def summarize(self) -> dict:
-        merged_replica_metrics = {}
-        for metric_name in PullProcessPushSnapshot.__rate_metric_fields__():
-            merged_replica_metrics[metric_name] = RateCalculation.merge(
-                [
-                    getattr(replica_snapshot, metric_name)
-                    for replica_snapshot in self.replicas
-                ]
-            ).rate()
+    def summarize(self) -> ProcessorSnapshotSummary:
+        total_events_processed_per_sec = RateCalculation.merge(
+            [
+                replica_snapshot.events_processed_per_sec
+                for replica_snapshot in self.replicas
+            ]
+        ).total_rate()
+        total_pulls_per_sec = RateCalculation.merge(
+            [replica_snapshot.pull_percentage for replica_snapshot in self.replicas]
+        ).total_rate()
+        avg_num_elements_per_batch = RateCalculation.merge(
+            [
+                replica_snapshot.events_processed_per_sec
+                for replica_snapshot in self.replicas
+            ]
+        ).average_rate()
+        avg_pull_percentage_per_batch = RateCalculation.merge(
+            [replica_snapshot.pull_percentage for replica_snapshot in self.replicas]
+        ).average_rate()
+        avg_process_time_millis_per_element = RateCalculation.merge(
+            [replica_snapshot.process_time_millis for replica_snapshot in self.replicas]
+        ).average_rate()
+        avg_process_time_millis_per_batch = RateCalculation.merge(
+            [
+                replica_snapshot.process_batch_time_millis
+                for replica_snapshot in self.replicas
+            ]
+        ).average_rate()
+        avg_pull_to_ack_time_millis_per_batch = RateCalculation.merge(
+            [
+                replica_snapshot.pull_to_ack_time_millis
+                for replica_snapshot in self.replicas
+            ]
+        ).average_rate()
 
-        processor_metrics = {
-            "status": self.status.name,
-            "timestamp": self._timestamp,
-            "processor_id": self.processor_id,
-            "source_backlog": self.source_backlog,
-            "num_replicas": self.num_replicas,
-            "num_concurrency_per_replica": self.num_concurrency_per_replica,
-        }
-
-        return {
-            **processor_metrics,
-            **merged_replica_metrics,
-        }
+        return ProcessorSnapshotSummary(
+            status=self.status,
+            timestamp_millis=self._timestamp_millis,
+            processor_id=self.processor_id,
+            source_backlog=self.source_backlog,
+            num_replicas=self.num_replicas,
+            num_concurrency_per_replica=self.num_concurrency_per_replica,
+            total_events_processed_per_sec=total_events_processed_per_sec,
+            avg_num_elements_per_batch=avg_num_elements_per_batch,
+            total_pulls_per_sec=total_pulls_per_sec,
+            avg_pull_percentage_per_batch=avg_pull_percentage_per_batch,
+            avg_process_time_millis_per_element=avg_process_time_millis_per_element,
+            avg_process_time_millis_per_batch=avg_process_time_millis_per_batch,  # noqa: E501
+            avg_pull_to_ack_time_millis_per_batch=avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
+        )
 
 
 @ray.remote(num_cpus=0.1)
@@ -272,7 +330,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             sink=sink_info,
             replicas=replica_info_list,
             actor_info=actor_info,
-            source_backlog=self.current_backlog_gauge.get(),
-            num_replicas=self.num_replicas_gauge.get(),
-            num_concurrency_per_replica=self.concurrency_gauge.get(),
+            source_backlog=self.current_backlog_gauge.get_latest_value(),
+            num_replicas=self.num_replicas_gauge.get_latest_value(),
+            num_concurrency_per_replica=self.concurrency_gauge.get_latest_value(),
         )

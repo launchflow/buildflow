@@ -8,11 +8,12 @@ from buildflow.api import RuntimeStatus
 from buildflow.core.runtime import autoscale
 from buildflow.core.runtime.actors.process_pool import (
     ProcessorSnapshot,
-    RayActorInfo,
     PullProcessPushSnapshot,
+    RayActorInfo,
     SourceInfo,
 )
 from buildflow.core.runtime.config import AutoscalerConfig
+from buildflow.core.runtime.metrics import RateCalculation
 
 
 @mock.patch("ray.available_resources", return_value={"CPU": 32})
@@ -32,8 +33,13 @@ class AutoScalerTest(unittest.TestCase):
         replicas = [
             PullProcessPushSnapshot(
                 status=RuntimeStatus.RUNNING,
-                utilization_score=non_empty_ratio_per_replica,
-                process_rate=events_processed_per_replica,
+                events_processed_per_sec=RateCalculation(
+                    events_processed_per_replica, 1, 60
+                ),
+                pull_percentage=RateCalculation(non_empty_ratio_per_replica, 1, 60),
+                process_time_millis=RateCalculation(0, 0, 60),
+                process_batch_time_millis=RateCalculation(0, 0, 60),
+                pull_to_ack_time_millis=RateCalculation(0, 0, 60),
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
@@ -45,6 +51,9 @@ class AutoScalerTest(unittest.TestCase):
                     sink=None,
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
+                    source_backlog=backlog,
+                    num_replicas=num_replicas,
+                    num_concurrency_per_replica=1,
                 ),
                 config=AutoscalerConfig(
                     enable_autoscaler=True,
@@ -76,8 +85,13 @@ class AutoScalerTest(unittest.TestCase):
         replicas = [
             PullProcessPushSnapshot(
                 status=RuntimeStatus.RUNNING,
-                utilization_score=non_empty_ratio_per_replica,
-                process_rate=events_processed_per_replica,
+                events_processed_per_sec=RateCalculation(
+                    events_processed_per_replica, 1, 60
+                ),
+                pull_percentage=RateCalculation(non_empty_ratio_per_replica, 1, 60),
+                process_time_millis=RateCalculation(0, 0, 60),
+                process_batch_time_millis=RateCalculation(0, 0, 60),
+                pull_to_ack_time_millis=RateCalculation(0, 0, 60),
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
@@ -89,6 +103,9 @@ class AutoScalerTest(unittest.TestCase):
                     sink=None,
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
+                    source_backlog=backlog,
+                    num_replicas=num_replicas,
+                    num_concurrency_per_replica=1,
                 ),
                 config=AutoscalerConfig(
                     enable_autoscaler=True,
@@ -115,8 +132,13 @@ class AutoScalerTest(unittest.TestCase):
         replicas = [
             PullProcessPushSnapshot(
                 status=RuntimeStatus.RUNNING,
-                utilization_score=non_empty_ratio_per_replica,
-                process_rate=events_processed_per_replica,
+                events_processed_per_sec=RateCalculation(
+                    events_processed_per_replica, 1, 60
+                ),
+                pull_percentage=RateCalculation(non_empty_ratio_per_replica, 1, 60),
+                process_time_millis=RateCalculation(0, 0, 60),
+                process_batch_time_millis=RateCalculation(0, 0, 60),
+                pull_to_ack_time_millis=RateCalculation(0, 0, 60),
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
@@ -128,6 +150,9 @@ class AutoScalerTest(unittest.TestCase):
                     sink=None,
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
+                    source_backlog=backlog,
+                    num_replicas=num_replicas,
+                    num_concurrency_per_replica=1,
                 ),
                 config=AutoscalerConfig(
                     enable_autoscaler=True,
@@ -159,8 +184,13 @@ class AutoScalerTest(unittest.TestCase):
         replicas = [
             PullProcessPushSnapshot(
                 status=RuntimeStatus.RUNNING,
-                utilization_score=non_empty_ratio_per_replica,
-                process_rate=events_processed_per_replica,
+                events_processed_per_sec=RateCalculation(
+                    events_processed_per_replica, 1, 60
+                ),
+                pull_percentage=RateCalculation(non_empty_ratio_per_replica, 1, 60),
+                process_time_millis=RateCalculation(0, 0, 60),
+                process_batch_time_millis=RateCalculation(0, 0, 60),
+                pull_to_ack_time_millis=RateCalculation(0, 0, 60),
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
@@ -172,6 +202,9 @@ class AutoScalerTest(unittest.TestCase):
                     sink=None,
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.5),
+                    source_backlog=backlog,
+                    num_replicas=num_replicas,
+                    num_concurrency_per_replica=1,
                 ),
                 config=AutoscalerConfig(
                     enable_autoscaler=True,
@@ -203,8 +236,13 @@ class AutoScalerTest(unittest.TestCase):
         replicas = [
             PullProcessPushSnapshot(
                 status=RuntimeStatus.RUNNING,
-                utilization_score=non_empty_ratio_per_replica,
-                process_rate=events_processed_per_replica,
+                events_processed_per_sec=RateCalculation(
+                    events_processed_per_replica, 1, 60
+                ),
+                pull_percentage=RateCalculation(non_empty_ratio_per_replica, 1, 60),
+                process_time_millis=RateCalculation(0, 0, 60),
+                process_batch_time_millis=RateCalculation(0, 0, 60),
+                pull_to_ack_time_millis=RateCalculation(0, 0, 60),
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
@@ -216,6 +254,9 @@ class AutoScalerTest(unittest.TestCase):
                     sink=None,
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
+                    source_backlog=backlog,
+                    num_replicas=num_replicas,
+                    num_concurrency_per_replica=1,
                 ),
                 config=AutoscalerConfig(
                     enable_autoscaler=True,
@@ -246,8 +287,13 @@ class AutoScalerTest(unittest.TestCase):
         replicas = [
             PullProcessPushSnapshot(
                 status=RuntimeStatus.RUNNING,
-                utilization_score=non_empty_ratio_per_replica,
-                process_rate=events_processed_per_replica,
+                events_processed_per_sec=RateCalculation(
+                    events_processed_per_replica, 1, 60
+                ),
+                pull_percentage=RateCalculation(non_empty_ratio_per_replica, 1, 60),
+                process_time_millis=RateCalculation(0, 0, 60),
+                process_batch_time_millis=RateCalculation(0, 0, 60),
+                pull_to_ack_time_millis=RateCalculation(0, 0, 60),
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
@@ -259,6 +305,9 @@ class AutoScalerTest(unittest.TestCase):
                     sink=None,
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
+                    source_backlog=backlog,
+                    num_replicas=num_replicas,
+                    num_concurrency_per_replica=1,
                 ),
                 config=AutoscalerConfig(
                     enable_autoscaler=True,
@@ -292,8 +341,13 @@ class AutoScalerTest(unittest.TestCase):
         replicas = [
             PullProcessPushSnapshot(
                 status=RuntimeStatus.RUNNING,
-                utilization_score=non_empty_ratio_per_replica,
-                process_rate=events_processed_per_replica,
+                events_processed_per_sec=RateCalculation(
+                    events_processed_per_replica, 1, 60
+                ),
+                pull_percentage=RateCalculation(non_empty_ratio_per_replica, 1, 60),
+                process_time_millis=RateCalculation(0, 0, 60),
+                process_batch_time_millis=RateCalculation(0, 0, 60),
+                pull_to_ack_time_millis=RateCalculation(0, 0, 60),
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
@@ -305,6 +359,9 @@ class AutoScalerTest(unittest.TestCase):
                     sink=None,
                     replicas=replicas,
                     actor_info=RayActorInfo(num_cpus=0.1),
+                    source_backlog=backlog,
+                    num_replicas=num_replicas,
+                    num_concurrency_per_replica=1,
                 ),
                 config=AutoscalerConfig(
                     enable_autoscaler=True,

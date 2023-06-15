@@ -31,6 +31,10 @@ class PullProvider(ProviderAPI):
         - backlog()
     """
 
+    def max_batch_size(self) -> int:
+        """max_batch_size returns the max number of items that can be pulled at once."""
+        raise NotImplementedError("max_batch_size not implemented")
+
     async def pull(self) -> PullResponse:
         """Pull returns a batch of data from the source."""
         raise NotImplementedError("pull not implemented")

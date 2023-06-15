@@ -9,6 +9,16 @@ class RuntimeStatus(enum.Enum):
 
 
 @dataclass
+class SnapshotSummary:
+    status: RuntimeStatus
+    timestamp_millis: int
+
+    def as_dict(self) -> dict:
+        """Returns a dictionary representation of the snapshot"""
+        raise NotImplementedError("as_dict not implemented")
+
+
+@dataclass
 class Snapshot:
     status: RuntimeStatus
 
@@ -21,7 +31,7 @@ class Snapshot:
         """Returns a dictionary representation of the snapshot"""
         raise NotImplementedError("as_dict not implemented")
 
-    def summarize(self) -> dict:
+    def summarize(self) -> SnapshotSummary:
         """Returns a summary of the snapshot (status + metrics)"""
         raise NotImplementedError("summarize not implemented")
 
