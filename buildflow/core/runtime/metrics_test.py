@@ -1,20 +1,7 @@
-import logging
-import unittest
-from unittest import mock
-
-import pytest
 import time
+import unittest
 
-from buildflow.api import RuntimeStatus
-from buildflow.core.runtime import autoscale
-from buildflow.core.runtime.actors.process_pool import (
-    ProcessorSnapshot,
-    PullProcessPushSnapshot,
-    RayActorInfo,
-    SourceInfo,
-)
-from buildflow.core.runtime.config import AutoscalerConfig
-from buildflow.core.runtime.metrics import RateCalculation, CompositeRateCounterMetric
+from buildflow.core.runtime.metrics import CompositeRateCounterMetric, RateCalculation
 
 
 class MetricsTest(unittest.TestCase):
@@ -28,26 +15,27 @@ class MetricsTest(unittest.TestCase):
             result, RateCalculation(values_sum=10, values_count=1, num_rate_seconds=5)
         )
         time.sleep(1)
-        counter.inc(20)
+        counter.empty_inc()
         result = counter.calculate_rate()
-        # expected buckets = [(0, 0), (0, 0), (0, 0), (1, 10), (1, 20)]
+        # NOTE: empty inc() does not update the values_sum
+        # expected buckets = [(0, 0), (0, 0), (0, 0), (1, 10), (1, 0)]
         self.assertEqual(
-            result, RateCalculation(values_sum=30, values_count=2, num_rate_seconds=5)
+            result, RateCalculation(values_sum=10, values_count=2, num_rate_seconds=5)
         )
         time.sleep(1)
         counter.inc(10)
         result = counter.calculate_rate()
-        # expected buckets = [(0, 0), (0, 0), (1, 10), (1, 20), (1, 10)]
+        # expected buckets = [(0, 0), (0, 0), (1, 10), (1, 0), (1, 10)]
         self.assertEqual(
-            result, RateCalculation(values_sum=40, values_count=3, num_rate_seconds=5)
+            result, RateCalculation(values_sum=20, values_count=3, num_rate_seconds=5)
         )
         time.sleep(1)
         counter.inc(20)
         counter.inc(30)
         result = counter.calculate_rate()
-        # expected buckets = [(0, 0), (1, 10), (1, 20), (1, 10), (2, 50)]
+        # expected buckets = [(0, 0), (1, 10), (1, 0), (1, 10), (2, 50)]
         self.assertEqual(
-            result, RateCalculation(values_sum=90, values_count=5, num_rate_seconds=5)
+            result, RateCalculation(values_sum=70, values_count=5, num_rate_seconds=5)
         )
         time.sleep(3)
         counter.inc(20)
