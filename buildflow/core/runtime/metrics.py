@@ -5,6 +5,9 @@ import time
 from dataclasses import dataclass
 
 
+NULL_VALUE = -1
+
+
 @dataclass
 class RateCalculation:
     """Stores the results of a rate calculation."""
@@ -34,6 +37,8 @@ class RateCalculation:
     # This is useful for "average Counts per sec" metrics like throughput(QPS)
     def total_rate(self) -> float:
         """Calculates the total rate."""
+        if self.num_rate_seconds == 0:
+            return 0.0
         return self.sum_of_samples / self.num_rate_seconds
 
     @classmethod
@@ -51,15 +56,14 @@ class RateCalculation:
             if num_rate_seconds_for_group is None:
                 num_rate_seconds_for_group = rate_calculation.num_rate_seconds
             elif num_rate_seconds_for_group != rate_calculation.num_rate_seconds:
+                # This case should never happen, so raise an error to be safe
                 raise ValueError(
                     "Cannot average rate calculations with different num_rate_seconds"
                 )
 
-        if total_num_samples == 0 and num_rate_seconds_for_group is None:
-            # This case should never happen, so raise an error to be safe
-            raise ValueError(
-                "Could not deteremine num_rate_seconds for group of rate calculations"
-            )
+        if num_rate_seconds_for_group is None:
+            # This case should only happen when no rate calculations were provided
+            return cls(0.0, 0, 0)
 
         return cls(total_sum_of_samples, total_num_samples, num_rate_seconds_for_group)
 
@@ -75,7 +79,7 @@ class RateCounterMetric:
     ):
         # setup for in-memory metrics
         self.rate_secs = rate_secs
-        self.buckets = deque([0.0 for _ in range(self.rate_secs)])
+        self.buckets = deque([NULL_VALUE for _ in range(self.rate_secs)])
         self.running_count = 0
         self.running_sum = 0.0
         self.last_update = int(time.monotonic())
@@ -93,7 +97,7 @@ class RateCounterMetric:
 
     def inc(self, n: Union[int, float] = 1, *args, **kwargs):
         """Increments both the COUNT & AMOUNT counters and updates the rate buckets."""
-        self._count_ray_counter.inc(1, *args, **kwargs)
+        self._count_ray_counter.inc(*args, **kwargs)
         self._amount_ray_counter.inc(n, *args, **kwargs)
         self.update_rate_buckets(n)
 
@@ -111,17 +115,19 @@ class RateCounterMetric:
         # Check if more than rate_secs seconds have passed since the last update
         if seconds_difference >= self.rate_secs:
             # If so, clear all buckets
-            self.buckets = deque([0.0 for _ in range(self.rate_secs)])
+            self.buckets = deque([NULL_VALUE for _ in range(self.rate_secs)])
             self.running_count = 0
             self.running_sum = 0.0
         else:
             # Otherwise, add new buckets for the seconds that have passed
             for _ in range(seconds_difference):
-                self.buckets.append(0.0)  # append a new bucket for the current second
-                removed_value = self.buckets.popleft()  # remove the oldest bucket
-                if removed_value:
+                # append a new bucket for the current second
+                self.buckets.append(NULL_VALUE)
+                # remove the oldest bucket
+                removed_value = self.buckets.popleft()
+                if removed_value != NULL_VALUE:
                     self.running_count -= 1
-                self.running_sum -= removed_value
+                    self.running_sum -= removed_value
 
         # Add the data point to the correct bucket
         self.buckets[-1] += value
@@ -129,6 +135,8 @@ class RateCounterMetric:
         self.running_sum += value
 
     def calculate_rate(self) -> RateCalculation:
+        """Calculates the rate using the latest running counters."""
+
         return RateCalculation(self.running_sum, self.running_count, self.rate_secs)
 
 

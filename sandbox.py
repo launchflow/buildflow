@@ -34,7 +34,7 @@ app = Node(runtime_config=runtime_config)
 pubsub_source = GCPPubSubSubscription(
     topic_id="projects/pubsub-public-data/topics/taxirides-realtime",
     project_id="daring-runway-374503",
-    subscription_name="taxiride-sub-tanke",
+    subscription_name="taxiride-sub",
 )
 bigquery_sink = BigQueryTable(
     table_id="daring-runway-374503.taxi_ride_benchmark.buildflow_temp",

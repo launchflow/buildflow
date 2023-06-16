@@ -61,7 +61,7 @@ class RuntimeSnapshot(Snapshot):
 
     def summarize(self) -> RuntimeSnapshotSummary:
         return RuntimeSnapshotSummary(
-            status=self.status,
+            status=self.status.name,
             timestamp_millis=self._timestamp,
             processors=[
                 processor_snapshot.summarize() for processor_snapshot in self.processors

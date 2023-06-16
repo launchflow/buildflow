@@ -58,7 +58,7 @@ class ProcessorSnapshotSummary(SnapshotSummary):
     total_events_processed_per_sec: float
     total_pulls_per_sec: float
     avg_num_elements_per_batch: float
-    avg_pull_percentage_per_batch: float
+    avg_pull_percentage_per_replica: float
     avg_process_time_millis_per_element: float
     avg_process_time_millis_per_batch: float
     avg_pull_to_ack_time_millis_per_batch: float
@@ -73,7 +73,7 @@ class ProcessorSnapshotSummary(SnapshotSummary):
             "total_events_processed_per_sec": self.total_events_processed_per_sec,
             "total_pulls_per_sec": self.total_pulls_per_sec,
             "avg_num_elements_per_batch": self.avg_num_elements_per_batch,
-            "avg_pull_percentage_per_batch": self.avg_pull_percentage_per_batch,
+            "avg_pull_percentage_per_replica": self.avg_pull_percentage_per_replica,
             "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
             "avg_process_time_millis_per_batch": self.avg_process_time_millis_per_batch,  # noqa: E501
             "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
@@ -128,7 +128,7 @@ class ProcessorSnapshot(Snapshot):
                 for replica_snapshot in self.replicas
             ]
         ).average_rate()
-        avg_pull_percentage_per_batch = RateCalculation.merge(
+        avg_pull_percentage_per_replica = RateCalculation.merge(
             [replica_snapshot.pull_percentage for replica_snapshot in self.replicas]
         ).average_rate()
         avg_process_time_millis_per_element = RateCalculation.merge(
@@ -148,7 +148,7 @@ class ProcessorSnapshot(Snapshot):
         ).average_rate()
 
         return ProcessorSnapshotSummary(
-            status=self.status,
+            status=self.status.name,
             timestamp_millis=self._timestamp_millis,
             processor_id=self.processor_id,
             source_backlog=self.source_backlog,
@@ -157,7 +157,7 @@ class ProcessorSnapshot(Snapshot):
             total_events_processed_per_sec=total_events_processed_per_sec,
             avg_num_elements_per_batch=avg_num_elements_per_batch,
             total_pulls_per_sec=total_pulls_per_sec,
-            avg_pull_percentage_per_batch=avg_pull_percentage_per_batch,
+            avg_pull_percentage_per_replica=avg_pull_percentage_per_replica,
             avg_process_time_millis_per_element=avg_process_time_millis_per_element,
             avg_process_time_millis_per_batch=avg_process_time_millis_per_batch,  # noqa: E501
             avg_pull_to_ack_time_millis_per_batch=avg_pull_to_ack_time_millis_per_batch,  # noqa: E501

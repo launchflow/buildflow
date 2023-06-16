@@ -44,7 +44,7 @@ def calculate_target_num_replicas(
 
     snapshot_summary = snapshot.summarize()
 
-    avg_utilization_score = snapshot_summary.avg_pull_percentage_per_batch
+    avg_utilization_score = snapshot_summary.avg_pull_percentage_per_replica
     total_utilization_score = avg_utilization_score * snapshot_summary.num_replicas
     # The code below is from the previous version of the autoscaler.
     # Could probably use another pass through; might be able to simplify

@@ -81,13 +81,13 @@ class PullProcessPushSnapshot(Snapshot):
 
     def summarize(self) -> PullProcessPushSnapshotSummary:
         return PullProcessPushSnapshotSummary(
-            status=self.status,
+            status=self.status.name,
             timestamp_millis=self.get_timestamp_millis(),
-            events_processed_per_sec=self.events_processed_per_sec.rate(),
-            pull_percentage=self.pull_percentage.rate(),
-            process_time_millis=self.process_time_millis.rate(),
-            process_batch_time_millis=self.process_batch_time_millis.rate(),
-            pull_to_ack_time_millis=self.pull_to_ack_time_millis.rate(),
+            events_processed_per_sec=self.events_processed_per_sec.calculate_rate(),
+            pull_percentage=self.pull_percentage.calculate_rate(),
+            process_time_millis=self.process_time_millis.calculate_rate(),
+            process_batch_time_millis=self.process_batch_time_millis.calculate_rate(),
+            pull_to_ack_time_millis=self.pull_to_ack_time_millis.calculate_rate(),
         )
 
 
@@ -218,11 +218,11 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 continue
             # PROCESS
             process_success = True
+            process_start_time = time.monotonic()
+            self._pull_percentage_counter.inc(
+                len(response.payload) / self.max_batch_size
+            )
             try:
-                process_start_time = time.monotonic()
-                self._pull_percentage_counter.inc(
-                    len(response.payload) / self.max_batch_size
-                )
                 coros = []
                 for element in response.payload:
                     coros.append(process_element(element))
