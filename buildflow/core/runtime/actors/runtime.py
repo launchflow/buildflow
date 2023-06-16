@@ -33,7 +33,7 @@ class RuntimeSnapshotSummary(SnapshotSummary):
     def as_dict(self):
         return {
             "status": self.status.name,
-            "timestamp": self.timestamp_millis,
+            "timestamp_millis": self.timestamp_millis,
             "processors": {
                 processor_summary.processor_id: processor_summary
                 for processor_summary in self.processors

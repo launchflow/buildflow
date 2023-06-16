@@ -12,7 +12,7 @@ from buildflow import utils
 from buildflow.api import ProcessorID, RuntimeAPI, RuntimeStatus, Snapshot
 from buildflow.api.runtime import SnapshotSummary
 from buildflow.core.processor.base import Processor
-from buildflow.core.runtime.actors.pull_process_push import (  # noqa: E501
+from buildflow.core.runtime.actors.pull_process_push import (
     PullProcessPushActor,
     PullProcessPushSnapshot,
 )
@@ -66,6 +66,7 @@ class ProcessorSnapshotSummary(SnapshotSummary):
     def as_dict(self) -> dict:
         return {
             "status": self.status.name,
+            "timestamp_millis": self.timestamp_millis,
             "processor_id": self.processor_id,
             "source_backlog": self.source_backlog,
             "num_replicas": self.num_replicas,
@@ -77,7 +78,6 @@ class ProcessorSnapshotSummary(SnapshotSummary):
             "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
             "avg_process_time_millis_per_batch": self.avg_process_time_millis_per_batch,  # noqa: E501
             "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
-            "timestamp": self.timestamp_millis,
         }
 
 
@@ -114,7 +114,7 @@ class ProcessorSnapshot(Snapshot):
         }
 
     def summarize(self) -> ProcessorSnapshotSummary:
-        # derived from the `events_processed_per_sec` metric
+        # below metric(s) derived from the `events_processed_per_sec` composite counter
         total_events_processed_per_sec = RateCalculation.merge(
             [
                 replica_snapshot.events_processed_per_sec
@@ -127,25 +127,25 @@ class ProcessorSnapshot(Snapshot):
                 for replica_snapshot in self.replicas
             ]
         ).average_value_rate()
-        # derived from the `pull_percentage` metric
+        # below metric(s) derived from the `pull_percentage` composite counter
         total_pulls_per_sec = RateCalculation.merge(
             [replica_snapshot.pull_percentage for replica_snapshot in self.replicas]
         ).total_count_rate()
         avg_pull_percentage_per_replica = RateCalculation.merge(
             [replica_snapshot.pull_percentage for replica_snapshot in self.replicas]
         ).average_value_rate()
-        # derived from the `process_time_millis` metric
+        # below metric(s) derived from the `process_time_millis` composite counter
         avg_process_time_millis_per_element = RateCalculation.merge(
             [replica_snapshot.process_time_millis for replica_snapshot in self.replicas]
         ).average_value_rate()
-        # derived from the `process_batch_time_millis` metric
+        # below metric(s) derived from the `process_batch_time_millis` composite counter
         avg_process_time_millis_per_batch = RateCalculation.merge(
             [
                 replica_snapshot.process_batch_time_millis
                 for replica_snapshot in self.replicas
             ]
         ).average_value_rate()
-        # derived from the `pull_to_ack_time_millis` metric
+        # below metric(s) derived from the `pull_to_ack_time_millis` composite counter
         avg_pull_to_ack_time_millis_per_batch = RateCalculation.merge(
             [
                 replica_snapshot.pull_to_ack_time_millis
@@ -213,7 +213,6 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
             "current_backlog",
             description="Current backlog of the actor. Goes up and down.",
             default_tags={
-                # In the case where we could not get the processor name
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
             },

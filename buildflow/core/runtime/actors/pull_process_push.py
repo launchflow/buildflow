@@ -43,7 +43,7 @@ class PullProcessPushSnapshotSummary(SnapshotSummary):
     def as_dict(self) -> dict:
         return {
             "status": self.status.name,
-            "timestamp": self.timestamp_millis,
+            "timestamp_millis": self.timestamp_millis,
             "events_processed_per_sec": self.events_processed_per_sec,
             "pull_percentage": self.pull_percentage,
             "process_time_millis": self.process_time_millis,
