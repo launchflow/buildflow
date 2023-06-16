@@ -8,21 +8,21 @@ from collections import defaultdict
 @dataclasses.dataclass
 class ReplicaConfig:
     num_cpus: float
-    num_concurrent_tasks: int
+    num_concurrency: int
     # misc
     log_level: str = "INFO"
 
     @classmethod
     def DEBUG(cls):
-        return cls(num_cpus=0.5, num_concurrent_tasks=1)
+        return cls(num_cpus=0.5, num_concurrency=1)
 
     @classmethod
     def IO_BOUND(cls):
-        return cls(num_cpus=0.2, num_concurrent_tasks=4)
+        return cls(num_cpus=0.2, num_concurrency=4)
 
     @classmethod
     def CPU_BOUND(cls):
-        return cls(num_cpus=1, num_concurrent_tasks=1)
+        return cls(num_cpus=1, num_concurrency=1)
 
 
 @dataclasses.dataclass
@@ -52,14 +52,14 @@ class RuntimeConfig:
     log_level: str = "INFO"
 
     @classmethod
-    def IO_BOUND(cls, autoscale=True):
+    def IO_BOUND(cls, autoscale=True, min_replicas=1, max_replicas=1000):
         # defaults to the DEBUG autoscaler config
         autoscaler_config = AutoscalerConfig.DEBUG()
         if autoscale:
             autoscaler_config = AutoscalerConfig(
                 enable_autoscaler=True,
-                min_replicas=1,
-                max_replicas=1000,
+                min_replicas=min_replicas,
+                max_replicas=max_replicas,
             )
         return cls(
             replica_configs=defaultdict(ReplicaConfig.IO_BOUND),

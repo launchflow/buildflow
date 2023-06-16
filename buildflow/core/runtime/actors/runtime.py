@@ -6,17 +6,39 @@ import logging
 from typing import Iterable, List
 
 import ray
-from ray.util.metrics import Gauge
 
 from buildflow import utils
-from buildflow.api import RuntimeAPI, RuntimeStatus, Snapshot
+from buildflow.api import (
+    RuntimeAPI,
+    RuntimeStatus,
+    Snapshot,
+    SnapshotSummary,
+)
 from buildflow.core.processor.base import Processor
 from buildflow.core.runtime.actors.process_pool import (
     ProcessorReplicaPoolActor,
     ProcessorSnapshot,
+    ProcessorSnapshotSummary,
 )
 from buildflow.core.runtime.autoscale import calculate_target_num_replicas
 from buildflow.core.runtime.config import RuntimeConfig
+
+
+@dataclasses.dataclass
+class RuntimeSnapshotSummary(SnapshotSummary):
+    status: RuntimeStatus
+    timestamp_millis: int
+    processors: List[ProcessorSnapshotSummary]
+
+    def as_dict(self):
+        return {
+            "status": self.status.name,
+            "timestamp_millis": self.timestamp_millis,
+            "processors": {
+                processor_summary.processor_id: processor_summary
+                for processor_summary in self.processors
+            },
+        }
 
 
 @dataclasses.dataclass
@@ -24,17 +46,26 @@ class RuntimeSnapshot(Snapshot):
     # TODO(nit): I dont like this name, but I'm not sure what else to call it.
     processors: List[ProcessorSnapshot]
 
-    _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)
+    _timestamp_millis: int = dataclasses.field(default_factory=utils.timestamp_millis)
 
     def get_timestamp_millis(self) -> int:
-        return self._timestamp
+        return self._timestamp_millis
 
     def as_dict(self):
         return {
             "status": self.status.name,
+            "timestamp_millis": self._timestamp_millis,
             "processors": [p.as_dict() for p in self.processors],
-            "timestamp": self._timestamp,
         }
+
+    def summarize(self) -> RuntimeSnapshotSummary:
+        return RuntimeSnapshotSummary(
+            status=self.status,
+            timestamp_millis=self._timestamp_millis,
+            processors=[
+                processor_snapshot.summarize() for processor_snapshot in self.processors
+            ],
+        )
 
 
 @ray.remote(num_cpus=0.1)
@@ -50,23 +81,6 @@ class RuntimeActor(RuntimeAPI):
         self._status = RuntimeStatus.IDLE
         self._processor_pool_actors = []
         self._runtime_loop_future = None
-        # metrics
-        job_id = ray.get_runtime_context().get_job_id()
-        self.current_backlog_gauge = Gauge(
-            "current_backlog",
-            description="Current backlog of the actor. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.current_backlog_gauge.set_default_tags(
-            {
-                # In the case where we could not get the processor name
-                "processor_id": "unknown",
-                "JobId": job_id,
-            }
-        )
 
     def run(self, *, processors: Iterable[Processor]):
         logging.info("Starting Runtime...")
@@ -137,18 +151,13 @@ class RuntimeActor(RuntimeAPI):
                 if self._status != RuntimeStatus.RUNNING:
                     break
 
-                processor_snapshot = await processor_pool.snapshot.remote()
+                processor_snapshot: ProcessorSnapshot = (
+                    await processor_pool.snapshot.remote()
+                )
                 # Updates the current backlog gauge (metric: ray_current_backlog)
                 current_backlog = processor_snapshot.source.backlog
                 if current_backlog is None:
                     current_backlog = 0
-                self.current_backlog_gauge.set(
-                    current_backlog,
-                    tags={
-                        # set the processor name to index the metric by
-                        "processor_id": processor_snapshot.processor_id
-                    },
-                )
 
                 current_num_replicas = len(processor_snapshot.replicas)
                 # TODO: This is a valid case we need to handle, but this is

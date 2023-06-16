@@ -19,7 +19,7 @@ class TaxiOutput:
 
 
 # Create a new Node with all the defaults set
-runtime_config = RuntimeConfig.IO_BOUND(autoscale=False)
+runtime_config = RuntimeConfig.IO_BOUND(autoscale=True, max_replicas=4)
 # infra_config = InfraConfig(
 #     schema_validation=SchemaValidation.LOG_WARNING,
 #     require_confirmation=False,
@@ -34,7 +34,7 @@ app = Node(runtime_config=runtime_config)
 pubsub_source = GCPPubSubSubscription(
     topic_id="projects/pubsub-public-data/topics/taxirides-realtime",
     project_id="daring-runway-374503",
-    subscription_name="taxiride-sub-tanke",
+    subscription_name="taxiride-sub",
 )
 bigquery_sink = BigQueryTable(
     table_id="daring-runway-374503.taxi_ride_benchmark.buildflow_temp",
@@ -45,7 +45,10 @@ bigquery_sink = BigQueryTable(
 
 # Attach a processor to the Node
 @app.processor(
-    source=pubsub_source, sink=bigquery_sink, num_cpus=0.5, num_concurrent_tasks=8
+    source=pubsub_source,
+    sink=bigquery_sink,
+    num_cpus=0.5,
+    num_concurrency=8,
 )
 def process(pubsub_message: TaxiOutput) -> TaxiOutput:
     # print('Process: ', pubsub_message)
@@ -65,6 +68,8 @@ if __name__ == "__main__":
         apply_infrastructure=False,
         # Ad hoc infra is really nice for quick demos / tests
         destroy_infrastructure=False,
+        # server options
+        start_node_server=True,
     )
 
     # these should also work:

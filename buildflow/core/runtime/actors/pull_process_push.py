@@ -5,11 +5,15 @@ import logging
 import time
 
 import ray
-from ray.util.metrics import Counter, Gauge
 
+from buildflow import utils
 from buildflow.api import RuntimeStatus
-from buildflow.api.runtime import Snapshot, AsyncRuntimeAPI
+from buildflow.api.runtime import AsyncRuntimeAPI, Snapshot, SnapshotSummary
 from buildflow.core.processor.base import Processor
+from buildflow.core.runtime.metrics import (
+    RateCalculation,
+    CompositeRateCounterMetric,
+)
 from buildflow.io.providers.base import PullProvider, PushProvider
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
@@ -26,23 +30,65 @@ from buildflow.io.providers.base import PullProvider, PushProvider
 # contention / OOM (all pending pulled batches are kept in memory).
 
 
-# TODO: Explore using a UtilizationScore that each replica can update
-# and then we can use that to determine how many replicas we need.
 @dataclasses.dataclass
-class PullProcessPushSnapshot(Snapshot):
-    utilization_score: float
-    process_rate: float
-
-    def get_timestamp_millis(self) -> int:
-        return int(time.time() * 1000)
+class PullProcessPushSnapshotSummary(SnapshotSummary):
+    status: RuntimeStatus
+    timestamp_millis: int
+    events_processed_per_sec: float
+    pull_percentage: float
+    process_time_millis: float
+    process_batch_time_millis: float
+    pull_to_ack_time_millis: float
 
     def as_dict(self) -> dict:
         return {
             "status": self.status.name,
-            "utilization_score": self.utilization_score,
-            "process_rate": self.process_rate,
-            "timestamp": self.get_timestamp_millis(),
+            "timestamp_millis": self.timestamp_millis,
+            "events_processed_per_sec": self.events_processed_per_sec,
+            "pull_percentage": self.pull_percentage,
+            "process_time_millis": self.process_time_millis,
+            "process_batch_time_millis": self.process_batch_time_millis,
+            "pull_to_ack_time_millis": self.pull_to_ack_time_millis,
         }
+
+
+# TODO: Explore using a UtilizationScore that each replica can update
+# and then we can use that to determine how many replicas we need.
+@dataclasses.dataclass
+class PullProcessPushSnapshot(Snapshot):
+    # metrics
+    events_processed_per_sec: RateCalculation
+    pull_percentage: RateCalculation
+    process_time_millis: RateCalculation
+    process_batch_time_millis: RateCalculation
+    pull_to_ack_time_millis: RateCalculation
+    # private fields
+    _timestamp_millis: int = dataclasses.field(default_factory=utils.timestamp_millis)
+
+    def get_timestamp_millis(self) -> int:
+        return self._timestamp_millis
+
+    def as_dict(self) -> dict:
+        return {
+            "status": self.status.name,
+            "timestamp_millis": self.get_timestamp_millis(),
+            "events_processed_per_sec": self.events_processed_per_sec.as_dict(),
+            "pull_percentage": self.pull_percentage.as_dict(),
+            "process_time_millis": self.process_time_millis.as_dict(),
+            "process_batch_time_millis": self.process_batch_time_millis.as_dict(),
+            "pull_to_ack_time_millis": self.pull_to_ack_time_millis.as_dict(),
+        }
+
+    def summarize(self) -> PullProcessPushSnapshotSummary:
+        return PullProcessPushSnapshotSummary(
+            status=self.status,
+            timestamp_millis=self.get_timestamp_millis(),
+            events_processed_per_sec=self.events_processed_per_sec.total_value_rate(),
+            pull_percentage=self.pull_percentage.total_count_rate(),
+            process_time_millis=self.process_time_millis.average_value_rate(),
+            process_batch_time_millis=self.process_batch_time_millis.average_value_rate(),  # noqa: E501
+            pull_to_ack_time_millis=self.pull_to_ack_time_millis.average_value_rate(),
+        )
 
 
 @ray.remote
@@ -66,66 +112,50 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         # initial runtime state
         self._status = RuntimeStatus.IDLE
         self._num_running_threads = 0
-        self._last_snapshot_time = time.time()
-        self._num_elements_processed = 0
-        self._num_pull_requests = 0
-        self._num_empty_pull_responses = 0
-        self._num_pulls = 0
-        self._pull_percentage = 0.0
+        self._last_snapshot_time = time.monotonic()
         # metrics
+        self.max_batch_size = self.pull_provider.max_batch_size()
         job_id = ray.get_runtime_context().get_job_id()
-        self.num_events_counter = Counter(
+        # test
+        self.num_events_processed = CompositeRateCounterMetric(
             "num_events_processed",
-            description=("Number of events processed by the actor. Only increments."),
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
+            description="Number of events processed by the actor. Only increments.",
+            default_tags={"processor_id": processor.processor_id, "JobId": job_id},
         )
-        self.num_events_counter.set_default_tags(
-            {"processor_id": processor.processor_id, "JobId": job_id}
+
+        self._pull_percentage_counter = CompositeRateCounterMetric(
+            "pull_percentage",
+            description="Percentage of the batch size that was pulled. Goes up and down.",  # noqa: E501
+            default_tags={
+                "processor_id": processor.processor_id,
+                "JobId": job_id,
+            },
         )
-        self.process_time_gauge = Gauge(
+
+        self.process_time_counter = CompositeRateCounterMetric(
             "process_time",
             description="Current process time of the actor. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.process_time_gauge.set_default_tags(
-            {
+            default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
-            }
+            },
         )
-        self.batch_time_gauge = Gauge(
+
+        self.batch_time_counter = CompositeRateCounterMetric(
             "batch_time",
             description="Current batch process time of the actor. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.batch_time_gauge.set_default_tags(
-            {
+            default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
-            }
+            },
         )
-        self.total_time_gauge = Gauge(
+        self.total_time_counter = CompositeRateCounterMetric(
             "total_time",
             description="Current total process time of the actor. Goes up and down.",
-            tag_keys=(
-                "processor_id",
-                "JobId",
-            ),
-        )
-        self.total_time_gauge.set_default_tags(
-            {
+            default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
-            }
+            },
         )
 
     async def run(self):
@@ -177,28 +207,23 @@ class PullProcessPushActor(AsyncRuntimeAPI):
 
         while self._status == RuntimeStatus.RUNNING:
             # PULL
-            total_start_time = time.time()
-            self._num_pulls += 1
+            total_start_time = time.monotonic()
             try:
                 response = await self.pull_provider.pull()
             except Exception:
                 logging.exception("pull failed")
                 continue
-            self._num_pull_requests += 1
             if not response.payload:
-                self._num_empty_pull_responses += 1
-                # Mainly for debugging purposes
-                self._pull_percentage += 0.0
+                self._pull_percentage_counter.empty_inc()
                 await asyncio.sleep(1)
                 continue
             # PROCESS
             process_success = True
+            process_start_time = time.monotonic()
+            self._pull_percentage_counter.inc(
+                len(response.payload) / self.max_batch_size
+            )
             try:
-                # TODO: Make this batch size configurable. Currently it is hardcoded
-                # to 1000 for the pubsub source.
-                batch_size = 1000
-                process_start_time = time.time()
-                self._pull_percentage += len(response.payload) / batch_size
                 coros = []
                 for element in response.payload:
                     coros.append(process_element(element))
@@ -209,10 +234,17 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                         batch_results.extend(results)
                     else:
                         batch_results.append(results)
-                self.process_time_gauge.set(
-                    (time.time() - process_start_time) * 1000 / len(batch_results)
+
+                batch_process_time_millis = (
+                    time.monotonic() - process_start_time
+                ) * 1000
+                self.batch_time_counter.inc(
+                    (time.monotonic() - process_start_time) * 1000
                 )
-                self.batch_time_gauge.set((time.time() - process_start_time) * 1000)
+                element_process_time_millis = batch_process_time_millis / len(
+                    batch_results
+                )
+                self.process_time_counter.inc(element_process_time_millis)
 
                 # PUSH
                 await self.push_provider.push(batch_results)
@@ -224,10 +256,9 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             finally:
                 # ACK
                 await self.pull_provider.ack(response.ack_info, process_success)
-            self.num_events_counter.inc(len(response.payload))
-            self._num_elements_processed += len(response.payload)
+            self.num_events_processed.inc(len(response.payload))
             # DONE -> LOOP
-            self.total_time_gauge.set((time.time() - total_start_time) * 1000)
+            self.total_time_counter.inc((time.monotonic() - total_start_time) * 1000)
 
         self._num_running_threads -= 1
         if self._num_running_threads == 0:
@@ -249,32 +280,14 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         return True
 
     async def snapshot(self):
-        if self._num_pull_requests == 0:
-            return PullProcessPushSnapshot(
-                status=self._status, utilization_score=0, process_rate=0
-            )
-
-        # Previous utilitization metric option:
-        # non_empty_ratio = 1 - (
-        #     self._num_empty_pull_responses / self._num_pull_requests)
-        # utilization_score = non_empty_ratio
-
-        utilization_score = self._pull_percentage / self._num_pull_requests
-
-        process_rate = self._num_elements_processed / (
-            time.time() - self._last_snapshot_time
-        )
         snapshot = PullProcessPushSnapshot(
             status=self._status,
-            utilization_score=utilization_score,
-            process_rate=process_rate,
+            events_processed_per_sec=self.num_events_processed.calculate_rate(),  # noqa: E501
+            pull_percentage=self._pull_percentage_counter.calculate_rate(),
+            process_time_millis=self.process_time_counter.calculate_rate(),
+            process_batch_time_millis=self.batch_time_counter.calculate_rate(),
+            pull_to_ack_time_millis=self.total_time_counter.calculate_rate(),
         )
         # reset the counters
-        self._last_snapshot_time = time.time()
-        self._num_pull_requests = 0
-        self._num_empty_pull_responses = 0
-        self._pull_percentage = 0.0
-        self._num_elements_processed = 0
-        self._num_pull_requests = 0
-        self._num_empty_pull_responses = 0
+        self._last_snapshot_time = time.monotonic()
         return snapshot

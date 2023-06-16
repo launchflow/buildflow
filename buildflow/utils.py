@@ -1,12 +1,12 @@
 import dataclasses
-import datetime
+import hashlib
 import inspect
 import json
 import logging
 import os
+import time
 from typing import Any, Optional, TypeVar
 from uuid import uuid4
-import hashlib
 
 import requests
 
@@ -27,7 +27,7 @@ def uuid(max_len: Optional[int] = None) -> str:
 
 
 def timestamp_millis() -> int:
-    return int(datetime.datetime.now().timestamp() * 1000)
+    return int(time.monotonic() * 1000)
 
 
 def get_fn_args(fn) -> inspect.FullArgSpec:

@@ -52,7 +52,7 @@ def _processor_decorator(
     sink: Optional[SinkType] = None,
     *,
     num_cpus: float = 1.0,
-    num_concurrent_tasks: int = 1,
+    num_concurrency: int = 1,
     log_level: str = None,
 ):
     if sink is None:
@@ -82,7 +82,7 @@ def _processor_decorator(
         node.add(
             processor_instance,
             num_cpus=num_cpus,
-            num_concurrent_tasks=num_concurrent_tasks,
+            num_concurrency=num_concurrency,
             log_level=log_level,
         )
 
@@ -111,7 +111,7 @@ class Node(NodeAPI):
         source: SourceType,
         sink: Optional[SinkType] = None,
         num_cpus: float = 1.0,
-        num_concurrent_tasks: int = 1,
+        num_concurrency: int = 1,
         log_level: str = None,
     ):
         # NOTE: processor_decorator is a function that returns an Ad Hoc
@@ -121,7 +121,7 @@ class Node(NodeAPI):
             source=source,
             sink=sink,
             num_cpus=num_cpus,
-            num_concurrent_tasks=num_concurrent_tasks,
+            num_concurrency=num_concurrency,
             log_level=log_level,
         )
 
@@ -130,7 +130,7 @@ class Node(NodeAPI):
         processor: Processor,
         *,
         num_cpus: float = 1.0,
-        num_concurrent_tasks: int = 1,
+        num_concurrency: int = 1,
         log_level: str = None,
     ):
         if self._runtime_actor is not None and self._runtime_actor.is_active():
@@ -145,7 +145,7 @@ class Node(NodeAPI):
         # Each processor gets its own replica config
         self._runtime_config.replica_configs[processor.processor_id] = ReplicaConfig(
             num_cpus=num_cpus,
-            num_concurrent_tasks=num_concurrent_tasks,
+            num_concurrency=num_concurrency,
             log_level=log_level,
         )
         self._processors.append(processor)

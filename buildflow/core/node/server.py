@@ -6,6 +6,7 @@ from ray import kill, serve
 
 from buildflow.core.infra import PulumiInfraActor
 from buildflow.core.runtime import RuntimeActor
+from buildflow.core.runtime.actors.runtime import RuntimeSnapshot
 
 app = FastAPI()
 
@@ -66,8 +67,8 @@ class NodeServer:
 
     @app.get("/runtime/snapshot")
     async def runtime_snapshot(self):
-        result = await self.runtime_actor.snapshot.remote()
-        return result.as_dict()
+        snapshot: RuntimeSnapshot = await self.runtime_actor.snapshot.remote()
+        return snapshot.summarize().as_dict()
 
     @app.post("/runtime/stop")
     async def runtime_stop(self):

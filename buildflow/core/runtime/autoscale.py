@@ -31,32 +31,39 @@ def _available_replicas(cpu_per_replica: float):
     return int(num_cpus / cpu_per_replica)
 
 
+# TODO: Explore making the entire runtime autoscale
+# to maximize resource utilization, we can sample the buffer size of each task
+# and scale up/down based on that. We can target to use 80% of the available
+# resources in the worst case scenario (99.7% of samples contained by 80% of resources).
+
+
 def calculate_target_num_replicas(
     snapshot: ProcessorSnapshot, config: AutoscalerConfig
 ):
     cpus_per_replica = snapshot.actor_info.num_cpus
 
-    current_num_replicas = len(snapshot.replicas)
-    backlog = snapshot.source.backlog
-    total_process_rate = sum(replica.process_rate for replica in snapshot.replicas)
-    avg_process_rate = total_process_rate / current_num_replicas
-    total_utilization_score = sum(
-        replica.utilization_score for replica in snapshot.replicas
-    )
-    avg_utilization_score = total_utilization_score / current_num_replicas
-    avg_utilization_score = avg_utilization_score / current_num_replicas
+    snapshot_summary = snapshot.summarize()
+
+    avg_utilization_score = snapshot_summary.avg_pull_percentage_per_replica
+    total_utilization_score = avg_utilization_score * snapshot_summary.num_replicas
     # The code below is from the previous version of the autoscaler.
     # Could probably use another pass through; might be able to simplify
     # things with the new runtime setup
-    if backlog is not None and avg_process_rate != 0:
-        estimated_replicas = int(backlog / avg_process_rate)
+    if (
+        snapshot_summary.source_backlog is not None
+        and snapshot_summary.avg_num_elements_per_batch != 0
+    ):
+        estimated_replicas = int(
+            snapshot_summary.source_backlog
+            / snapshot_summary.avg_num_elements_per_batch
+        )
     else:
         estimated_replicas = 0
-    if estimated_replicas > current_num_replicas:
+    if estimated_replicas > snapshot_summary.num_replicas:
         new_num_replicas = estimated_replicas
     elif (
-        estimated_replicas < current_num_replicas
-        and current_num_replicas > 1
+        estimated_replicas < snapshot_summary.num_replicas
+        and snapshot_summary.num_replicas > 1
         and avg_utilization_score < _TARGET_UTILIZATION
     ):
         # Scale down under the following conditions.
@@ -67,7 +74,7 @@ def calculate_target_num_replicas(
         if new_num_replicas < estimated_replicas:
             new_num_replicas = estimated_replicas
     else:
-        new_num_replicas = current_num_replicas
+        new_num_replicas = snapshot_summary.num_replicas
 
     available_replicas = _available_replicas(cpus_per_replica)
     # If we're trying to scale to more than max replicas and max replicas
@@ -77,10 +84,10 @@ def calculate_target_num_replicas(
     elif new_num_replicas < config.min_replicas:
         new_num_replicas = config.min_replicas
 
-    if new_num_replicas > current_num_replicas:
-        replicas_adding = new_num_replicas - current_num_replicas
+    if new_num_replicas > snapshot_summary.num_replicas:
+        replicas_adding = new_num_replicas - snapshot_summary.num_replicas
         if replicas_adding > available_replicas:
-            new_num_replicas = current_num_replicas + available_replicas
+            new_num_replicas = snapshot_summary.num_replicas + available_replicas
             # Cap how much we request to ensure we're not requesting a huge amount
             cpu_to_request = new_num_replicas * cpus_per_replica * 2
             request_resources(num_cpus=math.ceil(cpu_to_request))
@@ -91,20 +98,20 @@ def calculate_target_num_replicas(
         # resources for a replicas that haven't been fufilled yet.
         request_resources(num_cpus=math.ceil(new_num_replicas * cpus_per_replica))
 
-    if new_num_replicas != current_num_replicas:
+    if new_num_replicas != snapshot_summary.num_replicas:
         logging.warning(
             "resizing from %s replicas to %s replicas",
-            current_num_replicas,
+            snapshot_summary.num_replicas,
             new_num_replicas,
         )
 
     logging.debug(
         "---------------------------------------------------------\n"
-        f"AUTOSCALER: {current_num_replicas} -> {new_num_replicas}\n"
+        f"AUTOSCALER: {snapshot_summary.num_replicas} -> {new_num_replicas}\n"
         f"AVG Utilization: {avg_utilization_score}\n"
-        f"AVG Process Rate: {avg_process_rate}\n"
-        f"TOTAL Proccess Rate {total_process_rate}\n"
-        f"Backlog: {backlog}\n"
+        f"Total Utilization: {total_utilization_score}\n"
+        f"AVG Process Rate: {snapshot_summary.avg_num_elements_per_batch}\n"
+        f"Backlog: {snapshot_summary.source_backlog}\n"
         f"Estimated Replicas: {estimated_replicas}\n"
         f"Max Cluster Replicas: {available_replicas}\n"
         f"Config Max Replicas: {config.max_replicas}\n"
