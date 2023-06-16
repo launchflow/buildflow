@@ -46,23 +46,22 @@ class RuntimeSnapshot(Snapshot):
     # TODO(nit): I dont like this name, but I'm not sure what else to call it.
     processors: List[ProcessorSnapshot]
 
-    _timestamp: int = dataclasses.field(default_factory=utils.timestamp_millis)
+    _timestamp_millis: int = dataclasses.field(default_factory=utils.timestamp_millis)
 
     def get_timestamp_millis(self) -> int:
-        return self._timestamp
+        return self._timestamp_millis
 
     def as_dict(self):
         return {
             "status": self.status.name,
+            "timestamp_millis": self._timestamp_millis,
             "processors": [p.as_dict() for p in self.processors],
-            "backlog": self.backlog,
-            "timestamp": self._timestamp,
         }
 
     def summarize(self) -> RuntimeSnapshotSummary:
         return RuntimeSnapshotSummary(
-            status=self.status.name,
-            timestamp_millis=self._timestamp,
+            status=self.status,
+            timestamp_millis=self._timestamp_millis,
             processors=[
                 processor_snapshot.summarize() for processor_snapshot in self.processors
             ],

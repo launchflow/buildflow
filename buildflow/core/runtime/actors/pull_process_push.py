@@ -12,7 +12,7 @@ from buildflow.api.runtime import AsyncRuntimeAPI, Snapshot, SnapshotSummary
 from buildflow.core.processor.base import Processor
 from buildflow.core.runtime.metrics import (
     RateCalculation,
-    RateCounterMetric,
+    CompositeRateCounterMetric,
 )
 from buildflow.io.providers.base import PullProvider, PushProvider
 
@@ -71,7 +71,7 @@ class PullProcessPushSnapshot(Snapshot):
     def as_dict(self) -> dict:
         return {
             "status": self.status.name,
-            "timestamp": self.get_timestamp_millis(),
+            "timestamp_millis": self.get_timestamp_millis(),
             "events_processed_per_sec": self.events_processed_per_sec.as_dict(),
             "pull_percentage": self.pull_percentage.as_dict(),
             "process_time_millis": self.process_time_millis.as_dict(),
@@ -81,13 +81,13 @@ class PullProcessPushSnapshot(Snapshot):
 
     def summarize(self) -> PullProcessPushSnapshotSummary:
         return PullProcessPushSnapshotSummary(
-            status=self.status.name,
+            status=self.status,
             timestamp_millis=self.get_timestamp_millis(),
-            events_processed_per_sec=self.events_processed_per_sec.calculate_rate(),
-            pull_percentage=self.pull_percentage.calculate_rate(),
-            process_time_millis=self.process_time_millis.calculate_rate(),
-            process_batch_time_millis=self.process_batch_time_millis.calculate_rate(),
-            pull_to_ack_time_millis=self.pull_to_ack_time_millis.calculate_rate(),
+            events_processed_per_sec=self.events_processed_per_sec.total_value_rate(),
+            pull_percentage=self.pull_percentage.total_count_rate(),
+            process_time_millis=self.process_time_millis.average_value_rate(),
+            process_batch_time_millis=self.process_batch_time_millis.average_value_rate(),  # noqa: E501
+            pull_to_ack_time_millis=self.pull_to_ack_time_millis.average_value_rate(),
         )
 
 
@@ -116,13 +116,14 @@ class PullProcessPushActor(AsyncRuntimeAPI):
         # metrics
         self.max_batch_size = self.pull_provider.max_batch_size()
         job_id = ray.get_runtime_context().get_job_id()
-        self.num_events_processed = RateCounterMetric(
+        # test
+        self.num_events_processed = CompositeRateCounterMetric(
             "num_events_processed",
             description="Number of events processed by the actor. Only increments.",
             default_tags={"processor_id": processor.processor_id, "JobId": job_id},
         )
 
-        self._pull_percentage_counter = RateCounterMetric(
+        self._pull_percentage_counter = CompositeRateCounterMetric(
             "pull_percentage",
             description="Percentage of the batch size that was pulled. Goes up and down.",  # noqa: E501
             default_tags={
@@ -131,7 +132,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             },
         )
 
-        self.process_time_counter = RateCounterMetric(
+        self.process_time_counter = CompositeRateCounterMetric(
             "process_time",
             description="Current process time of the actor. Goes up and down.",
             default_tags={
@@ -140,7 +141,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
             },
         )
 
-        self.batch_time_counter = RateCounterMetric(
+        self.batch_time_counter = CompositeRateCounterMetric(
             "batch_time",
             description="Current batch process time of the actor. Goes up and down.",
             default_tags={
@@ -148,7 +149,7 @@ class PullProcessPushActor(AsyncRuntimeAPI):
                 "JobId": job_id,
             },
         )
-        self.total_time_counter = RateCounterMetric(
+        self.total_time_counter = CompositeRateCounterMetric(
             "total_time",
             description="Current total process time of the actor. Goes up and down.",
             default_tags={

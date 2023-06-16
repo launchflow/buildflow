@@ -68,7 +68,7 @@ class NodeServer:
     @app.get("/runtime/snapshot")
     async def runtime_snapshot(self):
         snapshot: RuntimeSnapshot = await self.runtime_actor.snapshot.remote()
-        return snapshot.summarize()
+        return snapshot.summarize().as_dict()
 
     @app.get("/infra/snapshot")
     async def infra_snapshot(self):

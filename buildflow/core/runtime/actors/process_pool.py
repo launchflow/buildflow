@@ -102,53 +102,59 @@ class ProcessorSnapshot(Snapshot):
     def as_dict(self) -> dict:
         return {
             "status": self.status.name,
+            "timestamp_millis": self._timestamp_millis,
             "processor_id": self.processor_id,
             "source": dataclasses.asdict(self.source),
             "sink": dataclasses.asdict(self.sink),
             "replicas": [r.as_dict() for r in self.replicas],
             "actor_info": dataclasses.asdict(self.actor_info),
+            "source_backlog": self.source_backlog,
             "num_replicas": self.num_replicas,
             "num_concurrency_per_replica": self.num_concurrency_per_replica,
-            "timestamp": self._timestamp_millis,
         }
 
     def summarize(self) -> ProcessorSnapshotSummary:
+        # derived from the `events_processed_per_sec` metric
         total_events_processed_per_sec = RateCalculation.merge(
             [
                 replica_snapshot.events_processed_per_sec
                 for replica_snapshot in self.replicas
             ]
-        ).total_rate()
-        total_pulls_per_sec = RateCalculation.merge(
-            [replica_snapshot.pull_percentage for replica_snapshot in self.replicas]
-        ).total_rate()
+        ).total_value_rate()
         avg_num_elements_per_batch = RateCalculation.merge(
             [
                 replica_snapshot.events_processed_per_sec
                 for replica_snapshot in self.replicas
             ]
-        ).average_rate()
+        ).average_value_rate()
+        # derived from the `pull_percentage` metric
+        total_pulls_per_sec = RateCalculation.merge(
+            [replica_snapshot.pull_percentage for replica_snapshot in self.replicas]
+        ).total_count_rate()
         avg_pull_percentage_per_replica = RateCalculation.merge(
             [replica_snapshot.pull_percentage for replica_snapshot in self.replicas]
-        ).average_rate()
+        ).average_value_rate()
+        # derived from the `process_time_millis` metric
         avg_process_time_millis_per_element = RateCalculation.merge(
             [replica_snapshot.process_time_millis for replica_snapshot in self.replicas]
-        ).average_rate()
+        ).average_value_rate()
+        # derived from the `process_batch_time_millis` metric
         avg_process_time_millis_per_batch = RateCalculation.merge(
             [
                 replica_snapshot.process_batch_time_millis
                 for replica_snapshot in self.replicas
             ]
-        ).average_rate()
+        ).average_value_rate()
+        # derived from the `pull_to_ack_time_millis` metric
         avg_pull_to_ack_time_millis_per_batch = RateCalculation.merge(
             [
                 replica_snapshot.pull_to_ack_time_millis
                 for replica_snapshot in self.replicas
             ]
-        ).average_rate()
+        ).average_value_rate()
 
         return ProcessorSnapshotSummary(
-            status=self.status.name,
+            status=self.status,
             timestamp_millis=self._timestamp_millis,
             processor_id=self.processor_id,
             source_backlog=self.source_backlog,
