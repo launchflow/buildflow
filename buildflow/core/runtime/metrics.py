@@ -97,6 +97,7 @@ class CompositeRateCounterMetric:
         self.buckets = deque([(0, 0) for _ in range(self.rate_secs)])
         self.running_count = 0
         self.running_sum = 0.0
+        self.running_time_secs = 0
         self.last_update_sec = int(time.monotonic())
 
         # setup for ray metrics
@@ -126,6 +127,7 @@ class CompositeRateCounterMetric:
         now_sec = int(time.monotonic())
         seconds_difference = now_sec - self.last_update_sec
         self.last_update_sec = now_sec
+        self.running_time_secs += seconds_difference
 
         # Check if more than rate_secs seconds have passed since the last update
         if seconds_difference >= self.rate_secs:
@@ -152,7 +154,9 @@ class CompositeRateCounterMetric:
 
     def calculate_rate(self) -> RateCalculation:
         """Calculates the rate using the latest running counters."""
-        return RateCalculation(self.running_sum, self.running_count, self.rate_secs)
+        # Handles the case where less than rate_secs has passed
+        rate_secs = min(self.running_time_secs, self.rate_secs)
+        return RateCalculation(self.running_sum, self.running_count, rate_secs)
 
 
 class SimpleGaugeMetric:
