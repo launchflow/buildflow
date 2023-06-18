@@ -8,11 +8,12 @@ class MetricsTest(unittest.TestCase):
     def test_composite_rate_counter(self):
         # starting buckets = [(0, 0), (0, 0), (0, 0), (0, 0), (0, 0)]
         counter = CompositeRateCounterMetric("test", "desc", {}, rate_secs=5)
+        time.sleep(1)
         counter.inc(10)
         result = counter.calculate_rate()
         # expected buckets = [(0, 0), (0, 0), (0, 0), (0, 0), (1, 10)]
         self.assertEqual(
-            result, RateCalculation(values_sum=10, values_count=1, num_rate_seconds=5)
+            result, RateCalculation(values_sum=10, values_count=1, num_rate_seconds=1)
         )
         time.sleep(1)
         counter.empty_inc()
@@ -20,14 +21,14 @@ class MetricsTest(unittest.TestCase):
         # NOTE: empty inc() does not update the values_sum
         # expected buckets = [(0, 0), (0, 0), (0, 0), (1, 10), (1, 0)]
         self.assertEqual(
-            result, RateCalculation(values_sum=10, values_count=2, num_rate_seconds=5)
+            result, RateCalculation(values_sum=10, values_count=2, num_rate_seconds=2)
         )
         time.sleep(1)
         counter.inc(10)
         result = counter.calculate_rate()
         # expected buckets = [(0, 0), (0, 0), (1, 10), (1, 0), (1, 10)]
         self.assertEqual(
-            result, RateCalculation(values_sum=20, values_count=3, num_rate_seconds=5)
+            result, RateCalculation(values_sum=20, values_count=3, num_rate_seconds=3)
         )
         time.sleep(1)
         counter.inc(20)
@@ -35,7 +36,7 @@ class MetricsTest(unittest.TestCase):
         result = counter.calculate_rate()
         # expected buckets = [(0, 0), (1, 10), (1, 0), (1, 10), (2, 50)]
         self.assertEqual(
-            result, RateCalculation(values_sum=70, values_count=5, num_rate_seconds=5)
+            result, RateCalculation(values_sum=70, values_count=5, num_rate_seconds=4)
         )
         time.sleep(3)
         counter.inc(20)
