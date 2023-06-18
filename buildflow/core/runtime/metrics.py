@@ -62,23 +62,21 @@ class RateCalculation:
         """Calculates the average rate using multiple rate calculations."""
         combined_values_sum = 0.0
         combined_values_count = 0
-        num_rate_seconds = None
+        combined_num_rate_seconds = 0
+        num_rate_calculations = 0
         for rate_calculation in rate_calculations:
             combined_values_sum += rate_calculation.values_sum
             combined_values_count += rate_calculation.values_count
-            if num_rate_seconds is None:
-                num_rate_seconds = rate_calculation.num_rate_seconds
-            elif num_rate_seconds != rate_calculation.num_rate_seconds:
-                # This case should never happen, so raise an error to be safe
-                raise ValueError(
-                    "Cannot average rate calculations with different num_rate_seconds"
-                )
+            combined_num_rate_seconds += rate_calculation.num_rate_seconds
+            num_rate_calculations += 1
 
-        if num_rate_seconds is None:
+        if combined_num_rate_seconds == 0:
             # This case should only happen when no rate calculations were provided
             return cls(0.0, 0, 0)
 
-        return cls(combined_values_sum, combined_values_count, num_rate_seconds)
+        average_num_rate_seconds = combined_num_rate_seconds / num_rate_calculations
+
+        return cls(combined_values_sum, combined_values_count, average_num_rate_seconds)
 
 
 # NOTE: This is only an approximation and is not meant for precise calculations.
