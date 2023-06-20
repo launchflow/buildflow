@@ -47,6 +47,8 @@ def log_errors(endpoint: str):
 _SESSION_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow")
 _SESSION_FILE = os.path.join(_SESSION_DIR, "build_flow_usage.json")
 
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow")
+
 
 @dataclasses.dataclass
 class Session:

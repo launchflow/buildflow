@@ -5,7 +5,7 @@ import ray
 from buildflow.api import InfraAPI
 from buildflow.core.infra.config import InfraConfig
 from buildflow.core.processor.base import Processor
-from buildflow.io.providers import SetupProvider
+from buildflow.resources.io.providers import SetupProvider
 import logging
 
 

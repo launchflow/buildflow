@@ -3,7 +3,7 @@ import unittest
 
 import pytest
 
-from buildflow.io.providers.pulsing_provider import PulsingProvider
+from buildflow.resources.io.providers.pulsing_provider import PulsingProvider
 
 
 @pytest.mark.usefixtures("event_loop_instance")

@@ -6,7 +6,7 @@ from unittest import mock
 from google.api_core import exceptions
 import pytest
 
-from buildflow.io.providers.gcp import gcp_pub_sub
+from buildflow.resources.io.providers.gcp import gcp_pub_sub
 
 
 @pytest.mark.usefixtures("event_loop_instance")

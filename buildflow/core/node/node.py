@@ -21,9 +21,13 @@ from buildflow.core.infra import PulumiInfraActor
 from buildflow.core.infra.config import InfraConfig
 from buildflow.core.node.server import NodeServer
 from buildflow.core.processor import Processor
-from buildflow.core.runtime import RuntimeActor
+from buildflow.core.runtime.actors.runtime import RuntimeActor
 from buildflow.core.runtime.config import ReplicaConfig, RuntimeConfig
-from buildflow.io.registry import EmptySink
+from buildflow.resources.io.registry import EmptySink
+from buildflow.resources.config import ResourceConfig
+from buildflow.resources import MetaResourceType
+from buildflow.resources.io import ResourceType
+import copy
 
 
 def _attach_method(cls, func):
@@ -98,6 +102,7 @@ class Node(NodeAPI):
         node_id: NodeID = "buildflow-node",
         runtime_config: Optional[RuntimeConfig] = None,
         infra_config: Optional[InfraConfig] = None,
+        resource_config: Optional[ResourceConfig] = None,
     ) -> None:
         self.node_id = node_id
         self._processors: List[Processor] = []
@@ -105,6 +110,7 @@ class Node(NodeAPI):
         self._runtime_config = runtime_config or RuntimeConfig.IO_BOUND()
         self._runtime_actor = None
         self._infra_config = infra_config or InfraConfig.DEFAULT()
+        self._resource_config = resource_config or ResourceConfig.DEFAULT()
 
     def processor(
         self,
@@ -141,6 +147,27 @@ class Node(NodeAPI):
             )
         if log_level is None:
             log_level = self._runtime_config.log_level
+
+        # Attach the get_resource_config and get_io_type methods to the processor's
+        # source() method. This lets us inject the resource config and type at runtime.
+        if isinstance(processor.source(), MetaResourceType):
+            resource_config_copy = copy.copy(self._resource_config)
+            setattr(
+                processor.source(),
+                "get_resource_config",
+                lambda: resource_config_copy,
+            )
+            setattr(processor.source(), "get_io_type", lambda: SourceType)
+        # Attach the get_resource_config and get_io_type methods to the processor's
+        # sink() method. This lets us inject the resource config and type at runtime.
+        if isinstance(processor.sink(), MetaResourceType):
+            resource_config_copy = copy.copy(self._resource_config)
+            setattr(
+                processor.sink(),
+                "get_resource_config",
+                lambda: resource_config_copy,
+            )
+            setattr(processor.sink(), "get_io_type", lambda: SinkType)
 
         # Each processor gets its own replica config
         self._runtime_config.replica_configs[processor.processor_id] = ReplicaConfig(

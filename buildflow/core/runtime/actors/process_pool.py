@@ -18,7 +18,7 @@ from buildflow.core.runtime.actors.pull_process_push import (
 )
 from buildflow.core.runtime.config import ReplicaConfig
 from buildflow.core.runtime.metrics import RateCalculation, SimpleGaugeMetric
-from buildflow.io.providers.base import PullProvider, PushProvider
+from buildflow.resources.io.providers.base import PullProvider, PushProvider
 
 # TODO: add ability to load from env vars so we can set num_cpus
 # from buildflow.utils import load_config_from_env

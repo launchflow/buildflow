@@ -1,5 +1,5 @@
 from buildflow.api import ProcessorAPI, SinkType, SourceType, ProcessorID
-from buildflow.io.registry import EmptySink
+from buildflow.resources.io.registry import EmptySink
 
 
 class Processor(ProcessorAPI):

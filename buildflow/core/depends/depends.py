@@ -1,6 +1,6 @@
 from typing import Any, TypeVar, Generic
 
-from buildflow.io.providers import PushProvider
+from buildflow.resources.io.providers import PushProvider
 
 T = TypeVar("T")
 

@@ -7,7 +7,7 @@ from google.cloud.monitoring_v3 import query
 from google.cloud.pubsub_v1.types import PubsubMessage as GCPPubSubMessage
 import pulumi_gcp
 
-from buildflow.io.providers import (
+from buildflow.resources.io.providers import (
     PlanProvider,
     PullProvider,
     SetupProvider,
@@ -15,11 +15,11 @@ from buildflow.io.providers import (
     PulumiProvider,
     PulumiResources,
 )
-from buildflow.io.providers.base import PullResponse, AckInfo
-from buildflow.io.providers.gcp.utils import clients as gcp_clients
-from buildflow.io.providers.gcp.utils import setup_utils
+from buildflow.resources.io.providers.base import PullResponse, AckInfo
+from buildflow.resources.io.providers.gcp.utils import clients as gcp_clients
+from buildflow.resources.io.providers.gcp.utils import setup_utils
 from buildflow import utils
-from buildflow.io.providers.schemas import converters
+from buildflow.resources.io.providers.schemas import converters
 from buildflow.core import exceptions
 
 

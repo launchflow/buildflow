@@ -14,7 +14,7 @@ from buildflow.core.runtime.metrics import (
     RateCalculation,
     CompositeRateCounterMetric,
 )
-from buildflow.io.providers.base import PullProvider, PushProvider
+from buildflow.resources.io.providers.base import PullProvider, PushProvider
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI

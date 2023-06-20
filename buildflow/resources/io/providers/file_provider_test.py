@@ -8,7 +8,7 @@ import pyarrow.csv as pcsv
 import pyarrow.parquet as pq
 import pytest
 
-from buildflow.io.providers.file_provider import FileProvider
+from buildflow.resources.io.providers.file_provider import FileProvider
 
 
 @pytest.mark.usefixtures("event_loop_instance")

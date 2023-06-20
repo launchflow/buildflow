@@ -5,14 +5,14 @@ from google.api_core import exceptions
 import pulumi
 import pulumi_gcp
 
-from buildflow.io.providers import (
+from buildflow.resources.io.providers import (
     PullProvider,
     PulumiProvider,
 )
-from buildflow.io.providers.base import PullResponse, PulumiResources
-from buildflow.io.providers.gcp import gcp_pub_sub
-from buildflow.io.providers.gcp.utils import clients as gcp_clients
-from buildflow.io.providers.schemas import converters
+from buildflow.resources.io.providers.base import PullResponse, PulumiResources
+from buildflow.resources.io.providers.gcp import gcp_pub_sub
+from buildflow.resources.io.providers.gcp.utils import clients as gcp_clients
+from buildflow.resources.io.providers.schemas import converters
 
 
 @dataclass
@@ -35,27 +35,23 @@ class GCSFileStreamProvider(PullProvider, PulumiProvider):
     def __init__(
         self,
         *,
-        bucket_name: str,
         project_id: str,
+        bucket_name: str,
         event_types: Optional[List[str]] = ("OBJECT_FINALIZE",),
         force_destroy: bool = False,
     ):
         """
         Args:
-            bucket_name: The name of the bucket to stream from.
             project_id: The project id that the bucket is in.
-            pubsub_topic: The pubsub topic that is configured to point at the bucket.
-                If not set we will create one.
-            pubsub_subscription: The pubsub subscription that is configure to point at
-                the bucket. If not set we will create one.
+            bucket_name: The name of the bucket to stream from.
             event_types: The event types that should trigger the stream. This is only
                 used if we are attaching a new notification listener to your bucket.
                 Defaults to only new uploads. If set to None will listen to all events.
             force_destroy: If set to True will delete contents of the bucket on destroy.
 
         """
-        self.bucket_name = bucket_name
         self.project_id = project_id
+        self.bucket_name = bucket_name
         self.event_types = list(event_types)
         self.force_destroy = force_destroy
         self._managed_publisher = True

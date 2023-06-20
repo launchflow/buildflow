@@ -13,7 +13,7 @@ from buildflow.api.io import SourceType
 from buildflow.core.node import Node
 from buildflow.core.processor.base import Processor
 from buildflow.core.runtime.actors.pull_process_push import PullProcessPushActor
-from buildflow.io.registry import Pulse, Files
+from buildflow.resources.io.registry import Pulse, Files
 
 
 def create_test_processor(output_path: str, pulsing_input: Iterable[Dict[str, int]]):

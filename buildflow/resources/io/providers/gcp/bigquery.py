@@ -4,11 +4,11 @@ from typing import Any, Callable, Dict, Optional, List, Type
 import pulumi
 import pulumi_gcp
 
-from buildflow.io.providers import PulumiProvider, PushProvider
-from buildflow.io.providers.base import PulumiResources
-from buildflow.io.providers.gcp.utils import clients as gcp_clients
-from buildflow.io.providers.schemas import bigquery_schemas
-from buildflow.io.providers.schemas import converters
+from buildflow.resources.io.providers import PulumiProvider, PushProvider
+from buildflow.resources.io.providers.base import PulumiResources
+from buildflow.resources.io.providers.gcp.utils import clients as gcp_clients
+from buildflow.resources.io.providers.schemas import bigquery_schemas
+from buildflow.resources.io.providers.schemas import converters
 
 
 class StreamingBigQueryProvider(PushProvider, PulumiProvider):

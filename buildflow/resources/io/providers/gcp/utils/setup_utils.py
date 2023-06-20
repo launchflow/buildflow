@@ -6,7 +6,7 @@ from typing import List
 from google.api_core import exceptions
 from google.iam.v1 import iam_policy_pb2, policy_pb2
 
-from buildflow.io.providers.gcp.utils import clients
+from buildflow.resources.io.providers.gcp.utils import clients
 
 
 def maybe_create_topic(

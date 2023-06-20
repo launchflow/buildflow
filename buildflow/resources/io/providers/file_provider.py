@@ -9,8 +9,8 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.csv as pcsv
 
-from buildflow.io.providers import PushProvider
-from buildflow.io.providers.schemas import converters
+from buildflow.resources.io.providers import PushProvider
+from buildflow.resources.io.providers.schemas import converters
 
 
 class FileFormat(Enum):

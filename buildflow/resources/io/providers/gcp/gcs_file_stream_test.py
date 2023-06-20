@@ -16,7 +16,7 @@ from unittest import mock
 from google.api_core import exceptions
 import pulumi
 
-from buildflow.io.providers.gcp import gcs_file_stream
+from buildflow.resources.io.providers.gcp import gcs_file_stream
 
 
 class MyMocks(pulumi.runtime.Mocks):

@@ -15,6 +15,7 @@ class InfraConfig:
     # apply & destroy options (These are basically inverses of eachother)
     # TODO: make this default to True once users can provide input
     require_confirmation: bool = False
+    enable_destroy_protection: bool = False
     # misc
     log_level: str = "INFO"
 

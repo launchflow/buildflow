@@ -11,7 +11,7 @@ import pytest
 from buildflow.core.node import Node
 from buildflow.core.runtime.config import RuntimeConfig
 from buildflow.core.runtime.actors.runtime import RuntimeActor
-from buildflow.io.registry import Pulse, Files
+from buildflow.resources.io.registry import Pulse, Files
 
 
 @pytest.mark.usefixtures("ray_fix")

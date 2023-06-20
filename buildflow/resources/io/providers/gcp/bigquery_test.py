@@ -16,7 +16,7 @@ from unittest import mock
 import pulumi
 import pytest
 
-from buildflow.io.providers.gcp.bigquery import StreamingBigQueryProvider
+from buildflow.resources.io.providers.gcp.bigquery import StreamingBigQueryProvider
 
 
 @dataclass

@@ -2,16 +2,18 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Optional, Union
 
 from buildflow import utils
-from buildflow.io.providers.file_provider import FileFormat, FileProvider
-from buildflow.io.providers.gcp.bigquery import StreamingBigQueryProvider
-from buildflow.io.providers.gcp.gcp_pub_sub import (
+from buildflow.resources.io.providers.file_provider import FileFormat, FileProvider
+from buildflow.resources.io.providers.gcp.bigquery import StreamingBigQueryProvider
+from buildflow.resources.io.providers.gcp.gcp_pub_sub import (
     GCPPubSubSubscriptionProvider,
     GCPPubSubTopicProvider,
 )
-from buildflow.io.providers.gcp.gcs_file_stream import GCSFileStreamProvider
-from buildflow.io.providers.pulsing_provider import PulsingProvider
+from buildflow.resources.io.providers.gcp.gcs_file_stream import GCSFileStreamProvider
+from buildflow.resources.io.providers.pulsing_provider import PulsingProvider
 
 
+# NOTE: This is the lower-level, more flexible (imperative) API for defining resources.
+# See the MetaResourceType class in the parent module for the higher-level API.
 class ResourceType:
     def provider(self):
         raise NotImplementedError("provider not implemented")
@@ -20,7 +22,7 @@ class ResourceType:
 @dataclass
 class GCPPubSubTopic(ResourceType):
     project_id: str
-    topic_name: Optional[None]
+    topic_name: Optional[str] = None
 
     def __post_init__(self):
         if self.topic_name is None:
@@ -74,16 +76,16 @@ class BigQueryTable(ResourceType):
 
 @dataclass
 class GCSFileStream(ResourceType):
-    bucket_name: str
     project_id: str
+    bucket_name: str
 
     # Resource management options
     force_destroy: bool = False
 
     def provider(self):
         return GCSFileStreamProvider(
-            bucket_name=self.bucket_name,
             project_id=self.project_id,
+            bucket_name=self.bucket_name,
             force_destroy=self.force_destroy,
         )
 

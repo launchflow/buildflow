@@ -1,9 +1,9 @@
 import asyncio
 from typing import Any, Callable, Iterable, Type
 
-from buildflow.io.providers import PullProvider
-from buildflow.io.providers.base import AckInfo, PullResponse
-from buildflow.io.providers.schemas import converters
+from buildflow.resources.io.providers import PullProvider
+from buildflow.resources.io.providers.base import AckInfo, PullResponse
+from buildflow.resources.io.providers.schemas import converters
 
 
 class PulsingProvider(PullProvider):

@@ -9,7 +9,7 @@ from pulumi import automation as auto
 from buildflow.api import InfraAPI
 from buildflow.core.infra.config import InfraConfig
 from buildflow.core.processor.base import Processor
-from buildflow.io.providers import PulumiProvider
+from buildflow.resources.io.providers import PulumiProvider
 import os
 
 

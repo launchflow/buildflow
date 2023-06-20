@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Set
 import unittest
 
 from buildflow.core import exceptions
-from buildflow.io.providers.schemas import converters
+from buildflow.resources.io.providers.schemas import converters
 
 
 @dataclass
