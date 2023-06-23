@@ -17,7 +17,8 @@ from buildflow.api import (
     SinkType,
     SourceType,
 )
-from buildflow.core.infra import PulumiInfraActor
+from buildflow.api.infra import InfraTag
+from buildflow.core.infra.actors.infra import InfraActor
 from buildflow.core.infra.config import InfraConfig
 from buildflow.core.node.server import NodeServer
 from buildflow.core.processor import Processor
@@ -108,8 +109,9 @@ class Node(NodeAPI):
         self._processors: List[Processor] = []
         # The Node class is a wrapper around the Runtime and Infrastructure
         self._runtime_config = runtime_config or RuntimeConfig.IO_BOUND()
-        self._runtime_actor = None
+        self._runtime_actor = RuntimeActor.remote(self._runtime_config)
         self._infra_config = infra_config or InfraConfig.DEFAULT()
+        self._infra_actor = InfraActor.remote(self._infra_config, tag="default")
         self._resource_config = resource_config or ResourceConfig.DEFAULT()
 
     def processor(
@@ -139,8 +141,10 @@ class Node(NodeAPI):
         num_concurrency: int = 1,
         log_level: str = None,
     ):
-        if self._runtime_actor is not None and self._runtime_actor.is_active():
-            raise RuntimeError("Cannot add processor to running node.")
+        if self._runtime_actor.is_active():
+            raise RuntimeError("Cannot add processor to a node with an active runtime.")
+        if self._infra_actor.is_active():
+            raise RuntimeError("Cannot add processor to a node with an active infra.")
         if processor.processor_id in self._runtime_config.replica_configs:
             raise RuntimeError(
                 f"Processor({processor.processor_id}) already exists in node."
@@ -221,8 +225,6 @@ class Node(NodeAPI):
         if not disable_usage_stats:
             utils.log_buildflow_usage()
 
-        self._runtime_actor = RuntimeActor.remote(self._runtime_config)
-
         # BuildFlow Node Server
         if start_node_server:
             node_server = NodeServer.bind(runtime_actor=self._runtime_actor)
@@ -269,47 +271,40 @@ class Node(NodeAPI):
         return await remote_runtime_task
 
     async def _drain(self, destroy: bool = False):
-        logging.info(f"Draining Node({self.node_id})...")
+        logging.debug(f"Draining Node({self.node_id})...")
         await self._runtime_actor.drain.remote()
-        logging.info(f"...Finished draining Node({self.node_id})")
+        logging.debug(f"...Finished draining Node({self.node_id})")
         if destroy:
             await self._destroy_async()
         return True
 
-    def plan(self) -> NodePlan:
-        return asyncio.get_event_loop().run_until_complete(self._plan_async())
+    def plan(self, tag: InfraTag = "default") -> NodePlan:
+        return asyncio.get_event_loop().run_until_complete(self._plan_async(tag=tag))
 
-    async def _plan_async(self) -> NodePlan:
-        logging.info(f"Planning infrastructure for Node({self.node_id})...")
-        infra_actor = PulumiInfraActor.remote(
-            self._infra_config, stack_name=self.node_id
-        )
-        result = await infra_actor.plan.remote(processors=self._processors)
-        logging.info(f"...Finished planning infrastructure for Node({self.node_id})")
+    async def _plan_async(self, *, tag: InfraTag) -> NodePlan:
+        logging.debug(f"Planning Infra(tag={tag}) for Node({self.node_id})...")
+        result = await self._infra_actor.plan.remote(processors=self._processors)
+        logging.debug(f"...Finished planning Infra(tag={tag}) for Node({self.node_id})")
         return result
 
-    def apply(self) -> NodeApplyResult:
-        return asyncio.get_event_loop().run_until_complete(self._apply_async())
+    def apply(self, tag: InfraTag = "default") -> NodeApplyResult:
+        return asyncio.get_event_loop().run_until_complete(self._apply_async(tag=tag))
 
-    async def _apply_async(self) -> NodeApplyResult:
-        logging.info(f"Setting up infrastructure for Node({self.node_id})...")
-        infra_actor = PulumiInfraActor.remote(
-            self._infra_config, stack_name=self.node_id
+    async def _apply_async(self, *, tag: InfraTag) -> NodeApplyResult:
+        logging.debug(f"Setting up Infra(tag={tag}) for Node({self.node_id})...")
+        result = await self._infra_actor.apply.remote(processors=self._processors)
+        logging.debug(
+            f"...Finished setting up Infra(tag={tag}) for Node({self.node_id})"
         )
-        result = await infra_actor.apply.remote(processors=self._processors)
-        logging.info(f"...Finished setting up infrastructure for Node({self.node_id})")
         return result
 
-    def destroy(self) -> NodeDestroyResult:
-        return asyncio.get_event_loop().run_until_complete(self._destroy_async())
+    def destroy(self, tag: InfraTag = "default") -> NodeDestroyResult:
+        return asyncio.get_event_loop().run_until_complete(self._destroy_async(tag=tag))
 
-    async def _destroy_async(self) -> NodeDestroyResult:
-        logging.info(f"Tearing down infrastructure for Node({self.node_id})...")
-        infra_actor = PulumiInfraActor.remote(
-            self._infra_config, stack_name=self.node_id
-        )
-        result = await infra_actor.destroy.remote(processors=self._processors)
-        logging.info(
+    async def _destroy_async(self, *, tag: InfraTag) -> NodeDestroyResult:
+        logging.debug(f"Tearing down infrastructure for Node({self.node_id})...")
+        result = await self._infra_actor.destroy.remote(processors=self._processors)
+        logging.debug(
             f"...Finished tearing down infrastructure for Node({self.node_id})"
         )
         return result

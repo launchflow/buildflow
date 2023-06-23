@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from ray import kill, serve
 
-from buildflow.core.infra import PulumiInfraActor
+from buildflow.core.infra import PulumiWorkspaceActor
 from buildflow.core.runtime.actors.runtime import RuntimeActor
 from buildflow.core.runtime.actors.runtime import RuntimeSnapshot
 
@@ -50,7 +50,7 @@ class NodeServer:
     def __init__(
         self,
         runtime_actor: RuntimeActor,
-        infra_actor: Optional[PulumiInfraActor] = None,
+        infra_actor: Optional[PulumiWorkspaceActor] = None,
     ) -> None:
         self.runtime_actor = runtime_actor
         self.infra_actor = infra_actor

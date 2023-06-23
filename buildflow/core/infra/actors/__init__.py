@@ -1,3 +1,3 @@
 # flake8: noqa
-from .pulumi_infra import PulumiInfraActor
+from .pulumi_workspace import PulumiWorkspaceActor
 from .setup_infra import SetupInfraActor

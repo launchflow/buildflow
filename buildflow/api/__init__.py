@@ -1,6 +1,6 @@
 # flake8: noqa
 from .grid import GridAPI
-from .infra import InfraAPI
+from .infra import InfraAPI, InfraStatus, InfraTag
 from .io import Pullable, Pushable, SinkType, SourceType
 from .node import (
     IOPlan,
@@ -21,6 +21,7 @@ from .runtime import (
     Snapshot,
     SnapshotSummary,
 )
+from .state import StateAPI
 
 # NOTE: Only API code should go into this directory. Any runtime code should go
 # into the runtime directory.
