@@ -96,22 +96,22 @@ def plan(
     imported = utils.import_from_string(app)
     # TODO: Add support for deployment grids
     if isinstance(imported, (buildflow.Node)):
-        plan = imported.plan()
-        print(plan)
-        print()
-        user_input = ""
-        while True:
-            user_input = input(
-                "Would you like to setup the resources for this plan (Y/n)? "
-            )
-            if user_input.lower() not in ["y", "n"]:
-                print('Please enter "y" or "n"')
-            else:
-                break
+        imported.plan()
+        # print(plan)
+        # print()
+        # user_input = ""
+        # while True:
+        #     user_input = input(
+        #         "Would you like to setup the resources for this plan (Y/n)? "
+        #     )
+        #     if user_input.lower() not in ["y", "n"]:
+        #         print('Please enter "y" or "n"')
+        #     else:
+        #         break
 
-        if user_input == "n":
-            return
-        imported.apply()
+        # if user_input == "n":
+        #     return
+        # imported.apply()
 
     else:
         typer.echo("plan must be run on a node, or deployment grid")

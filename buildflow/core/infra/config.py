@@ -75,11 +75,7 @@ class PulumiWorkspaceConfig:
 @dataclasses.dataclass
 class InfraConfig:
     # the configuration for each pulumi workspace
-    pulumi_workspace_configs: Dict[
-        ProcessorID, PulumiWorkspaceConfig
-    ] = dataclasses.field(
-        default_factory=lambda: defaultdict(PulumiWorkspaceConfig.DEFAULT)
-    )
+    pulumi_workspace_config: PulumiWorkspaceConfig = PulumiWorkspaceConfig.DEFAULT()
     # plan options
     schema_validation: SchemaValidation = SchemaValidation.STRICT
     # apply & destroy options (These are basically inverses of eachother)

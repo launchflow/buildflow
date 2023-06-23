@@ -41,8 +41,8 @@ def my_processor(pubsub_message: TaxiOutput) -> TaxiOutput:
     return pubsub_message
 
 
-print(dataclasses.asdict(my_processor.source().resource_type()))
-print(dataclasses.asdict(my_processor.sink().resource_type()))
+# print(dataclasses.asdict(my_processor.source().resource_type()))
+# print(dataclasses.asdict(my_processor.sink().resource_type()))
 
 # if __name__ == "__main__":
 #     app.run(

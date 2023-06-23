@@ -6,6 +6,7 @@ from functools import wraps
 from typing import List, Optional
 
 from ray import serve
+import ray
 
 from buildflow import utils
 from buildflow.api import (
@@ -141,9 +142,9 @@ class Node(NodeAPI):
         num_concurrency: int = 1,
         log_level: str = None,
     ):
-        if self._runtime_actor.is_active():
+        if ray.get(self._runtime_actor.is_active.remote()):
             raise RuntimeError("Cannot add processor to a node with an active runtime.")
-        if self._infra_actor.is_active():
+        if ray.get(self._infra_actor.is_active.remote()):
             raise RuntimeError("Cannot add processor to a node with an active infra.")
         if processor.processor_id in self._runtime_config.replica_configs:
             raise RuntimeError(
