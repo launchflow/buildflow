@@ -59,39 +59,13 @@ class InfraActor(InfraAPI):
         self._status = InfraStatus.IDLE
         self._pulumi_workspace_actors: Dict[ProcessorID, PulumiWorkspaceActor] = {}
 
-    def _get_workspace_actor_for_processor(
-        self, processor_id: ProcessorID
-    ) -> PulumiWorkspaceActor:
-        if processor_id not in self._pulumi_workspace_actors:
-            if processor_id not in self.config.pulumi_workspace_configs:
-                raise RuntimeError(
-                    f"Processor {processor_id} is not configured in Infra config."
-                )
-            workspace_config = self.config.pulumi_workspace_configs[processor_id]
-            self._pulumi_workspace_actors[processor_id] = PulumiWorkspaceActor.remote(
-                config=workspace_config
-            )
-        return self._pulumi_workspace_actors[processor_id]
-
     async def plan(self, *, processors: Iterable[Processor]):
         logging.debug("Planning Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only plan Infra while Idle.")
         self._status = InfraStatus.PLANNING
 
-        preview_result_tasks = []
-        for processor in processors:
-            pulumi_workspace_actor = self._get_workspace_actor_for_processor(
-                processor_id=processor.processor_id
-            )
-            preview_result_tasks.append(
-                pulumi_workspace_actor.plan.remote(processor=processor)
-            )
-
-        preview_results: List[WrappedPreviewResult] = asyncio.gather(
-            *preview_result_tasks
-        )
-
+        preview_results = self._get_preview_results(processors=processors)
         for preview_result in preview_results:
             preview_result.log_summary()
 
@@ -104,9 +78,9 @@ class InfraActor(InfraAPI):
         self._status = InfraStatus.APPLYING
 
         # Planning phase (no remote state changes)
-        preview_result: WrappedPreviewResult = (
-            await self._pulumi_workspace_actor.preview.remote(processors=processors)
-        )
+        preview_results = self._get_preview_results(processors=processors)
+        for preview_result in preview_results:
+            preview_result.log_summary()
         if self.config.require_confirmation:
             print("Would you like to apply these changes?")
             print(preview_result.change_summary)
@@ -167,3 +141,71 @@ class InfraActor(InfraAPI):
 
     def is_active(self):
         return self._status != InfraStatus.IDLE
+
+    def _get_workspace_actor_for_processor(
+        self, processor_id: ProcessorID
+    ) -> PulumiWorkspaceActor:
+        if processor_id not in self._pulumi_workspace_actors:
+            if processor_id not in self.config.pulumi_workspace_configs:
+                raise RuntimeError(
+                    f"Processor {processor_id} is not configured in Infra config."
+                )
+            workspace_config = self.config.pulumi_workspace_configs[processor_id]
+            self._pulumi_workspace_actors[processor_id] = PulumiWorkspaceActor.remote(
+                config=workspace_config
+            )
+        return self._pulumi_workspace_actors[processor_id]
+
+    def _get_preview_results(
+        self, processors: Iterable[Processor]
+    ) -> List[WrappedPreviewResult]:
+        preview_result_tasks = []
+        for processor in processors:
+            pulumi_workspace_actor = self._get_workspace_actor_for_processor(
+                processor_id=processor.processor_id
+            )
+            preview_result_tasks.append(
+                pulumi_workspace_actor.plan.remote(processor=processor)
+            )
+
+        return asyncio.gather(*preview_result_tasks)
+
+    def _get_up_results(self, processors: Iterable[Processor]) -> List[WrappedUpResult]:
+        up_result_tasks = []
+        for processor in processors:
+            pulumi_workspace_actor = self._get_workspace_actor_for_processor(
+                processor_id=processor.processor_id
+            )
+            up_result_tasks.append(
+                pulumi_workspace_actor.up.remote(processor=processor)
+            )
+
+        return asyncio.gather(*up_result_tasks)
+
+    def _get_outputs_map(
+        self, processors: Iterable[Processor]
+    ) -> List[WrappedOutputMap]:
+        outputs_map_tasks = []
+        for processor in processors:
+            pulumi_workspace_actor = self._get_workspace_actor_for_processor(
+                processor_id=processor.processor_id
+            )
+            outputs_map_tasks.append(
+                pulumi_workspace_actor.outputs.remote(processor=processor)
+            )
+
+        return asyncio.gather(*outputs_map_tasks)
+
+    def _get_destroy_results(
+        self, processors: Iterable[Processor]
+    ) -> List[WrappedDestroyResult]:
+        destroy_result_tasks = []
+        for processor in processors:
+            pulumi_workspace_actor = self._get_workspace_actor_for_processor(
+                processor_id=processor.processor_id
+            )
+            destroy_result_tasks.append(
+                pulumi_workspace_actor.destroy.remote(processor=processor)
+            )
+
+        return asyncio.gather(*destroy_result_tasks)
