@@ -307,7 +307,8 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         source_provider: PullProvider = self.processor.source().provider()
         source_backlog = await source_provider.backlog()
         # Log the current backlog so ray metrics can pick it up
-        self.current_backlog_gauge.set(source_backlog)
+        if source_backlog is not None:
+            self.current_backlog_gauge.set(source_backlog)
         source_info = SourceInfo(
             backlog=source_backlog,
             provider=ProviderInfo(
