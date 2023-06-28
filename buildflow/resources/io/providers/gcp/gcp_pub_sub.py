@@ -17,7 +17,7 @@ from buildflow.resources.io.providers.base import PullResponse, AckInfo
 from buildflow.resources.io.providers.gcp.utils import clients as gcp_clients
 from buildflow import utils
 from buildflow.resources.io.providers.schemas import converters
-from buildflow.core import exceptions
+from buildflow import exceptions
 
 
 @dataclass(frozen=True)

@@ -21,7 +21,7 @@ from typing import Any, Dict, Callable, Optional, Type
 import dacite
 import pandas as pd
 
-from buildflow.core import exceptions
+from buildflow import exceptions
 
 
 def str_to_datetime(s: str) -> datetime.datetime:

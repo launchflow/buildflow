@@ -4,7 +4,7 @@ import json
 from typing import Dict, List, Optional, Set
 import unittest
 
-from buildflow.core import exceptions
+from buildflow import exceptions
 from buildflow.resources.io.providers.schemas import converters
 
 
