@@ -7,9 +7,7 @@ class DefaultType(enum.Enum):
     DEBUG = "debug"
 
 
-# NOTE: Options are similar to Configs, but they are not responsible for persisting
-# to disk. A Config may contain Options and may persist them to disk, but an Option
-# is not responsible for persisting itself to disk.
+# NOTE: Options are similar to Configs, but they are not persisted to disk.
 class Options:
     @classmethod
     def default(cls, default_type: DefaultType) -> "Options":
