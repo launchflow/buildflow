@@ -1,4 +1,3 @@
 # flake8: noqa
-from .actors.setup_infra import SetupInfraActor
-from .actors.pulumi_workspace import PulumiWorkspaceActor
-from .config import InfraConfig, SchemaValidation
+from .options import InfraOptions, SchemaValidation
+from .state import InfraState

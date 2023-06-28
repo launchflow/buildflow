@@ -6,19 +6,12 @@ import pulumi
 import ray
 from pulumi import automation as auto
 
-from buildflow.api import InfraAPI
-from buildflow.api.processor import ProcessorID
-from buildflow.core.infra.config import PulumiWorkspaceConfig, PulumiResourceConfig
+
+from buildflow.core.infra.options import PulumiOptions
 from buildflow.core.processor.base import Processor
 from buildflow.resources.io.providers import PulumiProvider
-import os
 import dataclasses
 import re
-
-
-# TODO: reconcile the session file with more general `WorkspaceAPI` of sorts
-_PULUMI_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow", "pulumi")
-os.makedirs(_PULUMI_DIR, exist_ok=True)
 
 
 # Pulumi will log this error that we want to catch:
@@ -138,57 +131,34 @@ class WrappedOutputMap:
 
 @ray.remote
 class PulumiWorkspaceActor:
-    def __init__(
-        self,
-        config: PulumiWorkspaceConfig,
-    ) -> None:
+    def __init__(self, pulumi_options: PulumiOptions) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
-        logging.getLogger().setLevel(config.log_level)
+        logging.getLogger().setLevel(pulumi_options.log_level)
 
-        # set configuration
-        self.config = config
-        self.workspace_options = auto.LocalWorkspaceOptions(
-            # inline programs do not use work_dir
-            # https://www.pulumi.com/docs/reference/pkg/python/pulumi/#automation-api-1
-            work_dir=None,
-            pulumi_home=self.config.pulumi_home,
-            # NOTE: we the program as None here because we will be using the
-            # `pulumi_program` method to dynamically create the program from the
-            # processors.
-            program=None,
-            env_vars=self.config.env_vars(),
-            # TODO: add support for `secrets_provider`
-            secrets_provider=None,
-            project_settings=self.config.project_settings(),
-            stack_settings={self.config.stack_name: self.config.stack_settings()},
-        )
+        # set options
+        self.options = pulumi_options
         # initial state
+        # self._workspace = PulumiWorkspace()
         self._pulumi_program_cache = {}
 
     async def preview(self, *, processors: Iterable[Processor]) -> WrappedPreviewResult:
-        logging.debug(
-            f"Pulumi Preview: {self.config.project_name}:{self.config.stack_name}"
-        )
+        logging.debug(f"Pulumi Preview: {self._workspace.workspace_id()}")
         stack = self._create_or_select_stack(processors)
         return WrappedPreviewResult(preview_result=stack.preview())
 
     async def up(self, *, processors: Iterable[Processor]) -> WrappedUpResult:
-        logging.debug(f"Pulumi Up: {self.config.project_name}:{self.config.stack_name}")
+        logging.debug(f"Pulumi Up: {self._workspace.workspace_id()}")
         stack = self._create_or_select_stack(processors)
         return WrappedUpResult(up_result=stack.up())
 
     async def outputs(self, *, processors: Iterable[Processor]) -> WrappedOutputMap:
-        logging.debug(
-            f"Pulumi Outputs: {self.config.project_name}:{self.config.stack_name}"
-        )
+        logging.debug(f"Pulumi Outputs: {self._workspace.workspace_id()}")
         stack = self._create_or_select_stack(processors)
         return WrappedOutputMap(output_map=stack.outputs())
 
     async def destroy(self, *, processors: Iterable[Processor]) -> WrappedDestroyResult:
-        logging.debug(
-            f"Pulumi Destroy: {self.config.project_name}:{self.config.stack_name}"
-        )  # noqa: E501
+        logging.debug(f"Pulumi Destroy: {self._workspace.workspace_id()}")  # noqa: E501
         stack = self._create_or_select_stack(processors)
         return WrappedDestroyResult(destroy_result=stack.destroy())
 
@@ -225,15 +195,15 @@ class PulumiWorkspaceActor:
         return pulumi_program
 
     def _create_or_select_stack(self, processors: Iterable[Processor]):
-        if self.config.stack_name not in self._pulumi_program_cache:
+        if self._workspace.workspace_id() not in self._pulumi_program_cache:
             pulumi_program = self._create_pulumi_program(processors)
-            self._pulumi_program_cache[self.config.stack_name] = pulumi_program
+            self._pulumi_program_cache[self._workspace.workspace_id()] = pulumi_program
         else:
-            pulumi_program = self._pulumi_program_cache[self.config.stack_name]
+            pulumi_program = self._pulumi_program_cache[self._workspace.workspace_id()]
 
         return auto.create_or_select_stack(
-            stack_name=self.config.stack_name,
-            project_name=self.config.project_name,
+            stack_name=self._workspace.stack_name(),
+            project_name=self._workspace.project_name(),
             program=pulumi_program,
-            opts=self.workspace_options,
+            opts=self._workspace.workspace_options(),
         )

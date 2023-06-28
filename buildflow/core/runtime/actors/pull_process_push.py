@@ -14,7 +14,7 @@ from buildflow.core.runtime.metrics import (
     RateCalculation,
     CompositeRateCounterMetric,
 )
-from buildflow.resources.io.providers.base import PullProvider, PushProvider
+from buildflow.resources.io.providers.base import SourceProvider, SinkProvider
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI
@@ -100,8 +100,8 @@ class PullProcessPushActor(AsyncRuntimeAPI):
 
         # setup
         self.processor = processor
-        self.pull_provider: PullProvider = self.processor.source().provider()
-        self.push_provider: PushProvider = self.processor.sink().provider()
+        self.pull_provider: SourceProvider = self.processor.source().provider()
+        self.push_provider: SinkProvider = self.processor.sink().provider()
         # NOTE: This is where the setup Processor lifecycle method is called.
         # TODO: Support Depends use case
         self.processor.setup()

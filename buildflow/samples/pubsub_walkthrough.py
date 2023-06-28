@@ -4,7 +4,7 @@ import os
 from typing import Any, Dict
 
 import buildflow
-from buildflow import Node, InfraConfig, SchemaValidation
+from buildflow import Node, InfraOptions, SchemaValidation
 
 gcp_project = os.environ["GCP_PROJECT"]
 bigquery_table = os.environ.get("BIGQUERY_TABLE", "taxi_rides")
@@ -42,8 +42,8 @@ class TaxiOutput:
     passenger_count: int
 
 
-infra_config = InfraConfig(
-    schema_validation=SchemaValidation.LOG_WARNING,
+infra_config = InfraOptions(
+    schema_validation=SchemaValidation.WARNING,
     require_confirmation=False,
     log_level="WARNING",
 )

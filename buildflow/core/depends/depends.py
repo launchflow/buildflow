@@ -1,6 +1,6 @@
 from typing import Any, TypeVar, Generic
 
-from buildflow.resources.io.providers import PushProvider
+from buildflow.resources.io.providers import SinkProvider
 
 T = TypeVar("T")
 
@@ -13,7 +13,7 @@ class UnsupportDepenendsSource(Exception):
 
 
 class Push(Generic[T]):
-    def __init__(self, push_provider: PushProvider) -> None:
+    def __init__(self, push_provider: SinkProvider) -> None:
         self.push_provider = push_provider
 
     async def push(self, element: T):
@@ -22,6 +22,6 @@ class Push(Generic[T]):
 
 def Depends(depends):
     if hasattr(depends, "provider"):
-        if callable(depends.provider) and isinstance(depends.provider(), PushProvider):
+        if callable(depends.provider) and isinstance(depends.provider(), SinkProvider):
             return Push(depends.provider())
     raise UnsupportDepenendsSource(depends)

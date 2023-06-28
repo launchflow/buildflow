@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from buildflow import Node, Setup, InfraConfig
+from buildflow import Node, Setup, InfraOptions
 
 # buildflow.resources exposes all of the declarative types (for Provider & Depends API).
 # they use the io & client submodules to provide the actual implementations.
@@ -33,7 +33,7 @@ class TaxiOutput:
 
 # declarative types could have "local" implementations for testing.
 # this is akin to our in-memory metrics vs prometheus.
-app = Node(infra_config=InfraConfig(resource_provider="local"))
+app = Node(infra_config=InfraOptions(resource_provider="local"))
 
 
 # using declarative api REQUIRES all schema types to be provided.

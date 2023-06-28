@@ -9,7 +9,7 @@ import pyarrow.csv as pcsv
 import pytest
 
 from buildflow.core.node import Node
-from buildflow.core.runtime.config import RuntimeConfig
+from buildflow.core.runtime.options import RuntimeConfig
 from buildflow.core.runtime.actors.runtime import RuntimeActor
 from buildflow.resources.io.registry import Pulse, Files
 

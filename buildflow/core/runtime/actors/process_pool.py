@@ -16,9 +16,9 @@ from buildflow.core.runtime.actors.pull_process_push import (
     PullProcessPushActor,
     PullProcessPushSnapshot,
 )
-from buildflow.core.runtime.config import ReplicaConfig
+from buildflow.core.runtime.options import ReplicaOptions
 from buildflow.core.runtime.metrics import RateCalculation, SimpleGaugeMetric
-from buildflow.resources.io.providers.base import PullProvider, PushProvider
+from buildflow.resources.io.providers.base import SourceProvider, SinkProvider
 
 # TODO: add ability to load from env vars so we can set num_cpus
 # from buildflow.utils import load_config_from_env
@@ -113,6 +113,21 @@ class ProcessorSnapshot(Snapshot):
             "num_concurrency_per_replica": self.num_concurrency_per_replica,
         }
 
+    @classmethod
+    def from_dict(cls, snapshot_dict):
+        return ProcessorSnapshot(
+            status=RuntimeStatus[snapshot_dict["status"]],
+            timestamp_millis=snapshot_dict["timestamp_millis"],
+            processor_id=snapshot_dict["processor_id"],
+            source=SourceInfo(**snapshot_dict["source"]),
+            sink=SinkInfo(**snapshot_dict["sink"]),
+            replicas=[],
+            actor_info=RayActorInfo(**snapshot_dict["actor_info"]),
+            source_backlog=snapshot_dict["source_backlog"],
+            num_replicas=snapshot_dict["num_replicas"],
+            num_concurrency_per_replica=snapshot_dict["num_concurrency_per_replica"],
+        )
+
     def summarize(self) -> ProcessorSnapshotSummary:
         # below metric(s) derived from the `events_processed_per_sec` composite counter
         total_events_processed_per_sec = RateCalculation.merge(
@@ -178,7 +193,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
     methods for adding and removing replicas (for autoscaling).
     """
 
-    def __init__(self, processor: Processor, config: ReplicaConfig) -> None:
+    def __init__(self, processor: Processor, config: ReplicaOptions) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(config.log_level)
@@ -304,7 +319,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
         return self._status
 
     async def snapshot(self) -> ProcessorSnapshot:
-        source_provider: PullProvider = self.processor.source().provider()
+        source_provider: SourceProvider = self.processor.source().provider()
         source_backlog = await source_provider.backlog()
         # Log the current backlog so ray metrics can pick it up
         self.current_backlog_gauge.set(source_backlog)
@@ -314,7 +329,7 @@ class ProcessorReplicaPoolActor(RuntimeAPI):
                 provider_type=source_provider.__class__.__name__, provider_config={}
             ),
         )
-        sink_provider: PushProvider = self.processor.sink().provider()
+        sink_provider: SinkProvider = self.processor.sink().provider()
         sink_info = SinkInfo(
             provider=ProviderInfo(
                 provider_type=sink_provider.__class__.__name__, provider_config={}

@@ -22,13 +22,15 @@ class ProviderAPI:
         raise NotImplementedError("schema not implemented")
 
 
-class PullProvider(ProviderAPI):
+class SourceProvider(ProviderAPI):
     """PullProvider is a provider that can be pulled from.
 
     The following methods should be implemented:
         - pull()
         - ack()
         - backlog()
+        - pull_converter()
+        - max_batch_size()
     """
 
     def max_batch_size(self) -> int:
@@ -57,11 +59,12 @@ class PullProvider(ProviderAPI):
         raise NotImplementedError("pull_converter not implemented")
 
 
-class PushProvider(ProviderAPI):
+class SinkProvider(ProviderAPI):
     """PushProvider is a provider that can have a batch of data pushed to it.
 
     The following methods should be implemented:
         - push()
+        - push_converter()
     """
 
     async def push(self, batch):
@@ -70,32 +73,6 @@ class PushProvider(ProviderAPI):
 
     def push_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
         raise NotImplementedError("push_converter not implemented")
-
-
-# NOTE: SetupProviders set up resources at RUNTIME, not at BUILD_TIME.
-class SetupProvider(ProviderAPI):
-    """SetupProvider is a provider that sets up any resources needed.
-
-    The following methods should be implemented:
-        - setup()
-    """
-
-    async def setup(self):
-        """Setup sets up any resources needed."""
-        raise NotImplementedError("setup not implemented")
-
-
-# Should we get rid of this? I could see a variant of this being useful.
-class PlanProvider(ProviderAPI):
-    """PlanProvider is a provider that produces a plan of the resources it will use.
-
-    The following methods should be implemented:
-        - plan()
-    """
-
-    async def plan(self) -> Dict[str, Any]:
-        """Plan produces a plan of the resources it will use."""
-        raise NotImplementedError("plan not implemented")
 
 
 @dataclasses.dataclass

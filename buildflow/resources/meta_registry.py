@@ -11,7 +11,7 @@ from buildflow.resources.io import (
     ResourceType,
 )
 from buildflow.resources.config import (
-    ResourceConfig,
+    ResourcesConfig,
     LocalResourceConfig,
     GCPResourceConfig,
     AWSResourceConfig,
@@ -41,7 +41,7 @@ class MetaResourceType(ResourceType):
 
     # TODO: Is there a better way to do this? Feels hacky.
     # NOTE: This method is added to the ResourceType class at runtime by the Node API.
-    def get_resource_config(self) -> ResourceConfig:
+    def get_resource_config(self) -> ResourcesConfig:
         raise NotImplementedError("get_resource_config not implemented")
 
     # TODO: Is there a better way to do this? Feels hacky.

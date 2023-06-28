@@ -6,7 +6,7 @@ import pulumi
 import pulumi_gcp
 
 from buildflow.resources.io.providers import (
-    PullProvider,
+    SourceProvider,
     PulumiProvider,
 )
 from buildflow.resources.io.providers.base import PullResponse, PulumiResources
@@ -31,7 +31,7 @@ class GCSFileEvent:
         return blob.download_as_bytes()
 
 
-class GCSFileStreamProvider(PullProvider, PulumiProvider):
+class GCSFileStreamProvider(SourceProvider, PulumiProvider):
     def __init__(
         self,
         *,

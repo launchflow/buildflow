@@ -4,14 +4,14 @@ from typing import Any, Callable, Dict, Optional, List, Type
 import pulumi
 import pulumi_gcp
 
-from buildflow.resources.io.providers import PulumiProvider, PushProvider
+from buildflow.resources.io.providers import PulumiProvider, SinkProvider
 from buildflow.resources.io.providers.base import PulumiResources
 from buildflow.resources.io.providers.gcp.utils import clients as gcp_clients
 from buildflow.resources.io.providers.schemas import bigquery_schemas
 from buildflow.resources.io.providers.schemas import converters
 
 
-class StreamingBigQueryProvider(PushProvider, PulumiProvider):
+class StreamingBigQueryProvider(SinkProvider, PulumiProvider):
     # TODO: should make this configure able.
     # We should probably also chunk this up based on data size instead
     # of just number of rows. If the data is too big, we will get an error

@@ -8,25 +8,16 @@ from google.cloud.pubsub_v1.types import PubsubMessage as GCPPubSubMessage
 import pulumi_gcp
 
 from buildflow.resources.io.providers import (
-    PlanProvider,
-    PullProvider,
-    SetupProvider,
-    PushProvider,
+    SourceProvider,
+    SinkProvider,
     PulumiProvider,
     PulumiResources,
 )
 from buildflow.resources.io.providers.base import PullResponse, AckInfo
 from buildflow.resources.io.providers.gcp.utils import clients as gcp_clients
-from buildflow.resources.io.providers.gcp.utils import setup_utils
 from buildflow import utils
 from buildflow.resources.io.providers.schemas import converters
 from buildflow.core import exceptions
-
-
-@dataclass(frozen=True)
-class _PubSubSourcePlan:
-    topic_id: str
-    subscription_id: str
 
 
 @dataclass(frozen=True)
@@ -45,9 +36,7 @@ async def _push_to_topic(client, topic: str, batch: Iterable[Any]):
     await client.publish(topic=topic, messages=pubsub_messages)
 
 
-class GCPPubSubSubscriptionProvider(
-    PullProvider, PushProvider, SetupProvider, PlanProvider, PulumiProvider
-):
+class GCPPubSubSubscriptionProvider(SourceProvider, SinkProvider, PulumiProvider):
     def __init__(
         self,
         *,
@@ -192,23 +181,6 @@ class GCPPubSubSubscriptionProvider(
         points.sort(key=lambda p: p.interval.end_time, reverse=True)
         return points[0].value.int64_value
 
-    async def plan(self) -> Dict[str, Any]:
-        plan_dict = asdict(
-            _PubSubSourcePlan(
-                topic_id=self.topic_id, subscription_id=self.subscription_id
-            )
-        )
-        if not plan_dict["topic_id"]:
-            del plan_dict["topic_id"]
-        return plan_dict
-
-    async def setup(self) -> bool:
-        setup_utils.maybe_create_subscription(
-            pubsub_subscription=self.subscription_id,
-            pubsub_topic=self.topic_id,
-            billing_project=self.project_id,
-        )
-
     def pulumi(self, type_: Optional[Type]) -> PulumiResources:
         # TODO: Add support for all pulumi inputs
         subscription_resource = pulumi_gcp.pubsub.Subscription(
@@ -228,12 +200,7 @@ class GCPPubSubSubscriptionProvider(
         return PulumiResources(resources=resources, exports=exports)
 
 
-@dataclass(frozen=True)
-class _PubSubTopicPlan:
-    topic_id: str
-
-
-class GCPPubSubTopicProvider(PushProvider, SetupProvider, PlanProvider, PulumiProvider):
+class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
     def __init__(self, *, project_id: str, topic_name: str):
         self.project_id = project_id
         self.topic_name = topic_name
@@ -249,9 +216,6 @@ class GCPPubSubTopicProvider(PushProvider, SetupProvider, PlanProvider, PulumiPr
 
     def push_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
         return converters.bytes_push_converter(user_defined_type)
-
-    async def plan(self):
-        return asdict(_PubSubTopicPlan(topic_id=self.topic_id))
 
     def pulumi(
         self,

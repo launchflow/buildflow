@@ -1,14 +1,9 @@
-import asyncio
-import dataclasses
 import logging
-from typing import Dict, Iterable, List
+from typing import Iterable
 
 import ray
 
-from buildflow import utils
-from buildflow.api import InfraAPI, StateAPI, InfraStatus, InfraTag
-from buildflow.api.processor import ProcessorID
-from buildflow.core.processor.base import Processor
+from buildflow.api import InfraAPI, InfraStatus
 from buildflow.core.infra.actors.pulumi_workspace import (
     PulumiWorkspaceActor,
     WrappedDestroyResult,
@@ -16,49 +11,23 @@ from buildflow.core.infra.actors.pulumi_workspace import (
     WrappedPreviewResult,
     WrappedUpResult,
 )
-from buildflow.core.infra.config import InfraConfig
-
-
-@dataclasses.dataclass
-class ResourceState(StateAPI):
-    pass
-
-    def as_dict(self):
-        return {}
-
-
-@dataclasses.dataclass
-class InfraState(StateAPI):
-    status: InfraStatus = InfraStatus.IDLE
-    resources: List[ResourceState] = dataclasses.field(default_factory=list)
-
-    _timestamp_millis: int = dataclasses.field(default_factory=utils.timestamp_millis)
-
-    def get_timestamp_millis(self) -> int:
-        return self._timestamp_millis
-
-    def as_dict(self):
-        return {
-            "status": self.status.name,
-            "timestamp_millis": self.get_timestamp_millis(),
-            "resources": [r.as_dict() for r in self.resources],
-        }
+from buildflow.core.infra.options import InfraOptions
+from buildflow.core.processor.base import Processor
 
 
 @ray.remote
 class InfraActor(InfraAPI):
-    def __init__(self, config: InfraConfig, tag: InfraTag) -> None:
+    def __init__(self, infra_options: InfraOptions) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
-        logging.getLogger().setLevel(config.log_level)
+        logging.getLogger().setLevel(infra_options.log_level)
 
-        # set configuration
-        self.config = config
-        self.tag = tag
+        # set options
+        self.options = infra_options
         # initial infra state
         self._status = InfraStatus.IDLE
         self._pulumi_workspace_actor = PulumiWorkspaceActor.remote(
-            config=self.config.pulumi_workspace_config
+            infra_options.pulumi_options
         )
 
     async def plan(self, *, processors: Iterable[Processor]):
@@ -85,7 +54,7 @@ class InfraActor(InfraAPI):
         preview_result: WrappedPreviewResult = (
             await self._pulumi_workspace_actor.preview.remote(processors=processors)
         )
-        if self.config.require_confirmation:
+        if self.options.require_confirmation:
             print("Would you like to apply these changes?")
             preview_result.print_change_summary()
             response = input('Enter "yes" to confirm: ')
@@ -115,7 +84,7 @@ class InfraActor(InfraAPI):
         output_map: WrappedOutputMap = (
             await self._pulumi_workspace_actor.outputs.remote(processors=processors)
         )
-        if self.config.require_confirmation:
+        if self.options.require_confirmation:
             print("Would you like to delete this infra?")
             output_map.print_summary()
             response = input('Enter "yes" to confirm: ')

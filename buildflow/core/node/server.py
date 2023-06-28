@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from ray import kill, serve
 
-from buildflow.core.infra import PulumiWorkspaceActor
+from buildflow.core.infra.actors.pulumi_workspace import PulumiWorkspaceActor
 from buildflow.core.runtime.actors.runtime import RuntimeActor
 from buildflow.core.runtime.actors.runtime import RuntimeSnapshot
 

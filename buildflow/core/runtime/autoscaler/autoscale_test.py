@@ -12,7 +12,7 @@ from buildflow.core.runtime.actors.process_pool import (
     RayActorInfo,
     SourceInfo,
 )
-from buildflow.core.runtime.config import AutoscalerConfig
+from buildflow.core.runtime.options import AutoscalerOptions
 from buildflow.core.runtime.metrics import RateCalculation
 
 
@@ -55,7 +55,7 @@ class AutoScalerTest(unittest.TestCase):
                     num_replicas=num_replicas,
                     num_concurrency_per_replica=1,
                 ),
-                config=AutoscalerConfig(
+                config=AutoscalerOptions(
                     enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=10000,
@@ -107,7 +107,7 @@ class AutoScalerTest(unittest.TestCase):
                     num_replicas=num_replicas,
                     num_concurrency_per_replica=1,
                 ),
-                config=AutoscalerConfig(
+                config=AutoscalerOptions(
                     enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=10000,
@@ -154,7 +154,7 @@ class AutoScalerTest(unittest.TestCase):
                     num_replicas=num_replicas,
                     num_concurrency_per_replica=1,
                 ),
-                config=AutoscalerConfig(
+                config=AutoscalerOptions(
                     enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=5,
@@ -206,7 +206,7 @@ class AutoScalerTest(unittest.TestCase):
                     num_replicas=num_replicas,
                     num_concurrency_per_replica=1,
                 ),
-                config=AutoscalerConfig(
+                config=AutoscalerOptions(
                     enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=1000,
@@ -258,7 +258,7 @@ class AutoScalerTest(unittest.TestCase):
                     num_replicas=num_replicas,
                     num_concurrency_per_replica=1,
                 ),
-                config=AutoscalerConfig(
+                config=AutoscalerOptions(
                     enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=84,
@@ -309,7 +309,7 @@ class AutoScalerTest(unittest.TestCase):
                     num_replicas=num_replicas,
                     num_concurrency_per_replica=1,
                 ),
-                config=AutoscalerConfig(
+                config=AutoscalerOptions(
                     enable_autoscaler=True,
                     min_replicas=1,
                     max_replicas=1000,
@@ -363,7 +363,7 @@ class AutoScalerTest(unittest.TestCase):
                     num_replicas=num_replicas,
                     num_concurrency_per_replica=1,
                 ),
-                config=AutoscalerConfig(
+                config=AutoscalerOptions(
                     enable_autoscaler=True,
                     min_replicas=18,
                     max_replicas=1000,

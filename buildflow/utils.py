@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional, TypeVar, Dict
 from uuid import uuid4
 
 import requests
@@ -13,6 +13,23 @@ import requests
 # create a UUID type alias
 # NOTE: python 3.8 doesn't support typing.TypeAlias
 UUID: str
+
+
+def write_json_file(file_path: str, data: Any):
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.makedirs(os.path.dirname(file_path))
+    json.dump(data, open(file_path, "w"), indent=4)
+
+
+def read_json_file(file_path: str) -> Dict[str, Any]:
+    if not os.path.exists(file_path):
+        return {}
+    return json.load(open(file_path, "r"))
+
+
+def assert_path_exists(path: str):
+    if not os.path.exists(path):
+        raise ValueError(f"Path {path} does not exist")
 
 
 def stable_hash(obj: Any):

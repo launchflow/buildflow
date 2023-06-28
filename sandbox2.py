@@ -1,7 +1,7 @@
 import dataclasses
 from datetime import datetime
 
-from buildflow import Node, ResourceConfig
+from buildflow import Node, ResourcesConfig
 from buildflow.resources import DataWarehouseTable, Topic
 
 
@@ -18,7 +18,7 @@ class TaxiOutput:
     passenger_count: int
 
 
-resource_config = ResourceConfig.DEFAULT()
+resource_config = ResourcesConfig.default()
 # resource_config.gcp.default_project_id = "daring-runway-374503"
 # Create a new Node with custom resource config
 app = Node(resource_config=resource_config)

@@ -8,9 +8,6 @@ class InfraStatus(enum.Enum):
     DESTROYING = enum.auto()
 
 
-InfraTag = str
-
-
 class InfraAPI:
     async def plan(self):
         """Returns a plan for the infrastructure."""

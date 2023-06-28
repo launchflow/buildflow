@@ -9,7 +9,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.csv as pcsv
 
-from buildflow.resources.io.providers import PushProvider
+from buildflow.resources.io.providers import SinkProvider
 from buildflow.resources.io.providers.schemas import converters
 
 
@@ -20,7 +20,7 @@ class FileFormat(Enum):
     JSON = 3
 
 
-class FileProvider(PushProvider):
+class FileProvider(SinkProvider):
     def __init__(
         self,
         file_path: str,
