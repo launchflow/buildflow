@@ -22,12 +22,12 @@ class CannotConvertSinkException(Exception):
         super().__init__(long_message)
 
 
-class PathDoesNotExistException(Exception):
-    """Raised when a path does not exist."""
+class PathNotFoundException(Exception):
+    """Raised when a state file is not found."""
 
     def __init__(self, message) -> None:
         long_message = (
-            "Failed to find a valid path. Please ensure your path exists. "
+            "Failed to find state file. Please file a GitHub Issue if this persists. "
             f"For more info see: TODO add docs.\n\nFull error: {message}"
         )
         super().__init__(long_message)

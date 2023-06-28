@@ -2,13 +2,14 @@ import dataclasses
 import os
 
 from buildflow import utils
+from buildflow.exceptions import PathNotFoundException
 from buildflow.api.node import NodeID
 from buildflow.api.project import ProjectID
 from buildflow.api.workspace import WorkspaceAPI
-from buildflow.core.node.state import NodeState
-from buildflow.core.workspace.state import WorkspaceState
-from buildflow.core.runtime.state import RuntimeState
 from buildflow.core.infra.state import InfraState
+from buildflow.core.node.state import NodeState
+from buildflow.core.runtime.state import RuntimeState
+from buildflow.core.workspace.state import WorkspaceState
 
 BUILDFLOW_WORKSPACE_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow")
 
@@ -70,6 +71,6 @@ def get_or_create_workspace() -> Workspace:
     if _WORKSPACE is None:
         try:
             _WORKSPACE = Workspace.load(BUILDFLOW_WORKSPACE_DIR)
-        except ValueError:
+        except PathNotFoundException:
             _WORKSPACE = Workspace.create(BUILDFLOW_WORKSPACE_DIR)
     return _WORKSPACE

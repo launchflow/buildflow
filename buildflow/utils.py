@@ -5,10 +5,12 @@ import json
 import logging
 import os
 import time
-from typing import Any, Optional, TypeVar, Dict
+from typing import Any, Dict, Optional, TypeVar
 from uuid import uuid4
 
 import requests
+
+from buildflow.exceptions import PathNotFoundException
 
 # create a UUID type alias
 # NOTE: python 3.8 doesn't support typing.TypeAlias
@@ -29,7 +31,7 @@ def read_json_file(file_path: str) -> Dict[str, Any]:
 
 def assert_path_exists(path: str):
     if not os.path.exists(path):
-        raise ValueError(f"Path {path} does not exist")
+        raise PathNotFoundException(f"Path {path} does not exist.")
 
 
 def stable_hash(obj: Any):
@@ -63,8 +65,6 @@ def log_errors(endpoint: str):
 # TODO: reconcile the session file with more general `WorkspaceAPI` of sorts
 _SESSION_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow")
 _SESSION_FILE = os.path.join(_SESSION_DIR, "build_flow_usage.json")
-
-CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow")
 
 
 @dataclasses.dataclass

@@ -121,24 +121,25 @@ class Node(NodeAPI):
         # Node initial state
         self._processors: List[Processor] = []
 
-        # Project setup
+        # Load the Project from the local .buildflow/ directory
         self.project = get_or_create_project(
             project_dir=_get_directory_path_of_caller()
         )
 
-        # Workspace setup
+        # Load the Workspace from the local ~/.config/buildflow directory
         self.workspace = get_or_create_workspace()
         self._node_state = self.workspace.get_or_create_node_state(
             project_id=self.project.project_id, node_id=node_id
         )
 
-        # Runtime setup
-        # NOTE: We create the Runtime Actor right before we start the runtime so we can
-        # set more runtime options after the node is created.
+        # Runtime configuration
+        # NOTE: We dont set the actor ref until the run() method is called.
         self._runtime_options = runtime_options or RuntimeOptions.default()
         self._runtime_actor_ref: Optional[RuntimeActor] = None
 
-        # Infra setup
+        # Infra configuration
+        # NOTE: We dont set the actor ref until the plan(), apply(), or destroy()
+        # methods are called.
         self._infra_options = infra_options or InfraOptions.default()
         self._infra_actor_ref: Optional[InfraActor] = None
 

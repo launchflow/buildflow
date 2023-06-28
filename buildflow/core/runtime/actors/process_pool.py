@@ -113,21 +113,6 @@ class ProcessorSnapshot(Snapshot):
             "num_concurrency_per_replica": self.num_concurrency_per_replica,
         }
 
-    @classmethod
-    def from_dict(cls, snapshot_dict):
-        return ProcessorSnapshot(
-            status=RuntimeStatus[snapshot_dict["status"]],
-            timestamp_millis=snapshot_dict["timestamp_millis"],
-            processor_id=snapshot_dict["processor_id"],
-            source=SourceInfo(**snapshot_dict["source"]),
-            sink=SinkInfo(**snapshot_dict["sink"]),
-            replicas=[],
-            actor_info=RayActorInfo(**snapshot_dict["actor_info"]),
-            source_backlog=snapshot_dict["source_backlog"],
-            num_replicas=snapshot_dict["num_replicas"],
-            num_concurrency_per_replica=snapshot_dict["num_concurrency_per_replica"],
-        )
-
     def summarize(self) -> ProcessorSnapshotSummary:
         # below metric(s) derived from the `events_processed_per_sec` composite counter
         total_events_processed_per_sec = RateCalculation.merge(

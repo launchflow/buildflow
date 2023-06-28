@@ -4,7 +4,6 @@ from buildflow import utils
 from buildflow.api.infra import InfraStatus
 
 
-# TODO: Replace infra snapshots with this
 @dataclasses.dataclass
 class InfraState:
     status: InfraStatus

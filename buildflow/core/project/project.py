@@ -1,6 +1,7 @@
 import os
 
 from buildflow import utils
+from buildflow.exceptions import PathNotFoundException
 from buildflow.api.project import ProjectAPI, ProjectID
 from buildflow.core.project.config import ProjectConfig
 
@@ -47,6 +48,6 @@ def get_or_create_project(project_dir: str) -> Project:
     if project_dir not in _PROJECTS:
         try:
             _PROJECTS[project_dir] = Project.load(project_dir)
-        except ValueError:
+        except PathNotFoundException:
             _PROJECTS[project_dir] = Project.create(project_dir)
     return _PROJECTS[project_dir]

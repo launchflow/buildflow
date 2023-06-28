@@ -45,7 +45,3 @@ class State:
     def dump(self, state_path: str):
         """Dumps the state to the given path."""
         raise NotImplementedError("dump not implemented")
-
-    def as_dict(self):
-        """Returns the state as a dictionary."""
-        raise NotImplementedError("as_dict not implemented")
