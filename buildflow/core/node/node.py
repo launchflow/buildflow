@@ -18,9 +18,11 @@ from buildflow.api import (
     SinkType,
     SourceType,
 )
+from buildflow.api.infra import InfraStatus
 from buildflow.api.runtime import RuntimeStatus
 from buildflow.core.infra.actors.infra import InfraActor
 from buildflow.core.infra.options import InfraOptions
+from buildflow.core.infra.state import InfraState
 from buildflow.core.node.server import NodeServer
 from buildflow.core.processor import Processor
 from buildflow.core.runtime.actors.runtime import RuntimeActor
@@ -143,7 +145,22 @@ class Node(NodeAPI):
     @property
     def _infra_actor(self) -> InfraActor:
         if self._infra_actor_ref is None:
-            self._infra_actor_ref = InfraActor.remote(infra_options=self._infra_options)
+            # NOTE: This callback is called by the RuntimeActor when the runtime status
+            # changes.
+            def infra_status_change_callback(status: InfraStatus):
+                self.workspace.set_infra_state(
+                    project_id=self.project.project_id,
+                    node_id=self.node_id,
+                    infra_state=InfraState(
+                        status=status, timestamp_millis=utils.timestamp_millis()
+                    ),
+                )
+
+            self._infra_actor_ref = InfraActor.remote(
+                infra_options=self._infra_options,
+                on_status_change=infra_status_change_callback,
+            )
+
         return self._infra_actor_ref
 
     @property
@@ -164,6 +181,7 @@ class Node(NodeAPI):
                 runtime_options=self._runtime_options,
                 on_status_change=runtime_status_change_callback,
             )
+
         return self._runtime_actor_ref
 
     def processor(

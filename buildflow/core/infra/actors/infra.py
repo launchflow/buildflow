@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable
+from typing import Iterable, Optional
 
 import ray
 
@@ -17,24 +17,34 @@ from buildflow.core.processor.base import Processor
 
 @ray.remote
 class InfraActor(InfraAPI):
-    def __init__(self, infra_options: InfraOptions) -> None:
+    def __init__(
+        self,
+        infra_options: InfraOptions,
+        on_status_change: Optional[callable] = None,
+    ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(infra_options.log_level)
 
-        # set options
+        # configuration
         self.options = infra_options
+        self.on_status_change = on_status_change
         # initial infra state
         self._status = InfraStatus.IDLE
         self._pulumi_workspace_actor = PulumiWorkspaceActor.remote(
             infra_options.pulumi_options
         )
 
+    def _set_status(self, status: InfraStatus):
+        if self.on_status_change is not None:
+            self.on_status_change(status)
+        self._status = status
+
     async def plan(self, *, processors: Iterable[Processor]):
         logging.debug("Planning Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only plan Infra while Idle.")
-        self._status = InfraStatus.PLANNING
+        self._set_status(InfraStatus.PLANNING)
 
         preview_result: WrappedPreviewResult = (
             await self._pulumi_workspace_actor.preview.remote(processors=processors)
@@ -42,13 +52,13 @@ class InfraActor(InfraAPI):
         preview_result.log_summary()
         preview_result.print_change_summary()
 
-        self._status = InfraStatus.IDLE
+        self._set_status(InfraStatus.IDLE)
 
     async def apply(self, *, processors: Iterable[Processor]):
         logging.info("Applying Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only apply Infra while Idle.")
-        self._status = InfraStatus.APPLYING
+        self._set_status(InfraStatus.APPLYING)
 
         # Planning phase (no remote state changes)
         preview_result: WrappedPreviewResult = (
@@ -72,13 +82,13 @@ class InfraActor(InfraAPI):
         )
         up_result.log_summary()
 
-        self._status = InfraStatus.IDLE
+        self._set_status(InfraStatus.IDLE)
 
     async def destroy(self, *, processors: Iterable[Processor]):
         logging.info("Destroying Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only destroy Infra while Idle.")
-        self._status = InfraStatus.DESTROYING
+        self._set_status(InfraStatus.DESTROYING)
 
         # Planning phase (no remote state changes)
         output_map: WrappedOutputMap = (
@@ -102,7 +112,7 @@ class InfraActor(InfraAPI):
         )
         destroy_result.log_summary()
 
-        self._status = InfraStatus.IDLE
+        self._set_status(InfraStatus.IDLE)
 
     def is_active(self):
         return self._status != InfraStatus.IDLE
