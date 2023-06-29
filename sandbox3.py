@@ -18,8 +18,9 @@ class TaxiOutput:
     passenger_count: int
 
 
-# Create a new Node
-app = Node()
+# Create a new Flow
+app = Flow()
+
 
 # Define the source and sink
 pubsub_source = GCPPubSubSubscription(
@@ -46,6 +47,10 @@ def my_processor(pubsub_message: TaxiOutput) -> TaxiOutput:
 
 
 if __name__ == "__main__":
+    buildflow.apply(node)
+    buildflow.run(node)
+    buildflow.destroy(node)
+
     app.run(
         disable_usage_stats=True,
         # runtime-only options
