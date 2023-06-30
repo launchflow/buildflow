@@ -1,4 +1,6 @@
 import enum
+from buildflow.api_v2.node.infra.infra_options import InfraOptions
+from buildflow.api_v2.node.infra.infra_state import InfraState
 
 
 class InfraStatus(enum.Enum):
@@ -9,6 +11,9 @@ class InfraStatus(enum.Enum):
 
 
 class InfraAPI:
+    options: InfraOptions
+    state: InfraState
+
     async def plan(self):
         """Returns a plan for the infrastructure."""
         raise NotImplementedError("plan not implemented")
