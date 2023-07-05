@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import time
+from functools import wraps
 from typing import Any, Dict, Optional, TypeVar
 from uuid import uuid4
 
@@ -106,3 +107,25 @@ def log_buildflow_usage():
 
 
 T = TypeVar("T")
+
+
+# This attaches a method to a class at runtime, while preserving the type signature
+# of the original function.
+def attach_method_to_class(cls, method_name, func):
+    if inspect.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            return await func(*args, **kwargs)
+
+    else:
+
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            return func(*args, **kwargs)
+
+    sig = inspect.signature(func)
+    params = [inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+    params.extend(sig.parameters.values())
+    wrapper.__signature__ = sig.replace(parameters=params)
+    setattr(cls, method_name, wrapper)

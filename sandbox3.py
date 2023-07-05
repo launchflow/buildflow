@@ -1,21 +1,8 @@
-from dataclasses import dataclass
-from datetime import datetime
-
-from buildflow import Node
-from buildflow.resources.io import GCPPubSubSubscription, BigQueryTable
-
-
-@dataclass
-class TaxiOutput:
-    ride_id: str
-    point_idx: int
-    latitude: float
-    longitude: float
-    timestamp: datetime
-    meter_reading: float
-    meter_increment: float
-    ride_status: str
-    passenger_count: int
+from buildflow.core.app.flow import Flow
+from buildflow.core.runner._runner import Runner
+from buildflow.core.io.resources.gcp.pubsub import GCPPubSubSubscription
+from buildflow.api.primitives.db.table import AnalysisTable
+from sandbox4 import TaxiOutput
 
 
 # Create a new Flow
@@ -27,18 +14,15 @@ pubsub_source = GCPPubSubSubscription(
     topic_id="projects/pubsub-public-data/topics/taxirides-realtime",
     project_id="daring-runway-374503",
     subscription_name="taxiride-sub",
+    exclude_from_infra=True,
 )
-bigquery_sink = BigQueryTable(
-    table_id="daring-runway-374503.taxi_ride_benchmark.buildflow_temp",
-    include_dataset=False,
-    destroy_protection=False,
-)
+pubsub_sink = AnalysisTable()
 
 
-# Attach a processor to the Node
+# Attach a processor to the Flow
 @app.processor(
     source=pubsub_source,
-    sink=bigquery_sink,
+    sink=pubsub_sink,
     num_cpus=0.5,
     num_concurrency=8,
 )
@@ -46,20 +30,5 @@ def my_processor(pubsub_message: TaxiOutput) -> TaxiOutput:
     return pubsub_message
 
 
-if __name__ == "__main__":
-    buildflow.apply(node)
-    buildflow.run(node)
-    buildflow.destroy(node)
-
-    app.run(
-        disable_usage_stats=True,
-        # runtime-only options
-        block_runtime=True,
-        debug_run=False,
-        # infra-only options.
-        apply_infrastructure=False,
-        # Ad hoc infra is really nice for quick demos / tests
-        destroy_infrastructure=False,
-        # server options
-        start_node_server=True,
-    )
+# Runner().apply(app)
+Runner().run(app, disable_usage_stats=True, start_server=True)
