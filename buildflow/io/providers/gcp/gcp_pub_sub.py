@@ -190,6 +190,8 @@ class GCPPubSubSubscriptionProvider(
             return None
         points = list(last_timeseries.points)
 
+        print("DO NOT SUBMIT: ", type(points[0].interval.end_time))
+        print("DO NOT SUBMIT: ", dir(points[0].interval.end_time))
         points.sort(key=lambda p: p.interval.end_time.timestamp(), reverse=True)
         return points[0].value.int64_value
 
