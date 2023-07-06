@@ -189,7 +189,8 @@ class GCPPubSubSubscriptionProvider(
             )
             return None
         points = list(last_timeseries.points)
-        points.sort(key=lambda p: p.interval.end_time, reverse=True)
+
+        points.sort(key=lambda p: p.interval.end_time.timestamp(), reverse=True)
         return points[0].value.int64_value
 
     async def plan(self) -> Dict[str, Any]:
