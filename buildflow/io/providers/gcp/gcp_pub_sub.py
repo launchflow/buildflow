@@ -1,8 +1,9 @@
 from dataclasses import asdict, dataclass, is_dataclass
 import datetime
 import logging
-from typing import Any, Callable, Dict, Iterable, Optional, Type
+from typing import Any, Callable, Dict, Iterable, Optional, Type, Union
 
+from google.protobuf.timestamp_pb2 import Timestamp
 from google.cloud.monitoring_v3 import query
 from google.cloud.pubsub_v1.types import PubsubMessage as GCPPubSubMessage
 import pulumi_gcp
@@ -43,6 +44,12 @@ class PubsubMessage:
 async def _push_to_topic(client, topic: str, batch: Iterable[Any]):
     pubsub_messages = [GCPPubSubMessage(data=elem) for elem in batch]
     await client.publish(topic=topic, messages=pubsub_messages)
+
+
+def _timestamp_to_datetime(timestamp: Union[datetime.datetime, Timestamp]):
+    if isinstance(timestamp, Timestamp):
+        return timestamp.ToDatetime()
+    return timestamp
 
 
 class GCPPubSubSubscriptionProvider(
@@ -190,9 +197,9 @@ class GCPPubSubSubscriptionProvider(
             return None
         points = list(last_timeseries.points)
 
-        print("DO NOT SUBMIT: ", type(points[0].interval.end_time))
-        print("DO NOT SUBMIT: ", dir(points[0].interval.end_time))
-        points.sort(key=lambda p: p.interval.end_time.timestamp(), reverse=True)
+        points.sort(
+            key=lambda p: _timestamp_to_datetime(p.interval.end_time), reverse=True
+        )
         return points[0].value.int64_value
 
     async def plan(self) -> Dict[str, Any]:
