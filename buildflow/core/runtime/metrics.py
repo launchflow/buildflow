@@ -101,11 +101,11 @@ class CompositeRateCounterMetric:
         # setup for ray metrics
         tag_keys = tuple(default_tags.keys()) if default_tags else None
         self._count_ray_counter = Counter(
-            name=name, description=description, tag_keys=tag_keys
+            name=f"{name}_count", description=description, tag_keys=tag_keys
         )
         self._count_ray_counter.set_default_tags(default_tags)
         self._value_ray_counter = Counter(
-            name=name, description=description, tag_keys=tag_keys
+            name=f"{name}_sum", description=description, tag_keys=tag_keys
         )
         self._value_ray_counter.set_default_tags(default_tags)
 
