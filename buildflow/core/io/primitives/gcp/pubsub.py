@@ -1,0 +1,100 @@
+import dataclasses
+
+from buildflow.core import utils
+from buildflow.core.io.primitives.gcp.providers.pubsub_providers import (
+    GCPPubSubTopicProvider,
+    GCPPubSubSubscriptionProvider,
+)
+from buildflow.core.io.primitives.primitive import Primitive
+from buildflow.core.options.primitive_options import GCPOptions
+from buildflow.core.types.gcp_types import (
+    ProjectID,
+    SubscriptionName,
+    TopicID,
+    TopicName,
+)
+
+
+@dataclasses.dataclass
+class GCPPubSubTopic(Primitive):
+    project_id: ProjectID
+    topic_name: TopicName
+
+    @classmethod
+    def from_options(cls, options: GCPOptions) -> "GCPPubSubTopic":
+        project_id = options.default_project_id
+        project_hash = utils.stable_hash(project_id)
+        topic_name = f"buildflow_topic_{project_hash[:8]}"
+        return cls(
+            project_id=project_id,
+            topic_name=topic_name,
+        )
+
+    # NOTE: Topics do not support sinks, but we "implement" it here to
+    # give the user a better error message since this is a common mistake.
+    def source_provider(self):
+        raise ValueError(
+            "GCPPubSubTopic does not support source_provider()."
+            "Please use GCPPubSubSubscription instead."
+        )
+
+    def sink_provider(self) -> GCPPubSubTopicProvider:
+        return GCPPubSubTopicProvider(
+            project_id=self.project_id,
+            topic_name=self.topic_name,
+        )
+
+    def pulumi_provider(self) -> GCPPubSubTopicProvider:
+        return GCPPubSubTopicProvider(
+            project_id=self.project_id,
+            topic_name=self.topic_name,
+        )
+
+
+# NOTE: A user should use this in the case where they want to connect to an existing
+# topic.
+@dataclasses.dataclass
+class GCPPubSubSubscription(Primitive):
+    project_id: ProjectID
+    subscription_name: SubscriptionName
+    # required fields
+    topic_id: TopicID
+
+    @classmethod
+    def from_options(
+        cls, options: GCPOptions, *, topic_id: TopicID
+    ) -> "GCPPubSubSubscription":
+        project_id = options.default_project_id
+        project_hash = utils.stable_hash(project_id)
+        subscription_name = f"buildflow_subscription_{project_hash[:8]}"
+        return cls(
+            project_id=project_id,
+            subscription_name=subscription_name,
+            topic_id=topic_id,
+        )
+
+    def source_provider(self):
+        # TODO: Add support to supply the source-only options. Maybe add some kind of
+        # "inject_options" method for the different provider types.
+        # Use a Builder pattern for this.
+        return GCPPubSubSubscriptionProvider(
+            project_id=self.project_id,
+            subscription_name=self.subscription_name,
+            topic_id=self.topic_id,
+        )
+
+    # NOTE: Subscriptions do not support sinks, but we "implement" it here to
+    # give the user a better error message since this is a common mistake.
+    def sink_provider(self):
+        raise ValueError(
+            "GCPPubSubSubscription does not support sink_provider()."
+            "Please use GCPPubSubTopic instead."
+        )
+
+    def pulumi_provider(self):
+        # TODO: Add support to supply the pulumi-only options
+        return GCPPubSubSubscriptionProvider(
+            project_id=self.project_id,
+            subscription_name=self.subscription_name,
+            topic_id=self.topic_id,
+        )

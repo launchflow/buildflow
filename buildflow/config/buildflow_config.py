@@ -1,10 +1,10 @@
 import dataclasses
 import os
 
-from buildflow import utils
 from buildflow.config._config import Config
 from buildflow.config.flow_config import FlowConfig
 from buildflow.config.registry_config import RegistryConfig
+from buildflow.core import utils
 
 
 @dataclasses.dataclass

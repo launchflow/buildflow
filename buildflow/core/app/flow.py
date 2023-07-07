@@ -1,58 +1,47 @@
 import asyncio
+import inspect
 import logging
+import os
 import signal
-from typing import List, Optional, Type, Union
+from typing import List, Optional, Type
 
-from buildflow import utils
-from buildflow.api.primitives._primitive import PrimitiveAPI
-from buildflow.api.primitives.empty import Empty
+from buildflow.core import utils
 from buildflow.core.app.infra.actors.infra import InfraActor
-from buildflow.core.app.runtime.actors.runtime import RuntimeActor, RuntimeSnapshot
-from buildflow.core.io.providers._provider import PulumiResources
-from buildflow.core.io.registry import Registry
-from buildflow.core.io.resources._resource import Resource
+from buildflow.core.app.runtime.actors.runtime import RuntimeActor
+from buildflow.core.io.primitives.empty import EmptyPrimitive
+from buildflow.core.io.primitives.primitive import Primitive
 from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import ProcessorOptions
-from buildflow.core.io.providers._provider import (
-    ProcessorProvider,
+from buildflow.core.processor.patterns.pipeline import PipelineProcessor
+from buildflow.core.processor.processor import ProcessorAPI
+from buildflow.core.providers.provider import (
+    PulumiProvider,
     SinkProvider,
     SourceProvider,
 )
-from buildflow.api.patterns.processor import Processor
-from buildflow.core.io.providers._provider import Provider
-import inspect
-import copy
+from buildflow.core.strategies._stategy import StategyType
+from buildflow.core.app.runtime.server import RuntimeServer
+from ray import serve
 
 
-# NEXT TIME - figure out how to avoid using context vars for source_provider and sink_provider.
-# It might not be possible to pass in the providers here. We probably need to pass the resources and
-# then lookup the providers using the registry
+def _get_directory_path_of_caller():
+    # NOTE: This function is used to get the file path of the caller of the
+    # Flow(). This is used to determine the directory to look for a BuildFlow
+    # Config.
+    frame = inspect.stack()[2]
+    module = inspect.getmodule(frame[0])
+    return os.path.dirname(os.path.abspath(module.__file__))
 
 
-def processor_decorator(
+def pipeline_decorator(
     flow: "Flow",
     source_provider: SourceProvider,
     sink_provider: SinkProvider,
+    source_pulumi_provider: PulumiProvider,
+    sink_pulumi_provider: PulumiProvider,
     processor_options: ProcessorOptions,
 ):
     def decorator_function(original_process_function):
-        processor_id = original_process_function.__name__
-        # Dynamically define a new class with the same structure as Processor
-        class_name = f"AdHocProcessor_{utils.uuid(max_len=8)}"
-        _AdHocProcessor = type(
-            class_name,
-            (Processor,),
-            {
-                # Processor methods. NOTE: process() is attached separately below
-                "source": lambda self: source_provider.source(),
-                "sink": lambda self: sink_provider.sink(),
-                "setup": lambda self: None,
-            },
-        )
-        utils.attach_method_to_class(
-            _AdHocProcessor, "process", original_process_function
-        )
-
         def wrapper_function(*args, **kwargs):
             return original_process_function(*args, **kwargs)
 
@@ -68,28 +57,34 @@ def processor_decorator(
             output_type = full_arg_spec.annotations["return"]
 
         def pulumi_resources(self, type_: Optional[Type]):
-            source_resources = source_provider.pulumi_resources(input_type)
-            sink_resources = sink_provider.pulumi_resources(output_type)
-            return PulumiResources.merge(source_resources, sink_resources)
+            source_resources = source_pulumi_provider.pulumi_resources(input_type)
+            sink_resources = sink_pulumi_provider.pulumi_resources(output_type)
+            return source_resources + sink_resources
 
-        _AdHocProcessorProvider = type(
-            f"{class_name}Provider",
-            (ProcessorProvider,),
+        # Dynamically define a new class with the same structure as Processor
+        processor_id = original_process_function.__name__
+        class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
+        AdHocPipelineProcessorClass = type(
+            class_name,
+            (PipelineProcessor,),
             {
-                # ProcessorProvider attributes
-                "processor_id": processor_id,
-                # ProcessorProvider methods
-                "processor": lambda self: _AdHocProcessor(processor_id=processor_id),
-                "pulumi_resources": pulumi_resources,
-                # Returns the original function when called
+                # PipelineProcessor methods.
+                "source": lambda self: source_provider.source(),
+                "sink": lambda self: sink_provider.sink(),
+                # ProcessorAPI methods. NOTE: process() is attached separately below
+                "resources": lambda self: pulumi_resources,
+                "setup": lambda self: None,
                 "__call__": wrapper_function,
             },
         )
+        utils.attach_method_to_class(
+            AdHocPipelineProcessorClass, "process", original_process_function
+        )
 
-        processor_provider: ProcessorProvider = _AdHocProcessorProvider()
-        flow.add_processor(processor_provider, processor_options)
+        processor = AdHocPipelineProcessorClass(processor_id=processor_id)
+        flow.add_processor(processor, processor_options)
 
-        return processor_provider
+        return processor
 
     return decorator_function
 
@@ -103,19 +98,15 @@ class Flow:
         flow_id: FlowID = "buildflow-app",
         flow_options: Optional[FlowOptions] = None,
     ) -> None:
+        # Load the BuildFlow Config to get the default options
+        os.path.join(_get_directory_path_of_caller(), ".buildflow")
         # Flow configuration
         self.flow_id = flow_id
         self.options = flow_options or FlowOptions.default()
         # Flow initial state
-        self._processors: List[ProcessorProvider] = []
-
-        # Registry configuration.
-        # TODO: Should this be created in the Runner and passed in?
-        self._registry = Registry(self.options.resource_options)
-
+        self._processors: List[ProcessorAPI] = []
         # Runtime configuration
         self._runtime_actor_ref: Optional[RuntimeActor] = None
-
         # Infra configuration
         self._infra_actor_ref: Optional[InfraActor] = None
 
@@ -137,53 +128,36 @@ class Flow:
 
     # NOTE: The Flow class is responsible for converting Resources / Primitives into a
     # Provider.
-    def processor(
+    def pipeline(
         self,
-        source: Union[Resource, PrimitiveAPI],
-        sink: Optional[Union[Resource, PrimitiveAPI]] = None,
+        source: Primitive,
+        sink: Optional[Primitive] = None,
         *,
         num_cpus: float = 1.0,
         num_concurrency: int = 1,
         log_level: str = "INFO",
     ):
-        def get_source_provider_from_registry(
-            source: Union[Resource, PrimitiveAPI]
-        ) -> SourceProvider:
-            source_provider: Optional[SourceProvider] = None
-            if isinstance(source, PrimitiveAPI):
-                source_provider = self._registry.get_source_provider_for_primitive(
-                    source
-                )
-            elif isinstance(source, Resource):
-                source_provider = self._registry.get_source_provider_for_resource(
-                    source
-                )
-            else:
-                raise ValueError(f"Unsupported source type: {type(source)}")
-            return source_provider
+        if sink is None:
+            sink = EmptyPrimitive()
 
-        def get_sink_provider_from_registry(
-            sink: Optional[Union[Resource, PrimitiveAPI]]
-        ) -> SinkProvider:
-            sink_provider: Optional[SinkProvider] = None
-            if sink is None:
-                sink_provider = self._registry.get_sink_provider_for_primitive(Empty())
-            elif isinstance(sink, PrimitiveAPI):
-                sink_provider = self._registry.get_sink_provider_for_primitive(sink)
-            elif isinstance(sink, Resource):
-                sink_provider = self._registry.get_sink_provider_for_resource(sink)
-            else:
-                raise ValueError(f"Unsupported sink type: {type(sink)}")
-            return sink_provider
+        if source.is_portable:
+            source = source.from_options(
+                options=self.options.primitive_options,
+                strategy_type=StategyType.SOURCE,
+            )
 
-        source_provider = get_source_provider_from_registry(source)
-        sink_provider = get_sink_provider_from_registry(sink)
+        if sink.is_portable:
+            sink = sink.from_options(
+                options=self.options.primitive_options,
+                strategy_type=StategyType.SINK,
+            )
 
-        # NOTE: processor_decorator returns a ProcessorProvider
-        return processor_decorator(
+        return pipeline_decorator(
             flow=self,
-            source_provider=source_provider,
-            sink_provider=sink_provider,
+            source_provider=source.source_provider(),
+            sink_provider=sink.sink_provider(),
+            source_pulumi_provider=source.pulumi_provider(),
+            sink_pulumi_provider=sink.pulumi_provider(),
             processor_options=ProcessorOptions(
                 num_cpus=num_cpus,
                 num_concurrency=num_concurrency,
@@ -193,7 +167,7 @@ class Flow:
 
     def add_processor(
         self,
-        processor: ProcessorProvider,
+        processor: ProcessorAPI,
         options: Optional[ProcessorOptions] = None,
     ):
         if self._runtime_actor_ref is not None or self._infra_actor_ref is not None:
@@ -202,51 +176,96 @@ class Flow:
             )
         if processor.processor_id in self.options.runtime_options.processor_options:
             raise RuntimeError(
-                f"Processor({processor.processor_id}) already exists in Flow."
+                f"Processor({processor.processor_id}) already exists in Flow object."
+                "Please rename your function or remove the other Processor."
             )
         # Each processor gets its own replica config
         self.options.runtime_options.processor_options[processor.processor_id] = options
         self._processors.append(processor)
 
-    async def run(self):
+    def run(
+        self,
+        *,
+        disable_usage_stats: bool = False,
+        block: bool = True,
+        # runtime-only options
+        debug_run: bool = False,
+        # server-only options. TODO: Move this into RuntimeOptions / consider
+        # having Runtime manage the server
+        start_runtime_server: bool = False,
+        runtime_server_host: str = "127.0.0.1",
+        runtime_server_port: int = 9653,
+    ):
+        # BuildFlow Usage Stats
+        if not disable_usage_stats:
+            utils.log_buildflow_usage()
+
+        # Start the Flow Runtime
+        runtime_coroutine = self._run(debug_run=debug_run)
+
+        # Start the Runtime Server (maybe)
+        if start_runtime_server:
+            runtime_server = RuntimeServer.bind(runtime_actor=self._runtime_actor)
+            serve.run(
+                runtime_server,
+                host=runtime_server_host,
+                port=runtime_server_port,
+            )
+            server_log_message = (
+                "-" * 80
+                + "\n\n"
+                + f"Node Server running at http://{runtime_server_host}:{runtime_server_port}\n\n"
+                + "-" * 80
+                + "\n\n"
+            )
+            logging.info(server_log_message)
+            print(server_log_message)
+
+        # Block until the Flow Runtime is finished (maybe)
+        if block:
+            asyncio.get_event_loop().run_until_complete(runtime_coroutine)
+        else:
+            return runtime_coroutine
+
+    async def _run(self, debug_run: bool = False):
         # Add a signal handler to drain the runtime when the process is killed
         loop = asyncio.get_event_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(
                 sig,
-                lambda: asyncio.create_task(self.drain()),
+                lambda: asyncio.create_task(self._drain()),
             )
-        # start the runtime
+        # start the runtime and await it to finish
+        # NOTE: run() does not necessarily block until the runtime is finished.
         await self._runtime_actor.run.remote(processors=self._processors)
+        await self._runtime_actor.run_until_complete.remote()
 
-    async def run_until_complete(self):
-        remote_runtime_task = self._runtime_actor.run_until_complete.remote()
-        return await remote_runtime_task
-
-    async def drain(self):
+    async def _drain(self):
         logging.debug(f"Draining Flow({self.flow_id})...")
         await self._runtime_actor.drain.remote()
         logging.debug(f"...Finished draining Flow({self.flow_id})")
         return True
 
-    # TODO: Add Infra snapshots and make this a FlowSnapshot
-    async def snapshot(self) -> RuntimeSnapshot:
-        logging.debug(f"Taking snapshot of Flow({self.flow_id})...")
-        snapshot: RuntimeSnapshot = await self._runtime_actor.snapshot.remote()
-        logging.debug(f"...Finished taking snapshot of Flow({self.flow_id})")
-        return snapshot
+    def plan(self):
+        return asyncio.get_event_loop().run_until_complete(self._plan())
 
-    async def plan(self):
+    async def _plan(self):
         logging.debug(f"Planning Infra for Flow({self.flow_id})...")
         await self._infra_actor.plan.remote(providers=self._processors)
         logging.debug(f"...Finished planning Infra for Flow({self.flow_id})")
 
-    async def apply(self):
+    def apply(self):
+        return asyncio.get_event_loop().run_until_complete(self._apply())
+
+    async def _apply(self):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
         await self._infra_actor.apply.remote(providers=self._processors)
         logging.debug(f"...Finished setting up Infra for Flow({self.flow_id})")
 
-    async def destroy(self):
+    def destroy(self):
+        return asyncio.get_event_loop().run_until_complete(self._destroy())
+
+    async def _destroy(self):
         logging.debug(f"Tearing down infrastructure for Flow({self.flow_id})...")
         await self._infra_actor.destroy.remote(providers=self._processors)
         logging.debug(

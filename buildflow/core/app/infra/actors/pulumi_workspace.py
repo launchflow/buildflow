@@ -1,24 +1,16 @@
-import inspect
+import dataclasses
 import logging
-from typing import Iterable
+import os
+import re
+from typing import Iterable, Mapping
 
-import pulumi
 import ray
 from pulumi import automation as auto
 
-
-from buildflow.core.options.infra_options import PulumiOptions
-from buildflow.core.io.providers._provider import Provider
-import dataclasses
 from buildflow.config.pulumi_config import PulumiConfig
-import re
-
-
-import os
-from typing import Mapping
-
-
-from buildflow import utils
+from buildflow.core import utils
+from buildflow.core.options.infra_options import PulumiOptions
+from buildflow.core.processor.processor import ProcessorAPI
 
 
 @dataclasses.dataclass
@@ -189,7 +181,7 @@ class WrappedPreviewResult:
             "-" * 80,
             f"Number of Resources to create: {num_to_create}",
             "",
-            f"Resource Outputs:",
+            "Resource Outputs:",
             resource_outputs_str,
             "-" * 80,
         ]
@@ -246,56 +238,57 @@ class PulumiWorkspaceActor:
         )
         self._pulumi_program_cache = {}
 
-    async def refresh(self, *, providers: Iterable[Provider]) -> WrappedRefreshResult:
+    async def refresh(self, *, processors: Iterable[ProcessorAPI]) -> WrappedRefreshResult:
         logging.debug(f"Pulumi Refresh: {self._workspace.workspace_id()}")
-        stack = self._create_or_select_stack(providers)
+        stack = self._create_or_select_stack(processors)
         return WrappedRefreshResult(refresh_result=stack.refresh())
 
-    async def preview(self, *, providers: Iterable[Provider]) -> WrappedPreviewResult:
+    async def preview(self, *, processors: Iterable[ProcessorAPI]) -> WrappedPreviewResult:
         logging.debug(f"Pulumi Preview: {self._workspace.workspace_id()}")
-        stack = self._create_or_select_stack(providers)
-        if self.options.refresh_state:
-            stack.refresh()
+        stack = self._create_or_select_stack(processors)
         return WrappedPreviewResult(preview_result=stack.preview())
 
-    async def up(self, *, providers: Iterable[Provider]) -> WrappedUpResult:
+    async def up(self, *, processors: Iterable[ProcessorAPI]) -> WrappedUpResult:
         logging.debug(f"Pulumi Up: {self._workspace.workspace_id()}")
-        stack = self._create_or_select_stack(providers)
-        if self.options.refresh_state:
-            stack.refresh()
-
+        stack = self._create_or_select_stack(processors)
         return WrappedUpResult(up_result=stack.up())
 
-    async def outputs(self, *, providers: Iterable[Provider]) -> WrappedOutputMap:
+    async def outputs(self, *, processors: Iterable[ProcessorAPI]) -> WrappedOutputMap:
         logging.debug(f"Pulumi Outputs: {self._workspace.workspace_id()}")
-        stack = self._create_or_select_stack(providers)
+        stack = self._create_or_select_stack(processors)
         return WrappedOutputMap(output_map=stack.outputs())
 
-    async def destroy(self, *, providers: Iterable[Provider]) -> WrappedDestroyResult:
+    async def destroy(self, *, processors: Iterable[ProcessorAPI]) -> WrappedDestroyResult:
         logging.debug(f"Pulumi Destroy: {self._workspace.workspace_id()}")  # noqa: E501
-        stack = self._create_or_select_stack(providers)
+        stack = self._create_or_select_stack(processors)
         return WrappedDestroyResult(destroy_result=stack.destroy())
 
-    def _create_pulumi_program(self, providers: Iterable[Provider]):
+    def _create_pulumi_program(self, processors: Iterable[ProcessorAPI]):
         def pulumi_program():
-            for provider in providers:
-                # Fetch the Pulumi Resources from the provider (if any).
-                # NOTE: We set the type_ to None because the Flow decorator should
-                # have already wrapped the types in a nested pulumi_resources function.
-                provider.pulumi_resources(type_=None)
+            for processor in processors:
+                # NOTE: All we need to do is run this method because any Pulumi
+                # resources will be instantiated when called. Any Pulumi resources
+                # created in the scope of the pulumi_program function will be included
+                # in the Pulumi program / stack.
+                processor.resources()
 
         return pulumi_program
 
-    def _create_or_select_stack(self, providers: Iterable[Provider]):
+    def _create_or_select_stack(self, processors: Iterable[ProcessorAPI]):
         if self._workspace.workspace_id() not in self._pulumi_program_cache:
-            pulumi_program = self._create_pulumi_program(providers)
+            pulumi_program = self._create_pulumi_program(processors)
             self._pulumi_program_cache[self._workspace.workspace_id()] = pulumi_program
         else:
             pulumi_program = self._pulumi_program_cache[self._workspace.workspace_id()]
 
-        return auto.create_or_select_stack(
+        stack = auto.create_or_select_stack(
             stack_name=self._workspace.stack_name(),
             project_name=self._workspace.project_name(),
             program=pulumi_program,
             opts=self._workspace.workspace_options(),
         )
+
+        if self.options.refresh_state:
+            stack.refresh()
+
+        return stack

@@ -18,9 +18,12 @@ import math
 import ray
 from ray.autoscaler.sdk import request_resources
 
+from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
+    PipelineProcessorSnapshot,
+)
 from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
 from buildflow.core.options.runtime_options import AutoscalerOptions
-
+from buildflow.core.processor.processor import ProcessorType
 
 # TODO: Make this configurable
 _TARGET_UTILIZATION = 0.5
@@ -32,17 +35,8 @@ def _available_replicas(cpu_per_replica: float):
     return int(num_cpus / cpu_per_replica)
 
 
-# TODO: Explore making the entire runtime autoscale
-# to maximize resource utilization, we can sample the buffer size of each task
-# and scale up/down based on that. We can target to use 80% of the available
-# resources in the worst case scenario (99.7% of samples contained by 80% of resources).
-
-
-def calculate_target_num_replicas(
-    snapshot: ProcessorSnapshot, config: AutoscalerOptions
-):
+def _calculate_target_num_replicas_for_pipeline(snapshot: PipelineProcessorSnapshot, config: AutoscalerOptions):
     cpus_per_replica = snapshot.num_cpu_per_replica
-
     avg_utilization_score = snapshot.avg_pull_percentage_per_replica
     total_utilization_score = avg_utilization_score * snapshot.num_replicas
     # The code below is from the previous version of the autoscaler.
@@ -115,3 +109,25 @@ def calculate_target_num_replicas(
         "---------------------------------------------------------\n"
     )
     return new_num_replicas
+
+
+
+# TODO: Explore making the entire runtime autoscale
+# to maximize resource utilization, we can sample the buffer size of each task
+# and scale up/down based on that. We can target to use 80% of the available
+# resources in the worst case scenario (99.7% of samples contained by 80% of resources).
+
+
+def calculate_target_num_replicas(
+    snapshot: ProcessorSnapshot, config: AutoscalerOptions
+):
+    if snapshot.processor_type == ProcessorType.PIPELINE:
+        return _calculate_target_num_replicas_for_pipeline(snapshot, config)
+    elif snapshot.processor_type == ProcessorType.COLLECTOR:
+        raise NotImplementedError("Collector autoscaling not implemented yet")
+    elif snapshot.processor_type == ProcessorType.CONNECTION:
+        raise NotImplementedError("Connection autoscaling not implemented yet")
+    elif snapshot.processor_type == ProcessorType.SERVICE:
+        raise NotImplementedError("Service autoscaling not implemented yet")
+    else:
+        raise ValueError(f"Unknown processor type: {snapshot.processor_type}")

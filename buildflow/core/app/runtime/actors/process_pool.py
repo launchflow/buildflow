@@ -2,22 +2,26 @@ import asyncio
 import dataclasses
 import logging
 import random
-from typing import Dict, List
+from typing import Dict
 
 import ray
-from ray.util.placement_group import placement_group, remove_placement_group
-from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
-
-from buildflow import utils
-from buildflow.api.patterns.processor import ProcessorID
-from buildflow.core.io.providers._provider import ProcessorProvider
-from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot
-from buildflow.core.app.runtime.actors.pull_process_push import (
-    PullProcessPushActor,
-    PullProcessPushSnapshot,
+from ray.actor import ActorHandle
+from ray.util.placement_group import (
+    PlacementGroup,
+    remove_placement_group,
 )
-from buildflow.core.app.runtime.metrics import RateCalculation, SimpleGaugeMetric
+
+from buildflow.core import utils
+from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot
+from buildflow.core.app.runtime.metrics import SimpleGaugeMetric
 from buildflow.core.options.runtime_options import ProcessorOptions
+from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
+
+
+@dataclasses.dataclass
+class ReplicaReference:
+    ray_actor_handle: ActorHandle
+    ray_placement_group: PlacementGroup
 
 
 @dataclasses.dataclass
@@ -25,39 +29,24 @@ class ProcessorSnapshot(Snapshot):
     # required snapshot fields
     status: RuntimeStatus
     timestamp_millis: int
-    # fields specific to this snapshot class
     processor_id: ProcessorID
-    source_backlog: float
+    processor_type: ProcessorType
     num_replicas: float
     num_cpu_per_replica: float
     num_concurrency_per_replica: float
-    total_events_processed_per_sec: float
-    total_pulls_per_sec: float
-    avg_num_elements_per_batch: float
-    avg_pull_percentage_per_replica: float
-    avg_process_time_millis_per_element: float
-    avg_process_time_millis_per_batch: float
-    avg_pull_to_ack_time_millis_per_batch: float
 
     def as_dict(self) -> dict:
         return {
             "status": self.status.name,
             "timestamp_millis": self.timestamp_millis,
             "processor_id": self.processor_id,
-            "source_backlog": self.source_backlog,
+            "processor_type": self.processor_type.name,
             "num_replicas": self.num_replicas,
+            "num_cpu_per_replica": self.num_cpu_per_replica,
             "num_concurrency_per_replica": self.num_concurrency_per_replica,
-            "total_events_processed_per_sec": self.total_events_processed_per_sec,
-            "total_pulls_per_sec": self.total_pulls_per_sec,
-            "avg_num_elements_per_batch": self.avg_num_elements_per_batch,
-            "avg_pull_percentage_per_replica": self.avg_pull_percentage_per_replica,
-            "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
-            "avg_process_time_millis_per_batch": self.avg_process_time_millis_per_batch,  # noqa: E501
-            "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
         }
 
 
-@ray.remote(num_cpus=0.1)
 class ProcessorReplicaPoolActor(Runtime):
     """
     This actor acts as a proxy reference for a group of replica Processors.
@@ -66,7 +55,7 @@ class ProcessorReplicaPoolActor(Runtime):
     """
 
     def __init__(
-        self, processor: ProcessorProvider, processor_options: ProcessorOptions
+        self, processor: ProcessorAPI, processor_options: ProcessorOptions
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -74,10 +63,9 @@ class ProcessorReplicaPoolActor(Runtime):
 
         # configuration
         self.processor = processor
-        self.source = processor.processor().source()
         self.options = processor_options
         # initial runtime state
-        self.replicas: Dict[str, PullProcessPushActor] = {}
+        self.replicas: Dict[str, ReplicaReference] = {}
         self._status = RuntimeStatus.IDLE
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
@@ -90,7 +78,7 @@ class ProcessorReplicaPoolActor(Runtime):
             },
         )
         self.concurrency_gauge = SimpleGaugeMetric(
-            "ppp_concurrency",
+            "replica_concurrency",
             description="Current number of concurrency per replica. Goes up and down.",
             default_tags={
                 "processor_id": processor.processor_id,
@@ -98,42 +86,23 @@ class ProcessorReplicaPoolActor(Runtime):
             },
         )
         self.concurrency_gauge.set(self.options.num_concurrency)
-        self.current_backlog_gauge = SimpleGaugeMetric(
-            "current_backlog",
-            description="Current backlog of the actor. Goes up and down.",
-            default_tags={
-                "processor_id": processor.processor_id,
-                "JobId": job_id,
-            },
-        )
+
+    # NOTE: This method must be implemented by subclasses
+    async def create_replica(self):
+        raise NotImplementedError("create_replica must be implemented by subclasses.")
 
     async def add_replicas(self, num_replicas: int):
         if self._status != RuntimeStatus.RUNNING:
             raise RuntimeError("Can only replicas to a processor pool that is running.")
         for _ in range(num_replicas):
             replica_id = utils.uuid()
+            replica = await self.create_replica()
 
-            ray_placement_group = await placement_group(
-                [
-                    {
-                        "CPU": self.options.num_cpus,
-                    }
-                ],
-                strategy="STRICT_PACK",
-            ).ready()
-
-            replica_actor_handle = PullProcessPushActor.options(
-                num_cpus=self.options.num_cpus,
-                scheduling_strategy=PlacementGroupSchedulingStrategy(
-                    placement_group=ray_placement_group,
-                    placement_group_capture_child_tasks=True,
-                ),
-            ).remote(self.processor, log_level=self.options.log_level)
             if self._status == RuntimeStatus.RUNNING:
                 for _ in range(self.options.num_concurrency):
-                    replica_actor_handle.run.remote()
+                    replica.ray_actor_handle.run.remote()
 
-            self.replicas[replica_id] = (replica_actor_handle, ray_placement_group)
+            self.replicas[replica_id] = replica
 
         self.num_replicas_gauge.set(len(self.replicas))
 
@@ -152,10 +121,10 @@ class ProcessorReplicaPoolActor(Runtime):
         actors_to_kill = []
         actor_drain_tasks = []
         for replica_id in replicas_to_remove:
-            replica_actor, ray_placement_group = self.replicas.pop(replica_id)
-            actors_to_kill.append(replica_actor)
-            actor_drain_tasks.append(replica_actor.drain.remote())
-            placement_groups_to_remove.append(ray_placement_group)
+            replica = self.replicas.pop(replica_id)
+            actors_to_kill.append(replica.ray_actor_handle)
+            actor_drain_tasks.append(replica.ray_actor_handle.drain.remote())
+            placement_groups_to_remove.append(replica.ray_placement_group)
 
         if actor_drain_tasks:
             await asyncio.wait(actor_drain_tasks)
@@ -174,7 +143,7 @@ class ProcessorReplicaPoolActor(Runtime):
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
         for replica in self.replicas.values():
-            replica.run.remote()
+            replica.ray_actor_handle.run.remote()
 
     async def drain(self):
         logging.info(f"Draining ProcessorPool({self.processor.processor_id})...")
@@ -187,76 +156,19 @@ class ProcessorReplicaPoolActor(Runtime):
     async def status(self):
         if self._status == RuntimeStatus.DRAINING:
             for replica in self.replicas.values():
-                if await replica.status.remote() != RuntimeStatus.IDLE:
+                if await replica.ray_actor_handle.status.remote() != RuntimeStatus.IDLE:
                     return RuntimeStatus.DRAINING
             self._status = RuntimeStatus.IDLE
         return self._status
 
+    # NOTE: Subclasses should override this method if they need to provide additional metrics.
     async def snapshot(self) -> ProcessorSnapshot:
-        source_backlog = await self.source.backlog()
-        # Log the current backlog so ray metrics can pick it up
-        self.current_backlog_gauge.set(source_backlog)
-
-        replica_snapshots: List[PullProcessPushSnapshot] = []
-        for replica_actor, _ in list(self.replicas.values()):
-            snapshot: PullProcessPushSnapshot = await replica_actor.snapshot.remote()
-            replica_snapshots.append(snapshot)
-
-        # below metric(s) derived from the `events_processed_per_sec` composite counter
-        total_events_processed_per_sec = RateCalculation.merge(
-            [
-                replica_snapshot.events_processed_per_sec
-                for replica_snapshot in replica_snapshots
-            ]
-        ).total_value_rate()
-        avg_num_elements_per_batch = RateCalculation.merge(
-            [
-                replica_snapshot.events_processed_per_sec
-                for replica_snapshot in replica_snapshots
-            ]
-        ).average_value_rate()
-        # below metric(s) derived from the `pull_percentage` composite counter
-        total_pulls_per_sec = RateCalculation.merge(
-            [replica_snapshot.pull_percentage for replica_snapshot in replica_snapshots]
-        ).total_count_rate()
-        avg_pull_percentage_per_replica = RateCalculation.merge(
-            [replica_snapshot.pull_percentage for replica_snapshot in replica_snapshots]
-        ).average_value_rate()
-        # below metric(s) derived from the `process_time_millis` composite counter
-        avg_process_time_millis_per_element = RateCalculation.merge(
-            [
-                replica_snapshot.process_time_millis
-                for replica_snapshot in replica_snapshots
-            ]
-        ).average_value_rate()
-        # below metric(s) derived from the `process_batch_time_millis` composite counter
-        avg_process_time_millis_per_batch = RateCalculation.merge(
-            [
-                replica_snapshot.process_batch_time_millis
-                for replica_snapshot in replica_snapshots
-            ]
-        ).average_value_rate()
-        # below metric(s) derived from the `pull_to_ack_time_millis` composite counter
-        avg_pull_to_ack_time_millis_per_batch = RateCalculation.merge(
-            [
-                replica_snapshot.pull_to_ack_time_millis
-                for replica_snapshot in replica_snapshots
-            ]
-        ).average_value_rate()
-
         return ProcessorSnapshot(
             status=self._status,
             timestamp_millis=utils.timestamp_millis(),
             processor_id=self.processor.processor_id,
-            source_backlog=source_backlog,
+            processor_type=self.processor.processor_type,
             num_replicas=self.num_replicas_gauge.get_latest_value(),
             num_cpu_per_replica=self.options.num_cpus,
             num_concurrency_per_replica=self.concurrency_gauge.get_latest_value(),
-            total_events_processed_per_sec=total_events_processed_per_sec,
-            avg_num_elements_per_batch=avg_num_elements_per_batch,
-            total_pulls_per_sec=total_pulls_per_sec,
-            avg_pull_percentage_per_replica=avg_pull_percentage_per_replica,
-            avg_process_time_millis_per_element=avg_process_time_millis_per_element,
-            avg_process_time_millis_per_batch=avg_process_time_millis_per_batch,
-            avg_pull_to_ack_time_millis_per_batch=avg_pull_to_ack_time_millis_per_batch,
         )

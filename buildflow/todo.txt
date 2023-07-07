@@ -1,0 +1,31 @@
+BEFORE PR
+
+- Implement Config type
+    - Reimplement Pulumi Workspace using Config type
+    - Generate all Option types from Config
+    - Convert to a YAML config
+
+- Add Runner methods back to Flow object
+
+- Reimplement the Flow Server
+
+- Implement Flow State
+
+- Fix IO imports so users dont need to see provider stuff in their import path
+
+- Clean up Options objects and make it easy to set nested options (i.e. autoscaling options)
+
+- Fix bug where you drain during scaling up. It will get stuck and cannot drain
+
+- add ability to turn off in-memory metrics 
+
+
+AFTER PR
+
+- Add other IO Providers
+
+- Add other Processor Patterns
+
+- Add a Debug runtime
+
+- Add metrics about the amount of data in the in-memory buffer to help debug OOM errors

@@ -7,15 +7,17 @@ from typing import Iterable, List
 
 import ray
 
-from buildflow.core.io.providers._provider import ProcessorProvider
+from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot
+from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
+    PipelineProcessorReplicaPoolActor,
+)
 from buildflow.core.app.runtime.actors.process_pool import (
-    ProcessorReplicaPoolActor,
     ProcessorSnapshot,
 )
 from buildflow.core.app.runtime.autoscaler import calculate_target_num_replicas
 from buildflow.core.options.runtime_options import RuntimeOptions
-from buildflow import utils
+from buildflow.core.processor.processor import ProcessorAPI, ProcessorType
 
 
 @dataclasses.dataclass
@@ -55,7 +57,7 @@ class RuntimeActor(Runtime):
     def _set_status(self, status: RuntimeStatus):
         self._status = status
 
-    def run(self, *, processors: Iterable[ProcessorProvider]):
+    def run(self, *, processors: Iterable[ProcessorAPI]):
         logging.info("Starting Runtime...")
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
@@ -63,9 +65,28 @@ class RuntimeActor(Runtime):
         self._processor_pool_actors = []
         for processor in processors:
             processor_options = self.options.processor_options[processor.processor_id]
-            self._processor_pool_actors.append(
-                ProcessorReplicaPoolActor.remote(processor, processor_options)
-            )
+            if processor.processor_type == ProcessorType.PIPELINE:
+                self._processor_pool_actors.append(
+                    PipelineProcessorReplicaPoolActor.remote(
+                        processor, processor_options
+                    )
+                )
+            elif processor.processor_type == ProcessorType.COLLECTOR:
+                raise NotImplementedError(
+                    "Collector Processors are not yet supported."
+                )
+            elif processor.processor_type == ProcessorType.CONNECTION:
+                raise NotImplementedError(
+                    "Connection Processors are not yet supported."
+                )
+            elif processor.processor_type == ProcessorType.SERVICE:
+                raise NotImplementedError(
+                    "Service Processors are not yet supported."
+                )
+            else:
+                raise ValueError(
+                    f"Unknown ProcessorType: {processor.processor_type}"
+                )
 
         # TODO: these can fail sometimes when the converter isn't provided correctly.
         # i.e. a user provides a type that we don't know how to convert for a source /

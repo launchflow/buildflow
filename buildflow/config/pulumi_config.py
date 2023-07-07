@@ -1,7 +1,7 @@
 import dataclasses
 
-from buildflow import utils
 from buildflow.config._config import Config
+from buildflow.core import utils
 
 
 @dataclasses.dataclass

@@ -1,8 +1,8 @@
 import dataclasses
 from typing import Dict
 
-from buildflow.api.patterns.processor import ProcessorID
 from buildflow.core.options._options import Options
+from buildflow.core.processor.processor import ProcessorID
 
 
 # TODO: Add options for other pattern types, or merge into a single options object
