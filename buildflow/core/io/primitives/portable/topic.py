@@ -1,40 +1,48 @@
-from buildflow.core.io.primitives.primitive import Primitive
 import dataclasses
-from buildflow.core.options.primitive_options import PrimitiveOptions, CloudProvider
+
+from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
 from buildflow.core.io.primitives.gcp.pubsub import (
-    GCPPubSubTopic,
     GCPPubSubSubscription,
+    GCPPubSubTopic,
 )
+from buildflow.core.io.primitives.primitive import PortablePrimtive, Primitive
 from buildflow.core.strategies._stategy import StategyType
+from buildflow.core.types.portable_types import TopicID
 
 
 @dataclasses.dataclass
-class Topic(Primitive):
-    is_portable = True
+class Topic(PortablePrimtive):
+    topic_id: TopicID
 
-    @classmethod
-    def from_options(
-        cls, options: PrimitiveOptions, strategy_type: StategyType
+    def to_cloud_primitive(
+        self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
     ) -> Primitive:
         # GCP Implementations
-        if options.cloud_provider == CloudProvider.GCP:
+        if cloud_provider_config.cloud_provider == CloudProvider.GCP:
             if strategy_type == StategyType.SOURCE:
-                return GCPPubSubSubscription.from_options(options=options.gcp)
+                return GCPPubSubSubscription.from_gcp_options(
+                    gcp_options=cloud_provider_config.gcp_options,
+                    topic_id=self.topic_id,
+                )
             elif strategy_type == StategyType.SINK:
-                return GCPPubSubTopic.from_options(options=options.gcp)
+                return GCPPubSubTopic.from_gcp_options(
+                    gcp_options=cloud_provider_config.gcp_options
+                )
             else:
                 raise ValueError(
                     f"Unsupported strategy type for Topic (GCP): {strategy_type}"
                 )
         # AWS Implementations
-        elif options.cloud_provider == CloudProvider.AWS:
+        elif cloud_provider_config.cloud_provider == CloudProvider.AWS:
             raise NotImplementedError("AWS is not implemented for Topic.")
         # Azure Implementations
-        elif options.cloud_provider == CloudProvider.AZURE:
+        elif cloud_provider_config.cloud_provider == CloudProvider.AZURE:
             raise NotImplementedError("Azure is not implemented for Topic.")
         # Local Implementations
-        elif options.cloud_provider == CloudProvider.LOCAL:
+        elif cloud_provider_config.cloud_provider == CloudProvider.LOCAL:
             raise NotImplementedError("Local is not implemented for Topic.")
         # Sanity check
         else:
-            raise ValueError(f"Unknown resource provider: {options.cloud_provider}")
+            raise ValueError(
+                f"Unknown resource provider: {cloud_provider_config.cloud_provider}"
+            )

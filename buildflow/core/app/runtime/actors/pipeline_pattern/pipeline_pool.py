@@ -167,7 +167,10 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
         ).average_value_rate()
 
         # derived metric(s)
-        eta_secs = source_backlog / total_events_processed_per_sec
+        if total_events_processed_per_sec == 0:
+            eta_secs = -1
+        else:
+            eta_secs = source_backlog / total_events_processed_per_sec
 
         return PipelineProcessorSnapshot(
             # parent snapshot fields

@@ -5,7 +5,6 @@ from buildflow.core.options import (
     AutoscalerOptions,
     RuntimeOptions,
     InfraOptions,
-    PrimitiveOptions,
 )
 from buildflow.core.io.primitives.gcp import GCPPubSubSubscription, BigQueryTable
 from sandbox4 import TaxiOutput
@@ -14,7 +13,6 @@ from sandbox4 import TaxiOutput
 app = Flow(
     flow_options=FlowOptions(
         infra_options=InfraOptions.default(),
-        primitive_options=PrimitiveOptions.default(),
         runtime_options=RuntimeOptions(
             processor_options={},
             autoscaler_options=AutoscalerOptions(
@@ -36,11 +34,7 @@ pubsub_source = GCPPubSubSubscription(
     project_id="daring-runway-374503",
     subscription_name="taxiride-sub",
 )
-bigquery_sink = BigQueryTable(
-    project_id="daring-runway-374503",
-    dataset_name="buildflow",
-    table_name="table_9312c458",
-)
+bigquery_sink = AnalysisTable(table_name="tanke_table")
 
 
 # Attach a processor to the Flow

@@ -1,29 +1,46 @@
 import dataclasses
-
+from typing import Optional
 from buildflow.core import utils
-from buildflow.core.io.primitives.primitive import Primitive
-from buildflow.core.options.primitive_options import GCPOptions
-from buildflow.core.types.gcp_types import DatasetName, ProjectID, TableID, TableName
+from buildflow.core.io.primitives.primitive import GCPPrimtive
+from buildflow.config.cloud_provider_config import GCPOptions
+from buildflow.core.types.gcp_types import (
+    BigQueryDatasetName,
+    GCPProjectID,
+    BigQueryTableID,
+    BigQueryTableName,
+)
 from buildflow.core.io.primitives.gcp.providers.bigquery_providers import (
     BigQueryTableProvider,
 )
+from buildflow.core.types.portable_types import TableName
 
 
 @dataclasses.dataclass
-class BigQueryTable(Primitive):
-    project_id: ProjectID
-    dataset_name: DatasetName
-    table_name: TableName
+class BigQueryTable(GCPPrimtive):
+    project_id: GCPProjectID
+    dataset_name: BigQueryDatasetName
+    table_name: BigQueryTableName
 
     @property
-    def table_id(self) -> TableID:
+    def table_id(self) -> BigQueryTableID:
         return f"{self.project_id}.{self.dataset_name}.{self.table_name}"
 
     @classmethod
-    def from_options(cls, options: GCPOptions) -> "BigQueryTable":
-        project_id = options.default_project_id
+    def from_gcp_options(
+        cls,
+        gcp_options: GCPOptions,
+        *,
+        table_name: Optional[TableName] = None,
+    ) -> "BigQueryTable":
+        project_id = gcp_options.default_project_id
+        if project_id is None:
+            raise ValueError(
+                "No Project ID was provided in the GCP options. Please provide one in "
+                "the .buildflow config."
+            )
         project_hash = utils.stable_hash(project_id)
-        table_name = f"table_{project_hash[:8]}"
+        if table_name is None:
+            table_name = f"table_{project_hash[:8]}"
         return cls(
             project_id=project_id,
             dataset_name="buildflow_managed",

@@ -14,10 +14,10 @@ from buildflow.core.providers.provider import (
 )
 from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.types.gcp_types import (
-    DatasetName,
-    ProjectID,
-    TableID,
-    TableName,
+    BigQueryDatasetName,
+    GCPProjectID,
+    BigQueryTableID,
+    BigQueryTableName,
 )
 
 
@@ -25,9 +25,9 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
     def __init__(
         self,
         *,
-        project_id: ProjectID,
-        dataset_name: DatasetName,
-        table_name: TableName,
+        project_id: GCPProjectID,
+        dataset_name: BigQueryDatasetName,
+        table_name: BigQueryTableName,
         # sink-only options
         batch_size: str = 10_000,
         # pulumi-only options
@@ -44,7 +44,7 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         self.destroy_protection = destroy_protection
 
     @property
-    def table_id(self) -> TableID:
+    def table_id(self) -> BigQueryTableID:
         return f"{self.project_id}.{self.dataset_name}.{self.table_name}"
 
     def sink(self):

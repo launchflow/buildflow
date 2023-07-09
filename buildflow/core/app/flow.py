@@ -8,8 +8,12 @@ from typing import List, Optional, Type
 from buildflow.core import utils
 from buildflow.core.app.infra.actors.infra import InfraActor
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
-from buildflow.core.io.primitives.empty import EmptyPrimitive
-from buildflow.core.io.primitives.primitive import Primitive
+from buildflow.core.io.primitives.primitive import (
+    Primitive,
+    PrimitiveType,
+    PortablePrimtive,
+    EmptyPrimitive,
+)
 from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
@@ -18,10 +22,12 @@ from buildflow.core.providers.provider import (
     PulumiProvider,
     SinkProvider,
     SourceProvider,
+    EmptyPulumiProvider,
 )
 from buildflow.core.strategies._stategy import StategyType
 from buildflow.core.app.runtime.server import RuntimeServer
 from ray import serve
+from buildflow.config.buildflow_config import BuildFlowConfig
 
 
 def _get_directory_path_of_caller():
@@ -56,7 +62,7 @@ def pipeline_decorator(
         if "return" in full_arg_spec.annotations:
             output_type = full_arg_spec.annotations["return"]
 
-        def pulumi_resources(self, type_: Optional[Type]):
+        def pulumi_resources(type_: Optional[Type] = None):
             source_resources = source_pulumi_provider.pulumi_resources(input_type)
             sink_resources = sink_pulumi_provider.pulumi_resources(output_type)
             return source_resources + sink_resources
@@ -72,7 +78,7 @@ def pipeline_decorator(
                 "source": lambda self: source_provider.source(),
                 "sink": lambda self: sink_provider.sink(),
                 # ProcessorAPI methods. NOTE: process() is attached separately below
-                "resources": lambda self: pulumi_resources,
+                "resources": lambda self: pulumi_resources(),
                 "setup": lambda self: None,
                 "__call__": wrapper_function,
             },
@@ -99,7 +105,10 @@ class Flow:
         flow_options: Optional[FlowOptions] = None,
     ) -> None:
         # Load the BuildFlow Config to get the default options
-        os.path.join(_get_directory_path_of_caller(), ".buildflow")
+        buildflow_config_dir = os.path.join(
+            _get_directory_path_of_caller(), ".buildflow"
+        )
+        self.config = BuildFlowConfig.create_or_load(buildflow_config_dir)
         # Flow configuration
         self.flow_id = flow_id
         self.options = flow_options or FlowOptions.default()
@@ -114,7 +123,8 @@ class Flow:
     def _infra_actor(self) -> InfraActor:
         if self._infra_actor_ref is None:
             self._infra_actor_ref = InfraActor.remote(
-                infra_options=self.options.infra_options
+                infra_options=self.options.infra_options,
+                pulumi_config=self.config.pulumi_config,
             )
         return self._infra_actor_ref
 
@@ -126,8 +136,7 @@ class Flow:
             )
         return self._runtime_actor_ref
 
-    # NOTE: The Flow class is responsible for converting Resources / Primitives into a
-    # Provider.
+    # NOTE: The Flow class is responsible for converting Primitives into a Provider
     def pipeline(
         self,
         source: Primitive,
@@ -140,24 +149,32 @@ class Flow:
         if sink is None:
             sink = EmptyPrimitive()
 
-        if source.is_portable:
-            source = source.from_options(
-                options=self.options.primitive_options,
+        # We only create Pulumi resources for PortablePrimitives
+        source_pulumi_provider = EmptyPulumiProvider()
+        sink_pulumi_provider = EmptyPulumiProvider()
+
+        # Convert any PortablePrimtives into cloud-specific primitives
+        if source.primitive_type == PrimitiveType.PORTABLE:
+            source: PortablePrimtive
+            source = source.to_cloud_primitive(
+                cloud_provider_config=self.config.cloud_provider_config,
                 strategy_type=StategyType.SOURCE,
             )
-
-        if sink.is_portable:
-            sink = sink.from_options(
-                options=self.options.primitive_options,
+            source_pulumi_provider = source.pulumi_provider()
+        if sink.primitive_type == PrimitiveType.PORTABLE:
+            sink: PortablePrimtive
+            sink = sink.to_cloud_primitive(
+                cloud_provider_config=self.config.cloud_provider_config,
                 strategy_type=StategyType.SINK,
             )
+            sink_pulumi_provider = sink.pulumi_provider()
 
         return pipeline_decorator(
             flow=self,
             source_provider=source.source_provider(),
             sink_provider=sink.sink_provider(),
-            source_pulumi_provider=source.pulumi_provider(),
-            sink_pulumi_provider=sink.pulumi_provider(),
+            source_pulumi_provider=source_pulumi_provider,
+            sink_pulumi_provider=sink_pulumi_provider,
             processor_options=ProcessorOptions(
                 num_cpus=num_cpus,
                 num_concurrency=num_concurrency,
@@ -214,7 +231,7 @@ class Flow:
             server_log_message = (
                 "-" * 80
                 + "\n\n"
-                + f"Node Server running at http://{runtime_server_host}:{runtime_server_port}\n\n"
+                + f"Runtime Server running at http://{runtime_server_host}:{runtime_server_port}\n\n"
                 + "-" * 80
                 + "\n\n"
             )
@@ -251,7 +268,7 @@ class Flow:
 
     async def _plan(self):
         logging.debug(f"Planning Infra for Flow({self.flow_id})...")
-        await self._infra_actor.plan.remote(providers=self._processors)
+        await self._infra_actor.plan.remote(processors=self._processors)
         logging.debug(f"...Finished planning Infra for Flow({self.flow_id})")
 
     def apply(self):
@@ -259,7 +276,7 @@ class Flow:
 
     async def _apply(self):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
-        await self._infra_actor.apply.remote(providers=self._processors)
+        await self._infra_actor.apply.remote(processors=self._processors)
         logging.debug(f"...Finished setting up Infra for Flow({self.flow_id})")
 
     def destroy(self):
@@ -267,7 +284,7 @@ class Flow:
 
     async def _destroy(self):
         logging.debug(f"Tearing down infrastructure for Flow({self.flow_id})...")
-        await self._infra_actor.destroy.remote(providers=self._processors)
+        await self._infra_actor.destroy.remote(processors=self._processors)
         logging.debug(
             f"...Finished tearing down infrastructure for Flow({self.flow_id})"
         )

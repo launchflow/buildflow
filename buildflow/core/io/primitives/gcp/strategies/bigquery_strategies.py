@@ -4,10 +4,10 @@ from buildflow.core.io.clients import gcp_clients
 from buildflow.core.io.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.types.gcp_types import (
-    DatasetName,
-    ProjectID,
-    TableID,
-    TableName,
+    BigQueryDatasetName,
+    GCPProjectID,
+    BigQueryTableID,
+    BigQueryTableName,
 )
 
 
@@ -15,9 +15,9 @@ class StreamingBigQueryTableSink(SinkStrategy):
     def __init__(
         self,
         *,
-        project_id: ProjectID,
-        dataset_name: DatasetName,
-        table_name: TableName,
+        project_id: GCPProjectID,
+        dataset_name: BigQueryDatasetName,
+        table_name: BigQueryTableName,
         batch_size: int = 10_000,
     ):
         super().__init__(strategy_id="streaming-bigquery-table-sink")
@@ -30,7 +30,7 @@ class StreamingBigQueryTableSink(SinkStrategy):
         self.bq_client = gcp_clients.get_bigquery_client(self.project_id)
 
     @property
-    def table_id(self) -> TableID:
+    def table_id(self) -> BigQueryTableID:
         return f"{self.project_id}.{self.dataset_name}.{self.table_name}"
 
     async def push(self, batch: List[dict]):

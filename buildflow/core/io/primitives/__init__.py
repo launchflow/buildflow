@@ -1,3 +1,11 @@
 # ruff: noqa
-from .empty import EmptyPrimitive
-from .primitive import Primitive
+from .primitive import (
+    Primitive,
+    PrimitiveType,
+    EmptyPrimitive,
+    PortablePrimtive,
+    GCPPrimtive,
+    AWSPrimtive,
+    AzurePrimtive,
+    LocalPrimtive,
+)

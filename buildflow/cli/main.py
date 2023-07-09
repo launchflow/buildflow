@@ -3,6 +3,7 @@ import sys
 import typer
 
 import buildflow
+from buildflow.core.app.flow import Flow
 from buildflow.cli import utils
 
 BUILDFLOW_HELP = """\
@@ -50,14 +51,12 @@ def run(
 ):
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
-    if isinstance(imported, buildflow.Node):
+    if isinstance(imported, Flow):
         imported.run(
             disable_usage_stats=disable_usage_stats,
-            apply_infrastructure=apply_infrastructure,
-            destroy_infrastructure=destroy_infrastructure,
-            start_node_server=start_node_server,
-            node_server_host=node_server_host,
-            node_server_port=node_server_port,
+            start_runtime_server=start_node_server,
+            runtime_server_host=node_server_host,
+            runtime_server_port=node_server_port,
         )
     else:
         typer.echo(f"{app} is not a buildflow node.")

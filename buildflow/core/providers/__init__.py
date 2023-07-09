@@ -5,4 +5,5 @@ from .provider import (
     SourceProvider,
     SinkProvider,
     PulumiProvider,
+    EmptyPulumiProvider,
 )

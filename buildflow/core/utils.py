@@ -8,6 +8,7 @@ import time
 from functools import wraps
 from typing import Any, Dict, Optional, TypeVar
 from uuid import uuid4
+import yaml
 
 import requests
 
@@ -28,6 +29,18 @@ def read_json_file(file_path: str) -> Dict[str, Any]:
     if not os.path.exists(file_path):
         return {}
     return json.load(open(file_path, "r"))
+
+
+def write_yaml_file(file_path: str, data: Any):
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.makedirs(os.path.dirname(file_path))
+    yaml.dump(data, open(file_path, "w"), indent=4, sort_keys=False)
+
+
+def read_yaml_file(file_path: str) -> Dict[str, Any]:
+    if not os.path.exists(file_path):
+        return {}
+    return yaml.safe_load(open(file_path, "r"))
 
 
 def assert_path_exists(path: str):

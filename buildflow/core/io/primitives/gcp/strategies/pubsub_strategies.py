@@ -8,11 +8,11 @@ from buildflow.core.io.schemas import converters
 from buildflow.core.strategies.sink import Batch, SinkStrategy
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.core.types.gcp_types import (
-    ProjectID,
-    TopicID,
-    TopicName,
-    SubscriptionID,
-    SubscriptionName,
+    GCPProjectID,
+    PubSubTopicID,
+    PubSubTopicName,
+    PubSubSubscriptionID,
+    PubSubSubscriptionName,
 )
 from buildflow import exceptions
 from google.cloud.monitoring_v3 import query
@@ -34,8 +34,8 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
     def __init__(
         self,
         *,
-        subscription_name: SubscriptionName,
-        project_id: ProjectID,
+        subscription_name: PubSubSubscriptionName,
+        project_id: GCPProjectID,
         batch_size: int = 1000,
         include_attributes: bool = False,
     ):
@@ -51,7 +51,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         # initial state
 
     @property
-    def subscription_id(self) -> SubscriptionID:
+    def subscription_id(self) -> PubSubSubscriptionID:
         return f"projects/{self.project_id}/subscriptions/{self.subscription_name}"  # noqa: E501
 
     async def pull(self) -> PullResponse:
@@ -158,14 +158,14 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
 
 
 class GCPPubSubTopicSink(SinkStrategy):
-    def __init__(self, *, project_id: ProjectID, topic_name: TopicName):
+    def __init__(self, *, project_id: GCPProjectID, topic_name: PubSubTopicName):
         super().__init__(strategy_id="gcp-pubsub-topic-sink")
         self.project_id = project_id
         self.topic_name = topic_name
         self.publisher_client = gcp_clients.get_async_publisher_client(project_id)
 
     @property
-    def topic_id(self) -> TopicID:
+    def topic_id(self) -> PubSubTopicID:
         return f"projects/{self.project_id}/topics/{self.topic_name}"
 
     @utils.log_errors(endpoint="apis.buildflow.dev/...")

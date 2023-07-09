@@ -5,24 +5,25 @@ from buildflow.core.io.primitives.gcp.providers.pubsub_providers import (
     GCPPubSubTopicProvider,
     GCPPubSubSubscriptionProvider,
 )
-from buildflow.core.io.primitives.primitive import Primitive
-from buildflow.core.options.primitive_options import GCPOptions
+from buildflow.core.io.primitives.primitive import GCPPrimtive
+from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core.types.gcp_types import (
-    ProjectID,
-    SubscriptionName,
-    TopicID,
-    TopicName,
+    GCPProjectID,
+    PubSubSubscriptionName,
+    PubSubTopicID,
+    PubSubTopicName,
 )
+from buildflow.core.types.portable_types import TopicID
 
 
 @dataclasses.dataclass
-class GCPPubSubTopic(Primitive):
-    project_id: ProjectID
-    topic_name: TopicName
+class GCPPubSubTopic(GCPPrimtive):
+    project_id: GCPProjectID
+    topic_name: PubSubTopicName
 
     @classmethod
-    def from_options(cls, options: GCPOptions) -> "GCPPubSubTopic":
-        project_id = options.default_project_id
+    def from_gcp_options(cls, gcp_options: GCPOptions) -> "GCPPubSubTopic":
+        project_id = gcp_options.default_project_id
         project_hash = utils.stable_hash(project_id)
         topic_name = f"buildflow_topic_{project_hash[:8]}"
         return cls(
@@ -54,17 +55,22 @@ class GCPPubSubTopic(Primitive):
 # NOTE: A user should use this in the case where they want to connect to an existing
 # topic.
 @dataclasses.dataclass
-class GCPPubSubSubscription(Primitive):
-    project_id: ProjectID
-    subscription_name: SubscriptionName
+class GCPPubSubSubscription(GCPPrimtive):
+    project_id: GCPProjectID
+    subscription_name: PubSubSubscriptionName
     # required fields
-    topic_id: TopicID
+    topic_id: PubSubTopicID
 
     @classmethod
-    def from_options(
-        cls, options: GCPOptions, *, topic_id: TopicID
+    def from_gcp_options(
+        cls, gcp_options: GCPOptions, *, topic_id: TopicID
     ) -> "GCPPubSubSubscription":
-        project_id = options.default_project_id
+        project_id = gcp_options.default_project_id
+        if project_id is None:
+            raise ValueError(
+                "No Project ID was provided in the GCP options. Please provide one in "
+                "the .buildflow config."
+            )
         project_hash = utils.stable_hash(project_id)
         subscription_name = f"buildflow_subscription_{project_hash[:8]}"
         return cls(

@@ -14,15 +14,15 @@ from buildflow.core.providers.provider import (
 )
 from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.types.gcp_types import (
-    ProjectID,
-    SubscriptionName,
-    TopicID,
-    TopicName,
+    GCPProjectID,
+    PubSubSubscriptionName,
+    PubSubTopicID,
+    PubSubTopicName,
 )
 
 
 class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
-    def __init__(self, *, project_id: ProjectID, topic_name: TopicName):
+    def __init__(self, *, project_id: GCPProjectID, topic_name: PubSubTopicName):
         self.project_id = project_id
         self.topic_name = topic_name
 
@@ -52,9 +52,9 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
     def __init__(
         self,
         *,
-        project_id: ProjectID,
-        subscription_name: SubscriptionName,
-        topic_id: TopicID,
+        project_id: GCPProjectID,
+        subscription_name: PubSubSubscriptionName,
+        topic_id: PubSubTopicID,
         # source-only options
         batch_size: int = 1000,
         include_attributes: bool = False,

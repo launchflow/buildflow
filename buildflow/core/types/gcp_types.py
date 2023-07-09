@@ -1,26 +1,33 @@
+from buildflow.core.types.portable_types import TableName, TableID, TopicID, BucketName
+
 # TODO: Add comments to show the str patterns
 # Optional TODO: Add post-init validation on the str format
 
-ProjectID = str
 
-DatasetName = str
+# Project Level Types
+GCPProjectID = str
 
-TableName = str
+GCPRegion = str
 
-TableID = str
+GCPZone = str
 
-SubscriptionName = str
+# BigQuery Types
+BigQueryDatasetName = str
 
-SubscriptionID = str
+BigQueryTableName = TableName
 
-TopicName = str
+BigQueryTableID = TableID
 
-TopicID = str
+# PubSub Types
+PubSubSubscriptionName = str
 
-BucketName = str
+PubSubSubscriptionID = str
 
-BucketURL = str
+PubSubTopicName = str
 
-Region = str
+PubSubTopicID = TopicID
 
-Zone = str
+# Google Cloud Storage Types
+GCSBucketName = BucketName
+
+GCSBucketURL = str

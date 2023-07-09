@@ -17,6 +17,11 @@ class PulumiProvider(ProviderAPI):
         raise NotImplementedError("pulumi_resources not implemented for Provider")
 
 
+class EmptyPulumiProvider(PulumiProvider):
+    def pulumi_resources(self, type_: Optional[Type]) -> List[PulumiResource]:
+        return []
+
+
 class SourceProvider(ProviderAPI):
     def source(self) -> SourceStrategy:
         raise NotImplementedError("source not implemented for Provider")

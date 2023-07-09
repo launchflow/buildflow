@@ -12,6 +12,7 @@ from buildflow.core.app.infra.actors.pulumi_workspace import (
     WrappedUpResult,
 )
 from buildflow.core.options.infra_options import InfraOptions
+from buildflow.config.pulumi_config import PulumiConfig
 from buildflow.core.processor.processor import ProcessorAPI
 
 
@@ -20,6 +21,7 @@ class InfraActor(Infra):
     def __init__(
         self,
         infra_options: InfraOptions,
+        pulumi_config: PulumiConfig,
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -30,7 +32,8 @@ class InfraActor(Infra):
         # initial infra state
         self._status = InfraStatus.IDLE
         self._pulumi_workspace_actor = PulumiWorkspaceActor.remote(
-            infra_options.pulumi_options
+            infra_options.pulumi_options,
+            pulumi_config,
         )
 
     def _set_status(self, status: InfraStatus):
