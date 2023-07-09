@@ -58,7 +58,7 @@ class CloudProvider(enum.Enum):
 
 @dataclasses.dataclass
 class CloudProviderConfig(Config):
-    cloud_provider: CloudProvider
+    default_cloud_provider: CloudProvider
     # Options for each resource provider
     aws_options: AWSOptions
     azure_options: AzureOptions
@@ -68,7 +68,7 @@ class CloudProviderConfig(Config):
     @classmethod
     def default(cls) -> "CloudProviderConfig":
         return cls(
-            cloud_provider=CloudProvider.GCP,
+            default_cloud_provider=CloudProvider.GCP,
             aws_options=AWSOptions.default(),
             azure_options=AzureOptions.default(),
             gcp_options=GCPOptions.default(),
@@ -79,7 +79,7 @@ class CloudProviderConfig(Config):
     def load(cls, cloud_provider_config_path: str) -> "CloudProviderConfig":
         config_dict = utils.read_yaml_file(cloud_provider_config_path)
         return cls(
-            cloud_provider=CloudProvider(config_dict["cloud_provider"]),
+            default_cloud_provider=CloudProvider(config_dict["default_cloud_provider"]),
             aws_options=AWSOptions(**config_dict["aws"]),
             azure_options=AzureOptions(**config_dict["azure"]),
             gcp_options=GCPOptions(**config_dict["gcp"]),
@@ -88,7 +88,7 @@ class CloudProviderConfig(Config):
 
     def dump(self, cloud_provider_config_path: str):
         config_dict = {
-            "cloud_provider": self.cloud_provider.value,
+            "default_cloud_provider": self.default_cloud_provider.value,
             "aws": dataclasses.asdict(self.aws_options),
             "azure": dataclasses.asdict(self.azure_options),
             "gcp": dataclasses.asdict(self.gcp_options),

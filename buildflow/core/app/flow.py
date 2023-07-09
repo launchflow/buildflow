@@ -4,9 +4,10 @@ import logging
 import os
 import signal
 from typing import List, Optional, Type
-
+import dataclasses
 from buildflow.core import utils
 from buildflow.core.app.infra.actors.infra import InfraActor
+from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, WrappedStackState
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.io.primitives.primitive import (
     Primitive,
@@ -96,6 +97,12 @@ def pipeline_decorator(
 
 
 FlowID = str
+
+
+@dataclasses.dataclass
+class FlowState:
+    flow_id: FlowID
+    pulumi_stack_state: WrappedStackState
 
 
 class Flow:
@@ -288,3 +295,11 @@ class Flow:
         logging.debug(
             f"...Finished tearing down infrastructure for Flow({self.flow_id})"
         )
+
+    def get_pulumi_stack_state(self):
+        pulumi_workspace = PulumiWorkspace(
+            pulumi_options=self.options.infra_options.pulumi_options,
+            pulumi_config=self.config.pulumi_config,
+        )
+        stack_state = pulumi_workspace.get_stack_state()
+        return stack_state

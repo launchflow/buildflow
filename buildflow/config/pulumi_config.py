@@ -17,8 +17,8 @@ class PulumiConfig(Config):
     @classmethod
     def default(cls, *, pulumi_home_dir: str) -> "PulumiConfig":
         return cls(
-            stack_name="buildflow-dev",
-            project_name="buildflow-app",
+            stack_name="buildflow-stack",
+            project_name="buildflow-project",
             passphrase="buildflow-is-awesome",
             backend_url=f"file://{pulumi_home_dir}",
             pulumi_home=pulumi_home_dir,

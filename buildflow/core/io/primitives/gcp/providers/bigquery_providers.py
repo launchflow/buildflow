@@ -32,7 +32,8 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         batch_size: str = 10_000,
         # pulumi-only options
         include_dataset: bool = True,
-        destroy_protection: bool = True,
+        # TODO: Change this to True once we have a way to set this field
+        destroy_protection: bool = False,
     ):
         self.project_id = project_id
         self.dataset_name = dataset_name
@@ -64,14 +65,15 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
                 resource_name=dataset_resource_id,
                 project=self.project_id,
                 dataset_id=self.dataset_name,
+                delete_contents_on_destroy=(not self.destroy_protection),
             )
-            pulumi.export("gcp.bigquery.dataset_id", dataset_resource.dataset_id)
+            pulumi.export("gcp.bigquery.dataset_id", dataset_resource_id)
             resources.append(
                 PulumiResource(
                     resource_id=dataset_resource_id,
                     resource=dataset_resource,
                     exports={
-                        "gcp.bigquery.dataset_id": dataset_resource.dataset_id,
+                        "gcp.bigquery.dataset_id": dataset_resource_id,
                     },
                 )
             )
@@ -96,13 +98,13 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
             ),
             opts=pulumi.ResourceOptions(parent=parent),
         )
-        pulumi.export("gcp.bigquery.table_id", table_resource.table_id)
+        pulumi.export("gcp.bigquery.table_id", table_resource_id)
         resources.append(
             PulumiResource(
                 resource_id=table_resource_id,
                 resource=table_resource,
                 exports={
-                    "gcp.bigquery.table_id": table_resource.table_id,
+                    "gcp.bigquery.table_id": table_resource_id,
                 },
             )
         )

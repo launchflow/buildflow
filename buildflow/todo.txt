@@ -1,10 +1,15 @@
 BEFORE PR
 
-- Implement Flow State
-
 - Fix IO imports so users dont need to see provider stuff in their import path
 
 - Add other IO Providers
+
+
+IDEA
+
+infra view in extension could have a Stack view and Processor view.
+Stack view visualizes the pulumi state
+processor view visualizes the cloud primitives
 
 
 AFTER PR
@@ -26,3 +31,7 @@ AFTER PR
 - Clean up Options objects and make it easy to set nested options (i.e. autoscaling options)
 
 - Look for and fix any pulumi lock edge cases
+
+- move server options into runtime options
+
+- visualize pulumi state in extension 

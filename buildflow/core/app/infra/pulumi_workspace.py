@@ -1,9 +1,9 @@
 import dataclasses
 import logging
 import re
-from typing import Iterable
+from typing import Iterable, Optional
+import datetime
 
-import ray
 from pulumi import automation as auto
 
 from buildflow.config.pulumi_config import PulumiConfig
@@ -138,20 +138,73 @@ class WrappedOutputMap:
         print(self.output_map)
 
 
-@ray.remote
-class PulumiWorkspaceActor:
+@dataclasses.dataclass
+class WrappedStackState:
+    project_name: str
+    stack_name: str
+    update_summary: Optional[auto.UpdateSummary]
+    output_map: auto.OutputMap
+
+    @property
+    def last_updated(self):
+        if self.update_summary is not None:
+            return self.update_summary.end_time
+        else:
+            return datetime.datetime.now()
+
+    def print_summary(self):
+        if self.update_summary is None:
+            print("No stack state found")
+        else:
+            output_map_lines = [
+                f"    {output_key}: {output_value}"
+                for output_key, output_value in self.output_map.items()
+            ]
+            all_lines = [
+                "-" * 80,
+                f"Project Name: {self.project_name}",
+                f"Stack Name: {self.stack_name}",
+                f"Last Updated: {self.last_updated}",
+                "",
+                "Resource Outputs:",
+                "\n".join(output_map_lines),
+                "-" * 80,
+            ]
+            print("\n".join(all_lines))
+
+
+class PulumiWorkspace:
     def __init__(
         self, pulumi_options: PulumiOptions, pulumi_config: PulumiConfig
     ) -> None:
-        # NOTE: Ray actors run in their own process, so we need to configure
-        # logging per actor / remote task.
-        logging.getLogger().setLevel(pulumi_options.log_level)
-
         # configuration
         self.options = pulumi_options
         self.config = pulumi_config
         # initial state
         self._pulumi_program_cache = {}
+
+    def get_stack_state(self) -> WrappedStackState:
+        try:
+            stack = auto.select_stack(
+                stack_name=self.config.stack_name,
+                project_name=self.config.project_name,
+                program=None,
+                work_dir=self.config.pulumi_home,
+                opts=self.config.workspace_options(),
+            )
+            return WrappedStackState(
+                project_name=self.config.project_name,
+                stack_name=self.config.stack_name,
+                update_summary=stack.info(),
+                output_map=stack.outputs(),
+            )
+        except auto.StackNotFoundError:
+            return WrappedStackState(
+                project_name=self.config.project_name,
+                stack_name=self.config.stack_name,
+                update_summary=None,
+                output_map={},
+            )
 
     async def refresh(
         self, *, processors: Iterable[ProcessorAPI]

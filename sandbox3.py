@@ -46,6 +46,3 @@ bigquery_sink = AnalysisTable(table_name="tanke_table")
 )
 def my_processor(pubsub_message: TaxiOutput) -> TaxiOutput:
     return pubsub_message
-
-
-app.run(disable_usage_stats=True, start_runtime_server=True)

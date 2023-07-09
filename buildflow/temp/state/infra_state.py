@@ -2,7 +2,7 @@ import dataclasses
 
 from buildflow.core import utils
 from buildflow.core.app.infra._infra import InfraStatus
-from buildflow.core.runner.state._state import State
+from buildflow.core.app.state._state import State
 
 
 @dataclasses.dataclass

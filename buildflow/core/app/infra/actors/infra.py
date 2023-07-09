@@ -4,8 +4,8 @@ from typing import Iterable
 import ray
 
 from buildflow.core.app.infra._infra import Infra, InfraStatus
-from buildflow.core.app.infra.actors.pulumi_workspace import (
-    PulumiWorkspaceActor,
+from buildflow.core.app.infra.pulumi_workspace import (
+    PulumiWorkspace,
     WrappedDestroyResult,
     WrappedOutputMap,
     WrappedPreviewResult,
@@ -31,7 +31,7 @@ class InfraActor(Infra):
         self.options = infra_options
         # initial infra state
         self._status = InfraStatus.IDLE
-        self._pulumi_workspace_actor = PulumiWorkspaceActor.remote(
+        self._pulumi_workspace = PulumiWorkspace(
             infra_options.pulumi_options,
             pulumi_config,
         )
@@ -45,8 +45,8 @@ class InfraActor(Infra):
             raise RuntimeError("Can only plan Infra while Idle.")
         self._set_status(InfraStatus.PLANNING)
 
-        preview_result: WrappedPreviewResult = (
-            await self._pulumi_workspace_actor.preview.remote(processors=processors)
+        preview_result: WrappedPreviewResult = await self._pulumi_workspace.preview(
+            processors=processors
         )
         preview_result.log_summary()
         preview_result.print_change_summary()
@@ -60,8 +60,8 @@ class InfraActor(Infra):
         self._set_status(InfraStatus.APPLYING)
 
         # Planning phase (no remote state changes)
-        preview_result: WrappedPreviewResult = (
-            await self._pulumi_workspace_actor.preview.remote(processors=processors)
+        preview_result: WrappedPreviewResult = await self._pulumi_workspace.preview(
+            processors=processors
         )
         if self.options.require_confirmation:
             print("Would you like to apply these changes?")
@@ -76,7 +76,7 @@ class InfraActor(Infra):
         # logging.warning(f"apply: Applying: {preview_result.change_summary}")
 
         # Execution phase (potentially remote state changes)
-        up_result: WrappedUpResult = await self._pulumi_workspace_actor.up.remote(
+        up_result: WrappedUpResult = await self._pulumi_workspace.up(
             processors=processors
         )
         up_result.log_summary()
@@ -90,8 +90,8 @@ class InfraActor(Infra):
         self._set_status(InfraStatus.DESTROYING)
 
         # Planning phase (no remote state changes)
-        output_map: WrappedOutputMap = (
-            await self._pulumi_workspace_actor.outputs.remote(processors=processors)
+        output_map: WrappedOutputMap = await self._pulumi_workspace.outputs(
+            processors=processors
         )
         if self.options.require_confirmation:
             print("Would you like to delete this infra?")
@@ -103,8 +103,8 @@ class InfraActor(Infra):
             print("User confirmed Infra changes. Destroying.")
 
         # Execution phase (potentially remote state changes)
-        destroy_result: WrappedDestroyResult = (
-            await self._pulumi_workspace_actor.destroy.remote(processors=processors)
+        destroy_result: WrappedDestroyResult = await self._pulumi_workspace.destroy(
+            processors=processors
         )
         destroy_result.log_summary()
 

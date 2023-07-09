@@ -18,7 +18,7 @@ class Topic(PortablePrimtive):
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
     ) -> Primitive:
         # GCP Implementations
-        if cloud_provider_config.cloud_provider == CloudProvider.GCP:
+        if cloud_provider_config.default_cloud_provider == CloudProvider.GCP:
             if strategy_type == StategyType.SOURCE:
                 return GCPPubSubSubscription.from_gcp_options(
                     gcp_options=cloud_provider_config.gcp_options,
@@ -33,16 +33,16 @@ class Topic(PortablePrimtive):
                     f"Unsupported strategy type for Topic (GCP): {strategy_type}"
                 )
         # AWS Implementations
-        elif cloud_provider_config.cloud_provider == CloudProvider.AWS:
+        elif cloud_provider_config.default_cloud_provider == CloudProvider.AWS:
             raise NotImplementedError("AWS is not implemented for Topic.")
         # Azure Implementations
-        elif cloud_provider_config.cloud_provider == CloudProvider.AZURE:
+        elif cloud_provider_config.default_cloud_provider == CloudProvider.AZURE:
             raise NotImplementedError("Azure is not implemented for Topic.")
         # Local Implementations
-        elif cloud_provider_config.cloud_provider == CloudProvider.LOCAL:
+        elif cloud_provider_config.default_cloud_provider == CloudProvider.LOCAL:
             raise NotImplementedError("Local is not implemented for Topic.")
         # Sanity check
         else:
             raise ValueError(
-                f"Unknown resource provider: {cloud_provider_config.cloud_provider}"
+                f"Unknown resource provider: {cloud_provider_config.default_cloud_provider}"
             )
