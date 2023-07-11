@@ -72,6 +72,7 @@ class BigQueryTest(unittest.TestCase):
             self.assertEqual(
                 schema, '[{"name": "value", "type": "INTEGER", "mode": "REQUIRED"}]'
             )
+            # Deletion protection is enabled by default
             self.assertEqual(delete_protect, True)
 
         pulumi.Output.all(
