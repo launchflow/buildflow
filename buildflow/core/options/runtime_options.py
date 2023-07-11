@@ -31,9 +31,9 @@ class AutoscalerOptions(Options):
     @classmethod
     def default(cls) -> "AutoscalerOptions":
         return cls(
-            enable_autoscaler=False,
+            enable_autoscaler=True,
             min_replicas=1,
-            max_replicas=1,
+            max_replicas=1000,
             log_level="INFO",
         )
 
