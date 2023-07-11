@@ -34,6 +34,7 @@ dependencies = [
     "pulumi==3.35.3",
     "pulumi_gcp",
     "pyarrow",
+    "pydantic < 2.0.2",
     "pyyaml",
     "ray[default] > 2.0.0",
     "ray[serve] > 2.0.0",
