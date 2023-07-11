@@ -91,7 +91,8 @@ class BigQueryTest(unittest.TestCase):
         )
 
     def test_bigquery_table_pulumi_no_protect(self):
-        # DO NOT SUBMIT: Support setting deletion field and not setting dataset and update this test
+        # DO NOT SUBMIT: Support setting deletion field and not setting dataset and
+        # update this test
         bigquery_table = BigQueryTable(
             project_id="project_id",
             dataset_name="dataset_name",

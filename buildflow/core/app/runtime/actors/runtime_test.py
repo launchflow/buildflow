@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pyarrow.csv as pcsv
 import pytest
+import ray
 
 from buildflow.core.app.flow import Flow
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
@@ -14,6 +15,8 @@ from buildflow.core.io.local.file import File
 from buildflow.core.io.local.pulse import Pulse
 from buildflow.core.options import ProcessorOptions, RuntimeOptions
 from buildflow.core.types.local_types import FileFormat
+
+ray.init(num_cpus=2)
 
 
 @pytest.mark.usefixtures("ray_fix")
