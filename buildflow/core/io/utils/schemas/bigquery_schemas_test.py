@@ -1,12 +1,12 @@
-from dataclasses import dataclass
 import dataclasses
-from datetime import date, datetime, time
-from typing import Optional, List, Union
 import unittest
+from dataclasses import dataclass
+from datetime import date, datetime, time
+from typing import List, Optional, Union
 
 from google.cloud import bigquery
 
-from buildflow.resources.io.providers.schemas import bigquery_schemas as bq_schemas
+from buildflow.core.io.utils.schemas import bigquery_schemas as bq_schemas
 
 
 class BigqueryTest(unittest.TestCase):

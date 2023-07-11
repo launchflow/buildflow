@@ -4,16 +4,15 @@ from unittest import mock
 
 import pytest
 
-from buildflow.api import RuntimeStatus
-from buildflow.core.runtime import autoscale
-from buildflow.core.runtime.actors.process_pool import (
-    ProcessorSnapshot,
-    PullProcessPushSnapshot,
-    RayActorInfo,
-    SourceInfo,
+from buildflow.core.app.runtime._runtime import RuntimeStatus
+from buildflow.core.app.runtime import autoscaler
+from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
+    PipelineProcessorSnapshot,
 )
-from buildflow.core.runtime.options import AutoscalerOptions
-from buildflow.core.runtime.metrics import RateCalculation
+from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
+
+from buildflow.core.options.runtime_options import AutoscalerOptions
+from buildflow.core.app.runtime.metrics import RateCalculation
 
 
 @mock.patch("ray.available_resources", return_value={"CPU": 32})
@@ -30,20 +29,28 @@ class AutoScalerTest(unittest.TestCase):
         # (100_000 / 12_00).
         events_processed_per_replica = 12_000
         non_empty_ratio_per_replica = 1
-        replicas = [
-            PullProcessPushSnapshot(
-                status=RuntimeStatus.RUNNING,
-                events_processed_per_sec=RateCalculation(
-                    events_processed_per_replica, 1, 60
-                ),
-                pull_percentage=RateCalculation(non_empty_ratio_per_replica, 1, 60),
-                process_time_millis=RateCalculation(0, 0, 60),
-                process_batch_time_millis=RateCalculation(0, 0, 60),
-                pull_to_ack_time_millis=RateCalculation(0, 0, 60),
-            )
-        ] * num_replicas
+
+        # pipeline_processor_snapshot = PipelineProcessorSnapshot(
+        #     status=RuntimeStatus.RUNNING,
+        #     timestamp_millis=0,
+        #     processor_id="test",
+        #     processor_type=ProcessorType.PIPELINE,
+        #     num_replicas=num_replicas,
+        #     num_cpu_per_replica=0.1,
+        #     num_concurrency_per_replica=1,
+        #     source_backlog=backlog,
+        #     total_events_processed_per_sec=0,
+        #     eta_secs=0,
+        #     total_pulls_per_sec=0,
+        #     avg_num_elements_per_batch=0,
+        #     avg_pull_percentage_per_replica=non_empty_ratio_per_replica,
+        #     avg_process_time_millis_per_element=0,
+        #     avg_process_time_millis_per_batch=0,
+        #     avg_pull_to_ack_time_millis_per_batch=0,
+        # )
+
         with self._caplog.at_level(logging.WARNING):
-            rec_replicas = autoscale.calculate_target_num_replicas(
+            rec_replicas = autoscaler.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
                     status=RuntimeStatus.RUNNING,
                     processor_id="test",
@@ -67,7 +74,7 @@ class AutoScalerTest(unittest.TestCase):
 
         self.assertEqual(8, rec_replicas)
 
-    @mock.patch("buildflow.core.runtime.autoscale.request_resources")
+    @mock.patch("buildflow.core.runtime.autoscaler.request_resources")
     def test_scale_down_to_estimated_replicas(
         self, request_resources_mock: mock.MagicMock, resources_mock
     ):
@@ -95,7 +102,7 @@ class AutoScalerTest(unittest.TestCase):
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
-            rec_replicas = autoscale.calculate_target_num_replicas(
+            rec_replicas = autoscaler.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
                     status=RuntimeStatus.RUNNING,
                     processor_id="test",
@@ -142,7 +149,7 @@ class AutoScalerTest(unittest.TestCase):
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
-            rec_replicas = autoscale.calculate_target_num_replicas(
+            rec_replicas = autoscaler.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
                     status=RuntimeStatus.RUNNING,
                     processor_id="test",
@@ -166,7 +173,7 @@ class AutoScalerTest(unittest.TestCase):
 
         self.assertEqual(5, rec_replicas)
 
-    @mock.patch("buildflow.core.runtime.autoscale.request_resources")
+    @mock.patch("buildflow.core.runtime.autoscaler.request_resources")
     def test_scale_up_to_max_cpu_replicas(
         self, request_resources_mock: mock.MagicMock, resources_mock
     ):
@@ -194,7 +201,7 @@ class AutoScalerTest(unittest.TestCase):
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
-            rec_replicas = autoscale.calculate_target_num_replicas(
+            rec_replicas = autoscaler.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
                     status=RuntimeStatus.RUNNING,
                     processor_id="test",
@@ -246,7 +253,7 @@ class AutoScalerTest(unittest.TestCase):
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
-            rec_replicas = autoscale.calculate_target_num_replicas(
+            rec_replicas = autoscaler.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
                     status=RuntimeStatus.RUNNING,
                     processor_id="test",
@@ -270,7 +277,7 @@ class AutoScalerTest(unittest.TestCase):
 
             self.assertEqual(84, rec_replicas)
 
-    @mock.patch("buildflow.core.runtime.autoscale.request_resources")
+    @mock.patch("buildflow.core.runtime.autoscaler.request_resources")
     def test_scale_down_to_target_utilization(
         self, request_resources_mock: mock.MagicMock, resources_mock
     ):
@@ -297,7 +304,7 @@ class AutoScalerTest(unittest.TestCase):
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
-            rec_replicas = autoscale.calculate_target_num_replicas(
+            rec_replicas = autoscaler.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
                     status=RuntimeStatus.RUNNING,
                     processor_id="test",
@@ -323,7 +330,7 @@ class AutoScalerTest(unittest.TestCase):
         # .1 * 15 = 1.5 so 2 cpus
         request_resources_mock.assert_called_once_with(num_cpus=2)
 
-    @mock.patch("buildflow.core.runtime.autoscale.request_resources")
+    @mock.patch("buildflow.core.runtime.autoscaler.request_resources")
     def test_scale_down_to_min_options_replicas(
         self, request_resources_mock: mock.MagicMock, resources_mock
     ):
@@ -351,7 +358,7 @@ class AutoScalerTest(unittest.TestCase):
             )
         ] * num_replicas
         with self._caplog.at_level(logging.WARNING):
-            rec_replicas = autoscale.calculate_target_num_replicas(
+            rec_replicas = autoscaler.calculate_target_num_replicas(
                 snapshot=ProcessorSnapshot(
                     status=RuntimeStatus.RUNNING,
                     processor_id="test",

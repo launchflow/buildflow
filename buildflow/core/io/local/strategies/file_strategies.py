@@ -10,7 +10,7 @@ import pyarrow.csv as pcsv
 
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
-from buildflow.core.types.local_types import FileFormat, FilePath
+from buildflow.core.types.local_types import FilePath, FileFormat
 
 
 class FileSink(SinkStrategy):

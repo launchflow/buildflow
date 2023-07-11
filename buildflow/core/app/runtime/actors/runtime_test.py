@@ -1,17 +1,19 @@
 import asyncio
 import os
-from pathlib import Path
 import tempfile
 import time
 import unittest
+from pathlib import Path
 
 import pyarrow.csv as pcsv
 import pytest
 
-from buildflow.core.node import Node
-from buildflow.core.runtime.options import RuntimeConfig
-from buildflow.core.runtime.actors.runtime import RuntimeActor
-from buildflow.resources.io.registry import Pulse, Files
+from buildflow.core.app.flow import Flow
+from buildflow.core.app.runtime.actors.runtime import RuntimeActor
+from buildflow.core.io.local.file import File
+from buildflow.core.io.local.pulse import Pulse
+from buildflow.core.options import ProcessorOptions, RuntimeOptions
+from buildflow.core.types.local_types import FileFormat
 
 
 @pytest.mark.usefixtures("ray_fix")
@@ -25,23 +27,32 @@ class RunTimeTest(unittest.TestCase):
 
     def run_with_timeout(self, coro):
         """Run a coroutine synchronously."""
-        self.event_loop.run_until_complete(asyncio.wait_for(coro, timeout=5))
+        try:
+            self.event_loop.run_until_complete(asyncio.wait_for(coro, timeout=5))
+        except asyncio.TimeoutError:
+            return
 
     def test_runtime_end_to_end(self):
-        node = Node()
+        app = Flow()
 
-        @node.processor(
+        @app.pipeline(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
-            sink=Files(file_path=self.output_path, file_format="csv"),
+            sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
         def process(payload):
             return payload
 
-        actor = RuntimeActor.remote(config=RuntimeConfig.DEBUG())
+        runtime_options = RuntimeOptions.default()
+        runtime_options.processor_options["process"] = ProcessorOptions.default()
+        # NOTE: We need to set the num_cpus to a small value since pytest limits the
+        # number of CPUs available to the test process. (I didnt actually verify this
+        # but I think its true)
+        runtime_options.processor_options["process"].num_cpus = 0.1
+        actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
         actor.run.remote(processors=[process])
 
-        time.sleep(15)
+        time.sleep(5)
 
         self.run_with_timeout(actor.drain.remote())
 

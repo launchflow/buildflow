@@ -1,7 +1,10 @@
 import time
 import unittest
 
-from buildflow.core.runtime.metrics import CompositeRateCounterMetric, RateCalculation
+from buildflow.core.app.runtime.metrics import (
+    CompositeRateCounterMetric,
+    RateCalculation,
+)
 
 
 class MetricsTest(unittest.TestCase):
@@ -30,7 +33,7 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(
             result, RateCalculation(values_sum=20, values_count=3, num_rate_seconds=3)
         )
-        time.sleep(1)
+        time.sleep(0.99)
         counter.inc(20)
         counter.inc(30)
         result = counter.calculate_rate()
