@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pyarrow.csv as pcsv
 import pytest
-import ray
 
 from buildflow.core.app.flow import Flow
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
@@ -48,7 +47,7 @@ class RunTimeTest(unittest.TestCase):
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
         # but I think its true)
-        runtime_options.processor_options["process"].num_cpus = 0.1
+        runtime_options.processor_options["process"].num_cpus = 0.5
         actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
         actor.run.remote(processors=[process])
