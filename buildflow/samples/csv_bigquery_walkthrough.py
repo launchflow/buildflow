@@ -6,7 +6,7 @@ import io
 from typing import List
 
 import buildflow
-from buildflow import Node, InfraConfig, SchemaValidation
+from buildflow import Node, InfraOptions, SchemaValidation
 
 gcp_project = os.environ["GCP_PROJECT"]
 bucket_name = os.environ["BUCKET_NAME"]
@@ -46,8 +46,8 @@ class AggregateWikiPageViews:
     min_page_views_per_hour: HourAggregate
 
 
-infra_config = InfraConfig(
-    schema_validation=SchemaValidation.LOG_WARNING,
+infra_config = InfraOptions(
+    schema_validation=SchemaValidation.WARNING,
     require_confirmation=False,
     log_level="WARNING",
 )

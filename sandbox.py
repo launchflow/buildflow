@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from buildflow import Node, RuntimeConfig
-from buildflow.io import GCPPubSubSubscription, BigQueryTable
+from buildflow.resources.io import GCPPubSubSubscription, BigQueryTable
 
 
 @dataclass
@@ -50,7 +50,7 @@ bigquery_sink = BigQueryTable(
     num_cpus=0.5,
     num_concurrency=8,
 )
-def process(pubsub_message: TaxiOutput) -> TaxiOutput:
+def my_processor(pubsub_message: TaxiOutput) -> TaxiOutput:
     # print('Process: ', pubsub_message)
     # should_fail = random.randint(0, 1)
     # if should_fail:

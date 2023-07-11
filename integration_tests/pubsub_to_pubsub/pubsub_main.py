@@ -9,8 +9,8 @@ outgoing_topic = os.environ["OUTGOING_TOPIC"]
 incoming_topic = os.environ["INCOMING_TOPIC"]
 main_sub = os.environ["MAIN_SUB"]
 
-infra_config = buildflow.InfraConfig(
-    schema_validation=buildflow.SchemaValidation.LOG_WARNING,
+infra_config = buildflow.InfraOptions(
+    schema_validation=buildflow.SchemaValidation.WARNING,
     require_confirmation=False,
     log_level="WARNING",
 )

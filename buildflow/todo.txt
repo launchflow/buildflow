@@ -1,0 +1,28 @@
+BEFORE PR
+
+
+AFTER PR
+
+- Add other IO Providers
+
+- Add other Processor Patterns
+
+- Add a Debug runtime
+
+- Add metrics about the amount of data in the in-memory buffer to help debug OOM errors
+
+- Fix bug where you drain during scaling up. It will get stuck and cannot drain
+
+- add ability to turn off in-memory metrics 
+
+- Add the ability to set config fields as options
+
+- add method for user to set deletion_protection for pulumi
+
+- Clean up Options objects and make it easy to set nested options (i.e. autoscaling options)
+
+- Look for and fix any pulumi lock edge cases
+
+- move server options into runtime options
+
+- visualize pulumi state in extension 
