@@ -24,7 +24,8 @@ from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.app.runtime._runtime import RunID
 
 
-# NOTE: The parent snapshot class includes metrics that are common to all Processor types.
+# NOTE: The parent snapshot class includes metrics that are common to all Processor
+# types.
 @dataclasses.dataclass
 class PipelineProcessorSnapshot(ProcessorSnapshot):
     source_backlog: float

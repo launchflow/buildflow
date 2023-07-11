@@ -167,7 +167,8 @@ class ProcessorReplicaPoolActor(Runtime):
             self._status = RuntimeStatus.IDLE
         return self._status
 
-    # NOTE: Subclasses should override this method if they need to provide additional metrics.
+    # NOTE: Subclasses should override this method if they need to provide additional
+    # metrics.
     async def snapshot(self) -> ProcessorSnapshot:
         return ProcessorSnapshot(
             status=self._status,

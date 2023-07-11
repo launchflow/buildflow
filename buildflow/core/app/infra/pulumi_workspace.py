@@ -13,9 +13,10 @@ from buildflow.core.processor.processor import ProcessorAPI
 
 # TODO: This only works when its the only error in the logs. Need to update the regex
 # Pulumi will log this error that we want to catch:
-# A new version of Pulumi is available. To upgrade from version '3.68.0' to '3.73.0', run
-# $ curl -sSL https://get.pulumi.com | sh
-# or visit https://pulumi.com/docs/reference/install/ for manual instructions and release notes.
+# A new version of Pulumi is available. To upgrade from version '3.68.0' to '3.73.0',
+# run $ curl -sSL https://get.pulumi.com | sh
+# or visit https://pulumi.com/docs/reference/install/ for manual instructions and
+# release notes.
 def _remove_pulumi_upgrade_error_from_logs(stderr: str):
     # The regular expression .* does not match newline characters by default.
     # flags=re.DOTALL makes . the re expression match any character including a newline
