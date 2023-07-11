@@ -16,8 +16,6 @@ from buildflow.core.io.local.pulse import Pulse
 from buildflow.core.options import ProcessorOptions, RuntimeOptions
 from buildflow.core.types.local_types import FileFormat
 
-ray.init(num_cpus=1)
-
 
 @pytest.mark.usefixtures("ray_fix")
 @pytest.mark.usefixtures("event_loop_instance")
