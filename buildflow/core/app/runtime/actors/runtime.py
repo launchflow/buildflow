@@ -52,6 +52,9 @@ class RuntimeActor(Runtime):
         run_id: RunID,
         *,
         runtime_options: RuntimeOptions,
+        # NOTE: we set this here instead of options since users don't need to set it.
+        # if we want we could expose it in options.
+        checkin_loop_frequency_sec: int = 5,
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -64,6 +67,7 @@ class RuntimeActor(Runtime):
         self._status = RuntimeStatus.IDLE
         self._processor_pool_refs = []
         self._runtime_loop_future = None
+        self._checkin_loop_frequency_sec = checkin_loop_frequency_sec
 
     def _set_status(self, status: RuntimeStatus):
         self._status = status
@@ -113,8 +117,8 @@ class RuntimeActor(Runtime):
             logging.warning("Received drain single twice. Killing remaining actors.")
             [ray.kill(actor) for actor in self._processor_pool_refs]
         else:
-            logging.info("Draining Runtime...")
-            logging.info("-- Attempting to drain again will force stop the runtime.")
+            logging.warning("Draining Runtime...")
+            logging.warning("-- Attempting to drain again will force stop the runtime.")
             self._set_status(RuntimeStatus.DRAINING)
             drain_tasks = [
                 processor_pool.actor_handle.drain.remote()
@@ -173,7 +177,7 @@ class RuntimeActor(Runtime):
                         PipelineProcessorReplicaPoolActor.remote(
                             self.run_id,
                             processor_pool.processor,
-                            processor_pool.processor_options,
+                            processor_pool.options,
                         )
                     )
                     # Restart with the default number of replicas, and let autoscale
@@ -206,4 +210,4 @@ class RuntimeActor(Runtime):
                     )
 
             # TODO: Add more control / configuration around the checkin loop
-            await asyncio.sleep(30)
+            await asyncio.sleep(self._checkin_loop_frequency_sec)
