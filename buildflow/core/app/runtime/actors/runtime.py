@@ -199,9 +199,11 @@ class RuntimeActor(Runtime):
 
                 num_replicas_delta = target_num_replicas - current_num_replicas
                 if num_replicas_delta > 0:
-                    processor_pool.add_replicas.remote(num_replicas_delta)
+                    processor_pool.actor_handle.add_replicas.remote(num_replicas_delta)
                 elif num_replicas_delta < 0:
-                    processor_pool.remove_replicas.remote(abs(num_replicas_delta))
+                    processor_pool.actor_handle.remove_replicas.remote(
+                        abs(num_replicas_delta)
+                    )
 
             # TODO: Add more control / configuration around the checkin loop
             await asyncio.sleep(30)
