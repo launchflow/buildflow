@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 
 import typer
 
@@ -40,6 +41,7 @@ def run(
     runtime_server_port: int = typer.Option(
         9653, help="The port to use for the flow server."
     ),
+    run_id: Optional[str] = typer.Option(None, help="The run id to use for this run."),
     app_dir: str = APP_DIR_OPTION,
 ):
     sys.path.insert(0, app_dir)
@@ -50,6 +52,7 @@ def run(
             start_runtime_server=start_runtime_server,
             runtime_server_host=runtime_server_host,
             runtime_server_port=runtime_server_port,
+            run_id=run_id,
         )
     else:
         typer.echo(f"{app} is not a buildflow flow.")
