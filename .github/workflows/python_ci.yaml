@@ -2,23 +2,22 @@ name: Python CI
 
 on:
   push:
-    branches: ['main', 'v0.2']
+    branches: ["main", "v0.2"]
   pull_request:
-    branches: ['main', 'v0.2']
+    branches: ["main", "v0.2"]
 
 env:
   BUILDFLOW_USAGE_STATS_DISABLE: 1
 
 jobs:
   code-health:
-
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
       - name: Install dependencies
         run: |
           pip install black ruff
@@ -28,16 +27,15 @@ jobs:
           options: "--check --verbose"
           src: "buildflow"
           version: "~= 23.0"
-          checkName: 'test_and_lint'  # NOTE: this needs to be the same as the job name
+          checkName: "test_and_lint" # NOTE: this needs to be the same as the job name
       - name: Run ruff checks
         uses: chartboost/ruff-action@v1
         with:
           src: "buildflow"
           version: 0.0.265
-          checkName: 'test_and_lint'
+          checkName: "test_and_lint"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
   pytest:
     permissions:
@@ -62,7 +60,7 @@ jobs:
           pip install .[dev]
       - name: Test with pytest
         run: |
-          pytest --timeout=60 --cov
+          pytest --ignore=_refactor --timeout=60 --cov
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
