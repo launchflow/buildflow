@@ -35,7 +35,9 @@ def _available_replicas(cpu_per_replica: float):
     return int(num_cpus / cpu_per_replica)
 
 
-def _calculate_target_num_replicas_for_pipeline(snapshot: PipelineProcessorSnapshot, config: AutoscalerOptions):
+def _calculate_target_num_replicas_for_pipeline(
+    snapshot: PipelineProcessorSnapshot, config: AutoscalerOptions
+):
     cpus_per_replica = snapshot.num_cpu_per_replica
     avg_utilization_score = snapshot.avg_pull_percentage_per_replica
     total_utilization_score = avg_utilization_score * snapshot.num_replicas
@@ -109,7 +111,6 @@ def _calculate_target_num_replicas_for_pipeline(snapshot: PipelineProcessorSnaps
         "---------------------------------------------------------\n"
     )
     return new_num_replicas
-
 
 
 # TODO: Explore making the entire runtime autoscale
