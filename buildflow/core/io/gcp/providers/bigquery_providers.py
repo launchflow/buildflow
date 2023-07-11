@@ -32,7 +32,6 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         batch_size: str = 10_000,
         # pulumi-only options
         include_dataset: bool = True,
-        # TODO: Change this to True once we have a way to set this field
         destroy_protection: bool = False,
     ):
         self.project_id = project_id
@@ -93,9 +92,7 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
             dataset_id=self.dataset_name,
             table_id=self.table_name,
             schema=schema,
-            deletion_protection=(
-                self.destroy_protection if not self.destroy_protection else None
-            ),
+            deletion_protection=self.destroy_protection,
             opts=pulumi.ResourceOptions(parent=parent),
         )
         pulumi.export("gcp.bigquery.table_id", table_resource_id)

@@ -72,7 +72,7 @@ class BigQueryTest(unittest.TestCase):
             self.assertEqual(
                 schema, '[{"name": "value", "type": "INTEGER", "mode": "REQUIRED"}]'
             )
-            self.assertEqual(delete_protect, False)
+            self.assertEqual(delete_protect, True)
 
         pulumi.Output.all(
             table_resource.urn,
@@ -91,12 +91,11 @@ class BigQueryTest(unittest.TestCase):
         )
 
     def test_bigquery_table_pulumi_no_protect(self):
-        # DO NOT SUBMIT: Support setting deletion field and not setting dataset and
-        # update this test
         bigquery_table = BigQueryTable(
             project_id="project_id",
             dataset_name="dataset_name",
             table_name="table_name",
+            destroy_protection=False,
         )
 
         pulumi_resources: List[

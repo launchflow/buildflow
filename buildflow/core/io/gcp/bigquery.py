@@ -20,6 +20,7 @@ class BigQueryTable(GCPPrimtive):
     project_id: GCPProjectID
     dataset_name: BigQueryDatasetName
     table_name: BigQueryTableName
+    destroy_protection: bool = True
 
     @property
     def table_id(self) -> BigQueryTableID:
@@ -45,6 +46,7 @@ class BigQueryTable(GCPPrimtive):
             project_id=project_id,
             dataset_name="buildflow_managed",
             table_name=table_name,
+            destroy_protection=True,
         )
 
     def sink_provider(self) -> BigQueryTableProvider:
@@ -53,6 +55,7 @@ class BigQueryTable(GCPPrimtive):
             project_id=self.project_id,
             dataset_name=self.dataset_name,
             table_name=self.table_name,
+            destroy_protection=self.destroy_protection,
         )
 
     def pulumi_provider(self) -> BigQueryTableProvider:
@@ -61,4 +64,5 @@ class BigQueryTable(GCPPrimtive):
             project_id=self.project_id,
             dataset_name=self.dataset_name,
             table_name=self.table_name,
+            destroy_protection=self.destroy_protection,
         )

@@ -27,6 +27,7 @@ class PrimitiveType(enum.Enum):
 class Primitive:
     primitive_type: PrimitiveType
     managed: bool = False
+    destroy_protection: bool = False
 
     def enable_managed(self):
         """Enable managed mode."""
