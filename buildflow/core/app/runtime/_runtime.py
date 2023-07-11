@@ -1,6 +1,9 @@
 import enum
 
 
+RunID = str
+
+
 class RuntimeStatus(enum.Enum):
     IDLE = enum.auto()
     RUNNING = enum.auto()
@@ -17,7 +20,9 @@ class Snapshot:
 
 
 class Runtime:
-    async def run(self) -> bool:
+    run_id: RunID
+
+    async def run(self, run_id: RunID) -> bool:
         """Starts the runtime."""
         raise NotImplementedError("run not implemented")
 

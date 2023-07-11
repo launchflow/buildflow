@@ -7,6 +7,7 @@ from ray import kill, serve
 from buildflow.core.app.infra.actors.infra import InfraActor
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.app.runtime.actors.runtime import RuntimeSnapshot
+import logging
 
 app = FastAPI()
 
@@ -51,7 +52,14 @@ class RuntimeServer:
         self,
         runtime_actor: RuntimeActor,
         infra_actor: Optional[InfraActor] = None,
+        *,
+        log_level: str = "DEBUG",
     ) -> None:
+        # NOTE: Ray actors run in their own process, so we need to configure
+        # logging per actor / remote task.
+        logging.getLogger().setLevel(log_level)
+
+        # configuration
         self.runtime_actor = runtime_actor
         self.infra_actor = infra_actor
 

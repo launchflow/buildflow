@@ -7,7 +7,7 @@ import time
 import ray
 
 from buildflow.core import utils
-from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot
+from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot, RunID
 from buildflow.core.app.runtime.metrics import (
     CompositeRateCounterMetric,
     RateCalculation,
@@ -53,13 +53,14 @@ class PullProcessPushSnapshot(Snapshot):
 @ray.remote
 class PullProcessPushActor(Runtime):
     def __init__(
-        self, processor: PipelineProcessor, *, log_level: str = "INFO"
+        self, run_id: RunID, processor: PipelineProcessor, *, log_level: str = "INFO"
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(log_level)
 
         # setup
+        self.run_id = run_id
         self.processor = processor
         # NOTE: This is where the setup Processor lifecycle method is called.
         # TODO: Support Depends use case
@@ -79,7 +80,11 @@ class PullProcessPushActor(Runtime):
         self.num_events_processed = CompositeRateCounterMetric(
             "num_events_processed",
             description="Number of events processed by the actor. Only increments.",
-            default_tags={"processor_id": processor.processor_id, "JobId": job_id},
+            default_tags={
+                "processor_id": processor.processor_id,
+                "JobId": job_id,
+                "RunId": self.run_id,
+            },
         )
 
         self._pull_percentage_counter = CompositeRateCounterMetric(
@@ -88,6 +93,7 @@ class PullProcessPushActor(Runtime):
             default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
+                "RunId": self.run_id,
             },
         )
 
@@ -97,6 +103,7 @@ class PullProcessPushActor(Runtime):
             default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
+                "RunId": self.run_id,
             },
         )
 
@@ -106,6 +113,7 @@ class PullProcessPushActor(Runtime):
             default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
+                "RunId": self.run_id,
             },
         )
         self.total_time_counter = CompositeRateCounterMetric(
@@ -114,6 +122,7 @@ class PullProcessPushActor(Runtime):
             default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
+                "RunId": self.run_id,
             },
         )
 

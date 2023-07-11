@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 
 from buildflow.core.resources._resource import Resource
 import enum
@@ -17,6 +17,7 @@ ProcessorID = str
 class ProcessorAPI:
     processor_id: ProcessorID
     processor_type: ProcessorType
+    __meta__: Dict[str, Any]
 
     def resources(self) -> List[Resource]:
         raise NotImplementedError("resources not implemented for Processor")

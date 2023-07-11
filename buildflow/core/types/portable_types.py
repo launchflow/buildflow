@@ -20,5 +20,8 @@ TableID = str
 # Topic Types
 TopicID = str
 
+# Queue Types
+QueueID = str
+
 # Bucket Types
 BucketName = str

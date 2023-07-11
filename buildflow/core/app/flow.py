@@ -9,7 +9,8 @@ from buildflow.core import utils
 from buildflow.core.app.infra.actors.infra import InfraActor
 from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, WrappedStackState
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
-from buildflow.core.io.primitives.primitive import (
+from buildflow.core.app.runtime._runtime import RunID
+from buildflow.core.io.primitive import (
     Primitive,
     PrimitiveType,
     PortablePrimtive,
@@ -42,10 +43,8 @@ def _get_directory_path_of_caller():
 
 def pipeline_decorator(
     flow: "Flow",
-    source_provider: SourceProvider,
-    sink_provider: SinkProvider,
-    source_pulumi_provider: PulumiProvider,
-    sink_pulumi_provider: PulumiProvider,
+    source_primitive: Primitive,
+    sink_primitive: Primitive,
     processor_options: ProcessorOptions,
 ):
     def decorator_function(original_process_function):
@@ -63,12 +62,22 @@ def pipeline_decorator(
         if "return" in full_arg_spec.annotations:
             output_type = full_arg_spec.annotations["return"]
 
+        # NOTE: We only create Pulumi resources for managed primitives
+        # (Currently only PortablePrimitives)
         def pulumi_resources(type_: Optional[Type] = None):
-            source_resources = source_pulumi_provider.pulumi_resources(input_type)
-            sink_resources = sink_pulumi_provider.pulumi_resources(output_type)
+            source_resources = []
+            if source_primitive.managed:
+                source_pulumi_provider = source_primitive.pulumi_provider()
+                source_resources = source_pulumi_provider.pulumi_resources(input_type)
+            sink_resources = []
+            if sink_primitive.managed:
+                sink_pulumi_provider = sink_primitive.pulumi_provider()
+                sink_resources = sink_pulumi_provider.pulumi_resources(output_type)
             return source_resources + sink_resources
 
         # Dynamically define a new class with the same structure as Processor
+        source_provider = source_primitive.source_provider()
+        sink_provider = sink_primitive.sink_provider()
         processor_id = original_process_function.__name__
         class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
         AdHocPipelineProcessorClass = type(
@@ -81,6 +90,10 @@ def pipeline_decorator(
                 # ProcessorAPI methods. NOTE: process() is attached separately below
                 "resources": lambda self: pulumi_resources(),
                 "setup": lambda self: None,
+                "__meta__": {
+                    "source": source_primitive,
+                    "sink": sink_primitive,
+                },
                 "__call__": wrapper_function,
             },
         )
@@ -102,7 +115,21 @@ FlowID = str
 @dataclasses.dataclass
 class FlowState:
     flow_id: FlowID
+    processors: List[ProcessorAPI]
     pulumi_stack_state: WrappedStackState
+
+    def as_json_dict(self):
+        return {
+            "flow_id": self.flow_id,
+            "processors": [
+                {
+                    "processor_id": p.processor_id,
+                    "processor_type": p.processor_type.value,
+                    "meta": p.__meta__,
+                }
+                for p in self.processors
+            ],
+        }
 
 
 class Flow:
@@ -126,8 +153,7 @@ class Flow:
         # Infra configuration
         self._infra_actor_ref: Optional[InfraActor] = None
 
-    @property
-    def _infra_actor(self) -> InfraActor:
+    def _get_infra_actor(self) -> InfraActor:
         if self._infra_actor_ref is None:
             self._infra_actor_ref = InfraActor.remote(
                 infra_options=self.options.infra_options,
@@ -135,10 +161,12 @@ class Flow:
             )
         return self._infra_actor_ref
 
-    @property
-    def _runtime_actor(self) -> RuntimeActor:
+    def _get_runtime_actor(self, run_id: Optional[RunID] = None) -> RuntimeActor:
         if self._runtime_actor_ref is None:
+            if run_id is None:
+                run_id = utils.uuid()
             self._runtime_actor_ref = RuntimeActor.remote(
+                run_id=run_id,
                 runtime_options=self.options.runtime_options,
             )
         return self._runtime_actor_ref
@@ -156,32 +184,27 @@ class Flow:
         if sink is None:
             sink = EmptyPrimitive()
 
-        # We only create Pulumi resources for PortablePrimitives
-        source_pulumi_provider = EmptyPulumiProvider()
-        sink_pulumi_provider = EmptyPulumiProvider()
-
-        # Convert any PortablePrimtives into cloud-specific primitives
+        # Convert any Portableprimitives into cloud-specific primitives
         if source.primitive_type == PrimitiveType.PORTABLE:
             source: PortablePrimtive
             source = source.to_cloud_primitive(
                 cloud_provider_config=self.config.cloud_provider_config,
                 strategy_type=StategyType.SOURCE,
             )
-            source_pulumi_provider = source.pulumi_provider()
+            source.enable_managed()
+
         if sink.primitive_type == PrimitiveType.PORTABLE:
             sink: PortablePrimtive
             sink = sink.to_cloud_primitive(
                 cloud_provider_config=self.config.cloud_provider_config,
                 strategy_type=StategyType.SINK,
             )
-            sink_pulumi_provider = sink.pulumi_provider()
+            sink.enable_managed()
 
         return pipeline_decorator(
             flow=self,
-            source_provider=source.source_provider(),
-            sink_provider=sink.sink_provider(),
-            source_pulumi_provider=source_pulumi_provider,
-            sink_pulumi_provider=sink_pulumi_provider,
+            source_primitive=source,
+            sink_primitive=sink,
             processor_options=ProcessorOptions(
                 num_cpus=num_cpus,
                 num_concurrency=num_concurrency,
@@ -214,6 +237,7 @@ class Flow:
         block: bool = True,
         # runtime-only options
         debug_run: bool = False,
+        run_id: Optional[RunID] = None,
         # server-only options. TODO: Move this into RuntimeOptions / consider
         # having Runtime manage the server
         start_runtime_server: bool = False,
@@ -229,7 +253,9 @@ class Flow:
 
         # Start the Runtime Server (maybe)
         if start_runtime_server:
-            runtime_server = RuntimeServer.bind(runtime_actor=self._runtime_actor)
+            runtime_server = RuntimeServer.bind(
+                runtime_actor=self._get_runtime_actor(run_id=run_id)
+            )
             serve.run(
                 runtime_server,
                 host=runtime_server_host,
@@ -261,12 +287,12 @@ class Flow:
             )
         # start the runtime and await it to finish
         # NOTE: run() does not necessarily block until the runtime is finished.
-        await self._runtime_actor.run.remote(processors=self._processors)
-        await self._runtime_actor.run_until_complete.remote()
+        await self._get_runtime_actor().run.remote(processors=self._processors)
+        await self._get_runtime_actor().run_until_complete.remote()
 
     async def _drain(self):
         logging.debug(f"Draining Flow({self.flow_id})...")
-        await self._runtime_actor.drain.remote()
+        await self._get_runtime_actor().drain.remote()
         logging.debug(f"...Finished draining Flow({self.flow_id})")
         return True
 
@@ -275,7 +301,7 @@ class Flow:
 
     async def _plan(self):
         logging.debug(f"Planning Infra for Flow({self.flow_id})...")
-        await self._infra_actor.plan.remote(processors=self._processors)
+        await self._get_infra_actor().plan.remote(processors=self._processors)
         logging.debug(f"...Finished planning Infra for Flow({self.flow_id})")
 
     def apply(self):
@@ -283,7 +309,7 @@ class Flow:
 
     async def _apply(self):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
-        await self._infra_actor.apply.remote(processors=self._processors)
+        await self._get_infra_actor().apply.remote(processors=self._processors)
         logging.debug(f"...Finished setting up Infra for Flow({self.flow_id})")
 
     def destroy(self):
@@ -291,15 +317,19 @@ class Flow:
 
     async def _destroy(self):
         logging.debug(f"Tearing down infrastructure for Flow({self.flow_id})...")
-        await self._infra_actor.destroy.remote(processors=self._processors)
+        await self._get_infra_actor().destroy.remote(processors=self._processors)
         logging.debug(
             f"...Finished tearing down infrastructure for Flow({self.flow_id})"
         )
 
-    def get_pulumi_stack_state(self):
+    def inspect(self):
         pulumi_workspace = PulumiWorkspace(
             pulumi_options=self.options.infra_options.pulumi_options,
             pulumi_config=self.config.pulumi_config,
         )
-        stack_state = pulumi_workspace.get_stack_state()
-        return stack_state
+        pulumi_stack_state = pulumi_workspace.get_stack_state()
+        return FlowState(
+            flow_id=self.flow_id,
+            processors=self._processors,
+            pulumi_stack_state=pulumi_stack_state,
+        )

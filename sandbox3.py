@@ -6,7 +6,7 @@ from buildflow.core.options import (
     RuntimeOptions,
     InfraOptions,
 )
-from buildflow.core.io.primitives.gcp import GCPPubSubSubscription, BigQueryTable
+from buildflow.core.io.gcp import GCPPubSubSubscription, BigQueryTable
 from sandbox4 import TaxiOutput
 
 # Create a new Flow

@@ -8,7 +8,7 @@ from typing import Iterable, List
 import ray
 
 from buildflow.core import utils
-from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot
+from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot, RunID
 from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
     PipelineProcessorReplicaPoolActor,
 )
@@ -40,6 +40,7 @@ class RuntimeSnapshot(Snapshot):
 class RuntimeActor(Runtime):
     def __init__(
         self,
+        run_id: RunID,
         *,
         runtime_options: RuntimeOptions,
     ) -> None:
@@ -48,6 +49,7 @@ class RuntimeActor(Runtime):
         logging.getLogger().setLevel(runtime_options.log_level)
 
         # configuration
+        self.run_id = run_id
         self.options = runtime_options
         # initial runtime state
         self._status = RuntimeStatus.IDLE
@@ -68,25 +70,19 @@ class RuntimeActor(Runtime):
             if processor.processor_type == ProcessorType.PIPELINE:
                 self._processor_pool_actors.append(
                     PipelineProcessorReplicaPoolActor.remote(
-                        processor, processor_options
+                        self.run_id, processor, processor_options
                     )
                 )
             elif processor.processor_type == ProcessorType.COLLECTOR:
-                raise NotImplementedError(
-                    "Collector Processors are not yet supported."
-                )
+                raise NotImplementedError("Collector Processors are not yet supported.")
             elif processor.processor_type == ProcessorType.CONNECTION:
                 raise NotImplementedError(
                     "Connection Processors are not yet supported."
                 )
             elif processor.processor_type == ProcessorType.SERVICE:
-                raise NotImplementedError(
-                    "Service Processors are not yet supported."
-                )
+                raise NotImplementedError("Service Processors are not yet supported.")
             else:
-                raise ValueError(
-                    f"Unknown ProcessorType: {processor.processor_type}"
-                )
+                raise ValueError(f"Unknown ProcessorType: {processor.processor_type}")
 
         # TODO: these can fail sometimes when the converter isn't provided correctly.
         # i.e. a user provides a type that we don't know how to convert for a source /

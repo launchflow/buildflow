@@ -21,6 +21,7 @@ from buildflow.core.app.runtime.actors.process_pool import (
 from buildflow.core.app.runtime.metrics import RateCalculation, SimpleGaugeMetric
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
+from buildflow.core.app.runtime._runtime import RunID
 
 
 # NOTE: The parent snapshot class includes metrics that are common to all Processor types.
@@ -62,9 +63,12 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
 
     # TODO: Add a PipelineOptions type for pipeline-specific options
     def __init__(
-        self, processor: PipelineProcessor, processor_options: ProcessorOptions
+        self,
+        run_id: RunID,
+        processor: PipelineProcessor,
+        processor_options: ProcessorOptions,
     ) -> None:
-        super().__init__(processor, processor_options)
+        super().__init__(run_id, processor, processor_options)
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(processor_options.log_level)
@@ -81,6 +85,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
             default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
+                "RunId": self.run_id,
             },
         )
 
@@ -102,7 +107,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
                 placement_group=ray_placement_group,
                 placement_group_capture_child_tasks=True,
             ),
-        ).remote(self.processor, log_level=self.options.log_level)
+        ).remote(self.run_id, self.processor, log_level=self.options.log_level)
 
         return ReplicaReference(
             ray_actor_handle=replica_actor_handle,

@@ -1,18 +1,9 @@
 BEFORE PR
 
-- Fix IO imports so users dont need to see provider stuff in their import path
-
-- Add other IO Providers
-
-
-IDEA
-
-infra view in extension could have a Stack view and Processor view.
-Stack view visualizes the pulumi state
-processor view visualizes the cloud primitives
-
 
 AFTER PR
+
+- Add other IO Providers
 
 - Add other Processor Patterns
 

@@ -12,7 +12,7 @@ from ray.util.placement_group import (
 )
 
 from buildflow.core import utils
-from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot
+from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot, RunID
 from buildflow.core.app.runtime.metrics import SimpleGaugeMetric
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
@@ -55,13 +55,17 @@ class ProcessorReplicaPoolActor(Runtime):
     """
 
     def __init__(
-        self, processor: ProcessorAPI, processor_options: ProcessorOptions
+        self,
+        run_id: RunID,
+        processor: ProcessorAPI,
+        processor_options: ProcessorOptions,
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(processor_options.log_level)
 
         # configuration
+        self.run_id = run_id
         self.processor = processor
         self.options = processor_options
         # initial runtime state
@@ -75,6 +79,7 @@ class ProcessorReplicaPoolActor(Runtime):
             default_tags={
                 "processor_id": self.processor.processor_id,
                 "JobId": job_id,
+                "RunId": self.run_id,
             },
         )
         self.concurrency_gauge = SimpleGaugeMetric(
@@ -83,6 +88,7 @@ class ProcessorReplicaPoolActor(Runtime):
             default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
+                "RunId": self.run_id,
             },
         )
         self.concurrency_gauge.set(self.options.num_concurrency)

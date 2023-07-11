@@ -31,13 +31,13 @@ def run(
     disable_usage_stats: bool = typer.Option(
         False, help="Disable buildflow usage stats"
     ),
-    start_flow_server: bool = typer.Option(
+    start_runtime_server: bool = typer.Option(
         False, help="Whether to start the server for the running flow."
     ),
-    flow_server_host: str = typer.Option(
+    runtime_server_host: str = typer.Option(
         "127.0.0.1", help="The host to use for the flow server."
     ),
-    flow_server_port: int = typer.Option(
+    runtime_server_port: int = typer.Option(
         9653, help="The port to use for the flow server."
     ),
     app_dir: str = APP_DIR_OPTION,
@@ -47,9 +47,9 @@ def run(
     if isinstance(imported, buildflow.Flow):
         imported.run(
             disable_usage_stats=disable_usage_stats,
-            start_runtime_server=start_flow_server,
-            runtime_server_host=flow_server_host,
-            runtime_server_port=flow_server_port,
+            start_runtime_server=start_runtime_server,
+            runtime_server_host=runtime_server_host,
+            runtime_server_port=runtime_server_port,
         )
     else:
         typer.echo(f"{app} is not a buildflow flow.")

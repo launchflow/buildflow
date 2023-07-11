@@ -1,7 +1,7 @@
 import dataclasses
 import logging
 import re
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Dict, Any
 import datetime
 
 from pulumi import automation as auto
@@ -142,23 +142,28 @@ class WrappedOutputMap:
 class WrappedStackState:
     project_name: str
     stack_name: str
-    update_summary: Optional[auto.UpdateSummary]
-    output_map: auto.OutputMap
+    _update_summary: Optional[auto.UpdateSummary]
+    _output_map: auto.OutputMap
 
     @property
     def last_updated(self):
-        if self.update_summary is not None:
-            return self.update_summary.end_time
+        if self._update_summary is not None:
+            return self._update_summary.end_time
         else:
             return datetime.datetime.now()
 
+    # NOTE: We only wrap this so we can have an interface between the Pulumi type
+    # (in case they change their API)
+    def outputs(self) -> Dict[str, Any]:
+        return self._output_map
+
     def print_summary(self):
-        if self.update_summary is None:
+        if self._update_summary is None:
             print("No stack state found")
         else:
             output_map_lines = [
                 f"    {output_key}: {output_value}"
-                for output_key, output_value in self.output_map.items()
+                for output_key, output_value in self._output_map.items()
             ]
             all_lines = [
                 "-" * 80,
@@ -195,15 +200,15 @@ class PulumiWorkspace:
             return WrappedStackState(
                 project_name=self.config.project_name,
                 stack_name=self.config.stack_name,
-                update_summary=stack.info(),
-                output_map=stack.outputs(),
+                _update_summary=stack.info(),
+                _output_map=stack.outputs(),
             )
         except auto.StackNotFoundError:
             return WrappedStackState(
                 project_name=self.config.project_name,
                 stack_name=self.config.stack_name,
-                update_summary=None,
-                output_map={},
+                _update_summary=None,
+                _output_map={},
             )
 
     async def refresh(
