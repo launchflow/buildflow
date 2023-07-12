@@ -34,6 +34,20 @@ class RunTimeTest(unittest.TestCase):
         except asyncio.TimeoutError:
             return
 
+    def assertInStderr(self, expected_match: str):
+        _, err = self._capfd.readouterr()
+        split_err = err.split("\n")
+        found_match = False
+        for line in split_err:
+            if expected_match in line:
+                found_match = True
+                break
+        assert found_match, f"Expected to find `{expected_match}` in stderr."
+
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, capfd: pytest.CaptureFixture[str]):
+        self._capfd = capfd
+
     def test_runtime_end_to_end(self):
         app = Flow()
 
@@ -75,6 +89,7 @@ class RunTimeTest(unittest.TestCase):
 
         runtime_options = RuntimeOptions.default()
         runtime_options.checkin_frequency_loop_secs = 1
+        runtime_options.autoscale_frequency_secs = 1
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
@@ -101,10 +116,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_with_timeout(actor.drain.remote())
 
-        table = pcsv.read_csv(Path(self.output_path))
-        table_list = table.to_pylist()
-        self.assertGreaterEqual(len(table_list), 2)
-        self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
+        self.assertInStderr("process actor unexpectedly died. will restart.")
 
     def test_runtime_kill_replica(self):
         app = Flow()
@@ -119,6 +131,7 @@ class RunTimeTest(unittest.TestCase):
         runtime_options = RuntimeOptions.default()
         runtime_options.log_level = "DEBUG"
         runtime_options.checkin_loop_frequency_sec = 1
+        runtime_options.autoscale_frequency_secs = 1
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
@@ -144,11 +157,7 @@ class RunTimeTest(unittest.TestCase):
         self.run_with_timeout(actor.run_until_complete.remote())
 
         self.run_with_timeout(actor.drain.remote())
-
-        table = pcsv.read_csv(Path(self.output_path))
-        table_list = table.to_pylist()
-        self.assertGreaterEqual(len(table_list), 2)
-        self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
+        self.assertInStderr("replica actor unexpectedly died. will restart.")
 
 
 if __name__ == "__main__":

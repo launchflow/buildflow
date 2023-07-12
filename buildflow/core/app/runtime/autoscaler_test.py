@@ -2,8 +2,6 @@ import logging
 import unittest
 from unittest import mock
 
-import pytest
-
 from buildflow.core.app.runtime import autoscaler
 from buildflow.core.app.runtime._runtime import RuntimeStatus
 from buildflow.core.options.runtime_options import AutoscalerOptions
@@ -48,10 +46,6 @@ def create_snapshot(
 
 @mock.patch("ray.available_resources", return_value={"CPU": 32})
 class PipelineAutoScalerTest(unittest.TestCase):
-    @pytest.fixture(autouse=True)
-    def inject_fixtures(self, caplog):
-        self._caplog = caplog
-
     def test_scale_up_to_estimated_replicas(self, resources_mock):
         current_num_replics = 2
         current_throughput = 10
