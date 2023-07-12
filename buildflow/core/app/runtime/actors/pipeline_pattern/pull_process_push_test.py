@@ -64,6 +64,7 @@ class PullProcessPushTest(unittest.TestCase):
             processor=create_test_processor(
                 self.output_path, [{"field": 1}, {"field": 2}]
             ),
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -83,7 +84,9 @@ class PullProcessPushTest(unittest.TestCase):
         def process(payload):
             return payload
 
-        actor = PullProcessPushActor.remote(run_id="test-run", processor=process)
+        actor = PullProcessPushActor.remote(
+            run_id="test-run", processor=process, replica_id="1"
+        )
 
         self.run_with_timeout(actor.run.remote())
 
@@ -102,7 +105,9 @@ class PullProcessPushTest(unittest.TestCase):
         async def process(payload):
             return payload
 
-        actor = PullProcessPushActor.remote(run_id="test-run", processor=process)
+        actor = PullProcessPushActor.remote(
+            run_id="test-run", processor=process, replica_id="1"
+        )
 
         self.run_with_timeout(actor.run.remote())
 
@@ -121,7 +126,9 @@ class PullProcessPushTest(unittest.TestCase):
         async def process(payload) -> List[Dict[str, int]]:
             return [payload, payload]
 
-        actor = PullProcessPushActor.remote(run_id="test-run", processor=process)
+        actor = PullProcessPushActor.remote(
+            run_id="test-run", processor=process, replica_id="1"
+        )
 
         self.run_with_timeout(actor.run.remote())
 

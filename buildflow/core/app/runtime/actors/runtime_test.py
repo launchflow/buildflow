@@ -117,6 +117,7 @@ class RunTimeTest(unittest.TestCase):
             return payload
 
         runtime_options = RuntimeOptions.default()
+        runtime_options.log_level = "DEBUG"
         runtime_options.checkin_loop_frequency_sec = 1
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the

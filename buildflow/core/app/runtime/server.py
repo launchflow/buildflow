@@ -45,6 +45,11 @@ index_html = """
 """  # noqa: E501
 
 
+# Set this to avoid noisy logs for alls to each endpoint
+logger = logging.getLogger("ray.serve")
+logger.setLevel("WARNING")
+
+
 @serve.deployment(route_prefix="/", ray_actor_options={"num_cpus": 0.1})
 @serve.ingress(app)
 class RuntimeServer:

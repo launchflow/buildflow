@@ -39,6 +39,7 @@ class PipelineProcessorSnapshot(ProcessorSnapshot):
     avg_process_time_millis_per_element: float
     avg_process_time_millis_per_batch: float
     avg_pull_to_ack_time_millis_per_batch: float
+    avg_cpu_percentage_per_replica: float
 
     def as_dict(self) -> dict:
         parent_dict = super().as_dict()
@@ -52,6 +53,7 @@ class PipelineProcessorSnapshot(ProcessorSnapshot):
             "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
             "avg_process_time_millis_per_batch": self.avg_process_time_millis_per_batch,  # noqa: E501
             "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
+            "avg_cpu_percentage_per_replica": self.avg_cpu_percentage_per_replica,
         }
         return {**parent_dict, **pipeline_dict}
 
@@ -103,17 +105,22 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
             ],
             strategy="STRICT_PACK",
         ).ready()
-
+        replica_id = utils.uuid()
         replica_actor_handle = PullProcessPushActor.options(
             num_cpus=self.options.num_cpus,
             scheduling_strategy=PlacementGroupSchedulingStrategy(
                 placement_group=ray_placement_group,
                 placement_group_capture_child_tasks=True,
             ),
-        ).remote(self.run_id, self.processor, log_level=self.options.log_level)
+        ).remote(
+            self.run_id,
+            self.processor,
+            replica_id=replica_id,
+            log_level=self.options.log_level,
+        )
 
         return ReplicaReference(
-            replica_id=utils.uuid(),
+            replica_id=replica_id,
             ray_actor_handle=replica_actor_handle,
             ray_placement_group=ray_placement_group,
         )
@@ -187,6 +194,11 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
             ]
         ).average_value_rate()
 
+        # below metrics(s) derived from the `cpu_percentage` composite counter
+        avg_cpu_percentage = RateCalculation.merge(
+            [replica_snapshot.cpu_percentage for replica_snapshot in replica_snapshots]
+        ).average_value_rate()
+
         # derived metric(s)
         if total_events_processed_per_sec == 0:
             eta_secs = -1
@@ -212,4 +224,5 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
             avg_process_time_millis_per_element=avg_process_time_millis_per_element,
             avg_process_time_millis_per_batch=avg_process_time_millis_per_batch,
             avg_pull_to_ack_time_millis_per_batch=avg_pull_to_ack_time_millis_per_batch,
+            avg_cpu_percentage_per_replica=avg_cpu_percentage,
         )
