@@ -1,8 +1,10 @@
+from collections import deque
 import dataclasses
 import logging
 from typing import List
 
 import ray
+from ray.exceptions import RayActorError
 from ray.util.placement_group import (
     placement_group,
 )
@@ -111,6 +113,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
         ).remote(self.run_id, self.processor, log_level=self.options.log_level)
 
         return ReplicaReference(
+            replica_id=utils.uuid(),
             ray_actor_handle=replica_actor_handle,
             ray_placement_group=ray_placement_group,
         )
@@ -124,11 +127,23 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
         replica_snapshots: List[PullProcessPushSnapshot] = []
         # TODO: Dont access self.replicas directly. It should be accessed via a method
         # interface
-        for replica in list(self.replicas.values()):
-            snapshot: PullProcessPushSnapshot = (
-                await replica.ray_actor_handle.snapshot.remote()
-            )
-            replica_snapshots.append(snapshot)
+        dead_replica_indices = deque()
+        for i, replica in enumerate(self.replicas):
+            try:
+                snapshot: PullProcessPushSnapshot = (
+                    await replica.ray_actor_handle.snapshot.remote()
+                )
+                replica_snapshots.append(snapshot)
+            except RayActorError:
+                logging.exception("replica actor unexpectedly died. will restart.")
+                # We keep this list reverse sorted so we can iterate and remove
+                dead_replica_indices.appendleft(i)
+        for idx in dead_replica_indices:
+            self.replicas.pop(idx)
+        if dead_replica_indices:
+            logging.error("removed %s dead replicas", len(dead_replica_indices))
+            # update our gauge if had to remove some replicas.
+            self.num_replicas_gauge.set(len(self.replicas))
 
         # below metric(s) derived from the `events_processed_per_sec` composite counter
         total_events_processed_per_sec = RateCalculation.merge(

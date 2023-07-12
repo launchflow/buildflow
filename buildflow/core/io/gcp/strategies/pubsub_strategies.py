@@ -1,7 +1,13 @@
-from typing import Any, Callable, Type, Dict, Iterable, Optional
 import dataclasses
-from google.cloud.pubsub_v1.types import PubsubMessage as GCPPubSubMessage
+import datetime
+from typing import Any, Callable, Type, Dict, Iterable, Optional, Union
 import logging
+
+from google.cloud.monitoring_v3 import query
+from google.cloud.pubsub_v1.types import PubsubMessage as GCPPubSubMessage
+from google.protobuf.timestamp_pb2 import Timestamp
+
+
 from buildflow.core import utils
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
@@ -15,8 +21,6 @@ from buildflow.core.types.gcp_types import (
     PubSubSubscriptionName,
 )
 from buildflow import exceptions
-from google.cloud.monitoring_v3 import query
-import datetime
 
 
 @dataclasses.dataclass(frozen=True)
@@ -28,6 +32,12 @@ class _PubsubAckInfo(AckInfo):
 class PubsubMessage:
     data: bytes
     attributes: Dict[str, Any]
+
+
+def _timestamp_to_datetime(timestamp: Union[datetime.datetime, Timestamp]):
+    if isinstance(timestamp, Timestamp):
+        return timestamp.ToDatetime()
+    return timestamp
 
 
 class GCPPubSubSubscriptionSource(SourceStrategy):
@@ -131,7 +141,9 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
             )
             return None
         points = list(last_timeseries.points)
-        points.sort(key=lambda p: p.interval.end_time, reverse=True)
+        points.sort(
+            key=lambda p: _timestamp_to_datetime(p.interval.end_time), reverse=True
+        )
         return points[0].value.int64_value
 
     def max_batch_size(self) -> int:

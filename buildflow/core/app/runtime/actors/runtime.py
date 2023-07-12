@@ -6,6 +6,8 @@ import logging
 from typing import Iterable, List
 
 import ray
+from ray.actor import ActorHandle
+from ray.exceptions import RayActorError
 
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot, RunID
@@ -36,6 +38,12 @@ class RuntimeSnapshot(Snapshot):
         }
 
 
+@dataclasses.dataclass
+class ProcessPoolReference:
+    actor_handle: ActorHandle
+    processor: ProcessorAPI
+
+
 @ray.remote(num_cpus=0.1)
 class RuntimeActor(Runtime):
     def __init__(
@@ -53,7 +61,7 @@ class RuntimeActor(Runtime):
         self.options = runtime_options
         # initial runtime state
         self._status = RuntimeStatus.IDLE
-        self._processor_pool_actors = []
+        self._processor_pool_refs = []
         self._runtime_loop_future = None
 
     def _set_status(self, status: RuntimeStatus):
@@ -64,13 +72,16 @@ class RuntimeActor(Runtime):
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._set_status(RuntimeStatus.RUNNING)
-        self._processor_pool_actors = []
+        self._processor_pool_refs = []
         for processor in processors:
             processor_options = self.options.processor_options[processor.processor_id]
             if processor.processor_type == ProcessorType.PIPELINE:
-                self._processor_pool_actors.append(
-                    PipelineProcessorReplicaPoolActor.remote(
-                        self.run_id, processor, processor_options
+                self._processor_pool_refs.append(
+                    ProcessPoolReference(
+                        actor_handle=PipelineProcessorReplicaPoolActor.remote(
+                            self.run_id, processor, processor_options
+                        ),
+                        processor=processor,
                     )
                 )
             elif processor.processor_type == ProcessorType.COLLECTOR:
@@ -87,24 +98,28 @@ class RuntimeActor(Runtime):
         # TODO: these can fail sometimes when the converter isn't provided correctly.
         # i.e. a user provides a type that we don't know how to convert for a source /
         # sink. Right now we just log the error but keep trying.
-        for actor in self._processor_pool_actors:
+        for processor_pool in self._processor_pool_refs:
             # Ensure we can start the actor. This might fail if the processor is
             # misconfigured.
-            actor.run.remote()
-            actor.add_replicas.remote(self.options.num_replicas)
+            processor_pool.actor_handle.run.remote()
+            processor_pool.actor_handle.add_replicas.remote(self.options.num_replicas)
 
         self._runtime_loop_future = self._runtime_autoscale_loop()
 
     async def drain(self) -> bool:
         if self._status == RuntimeStatus.DRAINING:
             logging.warning("Received drain single twice. Killing remaining actors.")
-            [ray.kill(actor) for actor in self._processor_pool_actors]
+            [
+                ray.kill(processor_pool.actor_handle)
+                for processor_pool in self._processor_pool_refs
+            ]
         else:
-            logging.info("Draining Runtime...")
-            logging.info("-- Attempting to drain again will force stop the runtime.")
+            logging.warning("Draining Runtime...")
+            logging.warning("-- Attempting to drain again will force stop the runtime.")
             self._set_status(RuntimeStatus.DRAINING)
             drain_tasks = [
-                actor.drain.remote() for actor in self._processor_pool_actors
+                processor_pool.actor_handle.drain.remote()
+                for processor_pool in self._processor_pool_refs
             ]
             await asyncio.gather(*drain_tasks)
             self._set_status(RuntimeStatus.IDLE)
@@ -113,15 +128,19 @@ class RuntimeActor(Runtime):
 
     async def status(self):
         if self._status == RuntimeStatus.DRAINING:
-            for actor in self._processor_pool_actors:
-                if await actor.status.remote() != RuntimeStatus.IDLE:
+            for processor_pool in self._processor_pool_refs:
+                if (
+                    await processor_pool.actor_handle.status.remote()
+                    != RuntimeStatus.IDLE
+                ):
                     return RuntimeStatus.DRAINING
             self._set_status(RuntimeStatus.IDLE)
         return self._status
 
     async def snapshot(self):
         snapshot_tasks = [
-            actor.snapshot.remote() for actor in self._processor_pool_actors
+            processor_pool.actor_handle.snapshot.remote()
+            for processor_pool in self._processor_pool_refs
         ]
         processor_snapshots = await asyncio.gather(*snapshot_tasks)
         return RuntimeSnapshot(
@@ -141,13 +160,33 @@ class RuntimeActor(Runtime):
     async def _runtime_autoscale_loop(self):
         logging.info("Runtime checkin loop started...")
         while self._status == RuntimeStatus.RUNNING:
-            for processor_pool in self._processor_pool_actors:
+            for processor_pool in self._processor_pool_refs:
                 if self._status != RuntimeStatus.RUNNING:
                     break
 
-                processor_snapshot: ProcessorSnapshot = (
-                    await processor_pool.snapshot.remote()
-                )
+                try:
+                    processor_snapshot: ProcessorSnapshot = (
+                        await processor_pool.actor_handle.snapshot.remote()
+                    )
+                except RayActorError:
+                    logging.exception("process actor unexpectedly died. will restart.")
+                    options = self.options.processor_options[
+                        processor_pool.processor.processor_id
+                    ]
+                    processor_pool.actor_handle = (
+                        PipelineProcessorReplicaPoolActor.remote(
+                            self.run_id,
+                            processor_pool.processor,
+                            options,
+                        )
+                    )
+                    # Restart with the default number of replicas, and let autoscale
+                    # handle the rest.
+                    processor_pool.actor_handle.run.remote()
+                    processor_pool.actor_handle.add_replicas.remote(
+                        self.options.num_replicas
+                    )
+                    continue
                 # Updates the current backlog gauge (metric: ray_current_backlog)
                 current_backlog = processor_snapshot.source_backlog
                 if current_backlog is None:
@@ -164,9 +203,11 @@ class RuntimeActor(Runtime):
 
                 num_replicas_delta = target_num_replicas - current_num_replicas
                 if num_replicas_delta > 0:
-                    processor_pool.add_replicas.remote(num_replicas_delta)
+                    processor_pool.actor_handle.add_replicas.remote(num_replicas_delta)
                 elif num_replicas_delta < 0:
-                    processor_pool.remove_replicas.remote(abs(num_replicas_delta))
+                    processor_pool.actor_handle.remove_replicas.remote(
+                        abs(num_replicas_delta)
+                    )
 
             # TODO: Add more control / configuration around the checkin loop
-            await asyncio.sleep(30)
+            await asyncio.sleep(self.options.checkin_frequency_loop_secs)

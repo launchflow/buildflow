@@ -13,7 +13,7 @@ AFTER PR
 
 - Fix bug where you drain during scaling up. It will get stuck and cannot drain
 
-- add ability to turn off in-memory metrics 
+- add ability to turn off in-memory metrics
 
 - Add the ability to set config fields as options
 
@@ -25,4 +25,4 @@ AFTER PR
 
 - move server options into runtime options
 
-- visualize pulumi state in extension 
+- visualize pulumi state in extension

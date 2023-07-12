@@ -1,8 +1,7 @@
 import asyncio
 import dataclasses
 import logging
-import random
-from typing import Dict
+from typing import List
 
 import ray
 from ray.actor import ActorHandle
@@ -20,6 +19,7 @@ from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, Proces
 
 @dataclasses.dataclass
 class ReplicaReference:
+    replica_id: str
     ray_actor_handle: ActorHandle
     ray_placement_group: PlacementGroup
 
@@ -69,7 +69,7 @@ class ProcessorReplicaPoolActor(Runtime):
         self.processor = processor
         self.options = processor_options
         # initial runtime state
-        self.replicas: Dict[str, ReplicaReference] = {}
+        self.replicas: List[ReplicaReference] = []
         self._status = RuntimeStatus.IDLE
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
@@ -101,14 +101,12 @@ class ProcessorReplicaPoolActor(Runtime):
         if self._status != RuntimeStatus.RUNNING:
             raise RuntimeError("Can only replicas to a processor pool that is running.")
         for _ in range(num_replicas):
-            replica_id = utils.uuid()
             replica = await self.create_replica()
 
             if self._status == RuntimeStatus.RUNNING:
                 for _ in range(self.options.num_concurrency):
                     replica.ray_actor_handle.run.remote()
-
-            self.replicas[replica_id] = replica
+            self.replicas.append(replica)
 
         self.num_replicas_gauge.set(len(self.replicas))
 
@@ -120,14 +118,11 @@ class ProcessorReplicaPoolActor(Runtime):
                 "exist."
             )
 
-        # TODO: (maybe) Dont choose randomly
-        replicas_to_remove = random.sample(self.replicas.keys(), num_replicas)
-
         placement_groups_to_remove = []
         actors_to_kill = []
         actor_drain_tasks = []
-        for replica_id in replicas_to_remove:
-            replica = self.replicas.pop(replica_id)
+        for _ in range(num_replicas):
+            replica = self.replicas.pop(-1)
             actors_to_kill.append(replica.ray_actor_handle)
             actor_drain_tasks.append(replica.ray_actor_handle.drain.remote())
             placement_groups_to_remove.append(replica.ray_placement_group)
@@ -148,7 +143,7 @@ class ProcessorReplicaPoolActor(Runtime):
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
-        for replica in self.replicas.values():
+        for replica in self.replicas:
             replica.ray_actor_handle.run.remote()
 
     async def drain(self):
@@ -161,7 +156,7 @@ class ProcessorReplicaPoolActor(Runtime):
 
     async def status(self):
         if self._status == RuntimeStatus.DRAINING:
-            for replica in self.replicas.values():
+            for replica in self.replicas:
                 if await replica.ray_actor_handle.status.remote() != RuntimeStatus.IDLE:
                     return RuntimeStatus.DRAINING
             self._status = RuntimeStatus.IDLE

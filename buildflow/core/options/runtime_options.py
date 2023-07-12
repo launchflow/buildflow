@@ -31,9 +31,9 @@ class AutoscalerOptions(Options):
     @classmethod
     def default(cls) -> "AutoscalerOptions":
         return cls(
-            enable_autoscaler=False,
+            enable_autoscaler=True,
             min_replicas=1,
-            max_replicas=1,
+            max_replicas=1000,
             log_level="INFO",
         )
 
@@ -48,6 +48,7 @@ class RuntimeOptions(Options):
     num_replicas: int
     # misc
     log_level: str
+    checkin_frequency_loop_secs: int = 5
 
     @classmethod
     def default(cls) -> "RuntimeOptions":

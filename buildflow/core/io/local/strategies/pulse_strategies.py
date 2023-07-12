@@ -29,5 +29,5 @@ class PulseSource(SourceStrategy):
     async def ack(self, to_ack: AckInfo, success: bool):
         pass
 
-    def backlog(self) -> int:
+    async def backlog(self) -> int:
         return 0
