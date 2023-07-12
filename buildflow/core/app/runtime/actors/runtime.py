@@ -18,7 +18,7 @@ from buildflow.core.app.runtime.actors.process_pool import (
     ProcessorSnapshot,
 )
 from buildflow.core.app.runtime.autoscaler import calculate_target_num_replicas
-from buildflow.core.options.runtime_options import ProcessorOptions, RuntimeOptions
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorType
 
 
@@ -42,7 +42,6 @@ class RuntimeSnapshot(Snapshot):
 class ProcessPoolReference:
     actor_handle: ActorHandle
     processor: ProcessorAPI
-    options: ProcessorOptions
 
 
 @ray.remote(num_cpus=0.1)
@@ -52,9 +51,6 @@ class RuntimeActor(Runtime):
         run_id: RunID,
         *,
         runtime_options: RuntimeOptions,
-        # NOTE: we set this here instead of options since users don't need to set it.
-        # if we want we could expose it in options.
-        checkin_loop_frequency_sec: int = 5,
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -67,7 +63,6 @@ class RuntimeActor(Runtime):
         self._status = RuntimeStatus.IDLE
         self._processor_pool_refs = []
         self._runtime_loop_future = None
-        self._checkin_loop_frequency_sec = checkin_loop_frequency_sec
 
     def _set_status(self, status: RuntimeStatus):
         self._status = status
@@ -87,7 +82,6 @@ class RuntimeActor(Runtime):
                             self.run_id, processor, processor_options
                         ),
                         processor=processor,
-                        options=processor_options,
                     )
                 )
             elif processor.processor_type == ProcessorType.COLLECTOR:
@@ -115,7 +109,10 @@ class RuntimeActor(Runtime):
     async def drain(self) -> bool:
         if self._status == RuntimeStatus.DRAINING:
             logging.warning("Received drain single twice. Killing remaining actors.")
-            [ray.kill(actor) for actor in self._processor_pool_refs]
+            [
+                ray.kill(processor_pool.actor_handle)
+                for processor_pool in self._processor_pool_refs
+            ]
         else:
             logging.warning("Draining Runtime...")
             logging.warning("-- Attempting to drain again will force stop the runtime.")
@@ -173,11 +170,14 @@ class RuntimeActor(Runtime):
                     )
                 except RayActorError:
                     logging.exception("process actor unexpectedly died. will restart.")
+                    options = self.options.processor_options[
+                        processor_pool.processor.processor_id
+                    ]
                     processor_pool.actor_handle = (
                         PipelineProcessorReplicaPoolActor.remote(
                             self.run_id,
                             processor_pool.processor,
-                            processor_pool.options,
+                            options,
                         )
                     )
                     # Restart with the default number of replicas, and let autoscale
@@ -210,4 +210,4 @@ class RuntimeActor(Runtime):
                     )
 
             # TODO: Add more control / configuration around the checkin loop
-            await asyncio.sleep(self._checkin_loop_frequency_sec)
+            await asyncio.sleep(self.options.checkin_frequency_loop_secs)

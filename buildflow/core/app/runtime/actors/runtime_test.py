@@ -74,6 +74,7 @@ class RunTimeTest(unittest.TestCase):
             return payload
 
         runtime_options = RuntimeOptions.default()
+        runtime_options.checkin_frequency_loop_secs = 1
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
@@ -82,7 +83,6 @@ class RunTimeTest(unittest.TestCase):
         actor = RuntimeActor.remote(
             run_id="test-run",
             runtime_options=runtime_options,
-            checkin_loop_frequency_sec=1,
         )
 
         self.run_with_timeout(actor.run.remote(processors=[process]))
@@ -117,6 +117,7 @@ class RunTimeTest(unittest.TestCase):
             return payload
 
         runtime_options = RuntimeOptions.default()
+        runtime_options.checkin_loop_frequency_sec = 1
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
@@ -125,7 +126,6 @@ class RunTimeTest(unittest.TestCase):
         actor = RuntimeActor.remote(
             run_id="test-run",
             runtime_options=runtime_options,
-            checkin_loop_frequency_sec=1,
         )
 
         self.run_with_timeout(actor.run.remote(processors=[process]))

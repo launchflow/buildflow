@@ -1,3 +1,4 @@
+from collections import deque
 import dataclasses
 import logging
 from typing import List
@@ -126,7 +127,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
         replica_snapshots: List[PullProcessPushSnapshot] = []
         # TODO: Dont access self.replicas directly. It should be accessed via a method
         # interface
-        dead_replica_idxs = []
+        dead_replica_indices = deque()
         for i, replica in enumerate(self.replicas):
             try:
                 snapshot: PullProcessPushSnapshot = (
@@ -136,11 +137,11 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
             except RayActorError:
                 logging.exception("replica actor unexpectedly died. will restart.")
                 # We keep this list reverse sorted so we can iterate and remove
-                dead_replica_idxs.insert(0, i)
-        for idx in dead_replica_idxs:
+                dead_replica_indices.appendleft(i)
+        for idx in dead_replica_indices:
             self.replicas.pop(idx)
-        if dead_replica_idxs:
-            logging.error("removed %s dead replicas", len(dead_replica_idxs))
+        if dead_replica_indices:
+            logging.error("removed %s dead replicas", len(dead_replica_indices))
             # update our gauge if had to remove some replicas.
             self.num_replicas_gauge.set(len(self.replicas))
 

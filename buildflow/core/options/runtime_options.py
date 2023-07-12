@@ -48,6 +48,7 @@ class RuntimeOptions(Options):
     num_replicas: int
     # misc
     log_level: str
+    checkin_frequency_loop_secs: int = 5
 
     @classmethod
     def default(cls) -> "RuntimeOptions":
