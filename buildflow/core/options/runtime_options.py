@@ -27,6 +27,9 @@ class AutoscalerOptions(Options):
     min_replicas: int
     max_replicas: int
     log_level: str
+    autoscale_frequency_secs: int = 60
+    pipeline_backlog_burn_threshold: int = 60
+    pipeline_cpu_percent_target: int = 25
 
     @classmethod
     def default(cls) -> "AutoscalerOptions":
@@ -49,7 +52,6 @@ class RuntimeOptions(Options):
     # misc
     log_level: str
     checkin_frequency_loop_secs: int = 5
-    autoscale_frequency_secs: int = 60
 
     @classmethod
     def default(cls) -> "RuntimeOptions":

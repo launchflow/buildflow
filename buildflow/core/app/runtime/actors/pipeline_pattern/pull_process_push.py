@@ -9,6 +9,7 @@ import psutil
 import ray
 
 from buildflow.core import utils
+from buildflow.core.app.runtime.actors.process_pool import ReplicaID
 from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot, RunID
 from buildflow.core.app.runtime.metrics import (
     CompositeRateCounterMetric,
@@ -61,7 +62,7 @@ class PullProcessPushActor(Runtime):
         run_id: RunID,
         processor: PipelineProcessor,
         *,
-        replica_id,
+        replica_id: ReplicaID,
         log_level: str = "INFO",
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
@@ -208,12 +209,11 @@ class PullProcessPushActor(Runtime):
                 continue
             if not response.payload:
                 self._pull_percentage_counter.empty_inc()
-                # TODO: test removing this
-                # await asyncio.sleep(1)
                 cpu_percent = proc.cpu_percent()
                 if cpu_percent > 0.0:
-                    # Ray doesn't like it when we try to set a metric to 0
                     self.cpu_percentage.inc(cpu_percent)
+                else:
+                    self.cpu_percentage.empty_inc()
                 continue
             # PROCESS
             process_success = True
@@ -261,6 +261,8 @@ class PullProcessPushActor(Runtime):
             if cpu_percent > 0.0:
                 # Ray doesn't like it when we try to set a metric to 0
                 self.cpu_percentage.inc(cpu_percent)
+            else:
+                self.cpu_percentage.empty_inc()
 
         self._num_running_threads -= 1
         if self._num_running_threads == 0:
@@ -282,11 +284,10 @@ class PullProcessPushActor(Runtime):
         return True
 
     async def snapshot(self):
-        throughput = self.num_events_processed.calculate_rate()
         snapshot = PullProcessPushSnapshot(
             status=self._status,
             timestamp_millis=utils.timestamp_millis(),
-            events_processed_per_sec=throughput,  # noqa: E501
+            events_processed_per_sec=self.num_events_processed.calculate_rate(),  # noqa: E501
             pull_percentage=self._pull_percentage_counter.calculate_rate(),
             process_time_millis=self.process_time_counter.calculate_rate(),
             process_batch_time_millis=self.batch_time_counter.calculate_rate(),

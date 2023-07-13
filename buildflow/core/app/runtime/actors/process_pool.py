@@ -17,9 +17,12 @@ from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
 
 
+ReplicaID = str
+
+
 @dataclasses.dataclass
 class ReplicaReference:
-    replica_id: str
+    replica_id: ReplicaID
     ray_actor_handle: ActorHandle
     ray_placement_group: PlacementGroup
 

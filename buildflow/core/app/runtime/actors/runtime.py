@@ -65,7 +65,7 @@ class RuntimeActor(Runtime):
         self._processor_pool_refs = []
         self._runtime_loop_future = None
         self._autoscale_frequency = timedelta(
-            seconds=self.options.autoscale_frequency_secs
+            seconds=self.options.autoscaler_options.autoscale_frequency_secs
         )
 
     def _set_status(self, status: RuntimeStatus):
@@ -166,6 +166,9 @@ class RuntimeActor(Runtime):
         last_autoscale_event = datetime.utcnow()
         # We keep running the loop while the job is running or draining to ensure
         # we don't exit the main process before the drain is complete.
+        # TODO: consider splitting these into two loops.
+        #   - one for checking the status (i.e. is it still running)
+        #   - one for autoscaling
         while (
             self._status == RuntimeStatus.RUNNING
             or self._status == RuntimeStatus.DRAINING
@@ -176,6 +179,7 @@ class RuntimeActor(Runtime):
                 self._status == RuntimeStatus.RUNNING
                 and last_autoscale_event + self._autoscale_frequency > datetime.utcnow()
             ):
+                last_autoscale_event = datetime.now()
                 for processor_pool in self._processor_pool_refs:
                     if self._status != RuntimeStatus.RUNNING:
                         break
