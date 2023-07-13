@@ -71,7 +71,7 @@ class RuntimeActor(Runtime):
     def _set_status(self, status: RuntimeStatus):
         self._status = status
 
-    def run(self, *, processors: Iterable[ProcessorAPI]):
+    async def run(self, *, processors: Iterable[ProcessorAPI]):
         logging.info("Starting Runtime...")
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
@@ -106,7 +106,9 @@ class RuntimeActor(Runtime):
             # Ensure we can start the actor. This might fail if the processor is
             # misconfigured.
             processor_pool.actor_handle.run.remote()
-            processor_pool.actor_handle.add_replicas.remote(self.options.num_replicas)
+            await processor_pool.actor_handle.add_replicas.remote(
+                self.options.num_replicas
+            )
 
         self._runtime_loop_future = self._runtime_autoscale_loop()
 
@@ -204,7 +206,7 @@ class RuntimeActor(Runtime):
                         # Restart with the default number of replicas, and let autoscale
                         # handle the rest.
                         processor_pool.actor_handle.run.remote()
-                        processor_pool.actor_handle.add_replicas.remote(
+                        await processor_pool.actor_handle.add_replicas.remote(
                             self.options.num_replicas
                         )
                         continue

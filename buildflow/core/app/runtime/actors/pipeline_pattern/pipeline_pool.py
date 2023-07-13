@@ -5,11 +5,6 @@ from typing import List
 
 import ray
 from ray.exceptions import RayActorError
-from ray.util.placement_group import (
-    placement_group,
-    remove_placement_group,
-)
-from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
 from buildflow.core import utils
 from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import (
@@ -98,21 +93,9 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
     # NOTE: Providing this method is the main purpose of this class. It allows us to
     # contain any runtime logic that applies to all Processor types.
     async def create_replica(self) -> ReplicaReference:
-        ray_placement_group = await placement_group(
-            [
-                {
-                    "CPU": self.options.num_cpus,
-                }
-            ],
-            strategy="STRICT_PACK",
-        ).ready()
         replica_id = utils.uuid()
         replica_actor_handle = PullProcessPushActor.options(
             num_cpus=self.options.num_cpus,
-            scheduling_strategy=PlacementGroupSchedulingStrategy(
-                placement_group=ray_placement_group,
-                placement_group_capture_child_tasks=True,
-            ),
         ).remote(
             self.run_id,
             self.processor,
@@ -123,11 +106,9 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
         return ReplicaReference(
             replica_id=replica_id,
             ray_actor_handle=replica_actor_handle,
-            ray_placement_group=ray_placement_group,
         )
 
     async def snapshot(self) -> PipelineProcessorSnapshot:
-        parent_snapshot: ProcessorSnapshot = await super().snapshot()
         source_backlog = await self.source.backlog()
         # Log the current backlog so ray metrics can pick it up
         self.current_backlog_gauge.set(source_backlog)
@@ -148,12 +129,13 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
                 dead_replica_indices.appendleft(i)
         for idx in dead_replica_indices:
             replica = self.replicas.pop(idx)
-            remove_placement_group(replica.ray_placement_group)
         if dead_replica_indices:
             logging.error("removed %s dead replicas", len(dead_replica_indices))
             # update our gauge if had to remove some replicas.
             self.num_replicas_gauge.set(len(self.replicas))
-
+        # NOTE: we grab the parrent snapshot after we've updated the replica list
+        # this ensure we don't include dead replicas
+        parent_snapshot: ProcessorSnapshot = await super().snapshot()
         # below metric(s) derived from the `events_processed_per_sec` composite counter
         total_events_processed_per_sec = RateCalculation.merge(
             [
