@@ -163,6 +163,58 @@ class RuntimeActor(Runtime):
     def is_active(self):
         return self._status != RuntimeStatus.IDLE
 
+    async def _scale(self):
+        for processor_pool in self._processor_pool_refs:
+            if self._status != RuntimeStatus.RUNNING:
+                break
+
+            try:
+                processor_snapshot: ProcessorSnapshot = (
+                    await processor_pool.actor_handle.snapshot.remote()
+                )
+            except RayActorError:
+                logging.exception("process actor unexpectedly died. will restart.")
+                options = self.options.processor_options[
+                    processor_pool.processor.processor_id
+                ]
+                processor_pool.actor_handle = PipelineProcessorReplicaPoolActor.remote(
+                    self.run_id,
+                    processor_pool.processor,
+                    options,
+                )
+                # Restart with the default number of replicas, and let autoscale
+                # handle the rest.
+                processor_pool.actor_handle.run.remote()
+                await processor_pool.actor_handle.add_replicas.remote(
+                    self.options.num_replicas
+                )
+                continue
+            if processor_snapshot.num_replicas == 0:
+                # This can happen if all actors unexpectedly die.
+                # Just restart with what the user initiall requested, and scale
+                # up from there.
+                await processor_pool.actor_handle.add_replicas.remote(
+                    self.options.num_replicas
+                )
+                continue
+            # Updates the current backlog gauge (metric: ray_current_backlog)
+            current_backlog = processor_snapshot.source_backlog
+            if current_backlog is None:
+                current_backlog = 0
+
+            current_num_replicas = processor_snapshot.num_replicas
+            target_num_replicas = calculate_target_num_replicas(
+                processor_snapshot, self.options.autoscaler_options
+            )
+
+            num_replicas_delta = target_num_replicas - current_num_replicas
+            if num_replicas_delta > 0:
+                processor_pool.actor_handle.add_replicas.remote(num_replicas_delta)
+            elif num_replicas_delta < 0:
+                processor_pool.actor_handle.remove_replicas.remote(
+                    abs(num_replicas_delta)
+                )
+
     async def _runtime_autoscale_loop(self):
         logging.info("Runtime checkin loop started...")
         last_autoscale_event = datetime.utcnow()
@@ -180,58 +232,6 @@ class RuntimeActor(Runtime):
             if self._status == RuntimeStatus.RUNNING and (
                 datetime.utcnow() - last_autoscale_event >= self._autoscale_frequency
             ):
+                await self._scale()
                 last_autoscale_event = datetime.utcnow()
-                for processor_pool in self._processor_pool_refs:
-                    if self._status != RuntimeStatus.RUNNING:
-                        break
-
-                    try:
-                        processor_snapshot: ProcessorSnapshot = (
-                            await processor_pool.actor_handle.snapshot.remote()
-                        )
-                    except RayActorError:
-                        logging.exception(
-                            "process actor unexpectedly died. will restart."
-                        )
-                        options = self.options.processor_options[
-                            processor_pool.processor.processor_id
-                        ]
-                        processor_pool.actor_handle = (
-                            PipelineProcessorReplicaPoolActor.remote(
-                                self.run_id,
-                                processor_pool.processor,
-                                options,
-                            )
-                        )
-                        # Restart with the default number of replicas, and let autoscale
-                        # handle the rest.
-                        processor_pool.actor_handle.run.remote()
-                        await processor_pool.actor_handle.add_replicas.remote(
-                            self.options.num_replicas
-                        )
-                        continue
-                    # Updates the current backlog gauge (metric: ray_current_backlog)
-                    current_backlog = processor_snapshot.source_backlog
-                    if current_backlog is None:
-                        current_backlog = 0
-
-                    current_num_replicas = processor_snapshot.num_replicas
-                    # TODO: This is a valid case we need to handle, but this is
-                    # also happening during initial setup
-                    if current_num_replicas == 0:
-                        continue
-                    target_num_replicas = calculate_target_num_replicas(
-                        processor_snapshot, self.options.autoscaler_options
-                    )
-
-                    num_replicas_delta = target_num_replicas - current_num_replicas
-                    if num_replicas_delta > 0:
-                        processor_pool.actor_handle.add_replicas.remote(
-                            num_replicas_delta
-                        )
-                    elif num_replicas_delta < 0:
-                        processor_pool.actor_handle.remove_replicas.remote(
-                            abs(num_replicas_delta)
-                        )
-
             await asyncio.sleep(self.options.checkin_frequency_loop_secs)

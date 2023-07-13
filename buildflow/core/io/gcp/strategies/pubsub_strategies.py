@@ -139,7 +139,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
                 "no autoscaling will happen.",
                 self.subscription_id,
             )
-            return None
+            return -1
         points = list(last_timeseries.points)
         points.sort(
             key=lambda p: _timestamp_to_datetime(p.interval.end_time), reverse=True

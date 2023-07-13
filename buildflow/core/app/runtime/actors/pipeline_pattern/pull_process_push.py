@@ -253,7 +253,14 @@ class PullProcessPushActor(Runtime):
                 process_success = False
             finally:
                 # ACK
-                await source.ack(response.ack_info, process_success)
+                try:
+                    await source.ack(response.ack_info, process_success)
+                except Exception:
+                    # This can happen if there is network failures for w/e reason
+                    # we want to try and catch here so our runtime loop
+                    # doesn't die.
+                    logging.exception("failed to ack batch, will continue")
+                    continue
             self.num_events_processed.inc(len(response.payload))
             # DONE -> LOOP
             self.total_time_counter.inc((time.monotonic() - total_start_time) * 1000)
