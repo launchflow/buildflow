@@ -175,11 +175,10 @@ class RuntimeActor(Runtime):
         ):
             # Only run the autoscale loop when the runtime is running, this prevents
             # us from scaling while we are draining.
-            if (
-                self._status == RuntimeStatus.RUNNING
-                and last_autoscale_event + self._autoscale_frequency > datetime.utcnow()
+            if self._status == RuntimeStatus.RUNNING and (
+                datetime.utcnow() - last_autoscale_event >= self._autoscale_frequency
             ):
-                last_autoscale_event = datetime.now()
+                last_autoscale_event = datetime.utcnow()
                 for processor_pool in self._processor_pool_refs:
                     if self._status != RuntimeStatus.RUNNING:
                         break
@@ -233,5 +232,4 @@ class RuntimeActor(Runtime):
                             abs(num_replicas_delta)
                         )
 
-            # TODO: Add more control / configuration around the checkin loop
             await asyncio.sleep(self.options.checkin_frequency_loop_secs)

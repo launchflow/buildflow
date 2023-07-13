@@ -7,6 +7,7 @@ import ray
 from ray.exceptions import RayActorError
 from ray.util.placement_group import (
     placement_group,
+    remove_placement_group,
 )
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
@@ -146,7 +147,8 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
                 # We keep this list reverse sorted so we can iterate and remove
                 dead_replica_indices.appendleft(i)
         for idx in dead_replica_indices:
-            self.replicas.pop(idx)
+            replica = self.replicas.pop(idx)
+            remove_placement_group(replica.ray_placement_group)
         if dead_replica_indices:
             logging.error("removed %s dead replicas", len(dead_replica_indices))
             # update our gauge if had to remove some replicas.

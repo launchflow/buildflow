@@ -6,11 +6,18 @@ from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrate
 
 
 class PulseSource(SourceStrategy):
-    def __init__(self, *, items: Iterable[Any], pulse_interval_seconds: float):
+    def __init__(
+        self,
+        *,
+        items: Iterable[Any],
+        pulse_interval_seconds: float,
+        backlog_size: int = 0,
+    ):
         super().__init__(strategy_id="local-pulse-source")
         self.items = items
         self.pulse_interval_seconds = pulse_interval_seconds
         self._to_emit = 0
+        self.backlog_size = backlog_size
 
     def max_batch_size(self) -> int:
         return 1
@@ -30,4 +37,4 @@ class PulseSource(SourceStrategy):
         pass
 
     async def backlog(self) -> int:
-        return 0
+        return self.backlog_size
