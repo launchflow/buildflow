@@ -108,8 +108,6 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
                     ack_deadline_seconds=ack_deadline_seconds,
                 )
 
-    # TODO: This should not be Optional (goes against Pullable base class)
-    # Should always return an int and handle the case where the backlog is 0
     async def backlog(self) -> int:
         split_sub = self.subscription_id.split("/")
         project = split_sub[1]

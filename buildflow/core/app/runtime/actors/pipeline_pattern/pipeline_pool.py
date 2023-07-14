@@ -4,7 +4,7 @@ import logging
 from typing import List
 
 import ray
-from ray.exceptions import RayActorError
+from ray.exceptions import RayActorError, OutOfMemoryError
 
 from buildflow.core import utils
 from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import (
@@ -123,7 +123,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
                     await replica.ray_actor_handle.snapshot.remote()
                 )
                 replica_snapshots.append(snapshot)
-            except RayActorError:
+            except (RayActorError, OutOfMemoryError):
                 logging.exception("replica actor unexpectedly died. will restart.")
                 # We keep this list reverse sorted so we can iterate and remove
                 dead_replica_indices.appendleft(i)

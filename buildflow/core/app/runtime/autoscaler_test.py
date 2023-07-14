@@ -22,6 +22,7 @@ def create_snapshot(
     backlog: int,
     num_cpu_per_replica: float = 1,
     avg_cpu_percent: float = 1,
+    timestamp_millis: int = 1,
 ) -> PipelineProcessorSnapshot:
     return PipelineProcessorSnapshot(
         source_backlog=backlog,
@@ -30,7 +31,7 @@ def create_snapshot(
         avg_cpu_percentage_per_replica=avg_cpu_percent,
         num_cpu_per_replica=num_cpu_per_replica,
         status=RuntimeStatus.RUNNING,
-        timestamp_millis=1,
+        timestamp_millis=timestamp_millis,
         processor_id="id",
         processor_type=ProcessorType.PIPELINE,
         num_concurrency_per_replica=1,
@@ -61,8 +62,9 @@ class PipelineAutoScalerTest(unittest.TestCase):
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
-            snapshot,
-            config,
+            current_snapshot=snapshot,
+            prev_snapshot=None,
+            config=config,
         )
         self.assertEqual(rec_replicas, 4)
 
@@ -86,8 +88,9 @@ class PipelineAutoScalerTest(unittest.TestCase):
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
-            snapshot,
-            config,
+            current_snapshot=snapshot,
+            prev_snapshot=None,
+            config=config,
         )
         self.assertEqual(rec_replicas, 1)
         request_resources_mock.assert_called_once_with(num_cpus=1)
@@ -114,8 +117,9 @@ class PipelineAutoScalerTest(unittest.TestCase):
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
-            snapshot,
-            config,
+            current_snapshot=snapshot,
+            prev_snapshot=None,
+            config=config,
         )
         self.assertEqual(rec_replicas, 3)
         request_resources_mock.assert_called_once_with(num_cpus=6)
@@ -135,8 +139,9 @@ class PipelineAutoScalerTest(unittest.TestCase):
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
-            snapshot,
-            config,
+            current_snapshot=snapshot,
+            prev_snapshot=None,
+            config=config,
         )
         self.assertEqual(rec_replicas, 3)
 
@@ -160,10 +165,48 @@ class PipelineAutoScalerTest(unittest.TestCase):
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
-            snapshot,
-            config,
+            current_snapshot=snapshot,
+            prev_snapshot=None,
+            config=config,
         )
         self.assertEqual(rec_replicas, 2)
+
+    def test_scale_up_to_backlog_growth(self, resources_mock):
+        prev_timestamp = 1 * 1000 * 60
+        prev_num_replics = 4
+        prev_throughput = 4000
+        prev_backlog = 50_000
+
+        # Growth is 50,000 over 1 minute
+        # So we want a throughput increase of 50,000 / 60 = 833.33
+        # which will require one more replica
+        current_timestamp = 2 * 1000 * 60
+        current_num_replics = 4
+        current_throughput = 4000
+        backlog = 100_000
+
+        prev_snapshot = create_snapshot(
+            num_replicas=prev_num_replics,
+            throughput=prev_throughput,
+            backlog=prev_backlog,
+            timestamp_millis=prev_timestamp,
+        )
+        current_snapshot = create_snapshot(
+            num_replicas=current_num_replics,
+            throughput=current_throughput,
+            backlog=backlog,
+            timestamp_millis=current_timestamp,
+        )
+        config = AutoscalerOptions(
+            enable_autoscaler=True, min_replicas=1, max_replicas=100, log_level="UNUSED"
+        )
+        logging
+        rec_replicas = autoscaler.calculate_target_num_replicas(
+            current_snapshot=current_snapshot,
+            prev_snapshot=prev_snapshot,
+            config=config,
+        )
+        self.assertEqual(rec_replicas, 5)
 
 
 if __name__ == "__name__":

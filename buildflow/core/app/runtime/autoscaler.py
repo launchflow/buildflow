@@ -1,5 +1,6 @@
 import logging
 import math
+from typing import Optional
 
 import ray
 from ray.autoscaler.sdk import request_resources
@@ -23,7 +24,10 @@ def _available_replicas(cpu_per_replica: float):
 
 
 def _calculate_target_num_replicas_for_pipeline_v2(
-    snapshot: PipelineProcessorSnapshot, config: AutoscalerOptions
+    *,
+    current_snapshot: PipelineProcessorSnapshot,
+    prev_snapshot: Optional[PipelineProcessorSnapshot],
+    config: AutoscalerOptions,
 ):
     """The autoscaler used by the pipeline runtime.
 
@@ -67,12 +71,12 @@ def _calculate_target_num_replicas_for_pipeline_v2(
                 3 / (25 / 5) = ceil(0.6) = 1
 
     """
-    cpus_per_replica = snapshot.num_cpu_per_replica
-    backlog = snapshot.source_backlog
-    num_replicas = snapshot.num_replicas
-    throughput = snapshot.total_events_processed_per_sec
+    cpus_per_replica = current_snapshot.num_cpu_per_replica
+    backlog = current_snapshot.source_backlog
+    num_replicas = current_snapshot.num_replicas
+    throughput = current_snapshot.total_events_processed_per_sec
     throughput_per_replica = throughput / num_replicas
-    avg_replica_cpu_percentage = snapshot.avg_cpu_percentage_per_replica
+    avg_replica_cpu_percentage = current_snapshot.avg_cpu_percentage_per_replica
     available_replicas = _available_replicas(cpus_per_replica)
 
     logging.debug("-------------------------AUTOSCALER----------------------\n")
@@ -93,6 +97,22 @@ def _calculate_target_num_replicas_for_pipeline_v2(
         logging.debug("want throughput: %s", want_throughput)
         new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
     elif (
+        prev_snapshot is not None
+        and prev_snapshot.source_backlog < current_snapshot.source_backlog
+    ):
+        time_gap_ms = current_snapshot.timestamp_millis - prev_snapshot.timestamp_millis
+        backlog_growth = current_snapshot.source_backlog - prev_snapshot.source_backlog
+        logging.debug("backlog growth: %s", backlog_growth)
+        backlog_growth_per_sec = backlog_growth / (time_gap_ms / 1000)
+        want_throughput = throughput + backlog_growth_per_sec
+        logging.debug("want throughput: %s", want_throughput)
+        # We do round here to avoid too noisy of scaling.
+        # This helps give the current number of replicas a chance to
+        # get through the backlog before scaling up.
+        new_num_replicas = int(round(want_throughput / throughput_per_replica))
+        # Sanity check to make sure we don't scale below 0.
+        new_num_replicas = max(new_num_replicas, 1)
+    elif (
         avg_replica_cpu_percentage > 0
         and avg_replica_cpu_percentage < _TARGET_CPU_PERCENTAGE
     ):
@@ -108,24 +128,24 @@ def _calculate_target_num_replicas_for_pipeline_v2(
     elif new_num_replicas < config.min_replicas:
         new_num_replicas = config.min_replicas
 
-    if new_num_replicas > snapshot.num_replicas:
-        replicas_adding = new_num_replicas - snapshot.num_replicas
+    if new_num_replicas > current_snapshot.num_replicas:
+        replicas_adding = new_num_replicas - current_snapshot.num_replicas
         if replicas_adding > available_replicas:
-            new_num_replicas = snapshot.num_replicas + available_replicas
+            new_num_replicas = current_snapshot.num_replicas + available_replicas
             # Cap how much we request to ensure we're not requesting a huge amount
             cpu_to_request = new_num_replicas * cpus_per_replica * 2
             request_resources(num_cpus=math.ceil(cpu_to_request))
-    else:
+    elif new_num_replicas < current_snapshot.num_replicas:
         # we're scaling down so only request resources that are needed for
         # the smaller amount.
         # This will override the case where we requested a bunch of
         # resources for a replicas that haven't been fufilled yet.
         request_resources(num_cpus=math.ceil(new_num_replicas * cpus_per_replica))
 
-    if new_num_replicas != snapshot.num_replicas:
+    if new_num_replicas != current_snapshot.num_replicas:
         logging.warning(
             "resizing from %s replicas to %s replicas",
-            snapshot.num_replicas,
+            current_snapshot.num_replicas,
             new_num_replicas,
         )
 
@@ -140,15 +160,22 @@ def _calculate_target_num_replicas_for_pipeline_v2(
 
 
 def calculate_target_num_replicas(
-    snapshot: ProcessorSnapshot, config: AutoscalerOptions
+    *,
+    current_snapshot: ProcessorSnapshot,
+    prev_snapshot: Optional[ProcessorSnapshot],
+    config: AutoscalerOptions,
 ):
-    if snapshot.processor_type == ProcessorType.PIPELINE:
-        return _calculate_target_num_replicas_for_pipeline_v2(snapshot, config)
-    elif snapshot.processor_type == ProcessorType.COLLECTOR:
+    if current_snapshot.processor_type == ProcessorType.PIPELINE:
+        return _calculate_target_num_replicas_for_pipeline_v2(
+            current_snapshot=current_snapshot,
+            prev_snapshot=prev_snapshot,
+            config=config,
+        )
+    elif current_snapshot.processor_type == ProcessorType.COLLECTOR:
         raise NotImplementedError("Collector autoscaling not implemented yet")
-    elif snapshot.processor_type == ProcessorType.CONNECTION:
+    elif current_snapshot.processor_type == ProcessorType.CONNECTION:
         raise NotImplementedError("Connection autoscaling not implemented yet")
-    elif snapshot.processor_type == ProcessorType.SERVICE:
+    elif current_snapshot.processor_type == ProcessorType.SERVICE:
         raise NotImplementedError("Service autoscaling not implemented yet")
     else:
-        raise ValueError(f"Unknown processor type: {snapshot.processor_type}")
+        raise ValueError(f"Unknown processor type: {current_snapshot.processor_type}")
