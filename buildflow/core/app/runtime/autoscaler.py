@@ -142,7 +142,7 @@ def _calculate_target_num_replicas_for_pipeline_v2(
         # We do round here to avoid too noisy of scaling.
         # This helps give the current number of replicas a chance to
         # get through the backlog before scaling up.
-        new_num_replicas = int(round(want_throughput / throughput_per_replica))
+        new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
     elif (
         avg_replica_cpu_percentage > 0
         and avg_replica_cpu_percentage < config.pipeline_cpu_percent_target
