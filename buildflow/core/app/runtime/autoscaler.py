@@ -40,7 +40,13 @@ def _calculate_target_num_replicas_for_pipeline_v2(
         seconds to burn down the backlog with our current throughpu
         we scale up to the number of replicas that would be required.
 
-        Example:
+        If the backlog could be burned down in less than 60 seconds we
+        check if the backlog has increased since we last checked. If it
+        we add the backlog rate to our current throughput and see how many
+        replicas we would need to maintain that throughput. We round this
+        number to only add a replica if it is a significant increase.
+
+        Example1:
             current replicas: 2
             current throughput: 10 elements/sec
             backlog: 1000 elements
@@ -57,6 +63,34 @@ def _calculate_target_num_replicas_for_pipeline_v2(
                 new_num_replicas =
                     want_throughput / (current_throughput / current_replicas)
                     16.6 / (10 / 2) = ceil(3.3) = 4
+
+        Example2:
+            current replicas: 4
+            current throughput: 4_000 elements/sec
+            backlog 100_000 elements
+            current snapshot time = 2 minute
+
+            In this example it would take us 25 seconds to burn down the
+            backlog so the first case does not apply. Next we look at the
+            previous backlog to see if it has grown.
+
+            prevbacklog: 50_000 elements
+            prev snapshot time: 1 minute
+
+            In this example the backlog has grown by 50_000 elements in 1 minute
+            so we would to increase our throughput to:
+                backlog_growth = backlog - prev backlog
+                time_gap = current snapshot time - prev snapshot time
+                want_throughput =
+                    current_throughput + backlog_growth / time_gap
+                    4_000 + (100_000 - 50_000) / (2 * 60 - 1 * 60) = 4_833 elements/sec
+                num_replicas =
+                    int(round(want_throughput / throughput_per_replica))
+                    int(round(4_833 / (4_000 / 4))) = 5
+
+
+
+
 
     When do we scale down?
         We scale down by checking the CPU utilization of each replica and target
