@@ -40,6 +40,13 @@ class AutoscalerOptions(Options):
             log_level="INFO",
         )
 
+    def __post_init__(self):
+        if (
+            self.pipeline_cpu_percent_target < 0
+            or self.pipeline_cpu_percent_target > 100
+        ):
+            raise ValueError("pipeline_cpu_percent_target must be between 0 and 100")
+
 
 @dataclasses.dataclass
 class RuntimeOptions(Options):

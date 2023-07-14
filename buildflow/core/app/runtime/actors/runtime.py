@@ -4,6 +4,7 @@ import asyncio
 import dataclasses
 from datetime import datetime, timedelta
 import logging
+import time
 from typing import Dict, Iterable, List, Optional
 
 import ray
@@ -220,7 +221,7 @@ class RuntimeActor(Runtime):
 
     async def _runtime_autoscale_loop(self):
         logging.info("Runtime checkin loop started...")
-        last_autoscale_event = datetime.utcnow()
+        last_autoscale_event = time.monotonic()
         last_snapshot: Dict[ProcessorID, Optional[ProcessorSnapshot]] = {}
         # We keep running the loop while the job is running or draining to ensure
         # we don't exit the main process before the drain is complete.
@@ -234,8 +235,10 @@ class RuntimeActor(Runtime):
             # Only run the autoscale loop when the runtime is running, this prevents
             # us from scaling while we are draining.
             if self._status == RuntimeStatus.RUNNING and (
-                datetime.utcnow() - last_autoscale_event >= self._autoscale_frequency
+                time.monotonic() - last_autoscale_event
+                >= self._autoscale_frequency.total_seconds()
             ):
+                logging.debug("Starting autoscale check at: %s", datetime.utcnow())
                 for processor_pool in self._processor_pool_refs:
                     snapshot = await self._scale_processor(
                         processor_pool=processor_pool,
@@ -244,5 +247,6 @@ class RuntimeActor(Runtime):
                         ),
                     )
                     last_snapshot[processor_pool.processor.processor_id] = snapshot
-                last_autoscale_event = datetime.utcnow()
+                logging.debug("autoscale check ended at: %s", datetime.utcnow())
+                last_autoscale_event = time.monotonic()
             await asyncio.sleep(self.options.checkin_frequency_loop_secs)
