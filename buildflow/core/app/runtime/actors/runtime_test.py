@@ -253,7 +253,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_for_time(pending, 10)
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        self.assertGreaterEqual(1, snapshot.processors[0].num_replicas)
+        self.assertGreaterEqual(snapshot.processors[0].num_replicas, 1)
 
         self.run_with_timeout(actor.drain.remote())
         self.assertInStderr("replica actor unexpectedly died. will restart.")

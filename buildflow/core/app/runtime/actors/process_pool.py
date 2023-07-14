@@ -97,7 +97,9 @@ class ProcessorReplicaPoolActor(Runtime):
 
     async def add_replicas(self, num_replicas: int):
         if self._status != RuntimeStatus.RUNNING:
-            raise RuntimeError("Can only replicas to a processor pool that is running.")
+            raise RuntimeError(
+                "Can only add replicas to a processor pool that is running."
+            )
         for _ in range(num_replicas):
             replica = await self.create_replica()
 
