@@ -152,7 +152,7 @@ def _calculate_target_num_replicas_for_pipeline_v2(
             backlog_growth_per_sec = backlog_growth / (time_gap_ms / 1000)
             want_throughput = throughput + backlog_growth_per_sec
             logging.debug("want throughput: %s", want_throughput)
-        new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
+            new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
     # Scale down event.
     elif (
         avg_replica_cpu_percentage > 0
