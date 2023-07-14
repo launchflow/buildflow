@@ -12,10 +12,6 @@ from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
 from buildflow.core.options.runtime_options import AutoscalerOptions
 from buildflow.core.processor.processor import ProcessorType
 
-_BACKLOG_BURN_THRESHOLD = 60
-# We set this a little lower so io bound tasks don't scale down too much.
-_TARGET_CPU_PERCENTAGE = 25
-
 
 def _available_replicas(cpu_per_replica: float):
     num_cpus = ray.available_resources().get("CPU", 0)
@@ -125,9 +121,12 @@ def _calculate_target_num_replicas_for_pipeline_v2(
     logging.debug("max available cluster replicas: %s", available_replicas)
 
     new_num_replicas = num_replicas
-    if throughput > 0 and (backlog / throughput) > _BACKLOG_BURN_THRESHOLD:
+    if (
+        throughput > 0
+        and (backlog / throughput) > config.pipeline_backlog_burn_threshold
+    ):
         # Backlog is too high, scale up
-        want_throughput = backlog / _BACKLOG_BURN_THRESHOLD
+        want_throughput = backlog / config.pipeline_backlog_burn_threshold
         logging.debug("want throughput: %s", want_throughput)
         new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
     elif (
@@ -148,11 +147,12 @@ def _calculate_target_num_replicas_for_pipeline_v2(
         new_num_replicas = max(new_num_replicas, 1)
     elif (
         avg_replica_cpu_percentage > 0
-        and avg_replica_cpu_percentage < _TARGET_CPU_PERCENTAGE
+        and avg_replica_cpu_percentage < config.pipeline_cpu_percent_target
     ):
         # Utilization is too low, scale down
         new_num_replicas = math.ceil(
-            num_replicas / (_TARGET_CPU_PERCENTAGE / avg_replica_cpu_percentage)
+            num_replicas
+            / (config.pipeline_cpu_percent_target / avg_replica_cpu_percentage)
         )
 
     # If we're trying to scale to more than max replicas and max replicas
