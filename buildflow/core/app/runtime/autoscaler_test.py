@@ -92,7 +92,7 @@ class PipelineAutoScalerTest(unittest.TestCase):
             prev_snapshot=None,
             config=config,
         )
-        self.assertEqual(rec_replicas, 1)
+        self.assertEqual(rec_replicas, 3)
         request_resources_mock.assert_called_once_with(num_cpus=3)
 
     def test_scale_up_to_max_options_replicas(self, resources_mock):
