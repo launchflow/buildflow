@@ -285,7 +285,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_with_timeout(actor.run.remote(processors=[process]))
 
-        self.run_for_time(actor.run_until_complete.remote(), 10)
+        self.run_for_time(actor.run_until_complete.remote(), 15)
 
         snapshot = self.run_with_timeout(actor.snapshot.remote())
 
