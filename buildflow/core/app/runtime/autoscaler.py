@@ -182,7 +182,7 @@ def _calculate_target_num_replicas_for_pipeline_v2(
             # Cap how much we request to ensure we're not requesting a huge amount
             cpu_to_request = new_num_replicas * cpus_per_replica * 2
             request_resources(num_cpus=math.ceil(cpu_to_request))
-    elif new_num_replicas < current_snapshot.num_replicas:
+    elif new_num_replicas <= current_snapshot.num_replicas:
         # we're scaling down so only request resources that are needed for
         # the smaller amount.
         # This will override the case where we requested a bunch of
