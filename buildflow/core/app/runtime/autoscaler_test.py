@@ -72,10 +72,10 @@ class PipelineAutoScalerTest(unittest.TestCase):
     def test_scale_down_to_estimated_replicas(
         self, request_resources_mock: mock.MagicMock, resources_mock
     ):
-        current_num_replics = 3
+        current_num_replics = 4
         current_throughput = 100000
         backlog = 0
-        avg_cpu_percent = 5
+        avg_cpu_percent = 20
 
         snapshot = create_snapshot(
             num_replicas=current_num_replics,
@@ -93,7 +93,7 @@ class PipelineAutoScalerTest(unittest.TestCase):
             config=config,
         )
         self.assertEqual(rec_replicas, 1)
-        request_resources_mock.assert_called_once_with(num_cpus=1)
+        request_resources_mock.assert_called_once_with(num_cpus=3)
 
     def test_scale_up_to_max_options_replicas(self, resources_mock):
         pass

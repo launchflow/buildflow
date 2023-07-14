@@ -93,12 +93,12 @@ def _calculate_target_num_replicas_for_pipeline_v2(
         an avergae of 25% utilization. We only check this if we are not scaling up.
 
         Example:
-            avg_cpu_percentage_per_replica: 5%
-            current_replicas: 3
+            avg_cpu_percentage_per_replica: 20%
+            current_replicas: 4
 
             new_num_replicas =
                 current_replicas / (25 / avg_cpu_percentage_per_replica)
-                3 / (25 / 5) = ceil(0.6) = 1
+                4 / (25 / 20) = floor(3.2) = 3
 
     """
     cpus_per_replica = current_snapshot.num_cpu_per_replica
@@ -143,17 +143,19 @@ def _calculate_target_num_replicas_for_pipeline_v2(
         # This helps give the current number of replicas a chance to
         # get through the backlog before scaling up.
         new_num_replicas = int(round(want_throughput / throughput_per_replica))
-        # Sanity check to make sure we don't scale below 0.
-        new_num_replicas = max(new_num_replicas, 1)
     elif (
         avg_replica_cpu_percentage > 0
         and avg_replica_cpu_percentage < config.pipeline_cpu_percent_target
     ):
         # Utilization is too low, scale down
-        new_num_replicas = math.ceil(
+        # We use floor here because we're trying to keep their utilization at
+        # or above a target.
+        new_num_replicas = math.floor(
             num_replicas
             / (config.pipeline_cpu_percent_target / avg_replica_cpu_percentage)
         )
+    # Sanity check to make sure we don't scale below 0.
+    new_num_replicas = max(new_num_replicas, 1)
 
     # If we're trying to scale to more than max replicas and max replicas
     # for our cluster is less than our total max replicas
