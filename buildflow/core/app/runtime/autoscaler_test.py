@@ -196,6 +196,7 @@ class PipelineAutoScalerTest(unittest.TestCase):
             throughput=current_throughput,
             backlog=backlog,
             timestamp_millis=current_timestamp,
+            avg_cpu_percent=100,
         )
         config = AutoscalerOptions(
             enable_autoscaler=True, min_replicas=1, max_replicas=100, log_level="UNUSED"

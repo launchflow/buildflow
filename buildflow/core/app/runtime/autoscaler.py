@@ -112,6 +112,8 @@ def _calculate_target_num_replicas_for_pipeline_v2(
     logging.debug("-------------------------AUTOSCALER----------------------\n")
     logging.debug("config max replicas: %s", config.max_replicas)
     logging.debug("config min replicas: %s", config.min_replicas)
+    logging.debug("backlog burn threshold: %s", config.pipeline_backlog_burn_threshold)
+    logging.debug("cpu percent target: %s", config.pipeline_cpu_percent_target)
     logging.debug("cpus per replica: %s", cpus_per_replica)
     logging.debug("start num replicas: %s", num_replicas)
     logging.debug("backlog: %s", backlog)
@@ -121,6 +123,7 @@ def _calculate_target_num_replicas_for_pipeline_v2(
     logging.debug("max available cluster replicas: %s", available_replicas)
 
     new_num_replicas = num_replicas
+    # Major backlog event. This happens when the pipeline is way behind.
     if (
         throughput > 0
         and (backlog / throughput) > config.pipeline_backlog_burn_threshold
@@ -129,20 +132,28 @@ def _calculate_target_num_replicas_for_pipeline_v2(
         want_throughput = backlog / config.pipeline_backlog_burn_threshold
         logging.debug("want throughput: %s", want_throughput)
         new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
+    # Minor backlog event. This happens when the pipeline is just slightly behind during
+    # it's normal operation. We only perform this check if our current replicas are
+    # fully utlized.
     elif (
         prev_snapshot is not None
         and prev_snapshot.source_backlog < current_snapshot.source_backlog
     ):
-        time_gap_ms = current_snapshot.timestamp_millis - prev_snapshot.timestamp_millis
-        backlog_growth = current_snapshot.source_backlog - prev_snapshot.source_backlog
-        logging.debug("backlog growth: %s", backlog_growth)
-        backlog_growth_per_sec = backlog_growth / (time_gap_ms / 1000)
-        want_throughput = throughput + backlog_growth_per_sec
-        logging.debug("want throughput: %s", want_throughput)
-        # We do round here to avoid too noisy of scaling.
-        # This helps give the current number of replicas a chance to
-        # get through the backlog before scaling up.
+        # This if block is nested to avoid triggering a down scale.
+        if avg_replica_cpu_percentage > config.pipeline_cpu_percent_target:
+            time_gap_ms = (
+                current_snapshot.timestamp_millis - prev_snapshot.timestamp_millis
+            )
+            logging.debug("backlog gap ms : %s", time_gap_ms)
+            backlog_growth = (
+                current_snapshot.source_backlog - prev_snapshot.source_backlog
+            )
+            logging.debug("backlog growth: %s", backlog_growth)
+            backlog_growth_per_sec = backlog_growth / (time_gap_ms / 1000)
+            want_throughput = throughput + backlog_growth_per_sec
+            logging.debug("want throughput: %s", want_throughput)
         new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
+    # Scale down event.
     elif (
         avg_replica_cpu_percentage > 0
         and avg_replica_cpu_percentage < config.pipeline_cpu_percent_target
