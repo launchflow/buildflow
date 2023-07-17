@@ -9,6 +9,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 
 from buildflow.core import utils
+from buildflow.core.io.gcp.strategies._cython import pubsub_source
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import Batch, SinkStrategy
@@ -48,6 +49,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         project_id: GCPProjectID,
         batch_size: int = 1000,
         include_attributes: bool = False,
+        use_cpp_source: bool = False,
     ):
         super().__init__(strategy_id="gcp-pubsub-subscription-source")
         # configuration
@@ -55,8 +57,14 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         self.project_id = project_id
         self.batch_size = batch_size
         self.include_attributes = include_attributes
+        self.use_cpp_source = use_cpp_source
         # setup
-        self.subscriber_client = gcp_clients.get_async_subscriber_client(project_id)
+        if not self.use_cpp_source:
+            self.subscriber_client = gcp_clients.get_async_subscriber_client(project_id)
+        else:
+            self.cpp_subscriber = pubsub_source.PyPubSubStream(
+                self.subscription_id.encode("utf-8")
+            )
         self.publisher_client = gcp_clients.get_async_publisher_client(project_id)
         # initial state
 
@@ -64,7 +72,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
     def subscription_id(self) -> PubSubSubscriptionID:
         return f"projects/{self.project_id}/subscriptions/{self.subscription_name}"  # noqa: E501
 
-    async def pull(self) -> PullResponse:
+    async def _pyton_pull(self) -> PullResponse:
         try:
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
@@ -92,7 +100,22 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
 
         return PullResponse(payloads, _PubsubAckInfo(ack_ids))
 
-    async def ack(self, ack_info: _PubsubAckInfo, success: bool):
+    async def _cpp_pull(self) -> PullResponse:
+        messages = self.cpp_subscriber.pull()
+        payloads = []
+        ack_ids = []
+        for message in messages:
+            payloads.append(message.data())
+            ack_ids.append(message.ack_id())
+        return PullResponse(payloads, _PubsubAckInfo(ack_ids))
+
+    async def pull(self) -> PullResponse:
+        if self.use_cpp_source:
+            return await self._cpp_pull()
+        else:
+            return await self._pyton_pull()
+
+    async def _python_ack(self, ack_info: _PubsubAckInfo, success: bool):
         if ack_info.ack_ids:
             if success:
                 await self.subscriber_client.acknowledge(
@@ -107,6 +130,18 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
                     ack_ids=ack_info.ack_ids,
                     ack_deadline_seconds=ack_deadline_seconds,
                 )
+
+    async def _cpp_ack(self, ack_info: _PubsubAckInfo, success: bool):
+        if ack_info.ack_ids:
+            # TODO: need to implement nack for cpp source
+            if success:
+                self.cpp_subscriber.ack(ack_info.ack_ids)
+
+    async def ack(self, ack_info: _PubsubAckInfo, success: bool):
+        if self.use_cpp_source:
+            return await self._cpp_ack(ack_info, success)
+        else:
+            return await self._python_ack(ack_info, success)
 
     async def backlog(self) -> int:
         split_sub = self.subscription_id.split("/")
