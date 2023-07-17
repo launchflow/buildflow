@@ -81,7 +81,7 @@ class PullProcessPushActor(Runtime):
 
         # initial runtime state
         self._status = RuntimeStatus.IDLE
-        self._num_running_threads = 0
+        self._running_tasks = []
         self._replica_id = replica_id
         self._last_snapshot_time = time.monotonic()
         # metrics
@@ -147,139 +147,149 @@ class PullProcessPushActor(Runtime):
             },
         )
 
+    async def _run_until_complete(self):
+        print("IN HERE")
+        try:
+            pid = os.getpid()
+            proc = psutil.Process(pid)
+            raw_process_fn = self.processor.process
+            full_arg_spec = inspect.getfullargspec(raw_process_fn)
+            output_type = None
+            input_type = None
+            if "return" in full_arg_spec.annotations:
+                output_type = full_arg_spec.annotations["return"]
+                if (
+                    hasattr(output_type, "__origin__")
+                    and (
+                        output_type.__origin__ is list
+                        or output_type.__origin__ is tuple
+                    )
+                    and hasattr(output_type, "__args__")
+                ):
+                    # We will flatten the return type if the outter most type is a tuple
+                    # or list.
+                    output_type = output_type.__args__[0]
+            if (
+                len(full_arg_spec.args) > 1
+                and full_arg_spec.args[1] in full_arg_spec.annotations
+            ):
+                input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
+            source = self.processor.source()
+            sink = self.processor.sink()
+            pull_converter = source.pull_converter(input_type)
+            push_converter = sink.push_converter(output_type)
+            process_fn = raw_process_fn
+            if not inspect.iscoroutinefunction(raw_process_fn):
+                # Wrap the raw process function in an async function to make our calls
+                # below easier
+                async def wrapped_process_fn(x):
+                    return raw_process_fn(x)
+
+                process_fn = wrapped_process_fn
+
+            async def process_element(element):
+                results = await process_fn(pull_converter(element))
+                if isinstance(results, (list, tuple)):
+                    return [push_converter(result) for result in results]
+                else:
+                    return push_converter(results)
+
+            while self._status == RuntimeStatus.RUNNING:
+                print(f"DO NOT SUBMIT: running... {self._replica_id}")
+                proc.cpu_percent()
+                # PULL
+                total_start_time = time.monotonic()
+                try:
+                    response = await source.pull()
+                except Exception:
+                    logging.exception("pull failed")
+                    continue
+                if not response.payload:
+                    self._pull_percentage_counter.empty_inc()
+                    cpu_percent = proc.cpu_percent()
+                    if cpu_percent > 0.0:
+                        self.cpu_percentage.inc(cpu_percent)
+                    else:
+                        self.cpu_percentage.empty_inc()
+                    continue
+                # PROCESS
+                process_success = True
+                process_start_time = time.monotonic()
+                self._pull_percentage_counter.inc(
+                    len(response.payload) / self.max_batch_size
+                )
+                try:
+                    coros = []
+                    for element in response.payload:
+                        coros.append(process_element(element))
+                    flattened_results = await asyncio.gather(*coros)
+                    batch_results = []
+                    for results in flattened_results:
+                        if isinstance(results, list):
+                            batch_results.extend(results)
+                        else:
+                            batch_results.append(results)
+
+                    batch_process_time_millis = (
+                        time.monotonic() - process_start_time
+                    ) * 1000
+                    self.batch_time_counter.inc(
+                        (time.monotonic() - process_start_time) * 1000
+                    )
+                    element_process_time_millis = batch_process_time_millis / len(
+                        batch_results
+                    )
+                    self.process_time_counter.inc(element_process_time_millis)
+
+                    # PUSH
+                    await sink.push(batch_results)
+                    # NOTE: we need this to ensure that we can call the snapshot method
+                    # for drains and autoscale checks
+                    # await asyncio.sleep(0.1)
+                except Exception:
+                    logging.exception(
+                        "failed to process batch, messages will not be acknowledged"
+                    )
+                    process_success = False
+                finally:
+                    # ACK
+                    try:
+                        await source.ack(response.ack_info, process_success)
+                    except Exception:
+                        # This can happen if there is network failures for w/e reason
+                        # we want to try and catch here so our runtime loop
+                        # doesn't die.
+                        logging.exception("failed to ack batch, will continue")
+                        continue
+                self.num_events_processed.inc(len(response.payload))
+                # DONE -> LOOP
+                self.total_time_counter.inc(
+                    (time.monotonic() - total_start_time) * 1000
+                )
+                cpu_percent = proc.cpu_percent()
+                if cpu_percent > 0.0:
+                    # Ray doesn't like it when we try to set a metric to 0
+                    self.cpu_percentage.inc(cpu_percent)
+                else:
+                    self.cpu_percentage.empty_inc()
+
+            if not self._running_tasks:
+                self._status = RuntimeStatus.IDLE
+                logging.info("PullProcessPushActor Complete.")
+
+            logging.debug("Thread Complete.")
+        except Exception as e:
+            print("DO NOT SUBMIT: ", e)
+            logging.exception("Thread failed.")
+
     async def run(self):
-        pid = os.getpid()
-        proc = psutil.Process(pid)
         if self._status == RuntimeStatus.IDLE:
             logging.info("Starting PullProcessPushActor...")
             self._status = RuntimeStatus.RUNNING
         elif self._status == RuntimeStatus.DRAINING:
             raise RuntimeError("Cannot run a PullProcessPushActor that is draining.")
-
         logging.debug("Starting Thread...")
-        self._num_running_threads += 1
-
-        raw_process_fn = self.processor.process
-        full_arg_spec = inspect.getfullargspec(raw_process_fn)
-        output_type = None
-        input_type = None
-        if "return" in full_arg_spec.annotations:
-            output_type = full_arg_spec.annotations["return"]
-            if (
-                hasattr(output_type, "__origin__")
-                and (output_type.__origin__ is list or output_type.__origin__ is tuple)
-                and hasattr(output_type, "__args__")
-            ):
-                # We will flatten the return type if the outter most type is a tuple or
-                # list.
-                output_type = output_type.__args__[0]
-        if (
-            len(full_arg_spec.args) > 1
-            and full_arg_spec.args[1] in full_arg_spec.annotations
-        ):
-            input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
-        source = self.processor.source()
-        sink = self.processor.sink()
-        pull_converter = source.pull_converter(input_type)
-        push_converter = sink.push_converter(output_type)
-        process_fn = raw_process_fn
-        if not inspect.iscoroutinefunction(raw_process_fn):
-            # Wrap the raw process function in an async function to make our calls below
-            # easier
-            async def wrapped_process_fn(x):
-                return raw_process_fn(x)
-
-            process_fn = wrapped_process_fn
-
-        async def process_element(element):
-            results = await process_fn(pull_converter(element))
-            if isinstance(results, (list, tuple)):
-                return [push_converter(result) for result in results]
-            else:
-                return push_converter(results)
-
-        while self._status == RuntimeStatus.RUNNING:
-            proc.cpu_percent()
-            # PULL
-            total_start_time = time.monotonic()
-            try:
-                response = await source.pull()
-            except Exception:
-                logging.exception("pull failed")
-                continue
-            if not response.payload:
-                self._pull_percentage_counter.empty_inc()
-                cpu_percent = proc.cpu_percent()
-                if cpu_percent > 0.0:
-                    self.cpu_percentage.inc(cpu_percent)
-                else:
-                    self.cpu_percentage.empty_inc()
-                continue
-            # PROCESS
-            process_success = True
-            process_start_time = time.monotonic()
-            self._pull_percentage_counter.inc(
-                len(response.payload) / self.max_batch_size
-            )
-            try:
-                coros = []
-                for element in response.payload:
-                    coros.append(process_element(element))
-                flattened_results = await asyncio.gather(*coros)
-                batch_results = []
-                for results in flattened_results:
-                    if isinstance(results, list):
-                        batch_results.extend(results)
-                    else:
-                        batch_results.append(results)
-
-                batch_process_time_millis = (
-                    time.monotonic() - process_start_time
-                ) * 1000
-                self.batch_time_counter.inc(
-                    (time.monotonic() - process_start_time) * 1000
-                )
-                element_process_time_millis = batch_process_time_millis / len(
-                    batch_results
-                )
-                self.process_time_counter.inc(element_process_time_millis)
-
-                # PUSH
-                await sink.push(batch_results)
-                # NOTE: we need this to ensure that we can call the snapshot method for
-                # drains and autoscale checks
-                # await asyncio.sleep(0.1)
-            except Exception:
-                logging.exception(
-                    "failed to process batch, messages will not be acknowledged"
-                )
-                process_success = False
-            finally:
-                # ACK
-                try:
-                    await source.ack(response.ack_info, process_success)
-                except Exception:
-                    # This can happen if there is network failures for w/e reason
-                    # we want to try and catch here so our runtime loop
-                    # doesn't die.
-                    logging.exception("failed to ack batch, will continue")
-                    continue
-            self.num_events_processed.inc(len(response.payload))
-            # DONE -> LOOP
-            self.total_time_counter.inc((time.monotonic() - total_start_time) * 1000)
-            cpu_percent = proc.cpu_percent()
-            if cpu_percent > 0.0:
-                # Ray doesn't like it when we try to set a metric to 0
-                self.cpu_percentage.inc(cpu_percent)
-            else:
-                self.cpu_percentage.empty_inc()
-
-        self._num_running_threads -= 1
-        if self._num_running_threads == 0:
-            self._status = RuntimeStatus.IDLE
-            logging.info("PullProcessPushActor Complete.")
-
-        logging.debug("Thread Complete.")
+        self._running_tasks.append(self._run_until_complete())
 
     async def status(self):
         # TODO: Have this method count the number of active threads

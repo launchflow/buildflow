@@ -216,9 +216,11 @@ class RuntimeActor(Runtime):
 
         num_replicas_delta = target_num_replicas - current_num_replicas
         if num_replicas_delta > 0:
-            processor_pool.actor_handle.add_replicas.remote(num_replicas_delta)
+            await processor_pool.actor_handle.add_replicas.remote(num_replicas_delta)
         elif num_replicas_delta < 0:
-            processor_pool.actor_handle.remove_replicas.remote(abs(num_replicas_delta))
+            await processor_pool.actor_handle.remove_replicas.remote(
+                abs(num_replicas_delta)
+            )
         return processor_snapshot
 
     async def _runtime_autoscale_loop(self):
