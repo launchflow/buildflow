@@ -58,6 +58,7 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
         # source-only options
         batch_size: int = 1000,
         include_attributes: bool = False,
+        use_cpp_source: bool = False,
         # pulumi-only options
         ack_deadline_seconds: int = 10 * 60,
         message_retention_duration: str = "1200s",
@@ -68,6 +69,7 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
         # source-only options
         self.batch_size = batch_size
         self.include_attributes = include_attributes
+        self.use_cpp_source = use_cpp_source
         # pulumi-only options
         self.ack_deadline_seconds = ack_deadline_seconds
         self.message_retention_duration = message_retention_duration
@@ -78,6 +80,7 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
             project_id=self.project_id,
             batch_size=self.batch_size,
             include_attributes=self.include_attributes,
+            use_cpp_source=self.use_cpp_source,
         )
 
     def pulumi_resources(self, type_: Optional[Type]):

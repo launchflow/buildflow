@@ -106,6 +106,7 @@ class ProcessorReplicaPoolActor(Runtime):
             if self._status == RuntimeStatus.RUNNING:
                 for _ in range(self.options.num_concurrency):
                     replica.ray_actor_handle.run.remote()
+
             self.replicas.append(replica)
 
         self.num_replicas_gauge.set(len(self.replicas))
@@ -138,8 +139,6 @@ class ProcessorReplicaPoolActor(Runtime):
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
-        for replica in self.replicas:
-            replica.ray_actor_handle.run.remote()
 
     async def drain(self):
         logging.info(f"Draining ProcessorPool({self.processor.processor_id})...")

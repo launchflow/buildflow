@@ -60,6 +60,8 @@ class GCPPubSubSubscription(GCPPrimtive):
     subscription_name: PubSubSubscriptionName
     # required fields
     topic_id: PubSubTopicID
+    # Optional fields
+    use_cpp_source: bool = False
 
     @classmethod
     def from_gcp_options(
@@ -87,6 +89,7 @@ class GCPPubSubSubscription(GCPPrimtive):
             project_id=self.project_id,
             subscription_name=self.subscription_name,
             topic_id=self.topic_id,
+            use_cpp_source=self.use_cpp_source,
         )
 
     # NOTE: Subscriptions do not support sinks, but we "implement" it here to

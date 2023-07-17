@@ -120,6 +120,8 @@ class RuntimeActor(Runtime):
                 ray.kill(processor_pool.actor_handle)
                 for processor_pool in self._processor_pool_refs
             ]
+            # Kill the runtime actor to force the job to exit.
+            ray.actor.exit_actor()
         else:
             logging.warning("Draining Runtime...")
             logging.warning("-- Attempting to drain again will force stop the runtime.")
@@ -214,9 +216,11 @@ class RuntimeActor(Runtime):
 
         num_replicas_delta = target_num_replicas - current_num_replicas
         if num_replicas_delta > 0:
-            processor_pool.actor_handle.add_replicas.remote(num_replicas_delta)
+            await processor_pool.actor_handle.add_replicas.remote(num_replicas_delta)
         elif num_replicas_delta < 0:
-            processor_pool.actor_handle.remove_replicas.remote(abs(num_replicas_delta))
+            await processor_pool.actor_handle.remove_replicas.remote(
+                abs(num_replicas_delta)
+            )
         return processor_snapshot
 
     async def _runtime_autoscale_loop(self):

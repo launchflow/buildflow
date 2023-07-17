@@ -246,6 +246,9 @@ class PullProcessPushActor(Runtime):
 
                 # PUSH
                 await sink.push(batch_results)
+                # NOTE: we need this to ensure that we can call the snapshot method for
+                # drains and autoscale checks
+                # await asyncio.sleep(0.1)
             except Exception:
                 logging.exception(
                     "failed to process batch, messages will not be acknowledged"
