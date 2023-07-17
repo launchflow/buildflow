@@ -5,10 +5,6 @@ from typing import List
 
 import ray
 from ray.actor import ActorHandle
-from ray.util.placement_group import (
-    PlacementGroup,
-    remove_placement_group,
-)
 
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot, RunID
@@ -17,11 +13,13 @@ from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
 
 
+ReplicaID = str
+
+
 @dataclasses.dataclass
 class ReplicaReference:
-    replica_id: str
+    replica_id: ReplicaID
     ray_actor_handle: ActorHandle
-    ray_placement_group: PlacementGroup
 
 
 @dataclasses.dataclass
@@ -99,7 +97,9 @@ class ProcessorReplicaPoolActor(Runtime):
 
     async def add_replicas(self, num_replicas: int):
         if self._status != RuntimeStatus.RUNNING:
-            raise RuntimeError("Can only replicas to a processor pool that is running.")
+            raise RuntimeError(
+                "Can only add replicas to a processor pool that is running."
+            )
         for _ in range(num_replicas):
             replica = await self.create_replica()
 
@@ -118,23 +118,18 @@ class ProcessorReplicaPoolActor(Runtime):
                 "exist."
             )
 
-        placement_groups_to_remove = []
         actors_to_kill = []
         actor_drain_tasks = []
         for _ in range(num_replicas):
             replica = self.replicas.pop(-1)
             actors_to_kill.append(replica.ray_actor_handle)
             actor_drain_tasks.append(replica.ray_actor_handle.drain.remote())
-            placement_groups_to_remove.append(replica.ray_placement_group)
 
         if actor_drain_tasks:
             await asyncio.wait(actor_drain_tasks)
 
-        for actor, pg in zip(actors_to_kill, placement_groups_to_remove):
+        for actor in actors_to_kill:
             ray.kill(actor, no_restart=True)
-            # Placement groups are scoped to the ProcessorPool, so we need to
-            # manually clean them up.
-            remove_placement_group(pg)
 
         self.num_replicas_gauge.set(len(self.replicas))
 

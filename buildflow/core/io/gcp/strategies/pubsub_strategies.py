@@ -108,8 +108,6 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
                     ack_deadline_seconds=ack_deadline_seconds,
                 )
 
-    # TODO: This should not be Optional (goes against Pullable base class)
-    # Should always return an int and handle the case where the backlog is 0
     async def backlog(self) -> int:
         split_sub = self.subscription_id.split("/")
         project = split_sub[1]
@@ -139,7 +137,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
                 "no autoscaling will happen.",
                 self.subscription_id,
             )
-            return None
+            return -1
         points = list(last_timeseries.points)
         points.sort(
             key=lambda p: _timestamp_to_datetime(p.interval.end_time), reverse=True

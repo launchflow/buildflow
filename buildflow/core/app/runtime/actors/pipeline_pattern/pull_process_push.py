@@ -2,11 +2,14 @@ import asyncio
 import dataclasses
 import inspect
 import logging
+import os
 import time
 
+import psutil
 import ray
 
 from buildflow.core import utils
+from buildflow.core.app.runtime.actors.process_pool import ReplicaID
 from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot, RunID
 from buildflow.core.app.runtime.metrics import (
     CompositeRateCounterMetric,
@@ -37,6 +40,7 @@ class PullProcessPushSnapshot(Snapshot):
     process_time_millis: RateCalculation
     process_batch_time_millis: RateCalculation
     pull_to_ack_time_millis: RateCalculation
+    cpu_percentage: RateCalculation
 
     def as_dict(self) -> dict:
         return {
@@ -47,13 +51,19 @@ class PullProcessPushSnapshot(Snapshot):
             "process_time_millis": self.process_time_millis.average_value_rate(),
             "process_batch_time_millis": self.process_batch_time_millis.average_value_rate(),  # noqa: E501
             "pull_to_ack_time_millis": self.pull_to_ack_time_millis.average_value_rate(),  # noqa: E501
+            "cpu_percentage": self.cpu_percentage.average_value_rate(),
         }
 
 
 @ray.remote
 class PullProcessPushActor(Runtime):
     def __init__(
-        self, run_id: RunID, processor: PipelineProcessor, *, log_level: str = "INFO"
+        self,
+        run_id: RunID,
+        processor: PipelineProcessor,
+        *,
+        replica_id: ReplicaID,
+        log_level: str = "INFO",
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -72,6 +82,7 @@ class PullProcessPushActor(Runtime):
         # initial runtime state
         self._status = RuntimeStatus.IDLE
         self._num_running_threads = 0
+        self._replica_id = replica_id
         self._last_snapshot_time = time.monotonic()
         # metrics
         self.max_batch_size = self.processor.source().max_batch_size()
@@ -125,8 +136,20 @@ class PullProcessPushActor(Runtime):
                 "RunId": self.run_id,
             },
         )
+        self.cpu_percentage = CompositeRateCounterMetric(
+            "cpu_percentage",
+            description="Current CPU percentage of a replica. Goes up and down.",
+            default_tags={
+                "processor_id": processor.processor_id,
+                "JobId": job_id,
+                "RunId": self.run_id,
+                "ReplicaID": self._replica_id,
+            },
+        )
 
     async def run(self):
+        pid = os.getpid()
+        proc = psutil.Process(pid)
         if self._status == RuntimeStatus.IDLE:
             logging.info("Starting PullProcessPushActor...")
             self._status = RuntimeStatus.RUNNING
@@ -176,6 +199,7 @@ class PullProcessPushActor(Runtime):
                 return push_converter(results)
 
         while self._status == RuntimeStatus.RUNNING:
+            proc.cpu_percent()
             # PULL
             total_start_time = time.monotonic()
             try:
@@ -185,7 +209,11 @@ class PullProcessPushActor(Runtime):
                 continue
             if not response.payload:
                 self._pull_percentage_counter.empty_inc()
-                await asyncio.sleep(1)
+                cpu_percent = proc.cpu_percent()
+                if cpu_percent > 0.0:
+                    self.cpu_percentage.inc(cpu_percent)
+                else:
+                    self.cpu_percentage.empty_inc()
                 continue
             # PROCESS
             process_success = True
@@ -225,10 +253,23 @@ class PullProcessPushActor(Runtime):
                 process_success = False
             finally:
                 # ACK
-                await source.ack(response.ack_info, process_success)
+                try:
+                    await source.ack(response.ack_info, process_success)
+                except Exception:
+                    # This can happen if there is network failures for w/e reason
+                    # we want to try and catch here so our runtime loop
+                    # doesn't die.
+                    logging.exception("failed to ack batch, will continue")
+                    continue
             self.num_events_processed.inc(len(response.payload))
             # DONE -> LOOP
             self.total_time_counter.inc((time.monotonic() - total_start_time) * 1000)
+            cpu_percent = proc.cpu_percent()
+            if cpu_percent > 0.0:
+                # Ray doesn't like it when we try to set a metric to 0
+                self.cpu_percentage.inc(cpu_percent)
+            else:
+                self.cpu_percentage.empty_inc()
 
         self._num_running_threads -= 1
         if self._num_running_threads == 0:
@@ -258,6 +299,7 @@ class PullProcessPushActor(Runtime):
             process_time_millis=self.process_time_counter.calculate_rate(),
             process_batch_time_millis=self.batch_time_counter.calculate_rate(),
             pull_to_ack_time_millis=self.total_time_counter.calculate_rate(),
+            cpu_percentage=self.cpu_percentage.calculate_rate(),
         )
         # reset the counters
         self._last_snapshot_time = time.monotonic()

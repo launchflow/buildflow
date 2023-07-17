@@ -27,6 +27,9 @@ class AutoscalerOptions(Options):
     min_replicas: int
     max_replicas: int
     log_level: str
+    autoscale_frequency_secs: int = 60
+    pipeline_backlog_burn_threshold: int = 60
+    pipeline_cpu_percent_target: int = 25
 
     @classmethod
     def default(cls) -> "AutoscalerOptions":
@@ -36,6 +39,13 @@ class AutoscalerOptions(Options):
             max_replicas=1000,
             log_level="INFO",
         )
+
+    def __post_init__(self):
+        if (
+            self.pipeline_cpu_percent_target < 0
+            or self.pipeline_cpu_percent_target > 100
+        ):
+            raise ValueError("pipeline_cpu_percent_target must be between 0 and 100")
 
 
 @dataclasses.dataclass

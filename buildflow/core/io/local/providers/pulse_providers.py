@@ -10,12 +10,14 @@ class PulseProvider(SourceProvider, PulumiProvider):
         *,
         items: Iterable[Any],
         pulse_interval_seconds: float,
+        backlog_size: int = 0,
         # source-only options
         # sink-only options
         # pulumi-only options
     ):
         self.items = items
         self.pulse_interval_seconds = pulse_interval_seconds
+        self.backlog_size = backlog_size
         # sink-only options
         # pulumi-only options
 
@@ -23,6 +25,7 @@ class PulseProvider(SourceProvider, PulumiProvider):
         return PulseSource(
             items=self.items,
             pulse_interval_seconds=self.pulse_interval_seconds,
+            backlog_size=self.backlog_size,
         )
 
     def pulumi_resources(self, type_: Optional[Type]):

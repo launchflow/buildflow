@@ -4,11 +4,7 @@ import logging
 from typing import List
 
 import ray
-from ray.exceptions import RayActorError
-from ray.util.placement_group import (
-    placement_group,
-)
-from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
+from ray.exceptions import RayActorError, OutOfMemoryError
 
 from buildflow.core import utils
 from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import (
@@ -39,6 +35,7 @@ class PipelineProcessorSnapshot(ProcessorSnapshot):
     avg_process_time_millis_per_element: float
     avg_process_time_millis_per_batch: float
     avg_pull_to_ack_time_millis_per_batch: float
+    avg_cpu_percentage_per_replica: float
 
     def as_dict(self) -> dict:
         parent_dict = super().as_dict()
@@ -52,6 +49,7 @@ class PipelineProcessorSnapshot(ProcessorSnapshot):
             "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
             "avg_process_time_millis_per_batch": self.avg_process_time_millis_per_batch,  # noqa: E501
             "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
+            "avg_cpu_percentage_per_replica": self.avg_cpu_percentage_per_replica,
         }
         return {**parent_dict, **pipeline_dict}
 
@@ -95,31 +93,22 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
     # NOTE: Providing this method is the main purpose of this class. It allows us to
     # contain any runtime logic that applies to all Processor types.
     async def create_replica(self) -> ReplicaReference:
-        ray_placement_group = await placement_group(
-            [
-                {
-                    "CPU": self.options.num_cpus,
-                }
-            ],
-            strategy="STRICT_PACK",
-        ).ready()
-
+        replica_id = utils.uuid()
         replica_actor_handle = PullProcessPushActor.options(
             num_cpus=self.options.num_cpus,
-            scheduling_strategy=PlacementGroupSchedulingStrategy(
-                placement_group=ray_placement_group,
-                placement_group_capture_child_tasks=True,
-            ),
-        ).remote(self.run_id, self.processor, log_level=self.options.log_level)
+        ).remote(
+            self.run_id,
+            self.processor,
+            replica_id=replica_id,
+            log_level=self.options.log_level,
+        )
 
         return ReplicaReference(
-            replica_id=utils.uuid(),
+            replica_id=replica_id,
             ray_actor_handle=replica_actor_handle,
-            ray_placement_group=ray_placement_group,
         )
 
     async def snapshot(self) -> PipelineProcessorSnapshot:
-        parent_snapshot: ProcessorSnapshot = await super().snapshot()
         source_backlog = await self.source.backlog()
         # Log the current backlog so ray metrics can pick it up
         self.current_backlog_gauge.set(source_backlog)
@@ -134,17 +123,19 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
                     await replica.ray_actor_handle.snapshot.remote()
                 )
                 replica_snapshots.append(snapshot)
-            except RayActorError:
+            except (RayActorError, OutOfMemoryError):
                 logging.exception("replica actor unexpectedly died. will restart.")
                 # We keep this list reverse sorted so we can iterate and remove
                 dead_replica_indices.appendleft(i)
         for idx in dead_replica_indices:
-            self.replicas.pop(idx)
+            replica = self.replicas.pop(idx)
         if dead_replica_indices:
             logging.error("removed %s dead replicas", len(dead_replica_indices))
             # update our gauge if had to remove some replicas.
             self.num_replicas_gauge.set(len(self.replicas))
-
+        # NOTE: we grab the parrent snapshot after we've updated the replica list
+        # this ensure we don't include dead replicas
+        parent_snapshot: ProcessorSnapshot = await super().snapshot()
         # below metric(s) derived from the `events_processed_per_sec` composite counter
         total_events_processed_per_sec = RateCalculation.merge(
             [
@@ -187,6 +178,11 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
             ]
         ).average_value_rate()
 
+        # below metrics(s) derived from the `cpu_percentage` composite counter
+        avg_cpu_percentage = RateCalculation.merge(
+            [replica_snapshot.cpu_percentage for replica_snapshot in replica_snapshots]
+        ).average_value_rate()
+
         # derived metric(s)
         if total_events_processed_per_sec == 0:
             eta_secs = -1
@@ -212,4 +208,5 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
             avg_process_time_millis_per_element=avg_process_time_millis_per_element,
             avg_process_time_millis_per_batch=avg_process_time_millis_per_batch,
             avg_pull_to_ack_time_millis_per_batch=avg_pull_to_ack_time_millis_per_batch,
+            avg_cpu_percentage_per_replica=avg_cpu_percentage,
         )
