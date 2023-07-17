@@ -96,21 +96,18 @@ class ProcessorReplicaPoolActor(Runtime):
         raise NotImplementedError("create_replica must be implemented by subclasses.")
 
     async def add_replicas(self, num_replicas: int):
-        print("DO NOT SUBMIT: adding replicas: ", num_replicas)
         if self._status != RuntimeStatus.RUNNING:
             raise RuntimeError(
                 "Can only add replicas to a processor pool that is running."
             )
-        replica_run_coros = []
         for _ in range(num_replicas):
             replica = await self.create_replica()
 
             if self._status == RuntimeStatus.RUNNING:
                 for _ in range(self.options.num_concurrency):
-                    replica_run_coros.append(replica.ray_actor_handle.run.remote())
-            self.replicas.append(replica)
+                    replica.ray_actor_handle.run.remote()
 
-        await asyncio.wait(replica_run_coros)
+            self.replicas.append(replica)
 
         self.num_replicas_gauge.set(len(self.replicas))
 
@@ -142,8 +139,6 @@ class ProcessorReplicaPoolActor(Runtime):
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
-        for replica in self.replicas:
-            replica.ray_actor_handle.run.remote()
 
     async def drain(self):
         logging.info(f"Draining ProcessorPool({self.processor.processor_id})...")

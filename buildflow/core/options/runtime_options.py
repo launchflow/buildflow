@@ -27,7 +27,7 @@ class AutoscalerOptions(Options):
     min_replicas: int
     max_replicas: int
     log_level: str
-    autoscale_frequency_secs: int = 30
+    autoscale_frequency_secs: int = 10
     pipeline_backlog_burn_threshold: int = 60
     pipeline_cpu_percent_target: int = 25
 
