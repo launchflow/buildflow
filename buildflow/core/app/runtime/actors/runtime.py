@@ -84,7 +84,7 @@ class RuntimeActor(Runtime):
                 self._processor_pool_refs.append(
                     ProcessPoolReference(
                         actor_handle=PipelineProcessorReplicaPoolActor.remote(
-                            self.run_id, processor, processor_options
+                            self.run_id, processor, processor_options, self.options
                         ),
                         processor=processor,
                     )
@@ -177,13 +177,14 @@ class RuntimeActor(Runtime):
             )
         except (RayActorError, OutOfMemoryError):
             logging.exception("process actor unexpectedly died. will restart.")
-            options = self.options.processor_options[
+            processor_options = self.options.processor_options[
                 processor_pool.processor.processor_id
             ]
             processor_pool.actor_handle = PipelineProcessorReplicaPoolActor.remote(
                 self.run_id,
                 processor_pool.processor,
-                options,
+                processor_options,
+                self.options,
             )
             # Restart with the default number of replicas, and let autoscale
             # handle the rest.

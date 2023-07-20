@@ -4,6 +4,7 @@ from typing import Optional, Type
 import pulumi
 import pulumi_gcp
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.gcp.strategies.bigquery_strategies import (
     StreamingBigQueryTableSink,
 )
@@ -47,8 +48,9 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
     def table_id(self) -> BigQueryTableID:
         return f"{self.project_id}.{self.dataset_name}.{self.table_name}"
 
-    def sink(self):
+    def sink(self, runtime_options: RuntimeOptions):
         return StreamingBigQueryTableSink(
+            runtime_options=runtime_options,
             project_id=self.project_id,
             dataset_name=self.dataset_name,
             table_name=self.table_name,

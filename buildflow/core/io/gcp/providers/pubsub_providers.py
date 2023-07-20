@@ -3,6 +3,7 @@ from typing import Optional, Type
 import pulumi
 import pulumi_gcp
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.gcp.strategies.pubsub_strategies import (
     GCPPubSubSubscriptionSource,
     GCPPubSubTopicSink,
@@ -22,12 +23,18 @@ from buildflow.core.types.gcp_types import (
 
 
 class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
-    def __init__(self, *, project_id: GCPProjectID, topic_name: PubSubTopicName):
+    def __init__(
+        self,
+        *,
+        project_id: GCPProjectID,
+        topic_name: PubSubTopicName,
+    ):
         self.project_id = project_id
         self.topic_name = topic_name
 
-    def sink(self):
+    def sink(self, runtime_options: RuntimeOptions):
         return GCPPubSubTopicSink(
+            runtime_options=runtime_options,
             project_id=self.project_id,
             topic_name=self.topic_name,
         )
@@ -72,8 +79,9 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
         self.ack_deadline_seconds = ack_deadline_seconds
         self.message_retention_duration = message_retention_duration
 
-    def source(self):
+    def source(self, runtime_options: RuntimeOptions):
         return GCPPubSubSubscriptionSource(
+            runtime_options=runtime_options,
             subscription_name=self.subscription_name,
             project_id=self.project_id,
             batch_size=self.batch_size,

@@ -1,5 +1,6 @@
 from typing import Any, Callable, Optional, Type
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.gcp.strategies.pubsub_strategies import (
     GCPPubSubSubscriptionSource,
 )
@@ -7,8 +8,15 @@ from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrate
 
 
 class GCSFileStreamSource(SourceStrategy):
-    def __init__(self, *, pubsub_source: GCPPubSubSubscriptionSource):
-        super().__init__(strategy_id="gcp-gcs-filestream-source")
+    def __init__(
+        self,
+        *,
+        runtime_options: RuntimeOptions,
+        pubsub_source: GCPPubSubSubscriptionSource,
+    ):
+        super().__init__(
+            runtime_options=runtime_options, strategy_id="gcp-gcs-filestream-source"
+        )
         # configuration
         self.pubsub_source = pubsub_source
 

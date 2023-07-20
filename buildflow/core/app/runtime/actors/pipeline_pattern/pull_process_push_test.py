@@ -8,14 +8,13 @@ from typing import Dict, Iterable, List
 import pyarrow.csv as pcsv
 import pytest
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.app.flow import Flow
 from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import (
     PullProcessPushActor,
 )
 from buildflow.core.io.local.file import File
 from buildflow.core.io.local.pulse import Pulse
-from buildflow.core.io.local.strategies.file_strategies import FileSink
-from buildflow.core.io.local.strategies.pulse_strategies import PulseSource
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.types.local_types import FileFormat
 
@@ -30,11 +29,11 @@ def create_test_processor(output_path: str, pulsing_input: Iterable[Dict[str, in
 
         @classmethod
         def source(cls):
-            return PulseSource(items=pulsing_input, pulse_interval_seconds=0.1)
+            return Pulse(items=pulsing_input, pulse_interval_seconds=0.1)
 
         @classmethod
         def sink(self):
-            return FileSink(file_path=output_path, file_format=FileFormat.CSV)
+            return File(file_path=output_path, file_format=FileFormat.CSV)
 
         def process(self, payload):
             return payload
@@ -60,6 +59,7 @@ class PullProcessPushTest(unittest.TestCase):
 
     def test_end_to_end_with_processor_class(self):
         actor = PullProcessPushActor.remote(
+            runtime_options=RuntimeOptions.default(),
             run_id="test-run",
             processor=create_test_processor(
                 self.output_path, [{"field": 1}, {"field": 2}]
@@ -85,7 +85,10 @@ class PullProcessPushTest(unittest.TestCase):
             return payload
 
         actor = PullProcessPushActor.remote(
-            run_id="test-run", processor=process, replica_id="1"
+            runtime_options=RuntimeOptions.default(),
+            run_id="test-run",
+            processor=process,
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -106,7 +109,10 @@ class PullProcessPushTest(unittest.TestCase):
             return payload
 
         actor = PullProcessPushActor.remote(
-            run_id="test-run", processor=process, replica_id="1"
+            runtime_options=RuntimeOptions.default(),
+            run_id="test-run",
+            processor=process,
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -127,7 +133,10 @@ class PullProcessPushTest(unittest.TestCase):
             return [payload, payload]
 
         actor = PullProcessPushActor.remote(
-            run_id="test-run", processor=process, replica_id="1"
+            runtime_options=RuntimeOptions.default(),
+            run_id="test-run",
+            processor=process,
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())

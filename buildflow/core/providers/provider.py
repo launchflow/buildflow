@@ -1,5 +1,6 @@
 from typing import List, Optional, Type
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.strategies.source import SourceStrategy
@@ -23,10 +24,10 @@ class EmptyPulumiProvider(PulumiProvider):
 
 
 class SourceProvider(ProviderAPI):
-    def source(self) -> SourceStrategy:
+    def source(self, runtime_options: RuntimeOptions) -> SourceStrategy:
         raise NotImplementedError("source not implemented for Provider")
 
 
 class SinkProvider(ProviderAPI):
-    def sink(self) -> SinkStrategy:
+    def sink(self, runtime_options: RuntimeOptions) -> SinkStrategy:
         raise NotImplementedError("sink not implemented for Provider")

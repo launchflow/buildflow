@@ -8,6 +8,7 @@ import pyarrow.csv as pcsv
 import pyarrow.parquet as pq
 import pytest
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.local.file import File
 from buildflow.core.types.local_types import FileFormat
 
@@ -28,7 +29,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.CSV,
         )
 
-        file_sink = local_file.sink_provider().sink()
+        file_sink = local_file.sink_provider().sink(RuntimeOptions.default())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
 
         table = pcsv.read_csv(Path(file_path))
@@ -41,7 +42,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.JSON,
         )
 
-        file_sink = local_file.sink_provider().sink()
+        file_sink = local_file.sink_provider().sink(RuntimeOptions.default())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
 
         with open(Path(file_path), "r") as read_file:
@@ -56,7 +57,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.PARQUET,
         )
 
-        file_sink = local_file.sink_provider().sink()
+        file_sink = local_file.sink_provider().sink(RuntimeOptions.default())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
 
         table = pq.read_table(file_path)

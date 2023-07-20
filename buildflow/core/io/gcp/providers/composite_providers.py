@@ -1,5 +1,6 @@
 from typing import List, Optional, Type
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 from buildflow.core.io.gcp.providers.pubsub_providers import (
     GCPPubSubSubscriptionProvider,
@@ -29,8 +30,9 @@ class GCSFileStreamProvider(SourceProvider, PulumiProvider):
         # pulumi-only options
         self.destroy_protection = destroy_protection
 
-    def source(self):
+    def source(self, runtime_options: RuntimeOptions):
         return GCSFileStreamSource(
+            runtime_options=runtime_options,
             pubsub_source=self.pubsub_subscription_provider.source(),
         )
 

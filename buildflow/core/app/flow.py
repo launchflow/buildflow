@@ -72,8 +72,6 @@ def pipeline_decorator(
             return source_resources + sink_resources
 
         # Dynamically define a new class with the same structure as Processor
-        source_provider = source_primitive.source_provider()
-        sink_provider = sink_primitive.sink_provider()
         processor_id = original_process_function.__name__
         class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
         AdHocPipelineProcessorClass = type(
@@ -81,8 +79,8 @@ def pipeline_decorator(
             (PipelineProcessor,),
             {
                 # PipelineProcessor methods.
-                "source": lambda self: source_provider.source(),
-                "sink": lambda self: sink_provider.sink(),
+                "source": lambda self: source_primitive,
+                "sink": lambda self: sink_primitive,
                 # ProcessorAPI methods. NOTE: process() is attached separately below
                 "resources": lambda self: pulumi_resources(),
                 "setup": lambda self: None,

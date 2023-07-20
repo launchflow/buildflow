@@ -17,7 +17,7 @@ from buildflow.core.app.runtime.actors.process_pool import (
     ReplicaReference,
 )
 from buildflow.core.app.runtime.metrics import RateCalculation, SimpleGaugeMetric
-from buildflow.core.options.runtime_options import ProcessorOptions
+from buildflow.core.options.runtime_options import ProcessorOptions, RuntimeOptions
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.app.runtime._runtime import RunID
 
@@ -68,6 +68,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
         run_id: RunID,
         processor: PipelineProcessor,
         processor_options: ProcessorOptions,
+        runtime_options: RuntimeOptions,
     ) -> None:
         super().__init__(run_id, processor, processor_options)
         # NOTE: Ray actors run in their own process, so we need to configure
@@ -76,8 +77,9 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
 
         # configuration
         self.processor = processor
-        self.source = processor.source()
+        self.source = processor.source().source_provider().source(runtime_options)
         self.options = processor_options
+        self.runtime_options = runtime_options
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
         self.current_backlog_gauge = SimpleGaugeMetric(
@@ -99,6 +101,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
         ).remote(
             self.run_id,
             self.processor,
+            runtime_options=self.runtime_options,
             replica_id=replica_id,
             log_level=self.options.log_level,
         )

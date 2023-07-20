@@ -3,6 +3,7 @@ import unittest
 
 import pytest
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.local.pulse import Pulse
 
 
@@ -14,7 +15,7 @@ class PulsingProviderTest(unittest.TestCase):
 
     def test_pulsing_provider(self):
         pulse = Pulse(items=[1, 2, 3], pulse_interval_seconds=1)
-        pulse_source = pulse.source_provider().source()
+        pulse_source = pulse.source_provider().source(RuntimeOptions.default())
 
         start_time = time.time()
         for i in range(3):

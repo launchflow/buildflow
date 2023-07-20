@@ -1,6 +1,7 @@
 import dataclasses
 from typing import Any, Callable, Iterable, Type
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.strategies._stategy import Strategy, StrategyID, StategyType
 
 
@@ -18,8 +19,8 @@ class PullResponse:
 class SourceStrategy(Strategy):
     strategy_type = StategyType.SOURCE
 
-    def __init__(self, strategy_id: StrategyID):
-        super().__init__(strategy_id=strategy_id)
+    def __init__(self, runtime_options: RuntimeOptions, strategy_id: StrategyID):
+        super().__init__(runtime_options=runtime_options, strategy_id=strategy_id)
 
     async def pull(self) -> PullResponse:
         """Pull returns a batch of data from the source."""

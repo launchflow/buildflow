@@ -1,6 +1,5 @@
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
-from buildflow.core.strategies.sink import SinkStrategy
-from buildflow.core.strategies.source import SourceStrategy
+from buildflow.core.io.primitive import Primitive
 
 
 class PipelineProcessor(ProcessorAPI):
@@ -9,10 +8,10 @@ class PipelineProcessor(ProcessorAPI):
     def __init__(self, processor_id: ProcessorID):
         self.processor_id = processor_id
 
-    def source(self) -> SourceStrategy:
+    def source(self) -> Primitive:
         raise NotImplementedError("source not implemented for Pipeline")
 
-    def sink(self) -> SinkStrategy:
+    def sink(self) -> Primitive:
         raise NotImplementedError("sink not implemented for Pipeline")
 
     # This lifecycle method is called once per payload.
