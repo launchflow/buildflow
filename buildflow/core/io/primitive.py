@@ -13,7 +13,7 @@ from buildflow.core.providers.provider import (
     SinkProvider,
     SourceProvider,
 )
-from buildflow.core.strategies._stategy import StategyType
+from buildflow.core.strategies._strategy import StategyType
 
 
 class PrimitiveType(enum.Enum):

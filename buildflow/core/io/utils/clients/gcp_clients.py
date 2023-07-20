@@ -1,9 +1,5 @@
-import logging
 from typing import Optional
 
-import google.auth
-from google.auth import exceptions
-from google.auth.credentials import Credentials
 from google.cloud import (
     bigquery,
     bigquery_storage_v1,
@@ -18,6 +14,8 @@ from google.cloud.bigquery_storage_v1.services.big_query_write.async_client impo
 )
 from google.api_core import client_options
 
+from buildflow.core.credentials import GCPCredentials
+
 
 class GCPClients:
     __shared_state = {}
@@ -25,7 +23,7 @@ class GCPClients:
     def __init__(
         self,
         *,
-        gcp_credentials_file: Optional[str] = None,
+        credentials: GCPCredentials = None,
         quota_project_id: Optional[str] = None,
     ):
         # We use the "borg" design pattern here to share state between instances
@@ -33,25 +31,7 @@ class GCPClients:
         self.__dict__ = self.__shared_state
         if "creds" in self.__shared_state:
             return
-        if gcp_credentials_file is not None:
-            self.__shared_state["creds"] = Credentials.from_service_account_file(
-                gcp_credentials_file
-            )
-        else:
-            try:
-                self.__shared_state["creds"], _ = google.auth.default(
-                    quota_project_id=quota_project_id
-                )
-            except exceptions.DefaultCredentialsError:
-                # if we failed to fetch the credentials fall back to anonymous
-                # credentials. This shouldn't normally happen, but can happen if
-                # user is running on a machine with now default creds.
-                logging.warning(
-                    "no default credentials found, using anonymous credentials"
-                )
-                self.__shared_state[
-                    "creds"
-                ] = google.auth.credentials.AnonymousCredentials()
+        self.creds = credentials.get_creds()
 
     def get_storage_client(self, project: str = None) -> storage.Client:
         return storage.Client(credentials=self.creds, project=project)

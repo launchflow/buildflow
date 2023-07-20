@@ -1,6 +1,6 @@
 from typing import Any, Callable, Optional, Type
 
-from buildflow.core.options.runtime_options import RuntimeOptions
+from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.gcp.strategies.pubsub_strategies import (
     GCPPubSubSubscriptionSource,
 )
@@ -11,11 +11,11 @@ class GCSFileStreamSource(SourceStrategy):
     def __init__(
         self,
         *,
-        runtime_options: RuntimeOptions,
+        credentials: GCPCredentials,
         pubsub_source: GCPPubSubSubscriptionSource,
     ):
         super().__init__(
-            runtime_options=runtime_options, strategy_id="gcp-gcs-filestream-source"
+            credentials=credentials, strategy_id="gcp-gcs-filestream-source"
         )
         # configuration
         self.pubsub_source = pubsub_source

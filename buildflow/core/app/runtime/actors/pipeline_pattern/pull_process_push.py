@@ -9,7 +9,6 @@ import psutil
 import ray
 
 from buildflow.core import utils
-from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.app.runtime.actors.process_pool import ReplicaID
 from buildflow.core.app.runtime._runtime import Runtime, RuntimeStatus, Snapshot, RunID
 from buildflow.core.app.runtime.metrics import (
@@ -63,7 +62,6 @@ class PullProcessPushActor(Runtime):
         run_id: RunID,
         processor: PipelineProcessor,
         *,
-        runtime_options: RuntimeOptions,
         replica_id: ReplicaID,
         log_level: str = "INFO",
     ) -> None:
@@ -74,7 +72,6 @@ class PullProcessPushActor(Runtime):
         # setup
         self.run_id = run_id
         self.processor = processor
-        self.runtime_options = runtime_options
         # NOTE: This is where the setup Processor lifecycle method is called.
         # TODO: Support Depends use case
         self.processor.setup()
@@ -180,8 +177,8 @@ class PullProcessPushActor(Runtime):
             and full_arg_spec.args[1] in full_arg_spec.annotations
         ):
             input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
-        source = self.processor.source().source_provider().source(self.runtime_options)
-        sink = self.processor.sink().sink_provider().sink(self.runtime_options)
+        source = self.processor.source()
+        sink = self.processor.sink()
         pull_converter = source.pull_converter(input_type)
         push_converter = sink.push_converter(output_type)
         process_fn = raw_process_fn

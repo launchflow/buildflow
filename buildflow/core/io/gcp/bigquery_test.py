@@ -6,7 +6,6 @@ from unittest import mock
 import pulumi
 import pytest
 
-from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.gcp.bigquery import BigQueryTable
 from buildflow.core.resources.pulumi import PulumiResource
 
@@ -128,7 +127,7 @@ class BigQueryTest(unittest.TestCase):
             dataset_name="dataset_name",
             table_name="table_name",
         )
-        bigquery_sink = bigquery_table.sink_provider().sink(RuntimeOptions.default())
+        bigquery_sink = bigquery_table.sink_provider().sink(mock.MagicMock())
 
         rows = [FakeRow(1)] * 20000
         self.get_async_result(bigquery_sink.push(rows))

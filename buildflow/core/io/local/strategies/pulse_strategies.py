@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Callable, Iterable, Type
 
-from buildflow.core.options.runtime_options import RuntimeOptions
+from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 
@@ -10,14 +10,12 @@ class PulseSource(SourceStrategy):
     def __init__(
         self,
         *,
-        runtime_options: RuntimeOptions,
+        credentials: EmptyCredentials,
         items: Iterable[Any],
         pulse_interval_seconds: float,
         backlog_size: int = 0,
     ):
-        super().__init__(
-            runtime_options=runtime_options, strategy_id="local-pulse-source"
-        )
+        super().__init__(credentials=credentials, strategy_id="local-pulse-source")
         self.items = items
         self.pulse_interval_seconds = pulse_interval_seconds
         self._to_emit = 0

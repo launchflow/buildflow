@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Dict, Optional
+from typing import Dict
 
 from buildflow.core.options._options import Options
 from buildflow.core.processor.processor import ProcessorID
@@ -59,14 +59,6 @@ class RuntimeOptions(Options):
     # misc
     log_level: str
     checkin_frequency_loop_secs: int = 5
-    # GCP credentials options
-    #   This is a file contained in your application that contains the credentials
-    gcp_credentials_file: Optional[str] = None
-    # AWS credentials options
-    #   Options for specifying AWS credentials
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
-    aws_session_token: Optional[str] = None
 
     @classmethod
     def default(cls) -> "RuntimeOptions":

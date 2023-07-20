@@ -1,6 +1,6 @@
 import enum
 
-from buildflow.core.options.runtime_options import RuntimeOptions
+from buildflow.core.credentials import CredentialType
 
 
 class StategyType(enum.Enum):
@@ -16,6 +16,6 @@ StrategyID = str
 class Strategy:
     strategy_type: StategyType
 
-    def __init__(self, runtime_options: RuntimeOptions, strategy_id: StrategyID):
-        self.runtime_options = runtime_options
+    def __init__(self, credentials: CredentialType, strategy_id: StrategyID):
+        self.credentials = credentials
         self.strategy_id = strategy_id

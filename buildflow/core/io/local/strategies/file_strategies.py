@@ -8,7 +8,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.csv as pcsv
 
-from buildflow.core.options.runtime_options import RuntimeOptions
+from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.types.local_types import FilePath, FileFormat
@@ -18,11 +18,11 @@ class FileSink(SinkStrategy):
     def __init__(
         self,
         *,
-        runtime_options: RuntimeOptions,
+        credentials: EmptyCredentials,
         file_path: FilePath,
         file_format: FileFormat,
     ):
-        super().__init__(runtime_options=runtime_options, strategy_id="local-file-sink")
+        super().__init__(credentials=credentials, strategy_id="local-file-sink")
         self.file_path = file_path
         self.file_format = file_format
 

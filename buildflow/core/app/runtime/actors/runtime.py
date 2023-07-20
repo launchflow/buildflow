@@ -84,7 +84,9 @@ class RuntimeActor(Runtime):
                 self._processor_pool_refs.append(
                     ProcessPoolReference(
                         actor_handle=PipelineProcessorReplicaPoolActor.remote(
-                            self.run_id, processor, processor_options, self.options
+                            self.run_id,
+                            processor,
+                            processor_options,
                         ),
                         processor=processor,
                     )
@@ -184,7 +186,6 @@ class RuntimeActor(Runtime):
                 self.run_id,
                 processor_pool.processor,
                 processor_options,
-                self.options,
             )
             # Restart with the default number of replicas, and let autoscale
             # handle the rest.

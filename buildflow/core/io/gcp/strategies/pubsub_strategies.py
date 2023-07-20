@@ -9,7 +9,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 
 from buildflow.core import utils
-from buildflow.core.options.runtime_options import RuntimeOptions
+from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import Batch, SinkStrategy
@@ -45,14 +45,14 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
     def __init__(
         self,
         *,
-        runtime_options: RuntimeOptions,
+        credentials: GCPCredentials,
         subscription_name: PubSubSubscriptionName,
         project_id: GCPProjectID,
         batch_size: int = 1000,
         include_attributes: bool = False,
     ):
         super().__init__(
-            runtime_options=runtime_options,
+            credentials=credentials,
             strategy_id="gcp-pubsub-subscription-source",
         )
         # configuration
@@ -62,7 +62,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         self.include_attributes = include_attributes
         # setup
         clients = gcp_clients.GCPClients(
-            gcp_credentials_file=runtime_options.gcp_credentials_file,
+            credentials=credentials,
             quota_project_id=project_id,
         )
         self.subscriber_client = clients.get_async_subscriber_client()
@@ -180,17 +180,15 @@ class GCPPubSubTopicSink(SinkStrategy):
     def __init__(
         self,
         *,
-        runtime_options: RuntimeOptions,
+        credentials: GCPCredentials,
         project_id: GCPProjectID,
         topic_name: PubSubTopicName,
     ):
-        super().__init__(
-            runtime_options=runtime_options, strategy_id="gcp-pubsub-topic-sink"
-        )
+        super().__init__(credentials=credentials, strategy_id="gcp-pubsub-topic-sink")
         self.project_id = project_id
         self.topic_name = topic_name
         clients = gcp_clients.GCPClients(
-            gcp_credentials_file=runtime_options.gcp_credentials_file,
+            credentials=credentials,
             quota_project_id=project_id,
         )
         self.publisher_client = clients.get_async_publisher_client()

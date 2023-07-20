@@ -1,4 +1,10 @@
+from typing import Optional
 from buildflow.core.options._options import Options
+from buildflow.core.options.credentials_options import (
+    AWSCredentialsOptions,
+    CredentialsOptions,
+    GCPCredentialsOptions,
+)
 from buildflow.core.options.infra_options import InfraOptions, PulumiOptions
 from buildflow.core.options.runtime_options import AutoscalerOptions, RuntimeOptions
 
@@ -10,6 +16,11 @@ class FlowOptions(Options):
         # Runtime options
         num_replicas: int = 1,
         runtime_log_level: str = "INFO",
+        # Credential Options
+        gcp_service_account_info: Optional[str] = None,
+        aws_access_key_id: Optional[str] = None,
+        aws_secret_access_key: Optional[str] = None,
+        aws_session_token: Optional[str] = None,
         # Autoscaler options
         enable_autoscaler: bool = True,
         min_replicas: int = 1,
@@ -29,6 +40,9 @@ class FlowOptions(Options):
         Args:
             num_replicas (int): The number of replicas to start with. Defaults to 1.
             runtime_log_level (str): The log level for the runtime. Defaults to "INFO".
+            gcp_service_account_info: JSON string containing the service account info.
+                Can either be a service account key, or JSON config for workflow
+                identity federation.
             enable_autoscaler (bool): Whether or not autoscaling should be enabled.
                 Defaults to True.
             min_replicas (int): The minimum number of replicas to scale down to.
@@ -75,6 +89,16 @@ class FlowOptions(Options):
                 log_level=self.runtime_log_level,
                 pipeline_backlog_burn_threshold=self.pipeline_backlog_burn_threshold,
                 pipeline_cpu_percent_target=self.pipeline_cpu_percent_target,
+            ),
+        )
+        self.credentials_options = CredentialsOptions(
+            gcp_credentials_options=GCPCredentialsOptions(
+                service_account_info=gcp_service_account_info
+            ),
+            aws_credentials_options=AWSCredentialsOptions(
+                access_key_id=aws_secret_access_key,
+                secret_access_key=aws_secret_access_key,
+                session_token=aws_session_token,
             ),
         )
         self.infra_options = InfraOptions(

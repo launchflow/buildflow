@@ -3,7 +3,7 @@ from typing import Optional, Type
 import pulumi
 import pulumi_gcp
 
-from buildflow.core.options.runtime_options import RuntimeOptions
+from buildflow.core.credentials import GCPCredentials
 from buildflow.core.providers.provider import (
     PulumiProvider,
     SinkProvider,
@@ -30,9 +30,9 @@ class GCSBucketProvider(SinkProvider, PulumiProvider):
         # sink-only options
         # pulumi-only options
 
-    def sink(self, runtime_options: RuntimeOptions):
+    def sink(self, credentials: GCPCredentials):
         return GCSBucketSink(
-            runtime_options=runtime_options,
+            credentials=credentials,
             project_id=self.project_id,
             bucket_name=self.bucket_name,
         )

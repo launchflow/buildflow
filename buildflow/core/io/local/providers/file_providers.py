@@ -1,6 +1,6 @@
 from typing import Optional, Type
 
-from buildflow.core.options.runtime_options import RuntimeOptions
+from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.local.strategies.file_strategies import FileSink
 from buildflow.core.providers.provider import PulumiProvider, SinkProvider
 from buildflow.core.types.local_types import FilePath, FileFormat
@@ -21,9 +21,9 @@ class FileProvider(SinkProvider, PulumiProvider):
         # sink-only options
         # pulumi-only options
 
-    def sink(self, runtime_options: RuntimeOptions):
+    def sink(self, credentials: EmptyCredentials):
         return FileSink(
-            runtime_options=runtime_options,
+            credentials=credentials,
             file_path=self.file_path,
             file_format=self.file_format,
         )
