@@ -130,7 +130,7 @@ def pipeline_decorator(
                 original_func=original_process_function,
             )
         else:
-            utils.attach_wrapper_method_to_class(
+            utils.attach_wrapped_method_to_class(
                 AdHocPipelineProcessorClass,
                 "process",
                 original_func=original_process_function.process,

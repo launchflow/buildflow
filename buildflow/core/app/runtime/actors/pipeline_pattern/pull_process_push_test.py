@@ -65,13 +65,12 @@ class PullProcessPushTest(unittest.TestCase):
         )
         class MyProcesesor:
             def setup(self):
-                print("DO NOT SUBMIT: setup called")
                 self.value_to_add = 1
 
             def process(self, payload):
-                print("DO NOT SUBMIT: ", payload)
-                payload["field"] = payload["field"] + self.value_to_add
-                return payload
+                new_payload = payload.copy()
+                new_payload["field"] = new_payload["field"] + self.value_to_add
+                return new_payload
 
         actor = PullProcessPushActor.remote(
             run_id="test-run", processor=MyProcesesor, replica_id="1"
@@ -83,6 +82,7 @@ class PullProcessPushTest(unittest.TestCase):
         table_list = table.to_pylist()
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 2}, {"field": 3}], table_list[0:2])
+        assert False
 
     def test_end_to_end_with_processor_decorator(self):
         app = Flow()

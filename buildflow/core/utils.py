@@ -138,11 +138,6 @@ def attach_method_to_class(cls, method_name, original_func):
             return original_func(*args, **kwargs)
 
     sig = inspect.signature(original_func)
-    print(
-        "DO NOT SUBMIT",
-        inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
-        in sig.parameters.values(),
-    )
     if (
         inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
         not in sig.parameters.values()
@@ -158,7 +153,7 @@ def attach_method_to_class(cls, method_name, original_func):
 
 # This attaches a method to a class at runtime, while preserving the type signature
 # of the original function.
-def attach_wrapper_method_to_class(cls, method_name, original_func):
+def attach_wrapped_method_to_class(cls, method_name, original_func):
     if inspect.iscoroutinefunction(original_func):
 
         @wraps(original_func)
@@ -172,11 +167,7 @@ def attach_wrapper_method_to_class(cls, method_name, original_func):
             return self.instance.process(*args, **kwargs)
 
     sig = inspect.signature(original_func)
-    print(
-        "DO NOT SUBMIT",
-        inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
-        in sig.parameters.values(),
-    )
+    print("DO NOT SUBMIT: ", sig.parameters)
     if (
         inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
         not in sig.parameters.values()
