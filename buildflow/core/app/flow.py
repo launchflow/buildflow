@@ -15,12 +15,10 @@ from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, WrappedSt
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.app.runtime.server import RuntimeServer
-from buildflow.core.credentials import (
-    AWSCredentials,
-    GCPCredentials,
-    EmptyCredentials,
-    CredentialType,
-)
+from buildflow.core.credentials._credentials import CredentialType
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
+from buildflow.core.credentials.aws_credentials import AWSCredentials
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.io.primitive import (
     EmptyPrimitive,
     PortablePrimtive,
@@ -184,6 +182,18 @@ class Flow:
             return AWSCredentials(self.options.credentials_options)
         return EmptyCredentials(self.options.credentials_options)
 
+    def _portable_primitive_to_cloud_primitive(
+        self, primitive: Primitive, strategy_type: StategyType
+    ):
+        if primitive.primitive_type == PrimitiveType.PORTABLE:
+            primitive: PortablePrimtive
+            primitive = primitive.to_cloud_primitive(
+                cloud_provider_config=self.config.cloud_provider_config,
+                strategy_type=strategy_type,
+            )
+            primitive.enable_managed()
+        return primitive
+
     # NOTE: The Flow class is responsible for converting Primitives into a Provider
     def pipeline(
         self,
@@ -198,21 +208,8 @@ class Flow:
             sink = EmptyPrimitive()
 
         # Convert any Portableprimitives into cloud-specific primitives
-        if source.primitive_type == PrimitiveType.PORTABLE:
-            source: PortablePrimtive
-            source = source.to_cloud_primitive(
-                cloud_provider_config=self.config.cloud_provider_config,
-                strategy_type=StategyType.SOURCE,
-            )
-            source.enable_managed()
-
-        if sink.primitive_type == PrimitiveType.PORTABLE:
-            sink: PortablePrimtive
-            sink = sink.to_cloud_primitive(
-                cloud_provider_config=self.config.cloud_provider_config,
-                strategy_type=StategyType.SINK,
-            )
-            sink.enable_managed()
+        source = self._portable_primitive_to_cloud_primitive(source, StategyType.SOURCE)
+        sink = self._portable_primitive_to_cloud_primitive(sink, StategyType.SINK)
 
         # Set up credentials
         source_credentials = self._get_credentials(source.primitive_type)
