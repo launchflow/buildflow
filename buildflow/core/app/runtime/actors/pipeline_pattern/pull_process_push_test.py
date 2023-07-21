@@ -56,16 +56,25 @@ class PullProcessPushTest(unittest.TestCase):
         except asyncio.TimeoutError:
             return
 
-    @pytest.mark.skip(
-        reason="TODO: update this to use the new pipeline decorator pattern"
-    )
     def test_end_to_end_with_processor_class(self):
+        app = Flow()
+
+        @app.pipeline(
+            source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
+            sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
+        )
+        class MyProcesesor:
+            def setup(self):
+                print("DO NOT SUBMIT: setup called")
+                self.value_to_add = 1
+
+            def process(self, payload):
+                print("DO NOT SUBMIT: ", payload)
+                payload["field"] = payload["field"] + self.value_to_add
+                return payload
+
         actor = PullProcessPushActor.remote(
-            run_id="test-run",
-            processor=create_test_processor(
-                self.output_path, [{"field": 1}, {"field": 2}]
-            ),
-            replica_id="1",
+            run_id="test-run", processor=MyProcesesor, replica_id="1"
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -73,7 +82,7 @@ class PullProcessPushTest(unittest.TestCase):
         table = pcsv.read_csv(Path(self.output_path))
         table_list = table.to_pylist()
         self.assertGreaterEqual(len(table_list), 2)
-        self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
+        self.assertCountEqual([{"field": 2}, {"field": 3}], table_list[0:2])
 
     def test_end_to_end_with_processor_decorator(self):
         app = Flow()

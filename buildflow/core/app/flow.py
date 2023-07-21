@@ -50,8 +50,22 @@ def pipeline_decorator(
     sink_credentials: CredentialType,
 ):
     def decorator_function(original_process_function):
-        def wrapper_function(*args, **kwargs):
-            return original_process_function(*args, **kwargs)
+        if inspect.isclass(original_process_function):
+
+            def setup(self):
+                if hasattr(self.instance, "setup"):
+                    self.instance.setup()
+
+            def wrapper_function(self, args, **kwargs):
+                return self.instance.process(*args, **kwargs)
+
+        else:
+
+            def setup(self):
+                return None
+
+            def wrapper_function(*args, **kwargs):
+                return original_process_function(*args, **kwargs)
 
         full_arg_spec = inspect.getfullargspec(original_process_function)
         input_type = None
@@ -82,28 +96,45 @@ def pipeline_decorator(
         class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
         source_provider = source_primitive.source_provider()
         sink_provider = sink_primitive.sink_provider()
+        adhoc_methods = {
+            # PipelineProcessor methods.
+            # NOTE: We need to instantiate the source and sink strategies
+            # in the class to avoid issues passing to ray workers.
+            "source": lambda self: source_provider.source(source_credentials),
+            "sink": lambda self: sink_provider.sink(sink_credentials),
+            # ProcessorAPI methods. NOTE: process() is attached separately below
+            "resources": lambda self: pulumi_resources(),
+            "setup": setup,
+            "__meta__": {
+                "source": source_primitive,
+                "sink": sink_primitive,
+            },
+            "__call__": original_process_function,
+        }
+        if inspect.isclass(original_process_function):
+
+            def init_processor(self, processor_id):
+                self.processor_id = processor_id
+                self.instance = original_process_function()
+
+            adhoc_methods["__init__"] = init_processor
         AdHocPipelineProcessorClass = type(
             class_name,
             (PipelineProcessor,),
-            {
-                # PipelineProcessor methods.
-                # NOTE: We need to instantiate the source and sink strategies
-                # in the class to avoid issues passing to ray workers.
-                "source": lambda self: source_provider.source(source_credentials),
-                "sink": lambda self: sink_provider.sink(sink_credentials),
-                # ProcessorAPI methods. NOTE: process() is attached separately below
-                "resources": lambda self: pulumi_resources(),
-                "setup": lambda self: None,
-                "__meta__": {
-                    "source": source_primitive,
-                    "sink": sink_primitive,
-                },
-                "__call__": wrapper_function,
-            },
+            adhoc_methods,
         )
-        utils.attach_method_to_class(
-            AdHocPipelineProcessorClass, "process", original_process_function
-        )
+        if not inspect.isclass(original_process_function):
+            utils.attach_method_to_class(
+                AdHocPipelineProcessorClass,
+                "process",
+                original_func=original_process_function,
+            )
+        else:
+            utils.attach_wrapper_method_to_class(
+                AdHocPipelineProcessorClass,
+                "process",
+                original_func=original_process_function.process,
+            )
 
         processor = AdHocPipelineProcessorClass(processor_id=processor_id)
         flow.add_processor(processor, processor_options)

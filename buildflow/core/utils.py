@@ -124,21 +124,67 @@ T = TypeVar("T")
 
 # This attaches a method to a class at runtime, while preserving the type signature
 # of the original function.
-def attach_method_to_class(cls, method_name, func):
-    if inspect.iscoroutinefunction(func):
+def attach_method_to_class(cls, method_name, original_func):
+    if inspect.iscoroutinefunction(original_func):
 
-        @wraps(func)
+        @wraps(original_func)
         async def wrapper(self, *args, **kwargs):
-            return await func(*args, **kwargs)
+            return await original_func(*args, **kwargs)
 
     else:
 
-        @wraps(func)
+        @wraps(original_func)
         def wrapper(self, *args, **kwargs):
-            return func(*args, **kwargs)
+            return original_func(*args, **kwargs)
 
-    sig = inspect.signature(func)
-    params = [inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
-    params.extend(sig.parameters.values())
+    sig = inspect.signature(original_func)
+    print(
+        "DO NOT SUBMIT",
+        inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        in sig.parameters.values(),
+    )
+    if (
+        inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        not in sig.parameters.values()
+    ):
+        params = [inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+        params.extend(sig.parameters.values())
+    else:
+        # If we're wrapping a class function don't add self twice
+        params = sig.parameters.values()
+    wrapper.__signature__ = sig.replace(parameters=params)
+    setattr(cls, method_name, wrapper)
+
+
+# This attaches a method to a class at runtime, while preserving the type signature
+# of the original function.
+def attach_wrapper_method_to_class(cls, method_name, original_func):
+    if inspect.iscoroutinefunction(original_func):
+
+        @wraps(original_func)
+        async def wrapper(self, *args, **kwargs):
+            return await self.instance.process(*args, **kwargs)
+
+    else:
+
+        @wraps(original_func)
+        def wrapper(self, *args, **kwargs):
+            return self.instance.process(*args, **kwargs)
+
+    sig = inspect.signature(original_func)
+    print(
+        "DO NOT SUBMIT",
+        inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        in sig.parameters.values(),
+    )
+    if (
+        inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        not in sig.parameters.values()
+    ):
+        params = [inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+        params.extend(sig.parameters.values())
+    else:
+        # If we're wrapping a class function don't add self twice
+        params = sig.parameters.values()
     wrapper.__signature__ = sig.replace(parameters=params)
     setattr(cls, method_name, wrapper)
