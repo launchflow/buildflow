@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import pyarrow.csv as pcsv
@@ -28,7 +29,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.CSV,
         )
 
-        file_sink = local_file.sink_provider().sink()
+        file_sink = local_file.sink_provider().sink(mock.MagicMock())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
 
         table = pcsv.read_csv(Path(file_path))
@@ -41,7 +42,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.JSON,
         )
 
-        file_sink = local_file.sink_provider().sink()
+        file_sink = local_file.sink_provider().sink(mock.MagicMock())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
 
         with open(Path(file_path), "r") as read_file:
@@ -56,7 +57,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.PARQUET,
         )
 
-        file_sink = local_file.sink_provider().sink()
+        file_sink = local_file.sink_provider().sink(mock.MagicMock())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
 
         table = pq.read_table(file_path)

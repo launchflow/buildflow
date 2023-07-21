@@ -1,5 +1,6 @@
 import time
 import unittest
+from unittest import mock
 
 import pytest
 
@@ -14,7 +15,7 @@ class PulsingProviderTest(unittest.TestCase):
 
     def test_pulsing_provider(self):
         pulse = Pulse(items=[1, 2, 3], pulse_interval_seconds=1)
-        pulse_source = pulse.source_provider().source()
+        pulse_source = pulse.source_provider().source(mock.MagicMock())
 
         start_time = time.time()
         for i in range(3):

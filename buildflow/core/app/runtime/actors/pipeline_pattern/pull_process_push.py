@@ -85,7 +85,6 @@ class PullProcessPushActor(Runtime):
         self._replica_id = replica_id
         self._last_snapshot_time = time.monotonic()
         # metrics
-        self.max_batch_size = self.processor.source().max_batch_size()
         job_id = ray.get_runtime_context().get_job_id()
         # test
         self.num_events_processed = CompositeRateCounterMetric(
@@ -154,7 +153,8 @@ class PullProcessPushActor(Runtime):
             logging.info("Starting PullProcessPushActor...")
             self._status = RuntimeStatus.RUNNING
         elif self._status == RuntimeStatus.DRAINING:
-            raise RuntimeError("Cannot run a PullProcessPushActor that is draining.")
+            logging.info("PullProcessPushActor is already draining will not start.")
+            return
 
         logging.debug("Starting Thread...")
         self._num_running_threads += 1
@@ -219,7 +219,7 @@ class PullProcessPushActor(Runtime):
             process_success = True
             process_start_time = time.monotonic()
             self._pull_percentage_counter.inc(
-                len(response.payload) / self.max_batch_size
+                len(response.payload) / source.max_batch_size()
             )
             try:
                 coros = []

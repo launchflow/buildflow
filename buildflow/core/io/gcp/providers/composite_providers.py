@@ -1,5 +1,6 @@
 from typing import List, Optional, Type
 
+from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 from buildflow.core.io.gcp.providers.pubsub_providers import (
     GCPPubSubSubscriptionProvider,
@@ -29,8 +30,9 @@ class GCSFileStreamProvider(SourceProvider, PulumiProvider):
         # pulumi-only options
         self.destroy_protection = destroy_protection
 
-    def source(self):
+    def source(self, credentials: GCPCredentials):
         return GCSFileStreamSource(
+            credentials=credentials,
             pubsub_source=self.pubsub_subscription_provider.source(),
         )
 

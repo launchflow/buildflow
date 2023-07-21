@@ -4,7 +4,7 @@ from typing import Optional
 from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
 from buildflow.core.io.gcp.bigquery import BigQueryTable
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
-from buildflow.core.strategies._stategy import StategyType
+from buildflow.core.strategies._strategy import StategyType
 from buildflow.core.types.portable_types import TableName
 
 

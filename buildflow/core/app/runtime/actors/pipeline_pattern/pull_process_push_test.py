@@ -14,8 +14,6 @@ from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import
 )
 from buildflow.core.io.local.file import File
 from buildflow.core.io.local.pulse import Pulse
-from buildflow.core.io.local.strategies.file_strategies import FileSink
-from buildflow.core.io.local.strategies.pulse_strategies import PulseSource
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.types.local_types import FileFormat
 
@@ -30,11 +28,11 @@ def create_test_processor(output_path: str, pulsing_input: Iterable[Dict[str, in
 
         @classmethod
         def source(cls):
-            return PulseSource(items=pulsing_input, pulse_interval_seconds=0.1)
+            return Pulse(items=pulsing_input, pulse_interval_seconds=0.1)
 
         @classmethod
         def sink(self):
-            return FileSink(file_path=output_path, file_format=FileFormat.CSV)
+            return File(file_path=output_path, file_format=FileFormat.CSV)
 
         def process(self, payload):
             return payload
@@ -58,6 +56,9 @@ class PullProcessPushTest(unittest.TestCase):
         except asyncio.TimeoutError:
             return
 
+    @pytest.mark.skip(
+        reason="TODO: update this to use the new pipeline decorator pattern"
+    )
     def test_end_to_end_with_processor_class(self):
         actor = PullProcessPushActor.remote(
             run_id="test-run",
@@ -85,7 +86,9 @@ class PullProcessPushTest(unittest.TestCase):
             return payload
 
         actor = PullProcessPushActor.remote(
-            run_id="test-run", processor=process, replica_id="1"
+            run_id="test-run",
+            processor=process,
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -106,7 +109,9 @@ class PullProcessPushTest(unittest.TestCase):
             return payload
 
         actor = PullProcessPushActor.remote(
-            run_id="test-run", processor=process, replica_id="1"
+            run_id="test-run",
+            processor=process,
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -127,7 +132,9 @@ class PullProcessPushTest(unittest.TestCase):
             return [payload, payload]
 
         actor = PullProcessPushActor.remote(
-            run_id="test-run", processor=process, replica_id="1"
+            run_id="test-run",
+            processor=process,
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())

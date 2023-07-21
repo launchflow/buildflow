@@ -24,7 +24,9 @@ class File(LocalPrimtive):
             file_format=file_format,
         )
 
-    def sink_provider(self) -> FileProvider:
+    def sink_provider(
+        self,
+    ) -> FileProvider:
         return FileProvider(
             file_path=self.file_path,
             file_format=self.file_format,

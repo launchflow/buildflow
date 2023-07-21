@@ -6,7 +6,9 @@ export DATASET=buildflow_walkthrough_$RANDOM
 
 ray start --head --num-cpus=2
 
-buildflow run buildflow.samples.pubsub_walkthrough:app --apply-infrastructure &
+cd buildflow/samples/pubsub_walkthrough
+buildflow plan main:app
+buildflow run main:app &
 main_pid=$!
 
 sleep 45
@@ -16,6 +18,7 @@ num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+
 
 kill $main_pid
 wait $main_pid
+buildflow destroy main:app
 ray stop --force
 
 if [[ $num_rows > 0 ]]; then

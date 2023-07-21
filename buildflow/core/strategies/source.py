@@ -1,7 +1,8 @@
 import dataclasses
 from typing import Any, Callable, Iterable, Type
 
-from buildflow.core.strategies._stategy import Strategy, StrategyID, StategyType
+from buildflow.core.credentials import CredentialType
+from buildflow.core.strategies._strategy import Strategy, StrategyID, StategyType
 
 
 class AckInfo:
@@ -18,8 +19,8 @@ class PullResponse:
 class SourceStrategy(Strategy):
     strategy_type = StategyType.SOURCE
 
-    def __init__(self, strategy_id: StrategyID):
-        super().__init__(strategy_id=strategy_id)
+    def __init__(self, credentials: CredentialType, strategy_id: StrategyID):
+        super().__init__(credentials=credentials, strategy_id=strategy_id)
 
     async def pull(self) -> PullResponse:
         """Pull returns a batch of data from the source."""

@@ -15,6 +15,10 @@ from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, WrappedSt
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.app.runtime.server import RuntimeServer
+from buildflow.core.credentials._credentials import CredentialType
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
+from buildflow.core.credentials.aws_credentials import AWSCredentials
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.io.primitive import (
     EmptyPrimitive,
     PortablePrimtive,
@@ -25,7 +29,7 @@ from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.processor.processor import ProcessorAPI
-from buildflow.core.strategies._stategy import StategyType
+from buildflow.core.strategies._strategy import StategyType
 
 
 def _get_directory_path_of_caller():
@@ -42,6 +46,8 @@ def pipeline_decorator(
     source_primitive: Primitive,
     sink_primitive: Primitive,
     processor_options: ProcessorOptions,
+    source_credentials: CredentialType,
+    sink_credentials: CredentialType,
 ):
     def decorator_function(original_process_function):
         def wrapper_function(*args, **kwargs):
@@ -72,17 +78,19 @@ def pipeline_decorator(
             return source_resources + sink_resources
 
         # Dynamically define a new class with the same structure as Processor
-        source_provider = source_primitive.source_provider()
-        sink_provider = sink_primitive.sink_provider()
         processor_id = original_process_function.__name__
         class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
+        source_provider = source_primitive.source_provider()
+        sink_provider = sink_primitive.sink_provider()
         AdHocPipelineProcessorClass = type(
             class_name,
             (PipelineProcessor,),
             {
                 # PipelineProcessor methods.
-                "source": lambda self: source_provider.source(),
-                "sink": lambda self: sink_provider.sink(),
+                # NOTE: We need to instantiate the source and sink strategies
+                # in the class to avoid issues passing to ray workers.
+                "source": lambda self: source_provider.source(source_credentials),
+                "sink": lambda self: sink_provider.sink(sink_credentials),
                 # ProcessorAPI methods. NOTE: process() is attached separately below
                 "resources": lambda self: pulumi_resources(),
                 "setup": lambda self: None,
@@ -167,6 +175,25 @@ class Flow:
             )
         return self._runtime_actor_ref
 
+    def _get_credentials(self, primitive_type: PrimitiveType):
+        if primitive_type == PrimitiveType.GCP:
+            return GCPCredentials(self.options.credentials_options)
+        elif primitive_type == PrimitiveType.AWS:
+            return AWSCredentials(self.options.credentials_options)
+        return EmptyCredentials(self.options.credentials_options)
+
+    def _portable_primitive_to_cloud_primitive(
+        self, primitive: Primitive, strategy_type: StategyType
+    ):
+        if primitive.primitive_type == PrimitiveType.PORTABLE:
+            primitive: PortablePrimtive
+            primitive = primitive.to_cloud_primitive(
+                cloud_provider_config=self.config.cloud_provider_config,
+                strategy_type=strategy_type,
+            )
+            primitive.enable_managed()
+        return primitive
+
     # NOTE: The Flow class is responsible for converting Primitives into a Provider
     def pipeline(
         self,
@@ -181,21 +208,12 @@ class Flow:
             sink = EmptyPrimitive()
 
         # Convert any Portableprimitives into cloud-specific primitives
-        if source.primitive_type == PrimitiveType.PORTABLE:
-            source: PortablePrimtive
-            source = source.to_cloud_primitive(
-                cloud_provider_config=self.config.cloud_provider_config,
-                strategy_type=StategyType.SOURCE,
-            )
-            source.enable_managed()
+        source = self._portable_primitive_to_cloud_primitive(source, StategyType.SOURCE)
+        sink = self._portable_primitive_to_cloud_primitive(sink, StategyType.SINK)
 
-        if sink.primitive_type == PrimitiveType.PORTABLE:
-            sink: PortablePrimtive
-            sink = sink.to_cloud_primitive(
-                cloud_provider_config=self.config.cloud_provider_config,
-                strategy_type=StategyType.SINK,
-            )
-            sink.enable_managed()
+        # Set up credentials
+        source_credentials = self._get_credentials(source.primitive_type)
+        sink_credentials = self._get_credentials(sink.primitive_type)
 
         return pipeline_decorator(
             flow=self,
@@ -206,6 +224,8 @@ class Flow:
                 num_concurrency=num_concurrency,
                 log_level=log_level,
             ),
+            source_credentials=source_credentials,
+            sink_credentials=sink_credentials,
         )
 
     def add_processor(

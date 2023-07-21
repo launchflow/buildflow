@@ -1,5 +1,6 @@
 from typing import Any, Iterable, Optional, Type
 
+from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.local.strategies.pulse_strategies import PulseSource
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
 
@@ -21,8 +22,9 @@ class PulseProvider(SourceProvider, PulumiProvider):
         # sink-only options
         # pulumi-only options
 
-    def source(self):
+    def source(self, credentials: EmptyCredentials):
         return PulseSource(
+            credentials=credentials,
             items=self.items,
             pulse_interval_seconds=self.pulse_interval_seconds,
             backlog_size=self.backlog_size,

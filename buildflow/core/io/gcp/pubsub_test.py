@@ -1,5 +1,6 @@
 import json
 import unittest
+from unittest import mock
 from dataclasses import asdict, dataclass
 
 from buildflow.core.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
@@ -13,7 +14,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="pubsub-sub",
             topic_id="projects/project/topics/pubsub-topic",
         )
-        pubsub_source = pubsub_subscription.source_provider().source()
+        pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 
         input_data = "test".encode("utf-8")
         converter = pubsub_source.pull_converter(type(input_data))
@@ -29,7 +30,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="pubsub-sub",
             topic_id="projects/project/topics/pubsub-topic",
         )
-        pubsub_source = pubsub_subscription.source_provider().source()
+        pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 
         input_data = Test(a=1)
         bytes_data = json.dumps(asdict(input_data)).encode("utf-8")
@@ -42,7 +43,7 @@ class GCPPubsubTest(unittest.TestCase):
             subscription_name="pubsub-sub",
             topic_id="projects/project/topics/pubsub-topic",
         )
-        pubsub_source = pubsub_subscription.source_provider().source()
+        pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 
         input_data = "test".encode("utf-8")
         converter = pubsub_source.pull_converter(None)
@@ -50,7 +51,7 @@ class GCPPubsubTest(unittest.TestCase):
 
     def test_gcp_pubsub_push_converter_bytes(self):
         pubsub_topic = GCPPubSubTopic(project_id="project", topic_name="pubsub-topic")
-        pubsub_sink = pubsub_topic.sink_provider().sink()
+        pubsub_sink = pubsub_topic.sink_provider().sink(mock.MagicMock())
 
         input_data = "test".encode("utf-8")
         converter = pubsub_sink.push_converter(type(input_data))
@@ -62,7 +63,7 @@ class GCPPubsubTest(unittest.TestCase):
             a: int
 
         pubsub_topic = GCPPubSubTopic(project_id="project", topic_name="pubsub-topic")
-        pubsub_sink = pubsub_topic.sink_provider().sink()
+        pubsub_sink = pubsub_topic.sink_provider().sink(mock.MagicMock())
 
         input_data = Test(a=1)
         bytes_data = json.dumps(asdict(input_data)).encode("utf-8")
@@ -71,7 +72,7 @@ class GCPPubsubTest(unittest.TestCase):
 
     def test_gcp_pubsub_push_converter_none(self):
         pubsub_topic = GCPPubSubTopic(project_id="project", topic_name="pubsub-topic")
-        pubsub_sink = pubsub_topic.sink_provider().sink()
+        pubsub_sink = pubsub_topic.sink_provider().sink(mock.MagicMock())
         input_data = "test".encode("utf-8")
         converter = pubsub_sink.push_converter(None)
         self.assertEqual(input_data, converter(input_data))

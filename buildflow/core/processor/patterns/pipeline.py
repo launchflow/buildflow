@@ -9,10 +9,10 @@ class PipelineProcessor(ProcessorAPI):
     def __init__(self, processor_id: ProcessorID):
         self.processor_id = processor_id
 
-    def source(self) -> SourceStrategy:
+    def source(self) -> SinkStrategy:
         raise NotImplementedError("source not implemented for Pipeline")
 
-    def sink(self) -> SinkStrategy:
+    def sink(self) -> SourceStrategy:
         raise NotImplementedError("sink not implemented for Pipeline")
 
     # This lifecycle method is called once per payload.

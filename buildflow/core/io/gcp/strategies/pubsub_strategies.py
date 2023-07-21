@@ -9,6 +9,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 
 from buildflow.core import utils
+from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import Batch, SinkStrategy
@@ -44,20 +45,30 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
     def __init__(
         self,
         *,
+        credentials: GCPCredentials,
         subscription_name: PubSubSubscriptionName,
         project_id: GCPProjectID,
         batch_size: int = 1000,
         include_attributes: bool = False,
     ):
-        super().__init__(strategy_id="gcp-pubsub-subscription-source")
+        super().__init__(
+            credentials=credentials,
+            strategy_id="gcp-pubsub-subscription-source",
+        )
         # configuration
         self.subscription_name = subscription_name
         self.project_id = project_id
         self.batch_size = batch_size
         self.include_attributes = include_attributes
         # setup
-        self.subscriber_client = gcp_clients.get_async_subscriber_client(project_id)
-        self.publisher_client = gcp_clients.get_async_publisher_client(project_id)
+        self.credentials = credentials
+        clients = gcp_clients.GCPClients(
+            credentials=credentials,
+            quota_project_id=project_id,
+        )
+        self.subscriber_client = clients.get_async_subscriber_client()
+        self.publisher_client = clients.get_async_publisher_client()
+        self.metrics_client = clients.get_metrics_client()
         # initial state
 
     @property
@@ -113,9 +124,8 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         project = split_sub[1]
         sub_id = split_sub[3]
         # TODO: Create a gcp metrics utility library
-        client = gcp_clients.get_metrics_client(project)
         backlog_query = query.Query(
-            client=client,
+            client=self.metrics_client,
             project=project,
             end_time=datetime.datetime.now(),
             metric_type=(
@@ -168,11 +178,21 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
 
 
 class GCPPubSubTopicSink(SinkStrategy):
-    def __init__(self, *, project_id: GCPProjectID, topic_name: PubSubTopicName):
-        super().__init__(strategy_id="gcp-pubsub-topic-sink")
+    def __init__(
+        self,
+        *,
+        credentials: GCPCredentials,
+        project_id: GCPProjectID,
+        topic_name: PubSubTopicName,
+    ):
+        super().__init__(credentials=credentials, strategy_id="gcp-pubsub-topic-sink")
         self.project_id = project_id
         self.topic_name = topic_name
-        self.publisher_client = gcp_clients.get_async_publisher_client(project_id)
+        clients = gcp_clients.GCPClients(
+            credentials=credentials,
+            quota_project_id=project_id,
+        )
+        self.publisher_client = clients.get_async_publisher_client()
 
     @property
     def topic_id(self) -> PubSubTopicID:

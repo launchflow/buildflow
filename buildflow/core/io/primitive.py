@@ -1,5 +1,6 @@
 import enum
 
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.config.cloud_provider_config import (
     CloudProviderConfig,
     GCPOptions,
@@ -12,7 +13,7 @@ from buildflow.core.providers.provider import (
     SinkProvider,
     SourceProvider,
 )
-from buildflow.core.strategies._stategy import StategyType
+from buildflow.core.strategies._strategy import StategyType
 
 
 class PrimitiveType(enum.Enum):
@@ -33,11 +34,11 @@ class Primitive:
         """Enable managed mode."""
         self.managed = True
 
-    def source_provider(self) -> SourceProvider:
+    def source_provider(self, runtime_options: RuntimeOptions) -> SourceProvider:
         """Return a source provider for this primitive."""
         raise NotImplementedError("Primitive.source_provider() is not implemented.")
 
-    def sink_provider(self) -> SinkProvider:
+    def sink_provider(self, runtime_options: RuntimeOptions) -> SinkProvider:
         """Return a sink provider for this primitive."""
         raise NotImplementedError("Primitive.sink_provider() is not implemented.")
 

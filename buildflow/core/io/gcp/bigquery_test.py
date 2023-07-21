@@ -115,9 +115,11 @@ class BigQueryTest(unittest.TestCase):
             table_resource.deletion_protection,
         ).apply(check_table)
 
-    @mock.patch("buildflow.core.io.utils.clients.gcp_clients.get_bigquery_client")
-    def test_bigquery_sink(self, bq_client_mock: mock.MagicMock):
-        insert_rows_mock = bq_client_mock.return_value.insert_rows_json
+    @mock.patch("buildflow.core.io.utils.clients.gcp_clients.GCPClients")
+    def test_bigquery_sink(self, gcp_client_mock: mock.MagicMock):
+        insert_rows_mock = (
+            gcp_client_mock.return_value.get_bigquery_client.return_value.insert_rows_json
+        )
         insert_rows_mock.return_value = []
 
         bigquery_table = BigQueryTable(
@@ -125,7 +127,7 @@ class BigQueryTest(unittest.TestCase):
             dataset_name="dataset_name",
             table_name="table_name",
         )
-        bigquery_sink = bigquery_table.sink_provider().sink()
+        bigquery_sink = bigquery_table.sink_provider().sink(mock.MagicMock())
 
         rows = [FakeRow(1)] * 20000
         self.get_async_result(bigquery_sink.push(rows))

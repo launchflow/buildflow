@@ -1,6 +1,7 @@
 import dataclasses
 
 from buildflow.core import utils
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.gcp.providers.pubsub_providers import (
     GCPPubSubTopicProvider,
     GCPPubSubSubscriptionProvider,
@@ -91,7 +92,7 @@ class GCPPubSubSubscription(GCPPrimtive):
 
     # NOTE: Subscriptions do not support sinks, but we "implement" it here to
     # give the user a better error message since this is a common mistake.
-    def sink_provider(self):
+    def sink_provider(self, runtime_options: RuntimeOptions):
         raise ValueError(
             "GCPPubSubSubscription does not support sink_provider()."
             "Please use GCPPubSubTopic instead."

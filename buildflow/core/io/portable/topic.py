@@ -6,7 +6,7 @@ from buildflow.core.io.gcp.pubsub import (
     GCPPubSubTopic,
 )
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
-from buildflow.core.strategies._stategy import StategyType
+from buildflow.core.strategies._strategy import StategyType
 from buildflow.core.types.portable_types import TopicID
 
 

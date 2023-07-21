@@ -1,4 +1,4 @@
 # ruff: noqa
-from ._stategy import Strategy, StrategyID, StategyType
+from ._strategy import Strategy, StrategyID, StategyType
 from .sink import SinkStrategy
 from .source import SourceStrategy

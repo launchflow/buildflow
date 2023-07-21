@@ -1,6 +1,7 @@
 import dataclasses
 
 from buildflow.config.cloud_provider_config import GCPOptions
+from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.io.gcp.storage import GCSBucket
 from buildflow.core.io.gcp.providers.composite_providers import GCSFileStreamProvider
 from buildflow.core.io.gcp.pubsub import GCPPubSubSubscription
@@ -21,8 +22,9 @@ class GCSFileStream(GCPPrimtive):
             pubsub_subscription=pubsub_subscription,
         )
 
-    def source_provider(self):
+    def source_provider(self, runtime_options: RuntimeOptions):
         return GCSFileStreamProvider(
+            runtime_options=runtime_options,
             gcs_bucket_provider=None,
             pubsub_subscription_provider=self.pubsub_subscription.source_provider(),
         )
