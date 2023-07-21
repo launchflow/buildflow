@@ -63,8 +63,8 @@ dev = [
     "wheel"
 ]
 
-[tool.setuptools]
-packages = ["buildflow"]
+[tool.setuptools.packages.find]
+exclude = ["tests", ".*tests", ".*tests.*"]
 
 [project.scripts]
 buildflow = "buildflow.cli.main:main"
