@@ -153,7 +153,8 @@ class PullProcessPushActor(Runtime):
             logging.info("Starting PullProcessPushActor...")
             self._status = RuntimeStatus.RUNNING
         elif self._status == RuntimeStatus.DRAINING:
-            raise RuntimeError("Cannot run a PullProcessPushActor that is draining.")
+            logging.info("PullProcessPushActor is already draining will not start.")
+            return
 
         logging.debug("Starting Thread...")
         self._num_running_threads += 1

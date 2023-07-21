@@ -1,8 +1,9 @@
 import logging
+import json
 
 import google.auth
 from google.auth import exceptions
-from google.auth import credentials as gcp_credentials
+from google.oauth2 import service_account
 
 from buildflow.core.credentials._credentials import Credentials
 from buildflow.core.options.credentials_options import CredentialsOptions
@@ -17,9 +18,13 @@ class GCPCredentials(Credentials):
 
     def get_creds(self, quota_project_id: str = None):
         if self.service_account_info is not None:
-            return gcp_credentials.Credentials.from_service_account_info(
-                self.service_account_info
+            # TODO: can we pass in quota project id here?
+            creds = service_account.Credentials.from_service_account_info(
+                json.loads(self.service_account_info),
             )
+            if creds.project_id != quota_project_id:
+                creds = creds.with_quota_project(quota_project_id)
+            return creds
         else:
             try:
                 creds, _ = google.auth.default(quota_project_id=quota_project_id)

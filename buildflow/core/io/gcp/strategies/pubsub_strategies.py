@@ -61,6 +61,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         self.batch_size = batch_size
         self.include_attributes = include_attributes
         # setup
+        self.credentials = credentials
         clients = gcp_clients.GCPClients(
             credentials=credentials,
             quota_project_id=project_id,
@@ -124,7 +125,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         sub_id = split_sub[3]
         # TODO: Create a gcp metrics utility library
         backlog_query = query.Query(
-            client=self.client,
+            client=self.metrics_client,
             project=project,
             end_time=datetime.datetime.now(),
             metric_type=(

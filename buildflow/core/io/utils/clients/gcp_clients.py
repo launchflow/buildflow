@@ -26,12 +26,8 @@ class GCPClients:
         credentials: GCPCredentials = None,
         quota_project_id: Optional[str] = None,
     ):
-        # We use the "borg" design pattern here to share state between instances
-        # See: https://code.activestate.com/recipes/66531/
-        self.__dict__ = self.__shared_state
-        if "creds" in self.__shared_state:
-            return
-        self.creds = credentials.get_creds()
+        # TODO: we should probably cache the credentials per quota project id.
+        self.creds = credentials.get_creds(quota_project_id)
 
     def get_storage_client(self, project: str = None) -> storage.Client:
         return storage.Client(credentials=self.creds, project=project)
