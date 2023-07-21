@@ -1,4 +1,5 @@
 import dataclasses
+import enum
 import logging
 import re
 from typing import Iterable, Optional, Dict, Any
@@ -139,6 +140,12 @@ class WrappedOutputMap:
         print(self.output_map)
 
 
+class _PulumiResourceType(enum.Enum):
+    BIGQUERY_DATASET = "BigQuery.DataSet"
+    BIGQUERY_TABLE = "BigQuery.Table"
+    UNKNOWN = "Unknown"
+
+
 @dataclasses.dataclass
 class WrappedStackState:
     project_name: str
@@ -179,15 +186,18 @@ class WrappedStackState:
             print("\n".join(all_lines))
 
     def as_json_dict(self) -> Dict[str, Any]:
-        output_map_lines = [
-            f"    {output_key}: {output_value}"
-            for output_key, output_value in self._output_map.items()
-        ]
+        json_resource_outputs = []
+        for key, value in self._output_map.items():
+            try:
+                resource_type = _PulumiResourceType(key)
+            except ValueError:
+                resource_type = _PulumiResourceType.UNKNOWN
+            json_resource_outputs.append({"type": resource_type.value, "value": value})
         return {
             "project_name": self.project_name,
             "stack_name": self.stack_name,
             "last_updated": self.last_updated.timestamp(),
-            "resource_outputs": "\n".join(output_map_lines),
+            "resource_outputs": json_resource_outputs,
         }
 
 
