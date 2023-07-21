@@ -1,9 +1,15 @@
+from dataclasses import asdict, dataclass
+from datetime import datetime
+import json
+import os
 import sys
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import typer
 
 import buildflow
+from buildflow.config.buildflow_config import BuildFlowConfig
+from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
 from buildflow.cli import utils
 
 BUILDFLOW_HELP = """\
@@ -130,22 +136,102 @@ def destroy(
         typer.Exit(1)
 
 
+@dataclass
+class InspectStatJSON:
+    success: bool
+    timestamp: float
+    inspect_info: Dict[str, Any]
+
+    def print_json(self):
+        print(json.dumps(asdict(self)))
+
+
 @app.command(help="Inspect the Pulumi Stack state of a buildflow flow")
-def inspect_stack(
-    app: str = typer.Argument(..., help="The app to fetch the stack state of"),
+def inspect(
+    app: str = typer.Argument(..., help="The app to inspect."),
     app_dir: str = APP_DIR_OPTION,
+    as_json: bool = typer.Option(False, help="Whether to print the output as json"),
 ):
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
     # TODO: Add support for deployment grids
+    runtime = datetime.utcnow().timestamp()
     if isinstance(imported, (buildflow.Flow)):
-        typer.echo(f"Fetching stack state for Flow(id={imported.flow_id})...")
-        pulumi_stack_state = imported.get_pulumi_stack_state()
-        pulumi_stack_state.print_summary()
+        flow_state = imported.inspect()
+        if not as_json:
+            typer.echo(f"Fetching stack state for Flow(id={imported.flow_id})...")
 
+            flow_state.pulumi_stack_state.print_summary()
+        else:
+            InspectStatJSON(
+                success=True, timestamp=runtime, inspect_info=flow_state.as_json_dict()
+            ).print_json()
     else:
-        typer.echo("inspect-stack must be run on a flow")
+        if not as_json:
+            typer.echo("inspect-stack must be run on a flow")
+        else:
+            InspectStatJSON(
+                success=False, timestamp=runtime, inspect_info={}
+            ).print_json()
         typer.Exit(1)
+
+
+_DEFAULT_REQUIREMENTS_TXT = """\
+buildflow
+"""
+
+
+@app.command(help="Initialize a new buildflow app")
+def init(
+    directory: str = typer.Option(default=".", help="The directory to initialize"),
+    default_cloud_provider: Optional[CloudProvider] = typer.Option(
+        None,
+        help="The default cloud provider to use",
+    ),
+    default_gcp_project: Optional[str] = typer.Option(
+        None, help="The default GCP project to use", hidden=True
+    ),
+    skip_requirements_file: bool = typer.Option(
+        default=False, help="Skip requirements file creation", hidden=True
+    ),
+):
+    buildflow_config_dir = os.path.join(directory, ".buildflow")
+    if os.path.exists(buildflow_config_dir):
+        typer.echo(
+            f"buildflow config already exists at {buildflow_config_dir}, skipping."
+        )
+        raise typer.Exit(1)
+    buildflow_config = BuildFlowConfig.default(
+        buildflow_config_dir=buildflow_config_dir
+    )
+
+    cloud_provider_config = CloudProviderConfig.default()
+    if default_cloud_provider is not None:
+        cloud_provider_config.default_cloud_provider = default_cloud_provider
+    else:
+        options = [option.value for option in CloudProvider]
+        user_input = input(f"What is your default cloud provider? {options}: ")
+        while user_input not in options:
+            user_input = input(f"invalid option, try again {options}: ")
+
+        cloud_provider_config.default_cloud_provider = CloudProvider(user_input)
+
+    if default_cloud_provider == CloudProvider.GCP and default_gcp_project is not None:
+        cloud_provider_config.gcp_options.default_project_id = default_gcp_project
+
+    buildflow_config.cloud_provider_config = cloud_provider_config
+
+    if not skip_requirements_file:
+        requirements_txt_path = os.path.join(directory, "requirements.txt")
+        if os.path.exists(requirements_txt_path):
+            typer.echo(
+                f"requirements.txt already exists at {requirements_txt_path}, skipping."
+            )
+        else:
+            with open(requirements_txt_path, "w") as requirements_txt_file:
+                requirements_txt_file.write(_DEFAULT_REQUIREMENTS_TXT)
+
+    buildflow_config.dump(buildflow_config_dir)
 
 
 def main():

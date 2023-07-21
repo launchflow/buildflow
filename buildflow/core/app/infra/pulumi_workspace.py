@@ -178,6 +178,18 @@ class WrappedStackState:
             ]
             print("\n".join(all_lines))
 
+    def as_json_dict(self) -> Dict[str, Any]:
+        output_map_lines = [
+            f"    {output_key}: {output_value}"
+            for output_key, output_value in self._output_map.items()
+        ]
+        return {
+            "project_name": self.project_name,
+            "stack_name": self.stack_name,
+            "last_updated": self.last_updated.timestamp(),
+            "resource_outputs": "\n".join(output_map_lines),
+        }
+
 
 class PulumiWorkspace:
     def __init__(
