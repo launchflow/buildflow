@@ -35,7 +35,9 @@ dependencies = [
     "pulumi_gcp",
     "pyarrow",
     "pydantic < 2.0.2",
-    "pyyaml",
+    # Avoid issue with cython 3.0.0 and pyyaml:
+    #   https://github.com/yaml/pyyaml/issues/724
+    "pyyaml!=5.4.1,!=5.4.0,!=6.0.0",
     "ray[default] > 2.0.0",
     "ray[serve] > 2.0.0",
     "typer",
@@ -61,8 +63,8 @@ dev = [
     "wheel"
 ]
 
-[tool.setuptools.packages]
-find = {}  # Scan the project directory with the default parameters
+[tool.setuptools]
+packages = ["buildflow"]
 
 [project.scripts]
 buildflow = "buildflow.cli.main:main"
