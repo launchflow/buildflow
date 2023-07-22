@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
 import pyarrow.csv as pcsv
 import pytest
@@ -14,30 +14,7 @@ from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import
 )
 from buildflow.core.io.local.file import File
 from buildflow.core.io.local.pulse import Pulse
-from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.types.local_types import FileFormat
-
-
-def create_test_processor(output_path: str, pulsing_input: Iterable[Dict[str, int]]):
-    class MyProcesesor(PipelineProcessor):
-        def resources(self):
-            return []
-
-        def setup(self):
-            return
-
-        @classmethod
-        def source(cls):
-            return Pulse(items=pulsing_input, pulse_interval_seconds=0.1)
-
-        @classmethod
-        def sink(self):
-            return File(file_path=output_path, file_format=FileFormat.CSV)
-
-        def process(self, payload):
-            return payload
-
-    return MyProcesesor(processor_id="test-processor")
 
 
 @pytest.mark.usefixtures("ray_fix")
@@ -67,7 +44,7 @@ class PullProcessPushTest(unittest.TestCase):
             def setup(self):
                 self.value_to_add = 1
 
-            def process(self, payload):
+            def process(self, payload: Dict[str, int]) -> Dict[str, int]:
                 new_payload = payload.copy()
                 new_payload["field"] = new_payload["field"] + self.value_to_add
                 return new_payload
@@ -82,7 +59,6 @@ class PullProcessPushTest(unittest.TestCase):
         table_list = table.to_pylist()
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 2}, {"field": 3}], table_list[0:2])
-        assert False
 
     def test_end_to_end_with_processor_decorator(self):
         app = Flow()

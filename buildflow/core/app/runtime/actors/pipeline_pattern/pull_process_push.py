@@ -161,7 +161,6 @@ class PullProcessPushActor(Runtime):
 
         raw_process_fn = self.processor.process
         full_arg_spec = inspect.getfullargspec(raw_process_fn)
-        print("DO NOT SUBMIT: ", full_arg_spec)
         output_type = None
         input_type = None
         if "return" in full_arg_spec.annotations:
