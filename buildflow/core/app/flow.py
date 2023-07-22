@@ -49,8 +49,8 @@ def pipeline_decorator(
     source_credentials: CredentialType,
     sink_credentials: CredentialType,
 ):
-    def decorator_function(original_process_function):
-        if inspect.isclass(original_process_function):
+    def decorator_function(original_process_fn_or_class):
+        if inspect.isclass(original_process_fn_or_class):
 
             def setup(self):
                 if hasattr(self.instance, "setup"):
@@ -65,9 +65,9 @@ def pipeline_decorator(
                 return None
 
             def wrapper_function(*args, **kwargs):
-                return original_process_function(*args, **kwargs)
+                return original_process_fn_or_class(*args, **kwargs)
 
-        full_arg_spec = inspect.getfullargspec(original_process_function)
+        full_arg_spec = inspect.getfullargspec(original_process_fn_or_class)
         input_type = None
         output_type = None
         if (
@@ -92,7 +92,7 @@ def pipeline_decorator(
             return source_resources + sink_resources
 
         # Dynamically define a new class with the same structure as Processor
-        processor_id = original_process_function.__name__
+        processor_id = original_process_fn_or_class.__name__
         class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
         source_provider = source_primitive.source_provider()
         sink_provider = sink_primitive.sink_provider()
@@ -109,13 +109,13 @@ def pipeline_decorator(
                 "source": source_primitive,
                 "sink": sink_primitive,
             },
-            "__call__": original_process_function,
+            "__call__": original_process_fn_or_class,
         }
-        if inspect.isclass(original_process_function):
+        if inspect.isclass(original_process_fn_or_class):
 
             def init_processor(self, processor_id):
                 self.processor_id = processor_id
-                self.instance = original_process_function()
+                self.instance = original_process_fn_or_class()
 
             adhoc_methods["__init__"] = init_processor
         AdHocPipelineProcessorClass = type(
@@ -123,17 +123,17 @@ def pipeline_decorator(
             (PipelineProcessor,),
             adhoc_methods,
         )
-        if not inspect.isclass(original_process_function):
+        if not inspect.isclass(original_process_fn_or_class):
             utils.attach_method_to_class(
                 AdHocPipelineProcessorClass,
                 "process",
-                original_func=original_process_function,
+                original_func=original_process_fn_or_class,
             )
         else:
             utils.attach_wrapped_method_to_class(
                 AdHocPipelineProcessorClass,
                 "process",
-                original_func=original_process_function.process,
+                original_func=original_process_fn_or_class.process,
             )
 
         processor = AdHocPipelineProcessorClass(processor_id=processor_id)
