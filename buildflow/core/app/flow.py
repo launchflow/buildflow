@@ -133,6 +133,7 @@ class FlowState:
                 }
                 for p in self.processors
             ],
+            "pulumi_stack_state": self.pulumi_stack_state.as_json_dict(),
         }
 
 
