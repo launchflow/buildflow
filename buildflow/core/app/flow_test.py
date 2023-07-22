@@ -48,10 +48,14 @@ class FlowTest(unittest.TestCase):
             def setup(self):
                 self.value_to_add = 1
 
-            def process(self, payload: Dict[str, int]) -> Dict[str, int]:
+            def _duplicate(self, payload: Dict[str, int]) -> Dict[str, int]:
+                # Ensure we can still call inner methods
                 new_payload = payload.copy()
                 new_payload["field"] = new_payload["field"] + self.value_to_add
                 return new_payload
+
+            def process(self, payload: Dict[str, int]) -> Dict[str, int]:
+                return self._duplicate(payload)
 
         self.assertIsInstance(MyPipeline, PipelineProcessor)
 
