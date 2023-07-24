@@ -4,10 +4,7 @@ on:
   workflow_dispatch:
 
   push:
-      branches: ['main', 'v0.2']
-
-env:
-  BUILDFLOW_USAGE_STATS_DISABLE: 1
+    branches: ["main", "v0.2"]
 
 jobs:
   pub_sub_to_pub_sub_test:
@@ -28,14 +25,14 @@ jobs:
           pip install .[dev]
 
       - name: Setup GCP Auth
-        uses: 'google-github-actions/auth@v1'
+        uses: "google-github-actions/auth@v1"
         with:
           # NOTE: We use a key file here because changing the quota project
           # doesn't work with WIF.
           credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
 
       - name: Run Pub/Sub Integration Test
         run: |
@@ -63,14 +60,14 @@ jobs:
           pip install .[dev]
 
       - name: Setup GCP Auth
-        uses: 'google-github-actions/auth@v1'
+        uses: "google-github-actions/auth@v1"
         with:
           # NOTE: We use a key file here because changing the quota project
           # doesn't work with WIF.
           credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
 
       - name: Run Pub/Sub Integration Test
         run: |
@@ -98,14 +95,14 @@ jobs:
           pip install .[dev]
 
       - name: Setup GCP Auth
-        uses: 'google-github-actions/auth@v1'
+        uses: "google-github-actions/auth@v1"
         with:
           # NOTE: We use a key file here because changing the quota project
           # doesn't work with WIF.
           credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
 
       - name: Run CSV -> BigQuery Walkthrough
         run: |
