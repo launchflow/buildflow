@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: ["main", "v0.2"]
 
-env:
-  BUILDFLOW_USAGE_STATS_DISABLE: 1
-
 jobs:
   code-health:
     runs-on: ubuntu-latest

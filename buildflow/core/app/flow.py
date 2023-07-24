@@ -281,7 +281,6 @@ class Flow:
     def run(
         self,
         *,
-        disable_usage_stats: bool = False,
         block: bool = True,
         # runtime-only options
         debug_run: bool = False,
@@ -292,10 +291,6 @@ class Flow:
         runtime_server_host: str = "127.0.0.1",
         runtime_server_port: int = 9653,
     ):
-        # BuildFlow Usage Stats
-        if not disable_usage_stats:
-            utils.log_buildflow_usage()
-
         # Start the Flow Runtime
         runtime_coroutine = self._run(debug_run=debug_run)
 
