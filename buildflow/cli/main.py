@@ -35,9 +35,6 @@ APP_DIR_OPTION = typer.Option(
 @app.command(help="Run a buildflow flow.")
 def run(
     app: str = typer.Argument(..., help="The flow app to run"),
-    disable_usage_stats: bool = typer.Option(
-        False, help="Disable buildflow usage stats"
-    ),
     start_runtime_server: bool = typer.Option(
         False, help="Whether to start the server for the running flow."
     ),
@@ -54,7 +51,6 @@ def run(
     imported = utils.import_from_string(app)
     if isinstance(imported, buildflow.Flow):
         imported.run(
-            disable_usage_stats=disable_usage_stats,
             start_runtime_server=start_runtime_server,
             runtime_server_host=runtime_server_host,
             runtime_server_port=runtime_server_port,

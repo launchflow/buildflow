@@ -1,4 +1,3 @@
-import dataclasses
 import hashlib
 import inspect
 import json
@@ -9,8 +8,6 @@ from functools import wraps
 from typing import Any, Dict, Optional, TypeVar
 from uuid import uuid4
 import yaml
-
-import requests
 
 from buildflow.exceptions import PathNotFoundException
 
@@ -74,49 +71,6 @@ def log_errors(endpoint: str):
         return original_function
 
     return decorator_function
-
-
-# TODO: reconcile the session file with more general `WorkspaceAPI` of sorts
-_SESSION_DIR = os.path.join(os.path.expanduser("~"), ".config", "buildflow")
-_SESSION_FILE = os.path.join(_SESSION_DIR, "build_flow_usage.json")
-
-
-@dataclasses.dataclass
-class Session:
-    id: str
-
-
-def _load_buildflow_session():
-    try:
-        os.makedirs(_SESSION_DIR, exist_ok=True)
-        if os.path.exists(_SESSION_FILE):
-            with open(_SESSION_FILE, "r") as f:
-                session_info = json.load(f)
-                return Session(**session_info)
-        else:
-            session = Session(id=uuid())
-            with open(_SESSION_FILE, "w") as f:
-                json.dump(dataclasses.asdict(session), f)
-            return session
-    except Exception as e:
-        logging.debug("failed to load session id with error: %s", e)
-
-
-def log_buildflow_usage():
-    session = _load_buildflow_session()
-    logging.debug(
-        "Usage stats collection is enabled. To disable set "
-        "`disable_usage_stats` in flow.run() or set the environment "
-        "variable BUILDFLOW_USAGE_STATS_DISABLE."
-    )
-    response = requests.post(
-        "https://apis.launchflow.com/buildflow_usage",
-        data=json.dumps(dataclasses.asdict(session)),
-    )
-    if response.status_code == 200:
-        logging.debug("recorded run in session %s", session)
-    else:
-        logging.debug("failed to record usage stats.")
 
 
 T = TypeVar("T")
