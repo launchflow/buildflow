@@ -3,7 +3,6 @@ import enum
 from buildflow.core.types.portable_types import PortableFileChangeEventType
 
 
-# TODO: allow users to set as a string
 class FileFormat(enum.Enum):
     # TODO: Support additional file formats (Arrow, Avro, etc..)
     PARQUET = "parquet"
@@ -26,3 +25,9 @@ class FileChangeStreamEventType(enum.Enum):
                 "Cannot convert portable file event type to local file "
                 f"event type: {portable_type}"
             ) from None
+
+
+# DuckDB
+
+DuckDBDatabase = str
+DuckDBTable = str
