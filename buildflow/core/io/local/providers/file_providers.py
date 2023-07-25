@@ -28,6 +28,6 @@ class FileProvider(SinkProvider, PulumiProvider):
             file_format=self.file_format,
         )
 
-    def pulumi_resources(self, type_: Optional[Type]):
+    def pulumi_resources(self, type_: Optional[Type], depends_on: list = []):
         # Local file provider does not have any Pulumi resources
         return []

@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import pulumi
 import pulumi_gcp
@@ -32,6 +32,10 @@ class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
         self.project_id = project_id
         self.topic_name = topic_name
 
+    @property
+    def topic_id(self) -> PubSubTopicID:
+        return f"projects/{self.project_id}/topics/{self.topic_name}"
+
     def sink(self, credentials: GCPCredentials):
         return GCPPubSubTopicSink(
             credentials=credentials,
@@ -39,7 +43,9 @@ class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
             topic_name=self.topic_name,
         )
 
-    def pulumi_resources(self, type_: Optional[Type]):
+    def pulumi_resources(
+        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+    ):
         # TODO: Support schemas for topics
         del type_
         topic_resource = pulumi_gcp.pubsub.Topic(
@@ -88,12 +94,15 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
             include_attributes=self.include_attributes,
         )
 
-    def pulumi_resources(self, type_: Optional[Type]):
-        del type_
+    def pulumi_resources(
+        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+    ):
+        depends = [tr.resource for tr in depends_on]
         subscription_resource = pulumi_gcp.pubsub.Subscription(
             self.subscription_name,
             name=self.subscription_name,
             topic=self.topic_id,
+            opts=pulumi.ResourceOptions(depends_on=depends),
             project=self.project_id,
             ack_deadline_seconds=self.ack_deadline_seconds,
             message_retention_duration=self.message_retention_duration,

@@ -11,6 +11,9 @@
 # cloud-provider specific. For example, we can set a TopicID on a
 # Topic primitive, and then use that TopicID to create a GCP PubSub Topic.
 
+from dataclasses import dataclass
+from typing import Any, Dict
+
 
 # Table Types
 TableName = str
@@ -20,8 +23,27 @@ TableID = str
 # Topic Types
 TopicID = str
 
+TopicName = str
+
 # Queue Types
 QueueID = str
 
 # Bucket Types
 BucketName = str
+
+# File Paths
+
+FilePath = str
+
+
+# Subscription Types
+SubscriptionName = str
+
+
+@dataclass
+class FileEvent:
+    metadata: Dict[str, Any]
+
+    @property
+    def blob(self) -> bytes:
+        raise NotImplementedError(f"blob not implemented for {type(self)}")

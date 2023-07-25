@@ -30,6 +30,6 @@ class PulseProvider(SourceProvider, PulumiProvider):
             backlog_size=self.backlog_size,
         )
 
-    def pulumi_resources(self, type_: Optional[Type]):
+    def pulumi_resources(self, type_: Optional[Type], depends_on: list = []):
         # Local pulse provider does not have any Pulumi resources
         return []

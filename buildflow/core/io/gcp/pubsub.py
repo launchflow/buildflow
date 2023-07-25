@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Optional
 
 from buildflow.core import utils
 from buildflow.core.options.runtime_options import RuntimeOptions
@@ -14,7 +15,7 @@ from buildflow.core.types.gcp_types import (
     PubSubTopicID,
     PubSubTopicName,
 )
-from buildflow.core.types.portable_types import TopicID
+from buildflow.core.types.portable_types import TopicID, TopicName, SubscriptionName
 
 
 @dataclasses.dataclass
@@ -22,11 +23,18 @@ class GCPPubSubTopic(GCPPrimtive):
     project_id: GCPProjectID
     topic_name: PubSubTopicName
 
+    @property
+    def topic_id(self) -> PubSubTopicID:
+        return f"projects/{self.project_id}/topics/{self.topic_name}"
+
     @classmethod
-    def from_gcp_options(cls, gcp_options: GCPOptions) -> "GCPPubSubTopic":
+    def from_gcp_options(
+        cls, gcp_options: GCPOptions, topic_name: Optional[TopicName] = None
+    ) -> "GCPPubSubTopic":
         project_id = gcp_options.default_project_id
         project_hash = utils.stable_hash(project_id)
-        topic_name = f"buildflow_topic_{project_hash[:8]}"
+        if topic_name is None:
+            topic_name = f"buildflow_topic_{project_hash[:8]}"
         return cls(
             project_id=project_id,
             topic_name=topic_name,
@@ -62,9 +70,16 @@ class GCPPubSubSubscription(GCPPrimtive):
     # required fields
     topic_id: PubSubTopicID
 
+    # Optional fields
+    include_attributes: bool = False
+
     @classmethod
     def from_gcp_options(
-        cls, gcp_options: GCPOptions, *, topic_id: TopicID
+        cls,
+        gcp_options: GCPOptions,
+        *,
+        topic_id: TopicID,
+        subscription_name: Optional[SubscriptionName] = None,
     ) -> "GCPPubSubSubscription":
         project_id = gcp_options.default_project_id
         if project_id is None:
@@ -73,7 +88,8 @@ class GCPPubSubSubscription(GCPPrimtive):
                 "the .buildflow config."
             )
         project_hash = utils.stable_hash(project_id)
-        subscription_name = f"buildflow_subscription_{project_hash[:8]}"
+        if subscription_name is None:
+            subscription_name = f"buildflow_subscription_{project_hash[:8]}"
         return cls(
             project_id=project_id,
             subscription_name=subscription_name,
@@ -88,6 +104,7 @@ class GCPPubSubSubscription(GCPPrimtive):
             project_id=self.project_id,
             subscription_name=self.subscription_name,
             topic_id=self.topic_id,
+            include_attributes=self.include_attributes,
         )
 
     # NOTE: Subscriptions do not support sinks, but we "implement" it here to
