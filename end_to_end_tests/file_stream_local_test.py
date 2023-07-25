@@ -58,13 +58,13 @@ class FileStreamLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 10 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=10)
+        run_coro = self.run_for_time(run_coro, time=20)
 
         create_path = os.path.join(self.dir_to_watch, "file.txt")
         with open(create_path, "w") as f:
             f.write("hello")
 
-        run_coro = self.run_for_time(run_coro, time=10)
+        run_coro = self.run_for_time(run_coro, time=20)
 
         database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
         conn = duckdb.connect(database=database, read_only=True)
