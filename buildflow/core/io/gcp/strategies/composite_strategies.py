@@ -10,7 +10,10 @@ from buildflow.core.io.gcp.strategies.pubsub_strategies import (
 )
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
-from buildflow.core.types.portable_types import FileChangeEvent
+from buildflow.core.types.portable_types import (
+    FileChangeEvent,
+    PortableFileChangeEventType,
+)
 
 
 @dataclasses.dataclass
@@ -24,6 +27,14 @@ class GCSFileChangeEvent(FileChangeEvent):
         bucket = self.storage_client.bucket(bucket_name=self.metadata["bucketId"])
         blob = bucket.get_blob(self.metadata["objectId"])
         return blob.download_as_bytes()
+
+
+def _gcs_event_to_portable_event(gcs_event_type: str) -> PortableFileChangeEventType:
+    if gcs_event_type == "OBJECT_DELETE":
+        return PortableFileChangeEventType.DELETED
+    elif gcs_event_type == "OBJECT_FINALIZE":
+        return PortableFileChangeEventType.CREATED
+    return PortableFileChangeEventType.UNKNOWN
 
 
 class GCSFileChangeStreamSource(SourceStrategy):
@@ -49,7 +60,12 @@ class GCSFileChangeStreamSource(SourceStrategy):
         pull_response = await self.pubsub_source.pull()
         payload = [
             GCSFileChangeEvent(
-                metadata=payload.attributes, storage_client=self.storage_client
+                file_path=payload.attributes["objectID"],
+                portable_event_type=_gcs_event_to_portable_event(
+                    payload.attributes["eventType"]
+                ),
+                metadata=payload.attributes,
+                storage_client=self.storage_client,
             )
             for payload in pull_response.payload
         ]

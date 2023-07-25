@@ -3,29 +3,29 @@ import dataclasses
 
 from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
 from buildflow.core.io.gcp.composite import GCSFileChangeStream
+from buildflow.core.io.local.file_change_stream import LocalFileChangeStream
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
 from buildflow.core.strategies._strategy import StategyType
-from buildflow.core.types.portable_types import FilePath
+from buildflow.core.types.shared_types import FilePath
 
 
 @dataclasses.dataclass
-class FileStream(PortablePrimtive):
+class FileChangeStream(PortablePrimtive):
     file_path: FilePath
 
     def to_cloud_primitive(
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
     ) -> Primitive:
+        if strategy_type != StategyType.SOURCE:
+            raise ValueError(
+                f"Unsupported strategy type for FileStream: {strategy_type}"
+            )
         # GCP Implementations
         if cloud_provider_config.default_cloud_provider == CloudProvider.GCP:
-            if strategy_type == StategyType.SOURCE:
-                return GCSFileChangeStream.from_gcp_options(
-                    gcp_options=cloud_provider_config.gcp_options,
-                    bucket_name=self.file_path,
-                )
-            elif strategy_type == StategyType.SINK:
-                raise ValueError(
-                    f"Unsupported strategy type for FileStream (GCP): {strategy_type}"
-                )
+            return GCSFileChangeStream.from_gcp_options(
+                gcp_options=cloud_provider_config.gcp_options,
+                bucket_name=self.file_path,
+            )
         # AWS Implementations
         elif cloud_provider_config.default_cloud_provider == CloudProvider.AWS:
             raise NotImplementedError("AWS is not implemented for FileStream.")
@@ -34,7 +34,10 @@ class FileStream(PortablePrimtive):
             raise NotImplementedError("Azure is not implemented for FileStream.")
         # Local Implementations
         elif cloud_provider_config.default_cloud_provider == CloudProvider.LOCAL:
-            raise NotImplementedError("Local is not implemented for FileStream.")
+            return LocalFileChangeStream.from_local_options(
+                local_options=cloud_provider_config.local_options,
+                file_path=self.file_path,
+            )
         # Sanity check
         else:
             raise ValueError(

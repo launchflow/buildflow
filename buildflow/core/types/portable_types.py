@@ -12,7 +12,10 @@
 # Topic primitive, and then use that TopicID to create a GCP PubSub Topic.
 
 from dataclasses import dataclass
+import enum
 from typing import Any, Dict
+
+from buildflow.core.types.shared_types import FilePath
 
 
 # Table Types
@@ -33,15 +36,22 @@ BucketName = str
 
 # File Paths
 
-FilePath = str
-
-
 # Subscription Types
 SubscriptionName = str
 
 
+class PortableFileChangeEventType(enum.Enum):
+    CREATED = 1
+    DELETED = 2
+    UNKNOWN = 3
+
+
 @dataclass
 class FileChangeEvent:
+    file_path: FilePath
+    portable_event_type: PortableFileChangeEventType
+
+    # Metadata specific to the cloud provider.
     metadata: Dict[str, Any]
 
     @property
