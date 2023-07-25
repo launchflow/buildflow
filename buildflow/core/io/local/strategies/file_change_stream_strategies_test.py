@@ -6,7 +6,7 @@ import unittest
 
 import pytest
 
-from buildflow.core.types.local_types import FileChangeStreamEvents
+from buildflow.core.types.local_types import FileChangeStreamEventType
 from buildflow.core.io.local.strategies.file_change_stream_strategies import (
     LocalFileChangeStreamSource,
 )
@@ -30,9 +30,9 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
             credentials=None,
             file_path=self.watch_dir,
             event_types=(
-                FileChangeStreamEvents.CREATED,
-                FileChangeStreamEvents.DELETED,
-                FileChangeStreamEvents.MODIFIED,
+                FileChangeStreamEventType.CREATED,
+                FileChangeStreamEventType.DELETED,
+                FileChangeStreamEventType.MODIFIED,
             ),
         )
 

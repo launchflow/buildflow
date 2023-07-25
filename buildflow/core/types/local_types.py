@@ -1,5 +1,7 @@
 import enum
 
+from buildflow.core.types.portable_types import PortableFileChangeEventType
+
 
 # TODO: allow users to set as a string
 class FileFormat(enum.Enum):
@@ -9,8 +11,18 @@ class FileFormat(enum.Enum):
     JSON = "json"
 
 
-class FileChangeStreamEvents(enum.Enum):
-    CREATED = 1
-    DELETED = 2
-    MODIFIED = 3
-    MOVED = 4
+class FileChangeStreamEventType(enum.Enum):
+    CREATED = "created"
+    DELETED = "deleted"
+    MODIFIED = "modified"
+    MOVED = "moved"
+
+    @classmethod
+    def from_portable_type(cls, portable_type: PortableFileChangeEventType):
+        try:
+            return cls(portable_type.value)
+        except ValueError:
+            raise ValueError(
+                "Cannot convert portable file event type to local file "
+                f"event type: {portable_type}"
+            ) from None

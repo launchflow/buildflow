@@ -55,6 +55,7 @@ class GCSFileChangeStreamTest(unittest.TestCase):
                 topic_id=f"projects/{want_project}/topics/my-topic",
             ),
             project_id=want_project,
+            event_types=[],
         )
 
         resources = provider.pulumi_resources(type_=None)

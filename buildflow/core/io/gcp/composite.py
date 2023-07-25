@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional
+from typing import Iterable, Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core.io.gcp.storage import GCSBucket
@@ -9,12 +9,16 @@ from buildflow.core.io.gcp.providers.composite_providers import (
 from buildflow.core.io.gcp.pubsub import GCPPubSubTopic, GCPPubSubSubscription
 from buildflow.core.io.primitive import GCPPrimtive
 from buildflow.core.types.portable_types import BucketName
+from buildflow.core.types.gcp_types import GCSChangeStreamEventType
 
 
 @dataclasses.dataclass
 class GCSFileChangeStream(GCPPrimtive):
     gcs_bucket: GCSBucket
     pubsub_subscription: GCPPubSubSubscription
+    event_types: Iterable[GCSChangeStreamEventType] = (
+        GCSChangeStreamEventType.OBJECT_FINALIZE,
+    )
 
     # Only needed for setting up resources.
     pubsub_topic: Optional[GCPPubSubTopic] = None
@@ -24,8 +28,11 @@ class GCSFileChangeStream(GCPPrimtive):
 
     @classmethod
     def from_gcp_options(
-        cls, gcp_options: GCPOptions, bucket_name: BucketName
-    ) -> "GCSBucket":
+        cls,
+        gcp_options: GCPOptions,
+        bucket_name: BucketName,
+        event_types: Iterable[GCSChangeStreamEventType],
+    ) -> "GCSFileChangeStream":
         gcs_bucket = GCSBucket.from_gcp_options(gcp_options, bucket_name=bucket_name)
         topic_name = f"{bucket_name}_topic"
         pubsub_topic = GCPPubSubTopic.from_gcp_options(
@@ -40,6 +47,7 @@ class GCSFileChangeStream(GCPPrimtive):
             gcs_bucket=gcs_bucket,
             pubsub_subscription=pubsub_subscription,
             pubsub_topic=pubsub_topic,
+            event_types=event_types,
         )
 
     def source_provider(self) -> GCSFileChangeStreamProvider:
@@ -48,6 +56,7 @@ class GCSFileChangeStream(GCPPrimtive):
             pubsub_topic_provider=None,
             pubsub_subscription_provider=self.pubsub_subscription.source_provider(),
             project_id=self.gcs_bucket.project_id,
+            event_types=self.event_types,
         )
 
     def pulumi_provider(self) -> GCSFileChangeStreamProvider:
@@ -56,4 +65,5 @@ class GCSFileChangeStream(GCPPrimtive):
             pubsub_subscription_provider=self.pubsub_subscription.pulumi_provider(),
             pubsub_topic_provider=self.pubsub_topic.pulumi_provider(),
             project_id=self.gcs_bucket.project_id,
+            event_types=self.event_types,
         )

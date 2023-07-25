@@ -1,4 +1,4 @@
-from typing import List, Optional, Type
+from typing import Iterable, List, Optional, Type
 
 import pulumi
 import pulumi_gcp
@@ -15,6 +15,7 @@ from buildflow.core.io.gcp.strategies.composite_strategies import (
     GCSFileChangeStreamSource,
 )
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
+from buildflow.core.types.gcp_types import GCSChangeStreamEventType
 
 
 class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
@@ -28,7 +29,7 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
         pubsub_subscription_provider: GCPPubSubSubscriptionProvider,
         project_id: GCPProjectID,
         # source-only options
-        event_types: Optional[List[str]] = ("OBJECT_FINALIZE",),
+        event_types: Iterable[GCSChangeStreamEventType],
         # pulumi-only options
         # TODO: Change this to True once we have a way to set this field
         destroy_protection: bool = False,

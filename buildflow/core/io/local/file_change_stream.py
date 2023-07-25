@@ -7,14 +7,14 @@ from buildflow.core.io.primitive import LocalPrimtive
 from buildflow.core.io.local.providers.file_change_stream_provider import (
     LocalFileChangeStreamProvider,
 )
-from buildflow.core.types.local_types import FileChangeStreamEvents
+from buildflow.core.types.local_types import FileChangeStreamEventType
 from buildflow.core.types.shared_types import FilePath
 
 
 @dataclasses.dataclass
 class LocalFileChangeStream(LocalPrimtive):
     file_path: FilePath
-    event_types: Iterable[FileChangeStreamEvents]
+    event_types: Iterable[FileChangeStreamEventType]
 
     def __post_init__(self):
         if not self.file_path.startswith("/"):
@@ -26,8 +26,8 @@ class LocalFileChangeStream(LocalPrimtive):
         local_options: LocalOptions,
         *,
         file_path: FilePath,
-        event_types: Iterable[FileChangeStreamEvents] = (
-            FileChangeStreamEvents.CREATED,
+        event_types: Iterable[FileChangeStreamEventType] = (
+            FileChangeStreamEventType.CREATED,
         ),
     ) -> "LocalPrimtive":
         """Create a primitive from LocalOptions."""

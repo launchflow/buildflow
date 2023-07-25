@@ -11,7 +11,9 @@ class GCSFileChangeStreamTest(unittest.TestCase):
             default_region="central",
             default_zone="central1-a",
         )
-        stream = GCSFileChangeStream.from_gcp_options(options, "my-bucket")
+        stream = GCSFileChangeStream.from_gcp_options(
+            options, "my-bucket", event_types=[]
+        )
         self.assertEqual(stream.gcs_bucket.bucket_name, "my-bucket")
         self.assertEqual(
             stream.pubsub_subscription.subscription_name, "my-bucket_subscription"

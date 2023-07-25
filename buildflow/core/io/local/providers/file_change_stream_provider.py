@@ -6,7 +6,7 @@ from buildflow.core.io.local.strategies.file_change_stream_strategies import (
 )
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
 from buildflow.core.strategies.source import SourceStrategy
-from buildflow.core.types.local_types import FileChangeStreamEvents
+from buildflow.core.types.local_types import FileChangeStreamEventType
 from buildflow.core.types.shared_types import FilePath
 
 
@@ -15,7 +15,9 @@ class LocalFileChangeStreamProvider(SourceProvider, PulumiProvider):
         self,
         *,
         file_path: FilePath,
-        event_types: Optional[FileChangeStreamEvents] = FileChangeStreamEvents.CREATED,
+        event_types: Optional[
+            FileChangeStreamEventType
+        ] = FileChangeStreamEventType.CREATED,
     ):
         self.file_path = file_path
         self.event_types = event_types

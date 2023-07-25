@@ -9,7 +9,7 @@ from watchdog.events import FileSystemEventHandler
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
-from buildflow.core.types.local_types import FileChangeStreamEvents
+from buildflow.core.types.local_types import FileChangeStreamEventType
 from buildflow.core.types.portable_types import (
     FileChangeEvent,
     PortableFileChangeEventType,
@@ -28,13 +28,13 @@ def _watchdog_event_to_portable_event_type(
 
 
 class EventHandler(FileSystemEventHandler):
-    """Logs all the events captured."""
+    """Adds captured events to a queue consumed by the strategy."""
 
     def __init__(
         self,
         event_queue: List,
         lock: RLock,
-        event_types: Iterable[FileChangeStreamEvents],
+        event_types: Iterable[FileChangeStreamEventType],
     ):
         super().__init__()
         self.event_queue = event_queue
@@ -43,25 +43,25 @@ class EventHandler(FileSystemEventHandler):
 
     def on_moved(self, event):
         super(EventHandler, self).on_moved(event)
-        if FileChangeStreamEvents.MOVED in self.event_types:
+        if FileChangeStreamEventType.MOVED in self.event_types:
             with self.lock:
                 self.event_queue.append(event)
 
     def on_created(self, event):
         super(EventHandler, self).on_created(event)
-        if FileChangeStreamEvents.CREATED in self.event_types:
+        if FileChangeStreamEventType.CREATED in self.event_types:
             with self.lock:
                 self.event_queue.append(event)
 
     def on_deleted(self, event):
         super(EventHandler, self).on_deleted(event)
-        if FileChangeStreamEvents.DELETED in self.event_types:
+        if FileChangeStreamEventType.DELETED in self.event_types:
             with self.lock:
                 self.event_queue.append(event)
 
     def on_modified(self, event):
         super(EventHandler, self).on_modified(event)
-        if FileChangeStreamEvents.MODIFIED in self.event_types:
+        if FileChangeStreamEventType.MODIFIED in self.event_types:
             with self.lock:
                 self.event_queue.append(event)
 
@@ -82,7 +82,7 @@ class LocalFileChangeStreamSource(SourceStrategy):
         *,
         credentials: EmptyCredentials,
         file_path: FilePath,
-        event_types: Iterable[FileChangeStreamEvents],
+        event_types: Iterable[FileChangeStreamEventType],
     ):
         super().__init__(
             credentials=credentials, strategy_id="local-file-change-stream-source"

@@ -14,6 +14,7 @@ from buildflow.core.types.portable_types import (
     FileChangeEvent,
     PortableFileChangeEventType,
 )
+from buildflow.core.types.gcp_types import GCSChangeStreamEventType
 
 
 @dataclasses.dataclass
@@ -29,10 +30,12 @@ class GCSFileChangeEvent(FileChangeEvent):
         return blob.download_as_bytes()
 
 
-def _gcs_event_to_portable_event(gcs_event_type: str) -> PortableFileChangeEventType:
-    if gcs_event_type == "OBJECT_DELETE":
+def _gcs_event_to_portable_event(
+    gcs_event_type: GCSChangeStreamEventType,
+) -> PortableFileChangeEventType:
+    if gcs_event_type == GCSChangeStreamEventType.OBJECT_DELETE:
         return PortableFileChangeEventType.DELETED
-    elif gcs_event_type == "OBJECT_FINALIZE":
+    elif gcs_event_type == GCSChangeStreamEventType.OBJECT_FINALIZE:
         return PortableFileChangeEventType.CREATED
     return PortableFileChangeEventType.UNKNOWN
 
@@ -62,7 +65,7 @@ class GCSFileChangeStreamSource(SourceStrategy):
             GCSFileChangeEvent(
                 file_path=payload.attributes["objectID"],
                 portable_event_type=_gcs_event_to_portable_event(
-                    payload.attributes["eventType"]
+                    GCSChangeStreamEventType(payload.attributes["eventType"])
                 ),
                 metadata=payload.attributes,
                 storage_client=self.storage_client,

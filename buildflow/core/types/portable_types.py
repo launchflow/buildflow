@@ -41,9 +41,9 @@ SubscriptionName = str
 
 
 class PortableFileChangeEventType(enum.Enum):
-    CREATED = 1
-    DELETED = 2
-    UNKNOWN = 3
+    CREATED = "created"
+    DELETED = "portable"
+    UNKNOWN = "unknown"
 
 
 @dataclass
