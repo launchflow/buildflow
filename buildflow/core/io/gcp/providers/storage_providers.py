@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import pulumi
 import pulumi_gcp
@@ -37,22 +37,23 @@ class GCSBucketProvider(SinkProvider, PulumiProvider):
             bucket_name=self.bucket_name,
         )
 
-    def pulumi_resources(self, type_: Optional[Type]):
+    def pulumi_resources(
+        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+    ):
         del type_
-        bucket_resource_id = f"{self.project_id}-{self.bucket_name}"
         bucket_resource = pulumi_gcp.storage.Bucket(
-            resource_name=bucket_resource_id,
+            resource_name=self.bucket_name,
             name=self.bucket_name,
             location=self.bucket_region,
             project=self.project_id,
         )
-        pulumi.export("gcp.storage.bucket_id", bucket_resource_id)
+        pulumi.export("gcp.storage.bucket_id", self.bucket_name)
         return [
             PulumiResource(
-                resource_id=bucket_resource_id,
+                resource_id=self.bucket_name,
                 resource=bucket_resource,
                 exports={
-                    "gcp.storage.bucket_id": bucket_resource_id,
+                    "gcp.storage.bucket_id": self.bucket_name,
                 },
             )
         ]

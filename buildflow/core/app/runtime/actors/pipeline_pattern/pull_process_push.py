@@ -198,7 +198,12 @@ class PullProcessPushActor(Runtime):
             else:
                 return push_converter(results)
 
+        max_batch_size = source.max_batch_size()
         while self._status == RuntimeStatus.RUNNING:
+            # Add a small sleep here so none async sources can yield
+            # otherwise drain signals never get received.
+            # TODO: figure out away to remove this sleep
+            await asyncio.sleep(0.001)
             proc.cpu_percent()
             # PULL
             total_start_time = time.monotonic()
@@ -218,9 +223,11 @@ class PullProcessPushActor(Runtime):
             # PROCESS
             process_success = True
             process_start_time = time.monotonic()
-            self._pull_percentage_counter.inc(
-                len(response.payload) / source.max_batch_size()
-            )
+
+            if max_batch_size > 0:
+                self._pull_percentage_counter.inc(
+                    len(response.payload) / source.max_batch_size()
+                )
             try:
                 coros = []
                 for element in response.payload:

@@ -1,5 +1,5 @@
 from dataclasses import is_dataclass
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import pulumi
 import pulumi_gcp
@@ -57,9 +57,10 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
             batch_size=self.batch_size,
         )
 
-    def pulumi_resources(self, type_: Optional[Type]):
+    def pulumi_resources(
+        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+    ):
         resources = []
-
         if self.include_dataset:
             dataset_resource_id = f"{self.project_id}.{self.dataset_name}"
             dataset_resource = pulumi_gcp.bigquery.Dataset(

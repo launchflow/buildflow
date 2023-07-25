@@ -14,7 +14,9 @@ class ProviderAPI:
 
 class PulumiProvider(ProviderAPI):
     # TODO: Update type_ to use a BuildFlow.Schema type
-    def pulumi_resources(self, type_: Optional[Type]) -> List[PulumiResource]:
+    def pulumi_resources(
+        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+    ) -> List[PulumiResource]:
         raise NotImplementedError("pulumi_resources not implemented for Provider")
 
 

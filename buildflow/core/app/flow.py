@@ -59,6 +59,7 @@ def pipeline_decorator(
             def wrapper_function(self, args, **kwargs):
                 return self.instance.process(*args, **kwargs)
 
+            full_arg_spec = inspect.getfullargspec(original_process_fn_or_class.process)
         else:
 
             def setup(self):
@@ -67,7 +68,7 @@ def pipeline_decorator(
             def wrapper_function(*args, **kwargs):
                 return original_process_fn_or_class(*args, **kwargs)
 
-        full_arg_spec = inspect.getfullargspec(original_process_fn_or_class)
+            full_arg_spec = inspect.getfullargspec(original_process_fn_or_class)
         input_type = None
         output_type = None
         if (

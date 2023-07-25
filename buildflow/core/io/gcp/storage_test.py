@@ -70,7 +70,7 @@ class GCSTest(unittest.TestCase):
         self.assertEqual(
             all_exports,
             {
-                "gcp.storage.bucket_id": "project_id-bucket_name",
+                "gcp.storage.bucket_id": "bucket_name",
             },
         )
 

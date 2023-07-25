@@ -11,7 +11,8 @@ import pyarrow.csv as pcsv
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
-from buildflow.core.types.local_types import FilePath, FileFormat
+from buildflow.core.types.local_types import FileFormat
+from buildflow.core.types.shared_types import FilePath
 
 
 class FileSink(SinkStrategy):
@@ -50,3 +51,5 @@ class FileSink(SinkStrategy):
             if batch:
                 with open(self.file_path, "a") as output_file:
                     json.dump(batch, output_file)
+        else:
+            raise ValueError(f"Unknown file format: {self.file_format}")

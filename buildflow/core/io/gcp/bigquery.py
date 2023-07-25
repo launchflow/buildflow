@@ -32,6 +32,7 @@ class BigQueryTable(GCPPrimtive):
         gcp_options: GCPOptions,
         *,
         table_name: Optional[TableName] = None,
+        destroy_protection: bool = True,
     ) -> "BigQueryTable":
         project_id = gcp_options.default_project_id
         if project_id is None:
@@ -46,7 +47,7 @@ class BigQueryTable(GCPPrimtive):
             project_id=project_id,
             dataset_name="buildflow_managed",
             table_name=table_name,
-            destroy_protection=True,
+            destroy_protection=destroy_protection,
         )
 
     def sink_provider(self) -> BigQueryTableProvider:
