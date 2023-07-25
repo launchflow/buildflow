@@ -42,6 +42,7 @@ dependencies = [
     "ray[serve] > 2.0.0",
     "typer",
     "redis",
+    "watchdog",
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -60,7 +61,7 @@ dev = [
     "black",
     "pre-commit",
     "setuptools",
-    "wheel"
+    "wheel",
 ]
 
 [tool.setuptools.packages.find]
@@ -88,5 +89,5 @@ omit = [
     "buildflow/samples/*",
     "buildflow/cli/*",
     # Exclude skipped / prototype code
-    "buildflow/runtime/ray_io/duckdb_io*"
+    "buildflow/runtime/ray_io/duckdb_io*",
 ]
