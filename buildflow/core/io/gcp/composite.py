@@ -3,14 +3,16 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core.io.gcp.storage import GCSBucket
-from buildflow.core.io.gcp.providers.composite_providers import GCSFileStreamProvider
+from buildflow.core.io.gcp.providers.composite_providers import (
+    GCSFileChangeStreamProvider,
+)
 from buildflow.core.io.gcp.pubsub import GCPPubSubTopic, GCPPubSubSubscription
 from buildflow.core.io.primitive import GCPPrimtive
 from buildflow.core.types.portable_types import BucketName
 
 
 @dataclasses.dataclass
-class GCSFileStream(GCPPrimtive):
+class GCSFileChangeStream(GCPPrimtive):
     gcs_bucket: GCSBucket
     pubsub_subscription: GCPPubSubSubscription
 
@@ -40,16 +42,16 @@ class GCSFileStream(GCPPrimtive):
             pubsub_topic=pubsub_topic,
         )
 
-    def source_provider(self) -> GCSFileStreamProvider:
-        return GCSFileStreamProvider(
+    def source_provider(self) -> GCSFileChangeStreamProvider:
+        return GCSFileChangeStreamProvider(
             gcs_bucket_provider=None,
             pubsub_topic_provider=None,
             pubsub_subscription_provider=self.pubsub_subscription.source_provider(),
             project_id=self.gcs_bucket.project_id,
         )
 
-    def pulumi_provider(self) -> GCSFileStreamProvider:
-        return GCSFileStreamProvider(
+    def pulumi_provider(self) -> GCSFileChangeStreamProvider:
+        return GCSFileChangeStreamProvider(
             gcs_bucket_provider=self.gcs_bucket.pulumi_provider(),
             pubsub_subscription_provider=self.pubsub_subscription.pulumi_provider(),
             pubsub_topic_provider=self.pubsub_topic.pulumi_provider(),

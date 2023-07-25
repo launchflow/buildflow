@@ -41,7 +41,7 @@ SubscriptionName = str
 
 
 @dataclass
-class FileEvent:
+class FileChangeEvent:
     metadata: Dict[str, Any]
 
     @property

@@ -11,11 +11,13 @@ from buildflow.core.io.gcp.providers.pubsub_providers import (
     GCPPubSubSubscriptionProvider,
     GCPPubSubTopicProvider,
 )
-from buildflow.core.io.gcp.strategies.composite_strategies import GCSFileStreamSource
+from buildflow.core.io.gcp.strategies.composite_strategies import (
+    GCSFileChangeStreamSource,
+)
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
 
 
-class GCSFileStreamProvider(SourceProvider, PulumiProvider):
+class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
     def __init__(
         self,
         *,
@@ -41,7 +43,7 @@ class GCSFileStreamProvider(SourceProvider, PulumiProvider):
         self.destroy_protection = destroy_protection
 
     def source(self, credentials: GCPCredentials):
-        return GCSFileStreamSource(
+        return GCSFileChangeStreamSource(
             project_id=self.project_id,
             credentials=credentials,
             pubsub_source=self.pubsub_subscription_provider.source(credentials),

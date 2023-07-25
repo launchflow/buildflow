@@ -7,9 +7,7 @@ to refactor this. It's still worth keeping the tests though cause they
 do test the basics of pulumi resources.
 """
 
-import dataclasses
 import pytest
-from typing import List
 import unittest
 from unittest import mock
 
@@ -17,7 +15,9 @@ import pulumi
 import pulumi_gcp
 
 
-from buildflow.core.io.gcp.providers.composite_providers import GCSFileStreamProvider
+from buildflow.core.io.gcp.providers.composite_providers import (
+    GCSFileChangeStreamProvider,
+)
 from buildflow.core.io.gcp.providers.pubsub_providers import (
     GCPPubSubTopicProvider,
     GCPPubSubSubscriptionProvider,
@@ -25,33 +25,8 @@ from buildflow.core.io.gcp.providers.pubsub_providers import (
 from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 
 
-class MyMocks(pulumi.runtime.Mocks):
-    def new_resource(self, args: pulumi.runtime.MockResourceArgs):
-        return [args.name + "_id", args.inputs]
-
-    def call(self, args: pulumi.runtime.MockCallArgs):
-        return {}
-
-
-pulumi.runtime.set_mocks(MyMocks())
-
-
-@dataclasses.dataclass
-class _FakeBucket:
-    name: str
-    notifications: List[str]
-
-    def list_notifications(self):
-        return self.notifications
-
-
-@dataclasses.dataclass
-class FakeTopic:
-    name: str
-
-
 @pytest.mark.usefixtures("event_loop_instance")
-class GCSFileStreamTest(unittest.TestCase):
+class GCSFileChangeStreamTest(unittest.TestCase):
     def get_async_result(self, coro):
         """Run a coroutine synchronously."""
         return self.event_loop.run_until_complete(coro)
@@ -65,7 +40,7 @@ class GCSFileStreamTest(unittest.TestCase):
         want_project = "my-project"
         want_bucket = "my-bucket"
 
-        provider = GCSFileStreamProvider(
+        provider = GCSFileChangeStreamProvider(
             gcs_bucket_provider=GCSBucketProvider(
                 project_id=want_project,
                 bucket_name=want_bucket,

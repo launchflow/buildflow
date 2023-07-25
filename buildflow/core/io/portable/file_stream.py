@@ -2,7 +2,7 @@
 import dataclasses
 
 from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
-from buildflow.core.io.gcp.composite import GCSFileStream
+from buildflow.core.io.gcp.composite import GCSFileChangeStream
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
 from buildflow.core.strategies._strategy import StategyType
 from buildflow.core.types.portable_types import FilePath
@@ -18,7 +18,7 @@ class FileStream(PortablePrimtive):
         # GCP Implementations
         if cloud_provider_config.default_cloud_provider == CloudProvider.GCP:
             if strategy_type == StategyType.SOURCE:
-                return GCSFileStream.from_gcp_options(
+                return GCSFileChangeStream.from_gcp_options(
                     gcp_options=cloud_provider_config.gcp_options,
                     bucket_name=self.file_path,
                 )

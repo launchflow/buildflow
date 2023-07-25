@@ -10,11 +10,11 @@ from buildflow.core.io.gcp.strategies.pubsub_strategies import (
 )
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
-from buildflow.core.types.portable_types import FileEvent
+from buildflow.core.types.portable_types import FileChangeEvent
 
 
 @dataclasses.dataclass
-class GCSFileEvent(FileEvent):
+class GCSFileChangeEvent(FileChangeEvent):
     storage_client: storage.Client
 
     @property
@@ -26,7 +26,7 @@ class GCSFileEvent(FileEvent):
         return blob.download_as_bytes()
 
 
-class GCSFileStreamSource(SourceStrategy):
+class GCSFileChangeStreamSource(SourceStrategy):
     def __init__(
         self,
         *,
@@ -48,7 +48,7 @@ class GCSFileStreamSource(SourceStrategy):
     async def pull(self) -> PullResponse:
         pull_response = await self.pubsub_source.pull()
         payload = [
-            GCSFileEvent(
+            GCSFileChangeEvent(
                 metadata=payload.attributes, storage_client=self.storage_client
             )
             for payload in pull_response.payload
