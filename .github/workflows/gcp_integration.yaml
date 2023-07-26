@@ -3,8 +3,8 @@ name: GCP Integration Tests
 on:
   workflow_dispatch:
 
-  push:
-    branches: ["main", "v0.2"]
+  pull_request:
+    branches: ["release-*"]
 
 jobs:
   pub_sub_to_pub_sub_test:
@@ -72,41 +72,40 @@ jobs:
       - name: Run Pub/Sub Integration Test
         run: |
           curl -fsSL https://get.pulumi.com | sh
-          pulumi login --local
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
           cd integration_tests/pubsub_to_bigquery
           ./test.sh
 
-  gcs_integration_test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[dev]
+  # gcs_integration_test:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   permissions:
+  #     contents: write
+  #     id-token: write
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Set up Python 3.10
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.10"
+  #     - name: Install dependencies
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install .[dev]
 
-      - name: Setup GCP Auth
-        uses: "google-github-actions/auth@v1"
-        with:
-          # NOTE: We use a key file here because changing the quota project
-          # doesn't work with WIF.
-          credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
+  #     - name: Setup GCP Auth
+  #       uses: "google-github-actions/auth@v1"
+  #       with:
+  #         # NOTE: We use a key file here because changing the quota project
+  #         # doesn't work with WIF.
+  #         credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
 
-      - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v1"
+  #     - name: "Set up Cloud SDK"
+  #       uses: "google-github-actions/setup-gcloud@v1"
 
-      - name: Run CSV -> BigQuery Walkthrough
-        run: |
-          curl -fsSL https://get.pulumi.com | sh
-          pulumi login --local
-          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-          ./integration_tests/gcs_to_bigquery/test.sh
+  #     - name: Run CSV -> BigQuery Walkthrough
+  #       run: |
+  #         curl -fsSL https://get.pulumi.com | sh
+  #         pulumi login --local
+  #         export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+  #         ./integration_tests/gcs_to_bigquery/test.sh

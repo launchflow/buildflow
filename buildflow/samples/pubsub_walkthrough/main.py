@@ -4,16 +4,16 @@ import os
 from typing import Any, Dict
 
 import buildflow
-from buildflow.core.io.gcp import Topic, AnalysisTable
+from buildflow.core.io.portable import Topic, AnalysisTable
 
-bigquery_table = os.environ.get("BIGQUERY_TABLE", "taxi_rides")
+bigquery_table = os.getenv("BIGQUERY_TABLE", "taxi_rides")
 
 # Set up a subscriber for the source.
 # If this subscriber does not exist yet BuildFlow will create it.
 input_source = Topic(topic_id="projects/pubsub-public-data/topics/taxirides-realtime")
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
-output_table = AnalysisTable(bigquery_table)
+output_table = AnalysisTable(bigquery_table, destroy_protection=False)
 
 
 # Define an output type for our pipeline.
@@ -39,7 +39,3 @@ app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=Fal
 @app.pipeline(source=input_source, sink=output_table)
 def process(element: Dict[str, Any]) -> TaxiOutput:
     return TaxiOutput(**element)
-
-
-if __name__ == "__main__":
-    app.run()

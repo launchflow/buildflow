@@ -1,10 +1,8 @@
 name: Python CI
 
 on:
-  push:
-    branches: ["main", "v0.2"]
   pull_request:
-    branches: ["main", "v0.2"]
+    branches: ["main", "release-*"]
 
 jobs:
   code-health:
