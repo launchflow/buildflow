@@ -1,4 +1,5 @@
 import dataclasses
+import os
 from typing import Optional
 
 from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
@@ -6,7 +7,7 @@ from buildflow.core.io.gcp.bigquery import BigQueryTable
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
 from buildflow.core.strategies._strategy import StategyType
 from buildflow.core.types.portable_types import TableName
-from buildflow.core.io.local.file import File
+from buildflow.core.io.local.duckdb import DuckDB
 
 
 @dataclasses.dataclass
@@ -38,12 +39,8 @@ class AnalysisTable(PortablePrimtive):
             raise NotImplementedError("Azure is not implemented for Table.")
         # Local Implementations
         elif cloud_provider_config.default_cloud_provider == CloudProvider.LOCAL:
-            # TODO: change this to duckdb
-            return File.from_local_options(
-                local_options=cloud_provider_config.local_options,
-                file_path=self.table_name,
-                file_format="parquet",
-            )
+            database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
+            return DuckDB(database=database, table=self.table_name)
         # Sanity check
         else:
             raise ValueError(

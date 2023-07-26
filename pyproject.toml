@@ -16,7 +16,7 @@ dependencies = [
     # TODO: split up AWS and GCP dependencies.
     "boto3",
     "dacite",
-    "duckdb==0.6.0",
+    "duckdb",
     "google-auth",
     "google-cloud-bigquery",
     "google-cloud-bigquery-storage",
