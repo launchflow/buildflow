@@ -51,4 +51,4 @@ jobs:
       - name: Run Pub/Sub Integration Test
         run: |
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-          ./release_tests/pubsub_to_pubsub
+          ./release_tests/pubsub_to_pubsub/test.sh
