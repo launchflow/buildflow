@@ -1,7 +1,6 @@
 import logging
 from typing import Iterable
 
-import ray
 
 from buildflow.core.app.infra._infra import Infra, InfraStatus
 from buildflow.core.app.infra.pulumi_workspace import (
@@ -16,7 +15,6 @@ from buildflow.config.pulumi_config import PulumiConfig
 from buildflow.core.processor.processor import ProcessorAPI
 
 
-@ray.remote
 class InfraActor(Infra):
     def __init__(
         self,

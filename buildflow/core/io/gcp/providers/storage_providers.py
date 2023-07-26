@@ -23,12 +23,14 @@ class GCSBucketProvider(SinkProvider, PulumiProvider):
         bucket_region: GCPRegion,
         # sink-only options
         # pulumi-only options
+        force_destroy: bool = False,
     ):
         self.project_id = project_id
         self.bucket_name = bucket_name
         self.bucket_region = bucket_region
         # sink-only options
         # pulumi-only options
+        self.force_destroy = force_destroy
 
     def sink(self, credentials: GCPCredentials):
         return GCSBucketSink(
@@ -46,6 +48,7 @@ class GCSBucketProvider(SinkProvider, PulumiProvider):
             name=self.bucket_name,
             location=self.bucket_region,
             project=self.project_id,
+            force_destroy=self.force_destroy,
         )
         pulumi.export("gcp.storage.bucket_id", self.bucket_name)
         return [

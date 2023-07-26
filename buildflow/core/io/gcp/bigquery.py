@@ -1,7 +1,7 @@
 import dataclasses
 from typing import Optional
 from buildflow.core import utils
-from buildflow.core.io.primitive import GCPPrimtive
+from buildflow.core.io.primitive import GCPPrimtive, Primitive
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core.types.gcp_types import (
     BigQueryDatasetName,
@@ -20,11 +20,18 @@ class BigQueryTable(GCPPrimtive):
     project_id: GCPProjectID
     dataset_name: BigQueryDatasetName
     table_name: BigQueryTableName
-    destroy_protection: bool = True
+    destroy_protection: bool = dataclasses.field(default=False, init=False)
 
     @property
     def table_id(self) -> BigQueryTableID:
         return f"{self.project_id}.{self.dataset_name}.{self.table_name}"
+
+    def options(
+        self, managed: bool = False, destroy_protection: bool = False
+    ) -> Primitive:
+        super().options(managed)
+        self.destroy_protection = destroy_protection
+        return self
 
     @classmethod
     def from_gcp_options(
@@ -47,8 +54,7 @@ class BigQueryTable(GCPPrimtive):
             project_id=project_id,
             dataset_name="buildflow_managed",
             table_name=table_name,
-            destroy_protection=destroy_protection,
-        )
+        ).options(managed=True, destroy_protection=destroy_protection)
 
     def sink_provider(self) -> BigQueryTableProvider:
         # TODO: Add support to supply the sink-only options

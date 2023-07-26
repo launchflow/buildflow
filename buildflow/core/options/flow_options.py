@@ -29,7 +29,7 @@ class FlowOptions(Options):
         pipeline_cpu_percent_target: int = 25,
         # Infra options
         schema_validation: str = "none",
-        require_confirmation: bool = False,
+        require_confirmation: bool = True,
         infra_log_level: str = "INFO",
         # Pulumi options
         enable_destroy_protection: bool = False,

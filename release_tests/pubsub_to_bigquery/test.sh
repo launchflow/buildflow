@@ -5,7 +5,6 @@ export BIGQUERY_TABLE=taxi-test-$RANDOM
 cd buildflow/samples/pubsub_walkthrough
 ray start --head --num-cpus=2
 buildflow init --directory=. --default-cloud-provider=gcp --default-gcp-project=$GCP_PROJECT
-pwd
 buildflow plan main:app || {
   echo 'plan failed'
   exit 1

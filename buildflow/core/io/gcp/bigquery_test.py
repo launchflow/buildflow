@@ -41,7 +41,7 @@ class BigQueryTest(unittest.TestCase):
             project_id="project_id",
             dataset_name="dataset_name",
             table_name="table_name",
-        )
+        ).options(destroy_protection=False)
 
         pulumi_resources: List[
             PulumiResource
@@ -73,7 +73,7 @@ class BigQueryTest(unittest.TestCase):
                 schema, '[{"name": "value", "type": "INTEGER", "mode": "REQUIRED"}]'
             )
             # Deletion protection is enabled by default
-            self.assertEqual(delete_protect, True)
+            self.assertEqual(delete_protect, False)
 
         pulumi.Output.all(
             table_resource.urn,
@@ -96,7 +96,6 @@ class BigQueryTest(unittest.TestCase):
             project_id="project_id",
             dataset_name="dataset_name",
             table_name="table_name",
-            destroy_protection=False,
         )
 
         pulumi_resources: List[

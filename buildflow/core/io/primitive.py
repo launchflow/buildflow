@@ -45,6 +45,10 @@ class Primitive:
         """Return a pulumi provider for this primitive."""
         raise NotImplementedError("Primitive.pulumi_provider() is not implemented.")
 
+    def options(self, managed: bool = False) -> "Primitive":
+        self.managed = managed
+        return self
+
 
 class EmptyPrimitive(Primitive):
     """An empty primitive."""
@@ -54,6 +58,8 @@ class EmptyPrimitive(Primitive):
 
 class PortablePrimtive(Primitive):
     primitive_type = PrimitiveType.PORTABLE
+    # Portable primitives are always managed.
+    managed: bool = True
 
     def to_cloud_primitive(
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
@@ -62,6 +68,20 @@ class PortablePrimtive(Primitive):
         raise NotImplementedError(
             "PortablePrimtive.to_cloud_primitive() is not implemented."
         )
+
+    # Override the super class options method since it doesn't make sense to non-manage
+    # a portable primitive.
+    def options(self) -> Primitive:
+        return self
+
+
+class CompositePrimitive(Primitive):
+    # Composite primitives are always managed.
+    # They defer to their underlying primitives on what should actually be managed.
+    managed: bool = True
+
+    def options(self) -> "Primitive":
+        return self
 
 
 class GCPPrimtive(Primitive):
@@ -94,9 +114,17 @@ class AzurePrimtive(Primitive):
 
 class LocalPrimtive(Primitive):
     primitive_type = PrimitiveType.LOCAL
+    # LocalPrimitives are never managed.
+    managed: bool = False
 
     def from_local_options(cls, local_options: LocalOptions) -> "LocalPrimtive":
         """Create a primitive from LocalOptions."""
         raise NotImplementedError(
             "LocalPrimtive.from_local_options() is not implemented."
         )
+
+    # Composite primitives are always managed.
+    # They defer to their underlying primitives on what should actually be managed.
+
+    def options(self) -> "Primitive":
+        return self

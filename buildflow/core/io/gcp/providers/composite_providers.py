@@ -26,13 +26,15 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
         # NOTE: pubsub_topic_provider is only needed as a PulumiProvider, so its
         # optional for the case where we only want to use the source_provider
         pubsub_topic_provider: Optional[GCPPubSubTopicProvider],
-        pubsub_subscription_provider: GCPPubSubSubscriptionProvider,
+        pubsub_subscription_provider: Optional[GCPPubSubSubscriptionProvider],
         project_id: GCPProjectID,
         # source-only options
         event_types: Iterable[GCSChangeStreamEventType],
         # pulumi-only options
-        # TODO: Change this to True once we have a way to set this field
         destroy_protection: bool = False,
+        bucket_managed: bool = False,
+        subscription_managed: bool = False,
+        topic_managed: bool = False,
     ):
         self.gcs_bucket_provider = gcs_bucket_provider
         self.pubsub_topic_provider = pubsub_topic_provider
@@ -42,6 +44,9 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
         self.event_types = list(event_types)
         # pulumi-only options
         self.destroy_protection = destroy_protection
+        self.bucket_managed = bucket_managed
+        self.subscription_managed = subscription_managed
+        self.topic_managed = topic_managed
 
     def source(self, credentials: GCPCredentials):
         return GCSFileChangeStreamSource(
@@ -58,11 +63,16 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
                 "Cannot create Pulumi resources for GCSFileStreamProvider without a "
                 "GCSBucketProvider."
             )
+        gcs_resources = []
+        topic_resources = []
+        subscription_resources = []
         # Set up GCP bucket
-        gcs_resources = self.gcs_bucket_provider.pulumi_resources(type_)
-        # Set up pubsub topic
+        if self.bucket_managed:
+            gcs_resources = self.gcs_bucket_provider.pulumi_resources(type_)
         gcs_pulumi_resources = [tr.resource for tr in gcs_resources]
-        topic_resources = self.pubsub_topic_provider.pulumi_resources(type_)
+        # Set up pubsub topic
+        if self.topic_managed:
+            topic_resources = self.pubsub_topic_provider.pulumi_resources(type_)
         gcs_account = pulumi_gcp.storage.get_project_service_account(
             project=self.gcs_bucket_provider.project_id,
             user_project=self.gcs_bucket_provider.project_id,
@@ -77,7 +87,7 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
             members=[f"serviceAccount:{gcs_account.email_address}"],
         )
 
-        # Set up GCS nofitifaciont
+        # Set up GCS nofitifacion
         notification_depends_on = (
             gcs_pulumi_resources + topic_pulumi_resources + [binding]
         )
@@ -87,7 +97,7 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
             bucket=self.gcs_bucket_provider.bucket_name,
             topic=self.pubsub_topic_provider.topic_id,
             payload_format="JSON_API_V1",
-            event_types=self.event_types,
+            event_types=[et.name for et in self.event_types],
         )
         notification_resource = PulumiResource(
             resource_id=notification.id, resource=notification, exports={}
@@ -97,9 +107,10 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
         )
 
         # Setup pubsub subscription
-        subscription_resources = self.pubsub_subscription_provider.pulumi_resources(
-            type_, depends_on=topic_resources
-        )
+        if self.subscription_managed:
+            subscription_resources = self.pubsub_subscription_provider.pulumi_resources(
+                type_, depends_on=topic_resources
+            )
         return (
             gcs_resources
             + topic_resources
