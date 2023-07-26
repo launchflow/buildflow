@@ -10,11 +10,15 @@ buildflow plan main:app || {
   echo 'plan failed'
   exit 1
 }
+buildflow apply main:app || {
+  echo 'apply failed'
+  exit 1
+}
 buildflow run main:app &
 main_pid=$!
 
 sleep 45
-query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.buildflow_walkthrough.$BIGQUERY_TABLE\`"
+query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.buildflow_managed.$BIGQUERY_TABLE\`"
 echo "Running query: $query"
 num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
 

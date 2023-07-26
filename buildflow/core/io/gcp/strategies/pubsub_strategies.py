@@ -77,7 +77,6 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
 
     async def pull(self) -> PullResponse:
         try:
-            print("DO NOT SUBMIT: ", self.subscription_id)
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
                 max_messages=self.batch_size,
