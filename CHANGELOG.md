@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.1.1](https://github.com/launchflow/buildflow/compare/v0.1.1...v0.1.1) (2023-07-26)
+
+
+### Features
+
+* add plan command to buildflow ([72f66c0](https://github.com/launchflow/buildflow/commit/72f66c04ab46b8330970bd9724dc6f4df3cb517c))
+
+
+### Bug Fixes
+
+* actually use num replicas ([4761a1f](https://github.com/launchflow/buildflow/commit/4761a1f6341e00147c144745f06ef55cb158eeaa))
+* add ability to output dataclasses ([4d9509c](https://github.com/launchflow/buildflow/commit/4d9509c00bdbbbacaed37fc8a9386449d421532d))
+* add better autoscaling for streaming use cases ([eb07a01](https://github.com/launchflow/buildflow/commit/eb07a01af3861d7c31325dead7510774ece7a72c))
+* add better error handling for streaming failutes ([8e10580](https://github.com/launchflow/buildflow/commit/8e10580ca7423aec949c757fedeb3d61b466f1a5))
+* add cli commands for init and inspect ([3cc8a7a](https://github.com/launchflow/buildflow/commit/3cc8a7addd859d6316d1bae02ac85159fc04c963))
+* add duckdb sink for local ([19c8593](https://github.com/launchflow/buildflow/commit/19c8593e5c4b679bff41b0f83060e25d703dc618))
+* add metrics ([506cd2c](https://github.com/launchflow/buildflow/commit/506cd2cb24d4d8ad24afc250227c172bc6e6564a))
+* add pubsub resource setup ([72d16a3](https://github.com/launchflow/buildflow/commit/72d16a30ce235ee5097276cd161043e553b509d6))
+* add region to SQS source ([c81f47a](https://github.com/launchflow/buildflow/commit/c81f47ac9017cd376e65ec3d6ef5895b93e57922))
+* add resource setup for bigquery ([6a770bd](https://github.com/launchflow/buildflow/commit/6a770bd9e7687f06b4aeb680ef83177e75f334b3))
+* add runtime options to strategy and add option for byoc ([5e966a3](https://github.com/launchflow/buildflow/commit/5e966a3125e785e3e3ae707a3b6bf0bd9abb4f23))
+* add some usability improvements ([4d8fbbe](https://github.com/launchflow/buildflow/commit/4d8fbbe787e9a50d3b464eac80a9e22f11c03e5d))
+* add source for ingesting GCS file changes ([6b1a979](https://github.com/launchflow/buildflow/commit/6b1a9798f44318ba3ae6af0dfe38ac00432348f5))
+* add support for SQS as a source ([813740e](https://github.com/launchflow/buildflow/commit/813740ed6068222ddf0adfbde86507bf544dcfce))
+* add support to writing to local parquet files ([d2b844b](https://github.com/launchflow/buildflow/commit/d2b844bf1a750e3284dcbcf3550e78b321d29870))
+* attempt to gracefully shutdown processors when interupt signal is found ([652463d](https://github.com/launchflow/buildflow/commit/652463d01464a5fc9d08c5856b04ef33f148f46e))
+* correctly parse list of dataclasses ([ef1bd33](https://github.com/launchflow/buildflow/commit/ef1bd3396fc1a625ef85b7f57f971ff6dca93b8c))
+* correctly parse timestamp fields in dataclasses ([a7d27a2](https://github.com/launchflow/buildflow/commit/a7d27a21b54f9e4ac2f52ef4ab7fc47963fda733))
+* drain on sigterm and improve pub/sub backlog ([8ad5848](https://github.com/launchflow/buildflow/commit/8ad584853a82252cb5d2c21c9da5e36803385ae1))
+* error in pubsub walkthrough ([669f417](https://github.com/launchflow/buildflow/commit/669f4175ba3395120ad53b924bb79628f66c4e73))
+* finish implementation of streaming autoscaler ([3243412](https://github.com/launchflow/buildflow/commit/3243412f39800c65c34580e1ff9b4f5bf00e38ce))
+* implement gcp and local file change streams ([60024b0](https://github.com/launchflow/buildflow/commit/60024b0e7d6fe8b45a0604f23d824f2ef7ad2d81))
+* implement stateful processor pipelines ([06d3aa4](https://github.com/launchflow/buildflow/commit/06d3aa4273e613fde319d59c3119a520f86f3f55))
+* improvements to the autoscaller ([3b8bb29](https://github.com/launchflow/buildflow/commit/3b8bb29f1052122e5c177ec2d8137a4599684f6c))
+* include status in node server response ([9b0d90e](https://github.com/launchflow/buildflow/commit/9b0d90ef688784fe91c9446b7eeb5c8347ba6bf6))
+* pubsub sort and include full name in metrics ([dcee9d8](https://github.com/launchflow/buildflow/commit/dcee9d8ce2fd1ccf74d9ba1b0481a82e2edb0bb7))
+* refactor io into seperate sources and sinks ([1dccb72](https://github.com/launchflow/buildflow/commit/1dccb72ac6e0460c100bf1afa6be753f23587c32))
+* remove buildflow usage reporting ([aff003a](https://github.com/launchflow/buildflow/commit/aff003ad80c272a36e334b6c9f518fa5387e730c))
+* request resource when we hit the max allowed by our current cluster ([1377dfd](https://github.com/launchflow/buildflow/commit/1377dfd1b06c34de5953c9138fe3254c8245f163))
+* return a single flow results object from flow.run() ([e2b2cde](https://github.com/launchflow/buildflow/commit/e2b2cde207d89d402a780bdcbd78944e7a517426))
+* round down when we scale down ([ec6506d](https://github.com/launchflow/buildflow/commit/ec6506d53d08a612138fdb4ffff8360627bb1f4d))
+* set billing project when setting up GCP clients ([a11c8f2](https://github.com/launchflow/buildflow/commit/a11c8f2b0788a1e5f5caa5024cbe2af5429386fc))
+* support lists of dataclasses and some optimizations ([36ef5eb](https://github.com/launchflow/buildflow/commit/36ef5ebd96844dc580a4f4244680aa83bbd5b0de))
+* update autoscaler to use cpu percentage for downscaling ([d04a9bd](https://github.com/launchflow/buildflow/commit/d04a9bdd531ab8878ed64048da0b87dce47aaf29))
+
+
+### Miscellaneous Chores
+
+* release 0.0.4 ([c7f7549](https://github.com/launchflow/buildflow/commit/c7f75494b6621023b73a81d32221d13fd164efde))
+* release 0.1.1 ([bf71d19](https://github.com/launchflow/buildflow/commit/bf71d19e27d744e8cb369340eecee3754fa28a08))
+
 ## [0.1.1](https://github.com/launchflow/buildflow/compare/v0.1.0...v0.1.1) (2023-06-09)
 
 
