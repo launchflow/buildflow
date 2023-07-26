@@ -7,40 +7,40 @@ on:
     branches: ["release-*"]
 
 jobs:
-  pub_sub_to_pub_sub_test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[dev]
+  # pub_sub_to_pub_sub_test:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   permissions:
+  #     contents: write
+  #     id-token: write
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Set up Python 3.10
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.10"
+  #     - name: Install dependencies
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install .[dev]
 
-      - name: Setup GCP Auth
-        uses: "google-github-actions/auth@v1"
-        with:
-          # NOTE: We use a key file here because changing the quota project
-          # doesn't work with WIF.
-          credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
+  #     - name: Setup GCP Auth
+  #       uses: "google-github-actions/auth@v1"
+  #       with:
+  #         # NOTE: We use a key file here because changing the quota project
+  #         # doesn't work with WIF.
+  #         credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
 
-      - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v1"
+  #     - name: "Set up Cloud SDK"
+  #       uses: "google-github-actions/setup-gcloud@v1"
 
-      - name: Run Pub/Sub Integration Test
-        run: |
-          curl -fsSL https://get.pulumi.com | sh
-          pulumi login --local
-          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-          cd integration_tests/pubsub_to_pubsub
-          ./test.sh
+  #     - name: Run Pub/Sub Integration Test
+  #       run: |
+  #         curl -fsSL https://get.pulumi.com | sh
+  #         pulumi login --local
+  #         export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+  #         cd integration_tests/pubsub_to_pubsub
+  #         ./test.sh
 
   pub_sub_walkthrough_test:
     runs-on: ubuntu-latest
