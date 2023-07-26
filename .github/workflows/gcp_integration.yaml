@@ -73,7 +73,7 @@ jobs:
         run: |
           curl -fsSL https://get.pulumi.com | sh
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-          cd integration_tests/pubsub_to_bigquery
+          cd release_tests/pubsub_to_bigquery
           ./test.sh
 
   # gcs_integration_test:
