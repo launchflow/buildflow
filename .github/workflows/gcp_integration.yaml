@@ -3,7 +3,7 @@ name: GCP Integration Tests
 on:
   workflow_dispatch:
 
-  push:
+  pull_request:
     branches: ["release-*"]
 
 jobs:
