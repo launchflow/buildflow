@@ -6,7 +6,10 @@ import io
 from typing import List
 
 import buildflow
-from buildflow import Node, InfraOptions, SchemaValidation
+from buildflow.core.io.gcp.bigquery import BigQueryTable
+from buildflow.core.io.gcp.composite import GCSFileChangeStream
+from buildflow.core.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
+from buildflow.core.io.gcp.storage import GCSBucket
 
 gcp_project = os.environ["GCP_PROJECT"]
 bucket_name = os.environ["BUCKET_NAME"]
@@ -16,14 +19,29 @@ dataset = os.environ.get("DATASET", "buildflow_walkthrough")
 # Set up a subscriber for the source.
 # The source will setup a Pub/Sub topic and subscription to listen to new files
 # uploaded to the GCS bucket.
-source = buildflow.io.GCSFileStream(
-    project_id=gcp_project, bucket_name=bucket_name, force_destroy=True
+source = GCSFileChangeStream(
+    gcs_bucket=GCSBucket(
+        project_id=gcp_project,
+        bucket_name=bucket_name,
+        bucket_region="us-central1",
+    ).options(managed=True, force_destroy=True),
+    pubsub_topic=GCPPubSubTopic(
+        project_id=gcp_project,
+        topic_name="storage_events_topic",
+    ).options(managed=True),
+    pubsub_subscription=GCPPubSubSubscription(
+        project_id=gcp_project,
+        subscription_name="storage_events_sub",
+        topic_id=f"projects/{gcp_project}/topics/storage_events_topic",
+    ).options(managed=True),
 )
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
-sink = buildflow.io.BigQueryTable(
-    table_id=f"{gcp_project}.{dataset}.{bigquery_table}", destroy_protection=False
-)
+sink = BigQueryTable(
+    project_id=gcp_project,
+    dataset_name=dataset,
+    table_name=bigquery_table,
+).options(managed=True, destroy_protection=False)
 
 
 # Nested dataclasses can be used inside of your schemas.
@@ -46,17 +64,18 @@ class AggregateWikiPageViews:
     min_page_views_per_hour: HourAggregate
 
 
-infra_config = InfraOptions(
-    schema_validation=SchemaValidation.WARNING,
-    require_confirmation=False,
-    log_level="WARNING",
+app = buildflow.Flow(
+    flow_options=buildflow.FlowOptions(
+        require_confirmation=False, runtime_log_level="DEBUG"
+    )
 )
-app = Node(infra_config=infra_config)
 
 
 # Define our processor.
-@app.processor(source=source, sink=sink)
-def process(gcs_file_event: buildflow.io.GCSFileEvent) -> List[AggregateWikiPageViews]:
+@app.pipeline(source=source, sink=sink)
+def process(
+    gcs_file_event: buildflow.core.types.gcp_types.GCSChangeStreamEventType,
+) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))
     aggregate_stats = {}
@@ -87,7 +106,3 @@ def process(gcs_file_event: buildflow.io.GCSFileEvent) -> List[AggregateWikiPage
             )
 
     return list(aggregate_stats.values())
-
-
-if __name__ == "__main__":
-    app.run()

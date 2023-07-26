@@ -63,9 +63,9 @@ class GCSFileChangeStreamSource(SourceStrategy):
         pull_response = await self.pubsub_source.pull()
         payload = [
             GCSFileChangeEvent(
-                file_path=payload.attributes["objectID"],
+                file_path=payload.attributes["objectId"],
                 portable_event_type=_gcs_event_to_portable_event(
-                    GCSChangeStreamEventType(payload.attributes["eventType"])
+                    GCSChangeStreamEventType[payload.attributes["eventType"]]
                 ),
                 metadata=payload.attributes,
                 storage_client=self.storage_client,

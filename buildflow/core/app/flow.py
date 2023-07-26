@@ -192,7 +192,7 @@ class Flow:
 
     def _get_infra_actor(self) -> InfraActor:
         if self._infra_actor_ref is None:
-            self._infra_actor_ref = InfraActor.remote(
+            self._infra_actor_ref = InfraActor(
                 infra_options=self.options.infra_options,
                 pulumi_config=self.config.pulumi_config,
             )
@@ -345,7 +345,7 @@ class Flow:
 
     async def _plan(self):
         logging.debug(f"Planning Infra for Flow({self.flow_id})...")
-        await self._get_infra_actor().plan.remote(processors=self._processors)
+        await self._get_infra_actor().plan(processors=self._processors)
         logging.debug(f"...Finished planning Infra for Flow({self.flow_id})")
 
     def apply(self):
@@ -353,7 +353,7 @@ class Flow:
 
     async def _apply(self):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
-        await self._get_infra_actor().apply.remote(processors=self._processors)
+        await self._get_infra_actor().apply(processors=self._processors)
         logging.debug(f"...Finished setting up Infra for Flow({self.flow_id})")
 
     def destroy(self):
@@ -361,7 +361,7 @@ class Flow:
 
     async def _destroy(self):
         logging.debug(f"Tearing down infrastructure for Flow({self.flow_id})...")
-        await self._get_infra_actor().destroy.remote(processors=self._processors)
+        await self._get_infra_actor().destroy(processors=self._processors)
         logging.debug(
             f"...Finished tearing down infrastructure for Flow({self.flow_id})"
         )

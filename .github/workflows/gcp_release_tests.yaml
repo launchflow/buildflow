@@ -1,4 +1,4 @@
-name: GCP Integration Tests
+name: GCP Release Tests
 
 on:
   workflow_dispatch:
@@ -42,7 +42,7 @@ jobs:
   #         cd integration_tests/pubsub_to_pubsub
   #         ./test.sh
 
-  pub_sub_walkthrough_test:
+  release_tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -69,43 +69,26 @@ jobs:
       - name: "Set up Cloud SDK"
         uses: "google-github-actions/setup-gcloud@v1"
 
-      - name: Run Pub/Sub Integration Test
+      - name: "Set up Pulumi"
         run: |
           curl -fsSL https://get.pulumi.com | sh
+
+      - name: Run Pub/Sub -> BigQuery Release Test
+        run: |
           export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-          cd release_tests/pubsub_to_bigquery/
-          ./test.sh
+          ./release_tests/pubsub_to_bigquery/test.sh
 
-  # gcs_integration_test:
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 10
-  #   permissions:
-  #     contents: write
-  #     id-token: write
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Set up Python 3.10
-  #       uses: actions/setup-python@v4
-  #       with:
-  #         python-version: "3.10"
-  #     - name: Install dependencies
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install .[dev]
+      - name: Run CSV -> BigQuery Release Test
+        run: |
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          ./release_tests/gcs_to_bigquery/test.sh
 
-  #     - name: Setup GCP Auth
-  #       uses: "google-github-actions/auth@v1"
-  #       with:
-  #         # NOTE: We use a key file here because changing the quota project
-  #         # doesn't work with WIF.
-  #         credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
+      - name: Run Pub/Sub -> Pub/Sub Walkthrough
+        run: |
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          ./release_tests/gcs_to_bigquery/test.sh
 
-  #     - name: "Set up Cloud SDK"
-  #       uses: "google-github-actions/setup-gcloud@v1"
-
-  #     - name: Run CSV -> BigQuery Walkthrough
-  #       run: |
-  #         curl -fsSL https://get.pulumi.com | sh
-  #         pulumi login --local
-  #         export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
-  #         ./integration_tests/gcs_to_bigquery/test.sh
+      - name: Run Pub/Sub Integration Test
+        run: |
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          ./release_tests/pubsub_to_pubsub

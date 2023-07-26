@@ -15,7 +15,7 @@ class AnalysisTable(PortablePrimtive):
     table_name: Optional[TableName] = None
 
     # Pulumi only options
-    destroy_protection: bool = True
+    destroy_protection: bool = dataclasses.field(default=False, init=False)
 
     def to_cloud_primitive(
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
@@ -46,6 +46,10 @@ class AnalysisTable(PortablePrimtive):
             raise ValueError(
                 f"Unknown resource provider: {cloud_provider_config.default_cloud_provider}"  # noqa: E501
             )
+
+    def options(self, destroy_protection: bool = False) -> Primitive:
+        self.destroy_protection = destroy_protection
+        return self
 
 
 @dataclasses.dataclass

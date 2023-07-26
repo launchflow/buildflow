@@ -4,7 +4,7 @@ from buildflow.core import utils
 from buildflow.core.io.gcp.providers.storage_providers import (
     GCSBucketProvider,
 )
-from buildflow.core.io.primitive import GCPPrimtive
+from buildflow.core.io.primitive import GCPPrimtive, Primitive
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core.types.gcp_types import (
     GCPProjectID,
@@ -19,6 +19,11 @@ class GCSBucket(GCPPrimtive):
     project_id: GCPProjectID
     bucket_name: GCSBucketName
     bucket_region: GCPRegion
+
+    # optional args
+    # If true destroy will delete the bucket and all contents. If false
+    # destroy will fail if the bucket contains data.
+    force_destroy: bool = dataclasses.field(default=False, init=False)
 
     @classmethod
     def from_gcp_options(
@@ -48,6 +53,13 @@ class GCSBucket(GCPPrimtive):
             bucket_region=region,
         )
 
+    def options(
+        self, *, managed: bool = False, force_destroy: bool = False
+    ) -> Primitive:
+        super().options(managed)
+        self.force_destroy = force_destroy
+        return self
+
     def sink_provider(self):
         # TODO: Add support to supply the source-only options. Maybe add some kind of
         # "inject_options" method for the different provider types.
@@ -56,6 +68,7 @@ class GCSBucket(GCPPrimtive):
             project_id=self.project_id,
             bucket_name=self.bucket_name,
             bucket_region=self.bucket_region,
+            force_destroy=self.force_destroy,
         )
 
     def pulumi_provider(self):
@@ -63,4 +76,5 @@ class GCSBucket(GCPPrimtive):
             project_id=self.project_id,
             bucket_name=self.bucket_name,
             bucket_region=self.bucket_region,
+            force_destroy=self.force_destroy,
         )

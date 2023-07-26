@@ -7,13 +7,13 @@ from buildflow.core.io.gcp.providers.composite_providers import (
     GCSFileChangeStreamProvider,
 )
 from buildflow.core.io.gcp.pubsub import GCPPubSubTopic, GCPPubSubSubscription
-from buildflow.core.io.primitive import GCPPrimtive
+from buildflow.core.io.primitive import GCPPrimtive, CompositePrimitive
 from buildflow.core.types.portable_types import BucketName
 from buildflow.core.types.gcp_types import GCSChangeStreamEventType
 
 
 @dataclasses.dataclass
-class GCSFileChangeStream(GCPPrimtive):
+class GCSFileChangeStream(GCPPrimtive, CompositePrimitive):
     gcs_bucket: GCSBucket
     pubsub_subscription: GCPPubSubSubscription
     event_types: Iterable[GCSChangeStreamEventType] = (
@@ -33,16 +33,18 @@ class GCSFileChangeStream(GCPPrimtive):
         bucket_name: BucketName,
         event_types: Iterable[GCSChangeStreamEventType],
     ) -> "GCSFileChangeStream":
-        gcs_bucket = GCSBucket.from_gcp_options(gcp_options, bucket_name=bucket_name)
+        gcs_bucket = GCSBucket.from_gcp_options(
+            gcp_options, bucket_name=bucket_name
+        ).options(managed=True)
         topic_name = f"{bucket_name}_topic"
         pubsub_topic = GCPPubSubTopic.from_gcp_options(
             gcp_options, topic_name=topic_name
-        )
+        ).options(managed=True)
         pubsub_subscription = GCPPubSubSubscription.from_gcp_options(
             gcp_options,
             topic_id=pubsub_topic.topic_id,
             subscription_name=f"{bucket_name}_subscription",
-        )
+        ).options(managed=True)
         return cls(
             gcs_bucket=gcs_bucket,
             pubsub_subscription=pubsub_subscription,
@@ -66,4 +68,7 @@ class GCSFileChangeStream(GCPPrimtive):
             pubsub_topic_provider=self.pubsub_topic.pulumi_provider(),
             project_id=self.gcs_bucket.project_id,
             event_types=self.event_types,
+            subscription_managed=self.pubsub_subscription.managed,
+            topic_managed=self.pubsub_topic.managed,
+            bucket_managed=self.gcs_bucket.managed,
         )
