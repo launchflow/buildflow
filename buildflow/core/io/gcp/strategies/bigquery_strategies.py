@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from buildflow.core.credentials import GCPCredentials
@@ -41,12 +42,18 @@ class StreamingBigQueryTableSink(SinkStrategy):
     def table_id(self) -> BigQueryTableID:
         return f"{self.project_id}.{self.dataset_name}.{self.table_name}"
 
+    def _insert_rows(self, rows: List[Dict[str, Any]]):
+        errors = self.bq_client.insert_rows_json(self.table_id, rows)
+        if errors:
+            raise RuntimeError(f"BigQuery streaming insert failed: {errors}")
+
     async def push(self, batch: List[dict]):
+        coros = []
+        loop = asyncio.get_event_loop()
         for i in range(0, len(batch), self.batch_size):
             rows = batch[i : i + self.batch_size]
-            errors = self.bq_client.insert_rows_json(self.table_id, rows)
-            if errors:
-                raise RuntimeError(f"BigQuery streaming insert failed: {errors}")
+            coros.append(loop.run_in_executor(None, self._insert_rows, rows))
+        await asyncio.gather(*coros)
 
     def push_converter(
         self, user_defined_type: Optional[Type]
