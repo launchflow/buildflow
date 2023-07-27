@@ -1,3 +1,4 @@
+import os
 import unittest
 
 import boto3
@@ -25,6 +26,9 @@ class SqsStrategiesTest(unittest.TestCase):
         self.queue_name = "test_queue"
         self.sqs_client = boto3.client("sqs", region_name=self.region)
         self.creds = AWSCredentials(CredentialsOptions.default())
+
+        os.environ["AWS_ACCESS_KEY_ID"] = "dummy"
+        os.environ["AWS_SECRET_ACCESS_KEY"] = "dummy"
 
     @mock_sqs
     def test_sqs_sink_push(self):
