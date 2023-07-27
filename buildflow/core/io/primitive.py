@@ -27,7 +27,6 @@ class PrimitiveType(enum.Enum):
 class Primitive:
     primitive_type: PrimitiveType
     managed: bool = False
-    destroy_protection: bool = False
 
     def enable_managed(self):
         """Enable managed mode."""
@@ -35,25 +34,26 @@ class Primitive:
 
     def source_provider(self) -> SourceProvider:
         """Return a source provider for this primitive."""
-        raise NotImplementedError("Primitive.source_provider() is not implemented.")
+        raise NotImplementedError(
+            f"Primitive.source_provider() is not implemented for type: {type(self)}."
+        )
 
     def sink_provider(self) -> SinkProvider:
         """Return a sink provider for this primitive."""
-        raise NotImplementedError("Primitive.sink_provider() is not implemented.")
+        raise NotImplementedError(
+            f"Primitive.sink_provider() is not implemented for type: {type(self)}."
+        )
 
     def pulumi_provider(self) -> PulumiProvider:
         """Return a pulumi provider for this primitive."""
-        raise NotImplementedError("Primitive.pulumi_provider() is not implemented.")
+        raise NotImplementedError(
+            f"Primitive.pulumi_provider() is not implemented for type: {type(self)}."
+        )
 
     def options(self, managed: bool = False) -> "Primitive":
+        """Return a copy of this primitive with the managed flag set."""
         self.managed = managed
         return self
-
-
-class EmptyPrimitive(Primitive):
-    """An empty primitive."""
-
-    primitive_type = PrimitiveType.EMPTY
 
 
 class PortablePrimtive(Primitive):
@@ -129,6 +129,5 @@ class LocalPrimtive(Primitive):
 
     # Composite primitives are always managed.
     # They defer to their underlying primitives on what should actually be managed.
-
     def options(self) -> "Primitive":
         return self

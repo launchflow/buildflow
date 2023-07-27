@@ -26,6 +26,18 @@ class _SQSAckInfo(AckInfo):
     message_infos: Iterable[_MessageInfo]
 
 
+def _get_queue_url(
+    aws_conn, queue_name: QueueName, aws_account_id: Optional[AWSAccountID]
+):
+    if aws_account_id is None:
+        response = aws_conn.get_queue_url(QueueName=queue_name)
+    else:
+        response = aws_conn.get_queue_url(
+            QueueName=queue_name, QueueOwnerAWSAccountId=aws_account_id
+        )
+    return response["QueueUrl"]
+
+
 class SQSSink(SinkStrategy):
     def __init__(
         self,
@@ -34,22 +46,22 @@ class SQSSink(SinkStrategy):
         aws_account_id: Optional[AWSAccountID],
         aws_region: Optional[AWSRegion],
     ):
-        super(SinkStrategy).__init__(credentials, "aws-sqs-sink")
+        super().__init__(credentials, "aws-sqs-sink")
         self.queue_name = queue_name
         self.aws_account_id = aws_account_id
         self.aws_region = aws_region
         aws_clients = AWSClients(credentials=credentials, region=self.aws_region)
         self.sqs_client = aws_clients.sqs_client()
-        self.queue_url = self.sqs_client.get_queue_url(
-            QueueName=self.queue_name, QueueOwnerAWSAccountId=self.aws_account_id
+        self.queue_url = _get_queue_url(
+            self.sqs_client, self.queue_name, self.aws_account_id
         )
 
-    def _send_messages(self, messages: List[Dict, str, Any]):
+    def _send_messages(self, messages: List[Dict[str, Any]]):
         to_send = []
         for message in messages:
             to_send.append({"Id": uuid(80), "MessageBody": json.dumps(message)})
         response = self.sqs_client.send_message_batch(
-            QueueUrl=self.queue_url, entries=to_send
+            QueueUrl=self.queue_url, Entries=to_send
         )
         if "Failed" in response:
             raise ValueError(f"failed to write messages to SQS: {response['Failed']}")
@@ -58,17 +70,15 @@ class SQSSink(SinkStrategy):
         coros = []
         loop = asyncio.get_event_loop()
         for i in range(0, len(batch), _MAX_BATCH_SIZE):
-            batch_to_write = batch[i : i + self.batch_size]
+            batch_to_write = batch[i : i + _MAX_BATCH_SIZE]
             coros.append(
                 loop.run_in_executor(None, self._send_messages, batch_to_write)
             )
 
         return await asyncio.gather(*coros)
 
-    def push_converter(
-        self, user_defined_type: Optional[Type]
-    ) -> Callable[[Any], Dict[str, Any]]:
-        return converters.json_push_converter(user_defined_type)
+    def push_converter(self, user_defined_type: Optional[Type]) -> Callable[[Any], str]:
+        return converters.str_push_converter(user_defined_type)
 
 
 class SQSSource(SourceStrategy):
@@ -79,14 +89,14 @@ class SQSSource(SourceStrategy):
         aws_account_id: Optional[AWSAccountID],
         aws_region: Optional[AWSRegion],
     ):
-        super(SinkStrategy).__init__(credentials, "aws-sqs-sink")
+        super().__init__(credentials, "aws-sqs-source")
         self.queue_name = queue_name
         self.aws_account_id = aws_account_id
         self.aws_region = aws_region
         aws_clients = AWSClients(credentials=credentials, region=self.aws_region)
         self.sqs_client = aws_clients.sqs_client()
-        self.queue_url = self.sqs_client.get_queue_url(
-            QueueName=self.queue_name, QueueOwnerAWSAccountId=self.aws_account_id
+        self.queue_url = _get_queue_url(
+            self.sqs_client, self.queue_name, self.aws_account_id
         )
 
     def _pull(self) -> PullResponse:
@@ -111,7 +121,7 @@ class SQSSource(SourceStrategy):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self._pull)
 
-    async def _delete_messages(self, batch_to_delete: Iterable[_MessageInfo]):
+    def _delete_messages(self, batch_to_delete: Iterable[_MessageInfo]):
         to_delete = []
         for info in batch_to_delete:
             to_delete.append(
@@ -128,7 +138,7 @@ class SQSSource(SourceStrategy):
             coros = []
             loop = asyncio.get_event_loop()
             for i in range(0, len(to_ack.message_infos), _MAX_BATCH_SIZE):
-                batch_to_delete = to_ack.message_infos[i : i + self.batch_size]
+                batch_to_delete = to_ack.message_infos[i : i + _MAX_BATCH_SIZE]
                 coros.append(
                     loop.run_in_executor(None, self._delete_messages, batch_to_delete)
                 )
@@ -149,6 +159,5 @@ class SQSSource(SourceStrategy):
     def max_batch_size(self) -> int:
         return _MAX_BATCH_SIZE
 
-    def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
-        # TODO: implement a str converter
-        return super().pull_converter(user_defined_type)
+    def pull_converter(self, type_: Type) -> Callable[[str], Any]:
+        return converters.str_pull_converter(type_)

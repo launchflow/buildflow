@@ -56,9 +56,9 @@ class GCSBucket(GCPPrimtive):
     def options(
         self, *, managed: bool = False, force_destroy: bool = False
     ) -> Primitive:
-        super().options(managed)
-        self.force_destroy = force_destroy
-        return self
+        to_ret = super().options(managed)
+        to_ret.force_destroy = force_destroy
+        return to_ret
 
     def sink_provider(self):
         # TODO: Add support to supply the source-only options. Maybe add some kind of

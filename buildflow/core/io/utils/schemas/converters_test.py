@@ -171,6 +171,72 @@ class ConvertersTest(unittest.TestCase):
         with self.assertRaises(exceptions.CannotConvertSinkException):
             converters.bytes_push_converter(int)
 
+    def test_str_push_converter_none(self):
+        input_str = "a"
+
+        converter = converters.str_push_converter(None)
+
+        self.assertEqual(input_str, converter(input_str))
+
+    def test_str_push_converter_to_bytes(self):
+        class Custom:
+            def __init__(self, a: int) -> None:
+                self.a = a
+
+            def to_string(self) -> Dict[str, int]:
+                return json.dumps({"a": self.a})
+
+        input_class = Custom(1)
+        output_str = json.dumps({"a": 1})
+
+        converter = converters.str_push_converter(Custom)
+
+        self.assertEqual(output_str, converter(input_class))
+
+    def test_str_push_converter_dataclass(self):
+        input_class = InputDataClass(
+            a=1, b=2, nested=Nested(c=3), nested_list=[Nested(c=4)]
+        )
+        expected_output = json.dumps(asdict(input_class))
+
+        converter = converters.str_push_converter(InputDataClass)
+
+        self.assertEqual(expected_output, converter(input_class))
+
+    def test_str_push_converter_not_supported(self):
+        with self.assertRaises(exceptions.CannotConvertSinkException):
+            converters.str_push_converter(int)
+
+    def test_str_pull_converter_none(self):
+        converter = converters.str_pull_converter(None)
+
+        self.assertEqual("a", converter("a"))
+
+    def test_str_pull_converter_from_string(self):
+        class Custom:
+            def __init__(self, a: int) -> None:
+                self.a = a
+
+            @classmethod
+            def from_string(cls, input):
+                return cls(int(input))
+
+        converter = converters.str_pull_converter(Custom)
+        self.assertEqual(Custom(1).a, converter("1").a)
+
+    def test_str_pull_converter_dataclass(self):
+        @dataclass
+        class Custom:
+            a: int
+
+        converter = converters.str_pull_converter(Custom)
+        self.assertEqual(Custom(1), converter('{"a": 1}'))
+
+    def test_str_pull_converter_str(self):
+        converter = converters.str_pull_converter(str)
+
+        self.assertEqual("a", converter("a"))
+
 
 if __name__ == "__main__":
     unittest.main()

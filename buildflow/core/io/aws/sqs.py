@@ -12,7 +12,7 @@ from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, QueueName
 from buildflow.core.io.aws.providers.sqs_provider import SQSProvider
 
 
-@dataclasses
+@dataclasses.dataclass
 class SQS(AWSPrimtive):
     queue_name: QueueName
     aws_account_id: Optional[AWSAccountID] = None

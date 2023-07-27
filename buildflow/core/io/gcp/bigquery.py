@@ -29,9 +29,9 @@ class BigQueryTable(GCPPrimtive):
     def options(
         self, managed: bool = False, destroy_protection: bool = False
     ) -> Primitive:
-        super().options(managed)
-        self.destroy_protection = destroy_protection
-        return self
+        to_ret = super().options(managed)
+        to_ret.destroy_protection = destroy_protection
+        return to_ret
 
     @classmethod
     def from_gcp_options(
