@@ -89,6 +89,7 @@ class GCPPrimtive(Primitive):
     # created yet.
     primitive_type = PrimitiveType.GCP
 
+    @classmethod
     def from_gcp_options(cls, gcp_options: GCPOptions) -> "GCPPrimtive":
         """Create a primitive from GCPOptions."""
         raise NotImplementedError("GCPPrimtive.from_gcp_options() is not implemented.")
@@ -97,6 +98,7 @@ class GCPPrimtive(Primitive):
 class AWSPrimtive(Primitive):
     primitive_type = PrimitiveType.AWS
 
+    @classmethod
     def from_aws_options(cls, aws_options: AWSOptions) -> "AWSPrimtive":
         """Create a primitive from AWSOptions."""
         raise NotImplementedError("AWSPrimtive.from_aws_options() is not implemented.")
@@ -105,6 +107,7 @@ class AWSPrimtive(Primitive):
 class AzurePrimtive(Primitive):
     primitive_type = PrimitiveType.AZURE
 
+    @classmethod
     def from_azure_options(cls, azure_options: AzureOptions) -> "AzurePrimtive":
         """Create a primitive from AzureOptions."""
         raise NotImplementedError(
@@ -117,6 +120,7 @@ class LocalPrimtive(Primitive):
     # LocalPrimitives are never managed.
     managed: bool = False
 
+    @classmethod
     def from_local_options(cls, local_options: LocalOptions) -> "LocalPrimtive":
         """Create a primitive from LocalOptions."""
         raise NotImplementedError(
