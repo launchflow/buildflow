@@ -36,10 +36,22 @@ def bytes_to_dict() -> Callable[[bytes], Dict[str, Any]]:
     return lambda bytes_: json.loads(bytes_.decode())
 
 
+def str_to_dict() -> Callable[[str], Dict[str, Any]]:
+    return lambda str_: json.loads(str_)
+
+
 def bytes_to_dataclass(type_: Type) -> Callable[[bytes], Any]:
     return lambda bytes_: dacite.from_dict(
         type_,
         json.loads(bytes_.decode()),
+        config=dacite.Config(type_hooks={datetime.datetime: str_to_datetime}),
+    )
+
+
+def str_to_dataclass(type_: Type) -> Callable[[str], Any]:
+    return lambda s: dacite.from_dict(
+        type_,
+        json.loads(s),
         config=dacite.Config(type_hooks={datetime.datetime: str_to_datetime}),
     )
 
@@ -117,4 +129,46 @@ def bytes_push_converter(type_: Optional[Type]) -> Callable[[Any], bytes]:
         except exceptions.CannotConvertSinkException:
             raise exceptions.CannotConvertSinkException(
                 "Cannot convert from type to bytes: `{type_}`"
+            )
+
+
+def str_push_converter(type_: Optional[Type]) -> Callable[[Any], str]:
+    if type_ is None:
+        return identity()
+
+    origin = type_
+    if hasattr(type_, "__origin__"):
+        origin = type_.__origin__
+    if hasattr(type_, "to_string"):
+        return lambda output: type_.to_string(output)
+    if origin is str:
+        return identity()
+    else:
+        # Try to serialize it to json then encode it.
+        try:
+            json_converter = json_push_converter(type_)
+            return lambda output: json.dumps(json_converter(output))
+        except exceptions.CannotConvertSinkException:
+            raise exceptions.CannotConvertSinkException(
+                "Cannot convert from type to bytes: `{type_}`"
+            )
+
+
+def str_pull_converter(type_: Optional[Type]) -> Callable[[str], Any]:
+    if type_ is None:
+        return identity()
+    elif hasattr(type_, "from_string"):
+        return lambda output: type_.from_string(output)
+    elif is_dataclass(type_):
+        return str_to_dataclass(type_)
+    else:
+        if hasattr(type_, "__origin__"):
+            type_ = type_.__origin__
+        if issubclass(type_, str):
+            return identity()
+        elif issubclass(type_, dict):
+            return str_to_dict()
+        else:
+            raise exceptions.CannotConvertSourceException(
+                f"Cannot convert from str to type: `{type_}`"
             )

@@ -29,7 +29,7 @@ python pubsub_validation.py
 
 final_output=$?
 
-kill $main_pid
+kill -s 2 $main_pid
 wait $main_pid
 buildflow destroy pubsub_main:app || {
     echo 'destroy failed'
@@ -37,7 +37,6 @@ buildflow destroy pubsub_main:app || {
 }
 ray stop --force
 
-pkill -f java
 gcloud pubsub topics delete projects/$GCP_PROJECT/topics/$INCOMING_TOPIC
 gcloud pubsub subscriptions delete projects/$GCP_PROJECT/subscriptions/$VALIDATION_SUB
 

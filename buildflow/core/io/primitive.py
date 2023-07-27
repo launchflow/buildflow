@@ -27,7 +27,6 @@ class PrimitiveType(enum.Enum):
 class Primitive:
     primitive_type: PrimitiveType
     managed: bool = False
-    destroy_protection: bool = False
 
     def enable_managed(self):
         """Enable managed mode."""
@@ -35,25 +34,26 @@ class Primitive:
 
     def source_provider(self) -> SourceProvider:
         """Return a source provider for this primitive."""
-        raise NotImplementedError("Primitive.source_provider() is not implemented.")
+        raise NotImplementedError(
+            f"Primitive.source_provider() is not implemented for type: {type(self)}."
+        )
 
     def sink_provider(self) -> SinkProvider:
         """Return a sink provider for this primitive."""
-        raise NotImplementedError("Primitive.sink_provider() is not implemented.")
+        raise NotImplementedError(
+            f"Primitive.sink_provider() is not implemented for type: {type(self)}."
+        )
 
     def pulumi_provider(self) -> PulumiProvider:
         """Return a pulumi provider for this primitive."""
-        raise NotImplementedError("Primitive.pulumi_provider() is not implemented.")
+        raise NotImplementedError(
+            f"Primitive.pulumi_provider() is not implemented for type: {type(self)}."
+        )
 
     def options(self, managed: bool = False) -> "Primitive":
+        """Return a copy of this primitive with the managed flag set."""
         self.managed = managed
         return self
-
-
-class EmptyPrimitive(Primitive):
-    """An empty primitive."""
-
-    primitive_type = PrimitiveType.EMPTY
 
 
 class PortablePrimtive(Primitive):
@@ -89,6 +89,7 @@ class GCPPrimtive(Primitive):
     # created yet.
     primitive_type = PrimitiveType.GCP
 
+    @classmethod
     def from_gcp_options(cls, gcp_options: GCPOptions) -> "GCPPrimtive":
         """Create a primitive from GCPOptions."""
         raise NotImplementedError("GCPPrimtive.from_gcp_options() is not implemented.")
@@ -97,6 +98,7 @@ class GCPPrimtive(Primitive):
 class AWSPrimtive(Primitive):
     primitive_type = PrimitiveType.AWS
 
+    @classmethod
     def from_aws_options(cls, aws_options: AWSOptions) -> "AWSPrimtive":
         """Create a primitive from AWSOptions."""
         raise NotImplementedError("AWSPrimtive.from_aws_options() is not implemented.")
@@ -105,6 +107,7 @@ class AWSPrimtive(Primitive):
 class AzurePrimtive(Primitive):
     primitive_type = PrimitiveType.AZURE
 
+    @classmethod
     def from_azure_options(cls, azure_options: AzureOptions) -> "AzurePrimtive":
         """Create a primitive from AzureOptions."""
         raise NotImplementedError(
@@ -117,6 +120,7 @@ class LocalPrimtive(Primitive):
     # LocalPrimitives are never managed.
     managed: bool = False
 
+    @classmethod
     def from_local_options(cls, local_options: LocalOptions) -> "LocalPrimtive":
         """Create a primitive from LocalOptions."""
         raise NotImplementedError(
@@ -125,6 +129,5 @@ class LocalPrimtive(Primitive):
 
     # Composite primitives are always managed.
     # They defer to their underlying primitives on what should actually be managed.
-
     def options(self) -> "Primitive":
         return self

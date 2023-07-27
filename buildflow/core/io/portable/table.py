@@ -48,8 +48,9 @@ class AnalysisTable(PortablePrimtive):
             )
 
     def options(self, destroy_protection: bool = False) -> Primitive:
-        self.destroy_protection = destroy_protection
-        return self
+        to_ret = super().options()
+        to_ret.destroy_protection = destroy_protection
+        return to_ret
 
 
 @dataclasses.dataclass

@@ -18,8 +18,6 @@ from buildflow.core.credentials import GCPCredentials
 
 
 class GCPClients:
-    __shared_state = {}
-
     def __init__(
         self,
         *,

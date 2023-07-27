@@ -4,7 +4,7 @@ import inspect
 import logging
 import os
 import signal
-from typing import List, Optional, Type
+from typing import List, Optional
 
 from ray import serve
 
@@ -20,7 +20,6 @@ from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.io.primitive import (
-    EmptyPrimitive,
     PortablePrimtive,
     Primitive,
     PrimitiveType,
@@ -30,6 +29,7 @@ from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.processor.processor import ProcessorAPI
 from buildflow.core.strategies._strategy import StategyType
+from buildflow.core.io.local.empty import Empty
 
 
 def _get_directory_path_of_caller():
@@ -39,110 +39,6 @@ def _get_directory_path_of_caller():
     frame = inspect.stack()[2]
     module = inspect.getmodule(frame[0])
     return os.path.dirname(os.path.abspath(module.__file__))
-
-
-def pipeline_decorator(
-    flow: "Flow",
-    source_primitive: Primitive,
-    sink_primitive: Primitive,
-    processor_options: ProcessorOptions,
-    source_credentials: CredentialType,
-    sink_credentials: CredentialType,
-):
-    def decorator_function(original_process_fn_or_class):
-        if inspect.isclass(original_process_fn_or_class):
-
-            def setup(self):
-                if hasattr(self.instance, "setup"):
-                    self.instance.setup()
-
-            def wrapper_function(self, args, **kwargs):
-                return self.instance.process(*args, **kwargs)
-
-            full_arg_spec = inspect.getfullargspec(original_process_fn_or_class.process)
-        else:
-
-            def setup(self):
-                return None
-
-            def wrapper_function(*args, **kwargs):
-                return original_process_fn_or_class(*args, **kwargs)
-
-            full_arg_spec = inspect.getfullargspec(original_process_fn_or_class)
-        input_type = None
-        output_type = None
-        if (
-            len(full_arg_spec.args) > 1
-            and full_arg_spec.args[1] in full_arg_spec.annotations
-        ):
-            input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
-        if "return" in full_arg_spec.annotations:
-            output_type = full_arg_spec.annotations["return"]
-
-        # NOTE: We only create Pulumi resources for managed primitives
-        # (Currently only PortablePrimitives)
-        def pulumi_resources(type_: Optional[Type] = None):
-            source_resources = []
-            if source_primitive.managed:
-                source_pulumi_provider = source_primitive.pulumi_provider()
-                source_resources = source_pulumi_provider.pulumi_resources(input_type)
-            sink_resources = []
-            if sink_primitive.managed:
-                sink_pulumi_provider = sink_primitive.pulumi_provider()
-                sink_resources = sink_pulumi_provider.pulumi_resources(output_type)
-            return source_resources + sink_resources
-
-        # Dynamically define a new class with the same structure as Processor
-        processor_id = original_process_fn_or_class.__name__
-        class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
-        source_provider = source_primitive.source_provider()
-        sink_provider = sink_primitive.sink_provider()
-        adhoc_methods = {
-            # PipelineProcessor methods.
-            # NOTE: We need to instantiate the source and sink strategies
-            # in the class to avoid issues passing to ray workers.
-            "source": lambda self: source_provider.source(source_credentials),
-            "sink": lambda self: sink_provider.sink(sink_credentials),
-            # ProcessorAPI methods. NOTE: process() is attached separately below
-            "resources": lambda self: pulumi_resources(),
-            "setup": setup,
-            "__meta__": {
-                "source": source_primitive,
-                "sink": sink_primitive,
-            },
-            "__call__": original_process_fn_or_class,
-        }
-        if inspect.isclass(original_process_fn_or_class):
-
-            def init_processor(self, processor_id):
-                self.processor_id = processor_id
-                self.instance = original_process_fn_or_class()
-
-            adhoc_methods["__init__"] = init_processor
-        AdHocPipelineProcessorClass = type(
-            class_name,
-            (PipelineProcessor,),
-            adhoc_methods,
-        )
-        if not inspect.isclass(original_process_fn_or_class):
-            utils.attach_method_to_class(
-                AdHocPipelineProcessorClass,
-                "process",
-                original_func=original_process_fn_or_class,
-            )
-        else:
-            utils.attach_wrapped_method_to_class(
-                AdHocPipelineProcessorClass,
-                "process",
-                original_func=original_process_fn_or_class.process,
-            )
-
-        processor = AdHocPipelineProcessorClass(processor_id=processor_id)
-        flow.add_processor(processor, processor_options)
-
-        return processor
-
-    return decorator_function
 
 
 FlowID = str
@@ -189,6 +85,9 @@ class Flow:
         self._runtime_actor_ref: Optional[RuntimeActor] = None
         # Infra configuration
         self._infra_actor_ref: Optional[InfraActor] = None
+        # NOTE: we use a list here instead of a set because we have no
+        # guarantee that primitives will be cachable.
+        self._primitive_cache: List[Primitive] = []
 
     def _get_infra_actor(self) -> InfraActor:
         if self._infra_actor_ref is None:
@@ -238,7 +137,7 @@ class Flow:
         log_level: str = "INFO",
     ):
         if sink is None:
-            sink = EmptyPrimitive()
+            sink = Empty()
 
         # Convert any Portableprimitives into cloud-specific primitives
         source = self._portable_primitive_to_cloud_primitive(source, StategyType.SOURCE)
@@ -248,8 +147,7 @@ class Flow:
         source_credentials = self._get_credentials(source.primitive_type)
         sink_credentials = self._get_credentials(sink.primitive_type)
 
-        return pipeline_decorator(
-            flow=self,
+        return self._pipeline_decorator(
             source_primitive=source,
             sink_primitive=sink,
             processor_options=ProcessorOptions(
@@ -377,3 +275,119 @@ class Flow:
             processors=self._processors,
             pulumi_stack_state=pulumi_stack_state,
         )
+
+    def _pipeline_decorator(
+        self,
+        source_primitive: Primitive,
+        sink_primitive: Optional[Primitive],
+        processor_options: ProcessorOptions,
+        source_credentials: CredentialType,
+        sink_credentials: CredentialType,
+    ):
+        def decorator_function(original_process_fn_or_class):
+            if inspect.isclass(original_process_fn_or_class):
+
+                def setup(self):
+                    if hasattr(self.instance, "setup"):
+                        self.instance.setup()
+
+                def wrapper_function(self, args, **kwargs):
+                    return self.instance.process(*args, **kwargs)
+
+                full_arg_spec = inspect.getfullargspec(
+                    original_process_fn_or_class.process
+                )
+            else:
+
+                def setup(self):
+                    return None
+
+                def wrapper_function(*args, **kwargs):
+                    return original_process_fn_or_class(*args, **kwargs)
+
+                full_arg_spec = inspect.getfullargspec(original_process_fn_or_class)
+            input_type = None
+            output_type = None
+            if (
+                len(full_arg_spec.args) > 1
+                and full_arg_spec.args[1] in full_arg_spec.annotations
+            ):
+                input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
+            if "return" in full_arg_spec.annotations:
+                output_type = full_arg_spec.annotations["return"]
+
+            # NOTE: We only create Pulumi resources for managed primitives and only
+            # for the first time we see a primitive.
+            include_source_primitive = False
+            if source_primitive not in self._primitive_cache:
+                self._primitive_cache.append(source_primitive)
+                include_source_primitive = True
+            include_sink_primitive = False
+            if sink_primitive not in self._primitive_cache:
+                self._primitive_cache.append(sink_primitive)
+                include_sink_primitive = True
+
+            def pulumi_resources():
+                source_resources = []
+                if source_primitive.managed and include_source_primitive:
+                    source_pulumi_provider = source_primitive.pulumi_provider()
+                    source_resources = source_pulumi_provider.pulumi_resources(
+                        input_type
+                    )
+                sink_resources = []
+                if sink_primitive.managed and include_sink_primitive:
+                    sink_pulumi_provider = sink_primitive.pulumi_provider()
+                    sink_resources = sink_pulumi_provider.pulumi_resources(output_type)
+                return source_resources + sink_resources
+
+            # Dynamically define a new class with the same structure as Processor
+            processor_id = original_process_fn_or_class.__name__
+            class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
+            source_provider = source_primitive.source_provider()
+            sink_provider = sink_primitive.sink_provider()
+            adhoc_methods = {
+                # PipelineProcessor methods.
+                # NOTE: We need to instantiate the source and sink strategies
+                # in the class to avoid issues passing to ray workers.
+                "source": lambda self: source_provider.source(source_credentials),
+                "sink": lambda self: sink_provider.sink(sink_credentials),
+                # ProcessorAPI methods. NOTE: process() is attached separately below
+                "resources": lambda self: pulumi_resources(),
+                "setup": setup,
+                "__meta__": {
+                    "source": source_primitive,
+                    "sink": sink_primitive,
+                },
+                "__call__": original_process_fn_or_class,
+            }
+            if inspect.isclass(original_process_fn_or_class):
+
+                def init_processor(self, processor_id):
+                    self.processor_id = processor_id
+                    self.instance = original_process_fn_or_class()
+
+                adhoc_methods["__init__"] = init_processor
+            AdHocPipelineProcessorClass = type(
+                class_name,
+                (PipelineProcessor,),
+                adhoc_methods,
+            )
+            if not inspect.isclass(original_process_fn_or_class):
+                utils.attach_method_to_class(
+                    AdHocPipelineProcessorClass,
+                    "process",
+                    original_func=original_process_fn_or_class,
+                )
+            else:
+                utils.attach_wrapped_method_to_class(
+                    AdHocPipelineProcessorClass,
+                    "process",
+                    original_func=original_process_fn_or_class.process,
+                )
+
+            processor = AdHocPipelineProcessorClass(processor_id=processor_id)
+            self.add_processor(processor, processor_options)
+
+            return processor
+
+        return decorator_function

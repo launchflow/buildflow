@@ -205,5 +205,5 @@ class GCPPubSubTopicSink(SinkStrategy):
             topic=self.topic_id, messages=pubsub_messages
         )
 
-    def push_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
+    def push_converter(self, user_defined_type: Type) -> Callable[[Any], bytes]:
         return converters.bytes_push_converter(user_defined_type)

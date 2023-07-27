@@ -21,7 +21,7 @@ query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.buildflow_managed.$BIGQUERY_
 echo "Running query: $query"
 num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
 
-kill $main_pid
+kill -s 2 $main_pid
 wait $main_pid
 buildflow destroy main:app || {
   echo 'destroy failed'
