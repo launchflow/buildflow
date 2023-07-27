@@ -22,13 +22,12 @@ class SqsStrategiesTest(unittest.TestCase):
         return self.sqs_client.get_queue_url(QueueName=queue_name)["QueueUrl"]
 
     def setUp(self) -> None:
+        os.environ["AWS_ACCESS_KEY_ID"] = "dummy"
+        os.environ["AWS_SECRET_ACCESS_KEY"] = "dummy"
         self.region = "us-east-1"
         self.queue_name = "test_queue"
         self.sqs_client = boto3.client("sqs", region_name=self.region)
         self.creds = AWSCredentials(CredentialsOptions.default())
-
-        os.environ["AWS_ACCESS_KEY_ID"] = "dummy"
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "dummy"
 
     @mock_sqs
     def test_sqs_sink_push(self):
