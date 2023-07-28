@@ -27,3 +27,6 @@ class AWSClients:
 
     def sqs_client(self):
         return self._get_boto_client("sqs")
+
+    def s3_client(self):
+        return self._get_boto_client("s3")

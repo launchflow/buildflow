@@ -4,7 +4,7 @@ import os
 import sys
 
 import buildflow
-from buildflow.core.io.aws.sqs import SQS
+from buildflow.core.io.aws.sqs import SQSQueue
 
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
@@ -13,8 +13,8 @@ app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=Fal
 input_queue = os.getenv("INPUT_QUEUE", "input_queue")
 output_queue = os.getenv("OUTPUT_QUEUE", "output_queue")
 
-source = SQS(queue_name=input_queue, aws_region="us-east-1").options(managed=True)
-sink = SQS(queue_name=output_queue, aws_region="us-east-1").options(managed=True)
+source = SQSQueue(queue_name=input_queue, aws_region="us-east-1").options(managed=True)
+sink = SQSQueue(queue_name=output_queue, aws_region="us-east-1").options(managed=True)
 
 
 @dataclass

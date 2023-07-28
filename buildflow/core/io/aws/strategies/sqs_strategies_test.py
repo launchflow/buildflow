@@ -8,7 +8,7 @@ import pytest
 from buildflow.core.options.credentials_options import CredentialsOptions
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.io.aws.strategies.sqs_strategies import SQSSink, SQSSource
-from buildflow.core.types.aws_types import AWSRegion, QueueName
+from buildflow.core.types.aws_types import AWSRegion, SQSQueueName
 
 
 @pytest.mark.usefixtures("event_loop_instance")
@@ -17,7 +17,7 @@ class SqsStrategiesTest(unittest.TestCase):
         """Run a coroutine synchronously."""
         return self.event_loop.run_until_complete(coro)
 
-    def _create_queue(self, queue_name: QueueName, region: AWSRegion):
+    def _create_queue(self, queue_name: SQSQueueName, region: AWSRegion):
         self.sqs_client.create_queue(QueueName=queue_name)
         return self.sqs_client.get_queue_url(QueueName=queue_name)["QueueUrl"]
 
@@ -55,7 +55,7 @@ class SqsStrategiesTest(unittest.TestCase):
         self.assertEqual(len(messages), 12)
 
     @mock_sqs
-    def test_sqs_source(self):
+    def test_sqs_source_pull(self):
         self.queue_url = self._create_queue(self.queue_name, self.region)
         sink = SQSSink(
             credentials=self.creds,

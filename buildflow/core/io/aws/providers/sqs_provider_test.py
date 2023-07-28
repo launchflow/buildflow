@@ -23,7 +23,7 @@ pulumi.runtime.set_mocks(
 class SqsProviderTest(unittest.TestCase):
     @pulumi.runtime.test
     def test_pulumi_resources(self):
-        provider = sqs_provider.SQSProvider(
+        provider = sqs_provider.SQSQueueProvider(
             queue_name="test_queue", aws_account_id="123456789", aws_region="us-east-1"
         )
 
@@ -39,14 +39,12 @@ class SqsProviderTest(unittest.TestCase):
         )
 
         def check_queue(args):
-            _, name, region = args
+            _, name = args
             self.assertEqual(name, "test_queue")
-            self.assertEqual(region, "us-east-1")
 
         pulumi.Output.all(
             queue_resource.resource.urn,
             queue_resource.resource.name,
-            queue_resource.resource._provider.region,
         ).apply(check_queue)
 
 
