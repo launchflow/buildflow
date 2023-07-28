@@ -2,8 +2,8 @@ import asyncio
 import os
 import shutil
 import tempfile
-from typing import Dict
 import unittest
+from typing import Dict
 
 import duckdb
 import pytest

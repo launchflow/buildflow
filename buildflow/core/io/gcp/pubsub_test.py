@@ -1,7 +1,7 @@
 import json
 import unittest
-from unittest import mock
 from dataclasses import asdict, dataclass
+from unittest import mock
 
 from buildflow.core.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
 

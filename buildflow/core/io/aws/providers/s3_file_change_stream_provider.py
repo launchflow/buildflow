@@ -4,14 +4,13 @@ import pulumi
 import pulumi_aws
 
 from buildflow.core.credentials.aws_credentials import AWSCredentials
-from buildflow.core.providers.provider import PulumiProvider, SourceProvider
+from buildflow.core.io.aws.providers.pulumi_providers import aws_provider
 from buildflow.core.io.aws.providers.s3_provider import S3BucketProvider
 from buildflow.core.io.aws.providers.sqs_provider import SQSQueueProvider
+from buildflow.core.io.aws.strategies.s3_file_change_stream_strategies import \
+    S3FileChangeStreamSource
+from buildflow.core.providers.provider import PulumiProvider, SourceProvider
 from buildflow.core.resources.pulumi import PulumiResource
-from buildflow.core.io.aws.providers.pulumi_providers import aws_provider
-from buildflow.core.io.aws.strategies.s3_file_change_stream_strategies import (
-    S3FileChangeStreamSource,
-)
 from buildflow.core.types.aws_types import S3ChangeStreamEventType
 
 

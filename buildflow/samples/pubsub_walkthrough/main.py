@@ -1,10 +1,10 @@
 import dataclasses
-from datetime import datetime
 import os
+from datetime import datetime
 from typing import Any, Dict
 
 import buildflow
-from buildflow.core.io.portable import Topic, AnalysisTable
+from buildflow.core.io.portable import AnalysisTable, Topic
 
 bigquery_table = os.getenv("BIGQUERY_TABLE", "taxi_rides")
 

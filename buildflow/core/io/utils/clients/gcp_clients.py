@@ -1,18 +1,12 @@
 from typing import Optional
 
-from google.cloud import (
-    bigquery,
-    bigquery_storage_v1,
-    monitoring_v3,
-    pubsub,
-    storage,
-)
+from google.api_core import client_options
+from google.cloud import (bigquery, bigquery_storage_v1, monitoring_v3, pubsub,
+                          storage)
+from google.cloud.bigquery_storage_v1.services.big_query_write.async_client import \
+    BigQueryWriteAsyncClient
 from google.pubsub_v1.services.publisher import PublisherAsyncClient
 from google.pubsub_v1.services.subscriber import SubscriberAsyncClient
-from google.cloud.bigquery_storage_v1.services.big_query_write.async_client import (
-    BigQueryWriteAsyncClient,
-)
-from google.api_core import client_options
 
 from buildflow.core.credentials import GCPCredentials
 

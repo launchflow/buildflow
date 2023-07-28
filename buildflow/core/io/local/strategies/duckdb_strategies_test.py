@@ -1,9 +1,9 @@
-from multiprocessing import Process
 import os
 import tempfile
 import time
-import uuid
 import unittest
+import uuid
+from multiprocessing import Process
 
 import duckdb
 import pytest

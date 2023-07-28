@@ -3,7 +3,8 @@ from typing import Any, Callable, Type
 from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.strategies.sink import Batch, SinkStrategy
-from buildflow.core.types.gcp_types import GCPProjectID, GCSBucketName, GCSBucketURL
+from buildflow.core.types.gcp_types import (GCPProjectID, GCSBucketName,
+                                            GCSBucketURL)
 
 
 class GCSBucketSink(SinkStrategy):

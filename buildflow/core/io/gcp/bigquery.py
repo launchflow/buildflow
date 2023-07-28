@@ -1,17 +1,14 @@
 import dataclasses
 from typing import Optional
-from buildflow.core import utils
-from buildflow.core.io.primitive import GCPPrimtive, Primitive
+
 from buildflow.config.cloud_provider_config import GCPOptions
-from buildflow.core.types.gcp_types import (
-    BigQueryDatasetName,
-    GCPProjectID,
-    BigQueryTableID,
-    BigQueryTableName,
-)
-from buildflow.core.io.gcp.providers.bigquery_providers import (
-    BigQueryTableProvider,
-)
+from buildflow.core import utils
+from buildflow.core.io.gcp.providers.bigquery_providers import \
+    BigQueryTableProvider
+from buildflow.core.io.primitive import GCPPrimtive, Primitive
+from buildflow.core.types.gcp_types import (BigQueryDatasetName,
+                                            BigQueryTableID, BigQueryTableName,
+                                            GCPProjectID)
 from buildflow.core.types.portable_types import TableName
 
 

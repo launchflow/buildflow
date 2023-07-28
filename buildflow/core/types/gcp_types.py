@@ -1,12 +1,8 @@
 import enum
 
-from buildflow.core.types.portable_types import (
-    TableName,
-    TableID,
-    TopicID,
-    BucketName,
-    PortableFileChangeEventType,
-)
+from buildflow.core.types.portable_types import (BucketName,
+                                                 PortableFileChangeEventType,
+                                                 TableID, TableName, TopicID)
 
 # TODO: Add comments to show the str patterns
 # Optional TODO: Add post-init validation on the str format

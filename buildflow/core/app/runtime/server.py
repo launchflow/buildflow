@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from fastapi import FastAPI
@@ -5,9 +6,8 @@ from fastapi.responses import HTMLResponse
 from ray import kill, serve
 
 from buildflow.core.app.infra.actors.infra import InfraActor
-from buildflow.core.app.runtime.actors.runtime import RuntimeActor
-from buildflow.core.app.runtime.actors.runtime import RuntimeSnapshot
-import logging
+from buildflow.core.app.runtime.actors.runtime import (RuntimeActor,
+                                                       RuntimeSnapshot)
 
 app = FastAPI()
 

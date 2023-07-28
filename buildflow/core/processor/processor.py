@@ -1,7 +1,7 @@
-from typing import List, Dict, Any
+import enum
+from typing import Any, Dict, List
 
 from buildflow.core.resources._resource import Resource
-import enum
 
 
 class ProcessorType(enum.Enum):

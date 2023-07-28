@@ -1,15 +1,13 @@
 import dataclasses
 from typing import Optional
-from buildflow.config.cloud_provider_config import AWSOptions
 
-from buildflow.core.io.primitive import AWSPrimtive
-from buildflow.core.providers.provider import (
-    PulumiProvider,
-    SinkProvider,
-    SourceProvider,
-)
-from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, SQSQueueName
+from buildflow.config.cloud_provider_config import AWSOptions
 from buildflow.core.io.aws.providers.sqs_provider import SQSQueueProvider
+from buildflow.core.io.primitive import AWSPrimtive
+from buildflow.core.providers.provider import (PulumiProvider, SinkProvider,
+                                               SourceProvider)
+from buildflow.core.types.aws_types import (AWSAccountID, AWSRegion,
+                                            SQSQueueName)
 
 
 @dataclasses.dataclass

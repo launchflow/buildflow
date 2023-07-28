@@ -1,7 +1,8 @@
 from typing import Any, Callable, Type
 
 from buildflow.core.credentials import CredentialType
-from buildflow.core.strategies._strategy import Strategy, StrategyID, StategyType
+from buildflow.core.strategies._strategy import (StategyType, Strategy,
+                                                 StrategyID)
 
 
 class Batch:

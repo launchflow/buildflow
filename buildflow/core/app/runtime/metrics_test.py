@@ -1,10 +1,8 @@
 import time
 import unittest
 
-from buildflow.core.app.runtime.metrics import (
-    CompositeRateCounterMetric,
-    RateCalculation,
-)
+from buildflow.core.app.runtime.metrics import (CompositeRateCounterMetric,
+                                                RateCalculation)
 
 
 class MetricsTest(unittest.TestCase):

@@ -2,8 +2,8 @@ import json
 import os
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 import pyarrow.csv as pcsv
 import pyarrow.parquet as pq

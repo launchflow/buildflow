@@ -1,9 +1,3 @@
 # ruff: noqa
-from .provider import (
-    ProviderAPI,
-    ProviderID,
-    SourceProvider,
-    SinkProvider,
-    PulumiProvider,
-    EmptyPulumiProvider,
-)
+from .provider import (EmptyPulumiProvider, ProviderAPI, ProviderID,
+                       PulumiProvider, SinkProvider, SourceProvider)

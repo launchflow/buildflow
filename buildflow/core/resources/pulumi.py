@@ -3,7 +3,8 @@ from typing import Any, Dict
 
 import pulumi
 
-from buildflow.core.resources._resource import Resource, ResourceType, ResourceID
+from buildflow.core.resources._resource import (Resource, ResourceID,
+                                                ResourceType)
 
 
 # NOTE: We currently dont do anything with this type, but we plan on using this

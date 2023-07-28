@@ -5,12 +5,9 @@ from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
-from buildflow.core.types.gcp_types import (
-    BigQueryDatasetName,
-    GCPProjectID,
-    BigQueryTableID,
-    BigQueryTableName,
-)
+from buildflow.core.types.gcp_types import (BigQueryDatasetName,
+                                            BigQueryTableID, BigQueryTableName,
+                                            GCPProjectID)
 
 
 class StreamingBigQueryTableSink(SinkStrategy):

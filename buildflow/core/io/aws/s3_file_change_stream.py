@@ -1,14 +1,14 @@
 import dataclasses
 from typing import Iterable
-from buildflow.config.cloud_provider_config import AWSOptions
 
+from buildflow.config.cloud_provider_config import AWSOptions
+from buildflow.core.io.aws.providers.s3_file_change_stream_provider import \
+    S3FileChangeStreamProvider
 from buildflow.core.io.aws.s3 import S3Bucket
 from buildflow.core.io.aws.sqs import SQSQueue
 from buildflow.core.io.primitive import AWSPrimtive, CompositePrimitive
-from buildflow.core.types.aws_types import S3BucketName, S3ChangeStreamEventType
-from buildflow.core.io.aws.providers.s3_file_change_stream_provider import (
-    S3FileChangeStreamProvider,
-)
+from buildflow.core.types.aws_types import (S3BucketName,
+                                            S3ChangeStreamEventType)
 
 
 @dataclasses.dataclass

@@ -5,7 +5,6 @@ import time
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
 
-
 gcp_project = os.environ["GCP_PROJECT"]
 validation_sub = os.environ["VALIDATION_SUB"]
 incoming_topic = os.environ["INCOMING_TOPIC"]
