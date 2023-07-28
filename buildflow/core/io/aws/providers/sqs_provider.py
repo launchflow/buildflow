@@ -12,15 +12,15 @@ from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.strategies.source import SourceStrategy
-from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, QueueName
+from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, SQSQueueName
 from buildflow.core.io.aws.strategies.sqs_strategies import SQSSink, SQSSource
 from buildflow.core.io.aws.providers.pulumi_providers import aws_provider
 
 
-class SQSProvider(PulumiProvider, SinkProvider, SourceProvider):
+class SQSQueueProvider(PulumiProvider, SinkProvider, SourceProvider):
     def __init__(
         self,
-        queue_name: QueueName,
+        queue_name: SQSQueueName,
         aws_account_id: Optional[AWSAccountID],
         aws_region: Optional[AWSRegion],
     ) -> None:

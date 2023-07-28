@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Iterable, List, Type, Optional
 from buildflow.core.utils import uuid
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.strategies.sink import Batch, SinkStrategy
-from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, QueueName
+from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, SQSQueueName
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.core.io.utils.clients.aws_clients import AWSClients
 from buildflow.core.io.utils.schemas import converters
@@ -27,7 +27,7 @@ class _SQSAckInfo(AckInfo):
 
 
 def _get_queue_url(
-    aws_conn, queue_name: QueueName, aws_account_id: Optional[AWSAccountID]
+    aws_conn, queue_name: SQSQueueName, aws_account_id: Optional[AWSAccountID]
 ):
     if aws_account_id is None:
         response = aws_conn.get_queue_url(QueueName=queue_name)
@@ -42,7 +42,7 @@ class SQSSink(SinkStrategy):
     def __init__(
         self,
         credentials: AWSCredentials,
-        queue_name: QueueName,
+        queue_name: SQSQueueName,
         aws_account_id: Optional[AWSAccountID],
         aws_region: Optional[AWSRegion],
     ):
@@ -85,7 +85,7 @@ class SQSSource(SourceStrategy):
     def __init__(
         self,
         credentials: AWSCredentials,
-        queue_name: QueueName,
+        queue_name: SQSQueueName,
         aws_account_id: Optional[AWSAccountID],
         aws_region: Optional[AWSRegion],
     ):
