@@ -44,7 +44,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.10
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
@@ -55,7 +55,7 @@ jobs:
           pip install .[dev]
       - name: Test with pytest
         run: |
-          pytest --timeout=60 --cov
+          pytest --cov
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3

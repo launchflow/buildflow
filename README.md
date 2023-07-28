@@ -1,7 +1,7 @@
 # ⚒️ BuildFlow
 
 ![CI](https://github.com/launchflow/buildflow/actions/workflows/python_ci.yaml/badge.svg)
-![GCP Tests](https://github.com/launchflow/buildflow/actions/workflows/gcp_integration.yaml/badge.svg)
+![Release Tests](https://github.com/launchflow/buildflow/actions/workflows/release_tests.yaml/badge.svg)
 [![Python version](https://badge.fury.io/py/buildflow.svg)](https://pypi.org/project/buildflow)
 [![codecov](https://codecov.io/gh/launchflow/buildflow/branch/main/graph/badge.svg?token=AO0TP8XG7X)](https://codecov.io/gh/launchflow/buildflow)
 [![Discord Shield](https://discordapp.com/api/guilds/1082821064180117575/widget.png?style=shield)](https://discordapp.com/invite/wz7fjHyrCA)

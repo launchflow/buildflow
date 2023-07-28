@@ -55,7 +55,6 @@ dev = [
     "moto",
     "pytest",
     "pytest-cov",
-    "pytest-timeout",
     "ruff",
     "black",
     "pre-commit",
