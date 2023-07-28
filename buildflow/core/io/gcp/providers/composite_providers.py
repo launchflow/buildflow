@@ -14,7 +14,8 @@ from buildflow.core.io.gcp.strategies.composite_strategies import (
 )
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
 from buildflow.core.resources.pulumi import PulumiResource
-from buildflow.core.types.gcp_types import GCPProjectID, GCSChangeStreamEventType
+from buildflow.core.types.gcp_types import GCPProjectID
+from buildflow.types.gcp import GCSChangeStreamEventType
 
 
 class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):

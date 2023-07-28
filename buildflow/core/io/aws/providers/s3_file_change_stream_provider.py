@@ -12,7 +12,7 @@ from buildflow.core.io.aws.strategies.s3_file_change_stream_strategies import (
 )
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
 from buildflow.core.resources.pulumi import PulumiResource
-from buildflow.core.types.aws_types import S3ChangeStreamEventType
+from buildflow.types.aws import S3ChangeStreamEventType
 
 
 class S3FileChangeStreamProvider(SourceProvider, PulumiProvider):

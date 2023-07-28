@@ -5,8 +5,8 @@ from typing import List
 import pulumi
 import pytest
 
-from buildflow.core.io.gcp.storage import GCSBucket
 from buildflow.core.resources.pulumi import PulumiResource
+from buildflow.io.gcp.storage import GCSBucket
 
 
 @dataclass

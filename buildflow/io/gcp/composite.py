@@ -1,15 +1,15 @@
 import dataclasses
-from typing import Iterable, Optional
+from typing import Iterable
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core.io.gcp.providers.composite_providers import (
     GCSFileChangeStreamProvider,
 )
-from buildflow.core.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
-from buildflow.core.io.gcp.storage import GCSBucket
 from buildflow.core.io.primitive import CompositePrimitive, GCPPrimtive
-from buildflow.core.types.gcp_types import GCSChangeStreamEventType
 from buildflow.core.types.portable_types import BucketName
+from buildflow.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
+from buildflow.io.gcp.storage import GCSBucket
+from buildflow.types.gcp import GCSChangeStreamEventType
 
 
 @dataclasses.dataclass
@@ -21,10 +21,20 @@ class GCSFileChangeStream(GCPPrimtive, CompositePrimitive):
     )
 
     # Only needed for setting up resources.
-    pubsub_topic: Optional[GCPPubSubTopic] = None
+    pubsub_topic: GCPPubSubTopic = dataclasses.field(init=False)
+    pubsub_subscription: GCPPubSubSubscription = dataclasses.field(init=False)
 
     def __post_init__(self):
-        self.pubsub_subscription.include_attributes = True
+        self.pubsub_topic = GCPPubSubTopic(
+            self.gcs_bucket.project_id,
+            topic_name=f"{self.gcs_bucket.bucket_name}_topic",
+        ).options(managed=True)
+        self.pubsub_subscription = GCPPubSubSubscription(
+            project_id=self.gcs_bucket.project_id,
+            topic_id=self.pubsub_topic.topic_id,
+            subscription_name=f"{self.gcs_bucket.bucket_name}_subscription",
+            include_attributes=True,
+        )
 
     @classmethod
     def from_gcp_options(
@@ -36,21 +46,7 @@ class GCSFileChangeStream(GCPPrimtive, CompositePrimitive):
         gcs_bucket = GCSBucket.from_gcp_options(
             gcp_options, bucket_name=bucket_name
         ).options(managed=True)
-        topic_name = f"{bucket_name}_topic"
-        pubsub_topic = GCPPubSubTopic.from_gcp_options(
-            gcp_options, topic_name=topic_name
-        ).options(managed=True)
-        pubsub_subscription = GCPPubSubSubscription.from_gcp_options(
-            gcp_options,
-            topic_id=pubsub_topic.topic_id,
-            subscription_name=f"{bucket_name}_subscription",
-        ).options(managed=True)
-        return cls(
-            gcs_bucket=gcs_bucket,
-            pubsub_subscription=pubsub_subscription,
-            pubsub_topic=pubsub_topic,
-            event_types=event_types,
-        )
+        return cls(gcs_bucket=gcs_bucket, event_types=event_types)
 
     def source_provider(self) -> GCSFileChangeStreamProvider:
         return GCSFileChangeStreamProvider(

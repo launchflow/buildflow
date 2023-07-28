@@ -8,7 +8,7 @@ from buildflow.core.io.aws.providers.s3_file_change_stream_provider import (
 )
 from buildflow.core.io.aws.providers.s3_provider import S3BucketProvider
 from buildflow.core.io.aws.providers.sqs_provider import SQSQueueProvider
-from buildflow.core.types.aws_types import S3ChangeStreamEventType
+from buildflow.types.aws import S3ChangeStreamEventType
 
 
 @pytest.mark.skip("fails for some reason around the queue policy")

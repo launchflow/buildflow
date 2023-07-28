@@ -7,8 +7,8 @@ from buildflow.core.io.local.providers.file_change_stream_provider import (
     LocalFileChangeStreamProvider,
 )
 from buildflow.core.io.primitive import LocalPrimtive
-from buildflow.core.types.local_types import FileChangeStreamEventType
 from buildflow.core.types.shared_types import FilePath
+from buildflow.types.local import FileChangeStreamEventType
 
 
 @dataclasses.dataclass

@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from buildflow.core.io.local.pulse import Pulse
+from buildflow.io.local.pulse import Pulse
 
 
 @pytest.mark.usefixtures("event_loop_instance")

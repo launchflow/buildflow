@@ -12,11 +12,11 @@ from ray.util.state import list_actors
 
 from buildflow.core.app.flow import Flow
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
-from buildflow.core.io.local.file import File
-from buildflow.core.io.local.pulse import Pulse
-from buildflow.core.io.local.testing.pulse_with_backlog import PulseWithBacklog
 from buildflow.core.options import ProcessorOptions, RuntimeOptions
-from buildflow.core.types.local_types import FileFormat
+from buildflow.io.local.file import File
+from buildflow.io.local.pulse import Pulse
+from buildflow.io.local.testing.pulse_with_backlog import PulseWithBacklog
+from buildflow.types.local import FileFormat
 
 
 @pytest.mark.usefixtures("ray_fix")
