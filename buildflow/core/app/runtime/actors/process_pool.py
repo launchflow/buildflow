@@ -96,6 +96,12 @@ class ProcessorReplicaPoolActor(Runtime):
         raise NotImplementedError("create_replica must be implemented by subclasses.")
 
     async def add_replicas(self, num_replicas: int):
+        if self.status == RuntimeStatus.DRAINING:
+            logging.info(
+                "cannot add replicas to a darining processor pool."
+                "this can happen if a drain occurs at the same time as a scale up."
+            )
+            return
         if self._status != RuntimeStatus.RUNNING:
             raise RuntimeError(
                 "Can only add replicas to a processor pool that is running."
