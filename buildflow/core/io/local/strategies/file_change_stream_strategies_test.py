@@ -6,8 +6,9 @@ import unittest
 
 import pytest
 
-from buildflow.core.io.local.strategies.file_change_stream_strategies import \
-    LocalFileChangeStreamSource
+from buildflow.core.io.local.strategies.file_change_stream_strategies import (
+    LocalFileChangeStreamSource,
+)
 from buildflow.core.types.local_types import FileChangeStreamEventType
 from buildflow.core.types.portable_types import PortableFileChangeEventType
 

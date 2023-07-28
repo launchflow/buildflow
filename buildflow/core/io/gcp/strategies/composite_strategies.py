@@ -4,15 +4,17 @@ from typing import Any, Callable, Optional, Type
 from google.cloud import storage
 
 from buildflow.core.credentials import GCPCredentials
-from buildflow.core.io.gcp.strategies.pubsub_strategies import \
-    GCPPubSubSubscriptionSource
+from buildflow.core.io.gcp.strategies.pubsub_strategies import (
+    GCPPubSubSubscriptionSource,
+)
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
-from buildflow.core.strategies.source import (AckInfo, PullResponse,
-                                              SourceStrategy)
+from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.core.types.gcp_types import GCSChangeStreamEventType
-from buildflow.core.types.portable_types import (FileChangeEvent,
-                                                 PortableFileChangeEventType)
+from buildflow.core.types.portable_types import (
+    FileChangeEvent,
+    PortableFileChangeEventType,
+)
 
 
 @dataclasses.dataclass

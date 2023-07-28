@@ -4,8 +4,9 @@ from unittest import mock
 
 from buildflow.core.app.runtime import autoscaler
 from buildflow.core.app.runtime._runtime import RuntimeStatus
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import \
-    PipelineProcessorSnapshot
+from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
+    PipelineProcessorSnapshot,
+)
 from buildflow.core.options.runtime_options import AutoscalerOptions
 from buildflow.core.processor.processor import ProcessorType
 

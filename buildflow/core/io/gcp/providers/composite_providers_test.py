@@ -14,10 +14,13 @@ import pulumi
 import pulumi_gcp
 import pytest
 
-from buildflow.core.io.gcp.providers.composite_providers import \
-    GCSFileChangeStreamProvider
+from buildflow.core.io.gcp.providers.composite_providers import (
+    GCSFileChangeStreamProvider,
+)
 from buildflow.core.io.gcp.providers.pubsub_providers import (
-    GCPPubSubSubscriptionProvider, GCPPubSubTopicProvider)
+    GCPPubSubSubscriptionProvider,
+    GCPPubSubTopicProvider,
+)
 from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 
 

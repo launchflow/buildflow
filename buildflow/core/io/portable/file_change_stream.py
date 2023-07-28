@@ -2,8 +2,7 @@
 import dataclasses
 from typing import Iterable
 
-from buildflow.config.cloud_provider_config import (CloudProvider,
-                                                    CloudProviderConfig)
+from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
 from buildflow.core.io.gcp.composite import GCSFileChangeStream
 from buildflow.core.io.local.file_change_stream import LocalFileChangeStream
 from buildflow.core.io.primitive import PortablePrimtive, Primitive

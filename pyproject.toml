@@ -89,3 +89,6 @@ omit = [
     "buildflow/cli/*",
     "release_tests/*",
 ]
+
+[tool.isort]
+profile = "black"

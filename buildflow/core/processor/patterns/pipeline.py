@@ -1,5 +1,4 @@
-from buildflow.core.processor.processor import (ProcessorAPI, ProcessorID,
-                                                ProcessorType)
+from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.strategies.source import SourceStrategy
 

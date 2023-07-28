@@ -5,8 +5,9 @@ from typing import Optional
 import ray
 from ray.autoscaler.sdk import request_resources
 
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import \
-    PipelineProcessorSnapshot
+from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
+    PipelineProcessorSnapshot,
+)
 from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
 from buildflow.core.options.runtime_options import AutoscalerOptions
 from buildflow.core.processor.processor import ProcessorType

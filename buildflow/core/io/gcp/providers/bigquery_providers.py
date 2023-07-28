@@ -5,14 +5,18 @@ import pulumi
 import pulumi_gcp
 
 from buildflow.core.credentials import GCPCredentials
-from buildflow.core.io.gcp.strategies.bigquery_strategies import \
-    StreamingBigQueryTableSink
+from buildflow.core.io.gcp.strategies.bigquery_strategies import (
+    StreamingBigQueryTableSink,
+)
 from buildflow.core.io.utils.schemas import bigquery_schemas
 from buildflow.core.providers.provider import PulumiProvider, SinkProvider
 from buildflow.core.resources.pulumi import PulumiResource
-from buildflow.core.types.gcp_types import (BigQueryDatasetName,
-                                            BigQueryTableID, BigQueryTableName,
-                                            GCPProjectID)
+from buildflow.core.types.gcp_types import (
+    BigQueryDatasetName,
+    BigQueryTableID,
+    BigQueryTableName,
+    GCPProjectID,
+)
 
 
 class BigQueryTableProvider(SinkProvider, PulumiProvider):

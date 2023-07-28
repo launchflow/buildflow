@@ -3,11 +3,13 @@ from typing import Iterable
 
 from buildflow.config.pulumi_config import PulumiConfig
 from buildflow.core.app.infra._infra import Infra, InfraStatus
-from buildflow.core.app.infra.pulumi_workspace import (PulumiWorkspace,
-                                                       WrappedDestroyResult,
-                                                       WrappedOutputMap,
-                                                       WrappedPreviewResult,
-                                                       WrappedUpResult)
+from buildflow.core.app.infra.pulumi_workspace import (
+    PulumiWorkspace,
+    WrappedDestroyResult,
+    WrappedOutputMap,
+    WrappedPreviewResult,
+    WrappedUpResult,
+)
 from buildflow.core.options.infra_options import InfraOptions
 from buildflow.core.processor.processor import ProcessorAPI
 

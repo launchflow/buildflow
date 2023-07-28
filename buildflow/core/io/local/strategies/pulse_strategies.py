@@ -3,8 +3,7 @@ from typing import Any, Callable, Iterable, Type
 
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
-from buildflow.core.strategies.source import (AckInfo, PullResponse,
-                                              SourceStrategy)
+from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 
 
 class PulseSource(SourceStrategy):

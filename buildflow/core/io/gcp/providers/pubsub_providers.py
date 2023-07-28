@@ -5,13 +5,21 @@ import pulumi_gcp
 
 from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.gcp.strategies.pubsub_strategies import (
-    GCPPubSubSubscriptionSource, GCPPubSubTopicSink)
-from buildflow.core.providers.provider import (PulumiProvider, SinkProvider,
-                                               SourceProvider)
+    GCPPubSubSubscriptionSource,
+    GCPPubSubTopicSink,
+)
+from buildflow.core.providers.provider import (
+    PulumiProvider,
+    SinkProvider,
+    SourceProvider,
+)
 from buildflow.core.resources.pulumi import PulumiResource
-from buildflow.core.types.gcp_types import (GCPProjectID,
-                                            PubSubSubscriptionName,
-                                            PubSubTopicID, PubSubTopicName)
+from buildflow.core.types.gcp_types import (
+    GCPProjectID,
+    PubSubSubscriptionName,
+    PubSubTopicID,
+    PubSubTopicName,
+)
 
 
 class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):

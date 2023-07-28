@@ -4,8 +4,10 @@ import buildflow
 from buildflow.core.io.aws.s3 import S3Bucket
 from buildflow.core.io.aws.s3_file_change_stream import S3FileChangeStream
 from buildflow.core.types.aws_types import S3ChangeStreamEventType
-from buildflow.core.types.portable_types import (FileChangeEvent,
-                                                 PortableFileChangeEventType)
+from buildflow.core.types.portable_types import (
+    FileChangeEvent,
+    PortableFileChangeEventType,
+)
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
 

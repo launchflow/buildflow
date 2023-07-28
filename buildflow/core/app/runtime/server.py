@@ -6,8 +6,7 @@ from fastapi.responses import HTMLResponse
 from ray import kill, serve
 
 from buildflow.core.app.infra.actors.infra import InfraActor
-from buildflow.core.app.runtime.actors.runtime import (RuntimeActor,
-                                                       RuntimeSnapshot)
+from buildflow.core.app.runtime.actors.runtime import RuntimeActor, RuntimeSnapshot
 
 app = FastAPI()
 

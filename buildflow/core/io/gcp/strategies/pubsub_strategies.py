@@ -13,11 +13,14 @@ from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import Batch, SinkStrategy
-from buildflow.core.strategies.source import (AckInfo, PullResponse,
-                                              SourceStrategy)
-from buildflow.core.types.gcp_types import (GCPProjectID, PubSubSubscriptionID,
-                                            PubSubSubscriptionName,
-                                            PubSubTopicID, PubSubTopicName)
+from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
+from buildflow.core.types.gcp_types import (
+    GCPProjectID,
+    PubSubSubscriptionID,
+    PubSubSubscriptionName,
+    PubSubTopicID,
+    PubSubTopicName,
+)
 
 
 @dataclasses.dataclass(frozen=True)

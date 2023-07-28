@@ -10,8 +10,7 @@ import typer
 import buildflow
 from buildflow.cli import utils
 from buildflow.config.buildflow_config import BuildFlowConfig
-from buildflow.config.cloud_provider_config import (CloudProvider,
-                                                    CloudProviderConfig)
+from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
 
 BUILDFLOW_HELP = """\
 Welcome to the buildflow CLI!

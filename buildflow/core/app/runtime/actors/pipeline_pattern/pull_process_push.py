@@ -9,11 +9,12 @@ import psutil
 import ray
 
 from buildflow.core import utils
-from buildflow.core.app.runtime._runtime import (RunID, Runtime, RuntimeStatus,
-                                                 Snapshot)
+from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, Snapshot
 from buildflow.core.app.runtime.actors.process_pool import ReplicaID
-from buildflow.core.app.runtime.metrics import (CompositeRateCounterMetric,
-                                                RateCalculation)
+from buildflow.core.app.runtime.metrics import (
+    CompositeRateCounterMetric,
+    RateCalculation,
+)
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 
 # TODO: Explore the idea of letting this class autoscale the number of threads

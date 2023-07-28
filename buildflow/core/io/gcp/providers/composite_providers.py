@@ -5,14 +5,16 @@ import pulumi_gcp
 
 from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.gcp.providers.pubsub_providers import (
-    GCPPubSubSubscriptionProvider, GCPPubSubTopicProvider)
+    GCPPubSubSubscriptionProvider,
+    GCPPubSubTopicProvider,
+)
 from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
-from buildflow.core.io.gcp.strategies.composite_strategies import \
-    GCSFileChangeStreamSource
+from buildflow.core.io.gcp.strategies.composite_strategies import (
+    GCSFileChangeStreamSource,
+)
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
 from buildflow.core.resources.pulumi import PulumiResource
-from buildflow.core.types.gcp_types import (GCPProjectID,
-                                            GCSChangeStreamEventType)
+from buildflow.core.types.gcp_types import GCPProjectID, GCSChangeStreamEventType
 
 
 class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):

@@ -2,8 +2,7 @@ import dataclasses
 from typing import Any, Callable, Iterable, Type
 
 from buildflow.core.credentials import CredentialType
-from buildflow.core.strategies._strategy import (StategyType, Strategy,
-                                                 StrategyID)
+from buildflow.core.strategies._strategy import StategyType, Strategy, StrategyID
 
 
 class AckInfo:

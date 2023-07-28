@@ -7,12 +7,10 @@ import ray
 from ray.actor import ActorHandle
 
 from buildflow.core import utils
-from buildflow.core.app.runtime._runtime import (RunID, Runtime, RuntimeStatus,
-                                                 Snapshot)
+from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, Snapshot
 from buildflow.core.app.runtime.metrics import SimpleGaugeMetric
 from buildflow.core.options.runtime_options import ProcessorOptions
-from buildflow.core.processor.processor import (ProcessorAPI, ProcessorID,
-                                                ProcessorType)
+from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
 
 ReplicaID = str
 

@@ -2,8 +2,7 @@ import dataclasses
 import os
 from typing import Optional
 
-from buildflow.config.cloud_provider_config import (CloudProvider,
-                                                    CloudProviderConfig)
+from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
 from buildflow.core.io.gcp.bigquery import BigQueryTable
 from buildflow.core.io.local.duckdb import DuckDB
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
