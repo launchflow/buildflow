@@ -1,4 +1,4 @@
-name: GCP Release Tests
+name: Release Tests
 
 on:
   workflow_dispatch:
