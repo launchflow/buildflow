@@ -27,7 +27,7 @@ main_pid=$!
 sleep 20
 aws sqs send-message --region=us-east-1 --queue-url $input_queue_url --message-body '{"val": 1}'
 send_message_code=$?
-sleep 30
+sleep 60
 
 kill -s 2 $main_pid
 wait $main_pid

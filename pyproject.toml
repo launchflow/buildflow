@@ -86,6 +86,5 @@ omit = [
     # Exclude samples
     "buildflow/samples/*",
     "buildflow/cli/*",
-    # Exclude skipped / prototype code
-    "buildflow/runtime/ray_io/duckdb_io*",
+    "release_tests/*",
 ]
