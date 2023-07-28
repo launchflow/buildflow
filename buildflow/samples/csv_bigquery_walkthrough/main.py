@@ -32,7 +32,7 @@ source = GCSFileChangeStream(
     pubsub_subscription=GCPPubSubSubscription(
         project_id=gcp_project,
         subscription_name="storage_events_sub",
-        topic_id=f"projects/{gcp_project}/topics/storage_events_topic",
+        topic_id=f"projects/{gcp_project}/topics/{bucket_name}_storage_events_topic",
     ).options(managed=True),
 )
 # Set up a BigQuery table for the sink.
