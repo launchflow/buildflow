@@ -27,11 +27,11 @@ source = GCSFileChangeStream(
     ).options(managed=True, force_destroy=True),
     pubsub_topic=GCPPubSubTopic(
         project_id=gcp_project,
-        topic_name="storage_events_topic",
+        topic_name=f"{bucket_name}_storage_events_topic",
     ).options(managed=True),
     pubsub_subscription=GCPPubSubSubscription(
         project_id=gcp_project,
-        subscription_name="storage_events_sub",
+        subscription_name=f"{bucket_name}_storage_events_sub",
         topic_id=f"projects/{gcp_project}/topics/{bucket_name}_storage_events_topic",
     ).options(managed=True),
 )
