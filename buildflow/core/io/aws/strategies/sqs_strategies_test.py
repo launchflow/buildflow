@@ -2,12 +2,12 @@ import os
 import unittest
 
 import boto3
-from moto import mock_sqs
 import pytest
+from moto import mock_sqs
 
-from buildflow.core.options.credentials_options import CredentialsOptions
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.io.aws.strategies.sqs_strategies import SQSSink, SQSSource
+from buildflow.core.options.credentials_options import CredentialsOptions
 from buildflow.core.types.aws_types import AWSRegion, SQSQueueName
 
 

@@ -1,9 +1,10 @@
 import dataclasses
+from typing import Mapping
+
+from pulumi import automation as auto
 
 from buildflow.config._config import Config
 from buildflow.core import utils
-from pulumi import automation as auto
-from typing import Mapping
 
 
 @dataclasses.dataclass

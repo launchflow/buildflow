@@ -52,6 +52,7 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+    "isort",
     "moto",
     "pytest",
     "pytest-cov",
@@ -88,3 +89,6 @@ omit = [
     "buildflow/cli/*",
     "release_tests/*",
 ]
+
+[tool.isort]
+profile = "black"

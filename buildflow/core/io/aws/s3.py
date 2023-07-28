@@ -2,10 +2,10 @@ import dataclasses
 from typing import Optional
 
 from buildflow.config.cloud_provider_config import AWSOptions
+from buildflow.core.io.aws.providers.s3_provider import S3BucketProvider
 from buildflow.core.io.primitive import AWSPrimtive
 from buildflow.core.providers.provider import PulumiProvider, SinkProvider
 from buildflow.core.types.aws_types import AWSRegion, S3BucketName
-from buildflow.core.io.aws.providers.s3_provider import S3BucketProvider
 
 
 @dataclasses.dataclass

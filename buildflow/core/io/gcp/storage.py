@@ -1,16 +1,11 @@
 import dataclasses
 from typing import Optional
-from buildflow.core import utils
-from buildflow.core.io.gcp.providers.storage_providers import (
-    GCSBucketProvider,
-)
-from buildflow.core.io.primitive import GCPPrimtive, Primitive
+
 from buildflow.config.cloud_provider_config import GCPOptions
-from buildflow.core.types.gcp_types import (
-    GCPProjectID,
-    GCSBucketName,
-    GCPRegion,
-)
+from buildflow.core import utils
+from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
+from buildflow.core.io.primitive import GCPPrimtive, Primitive
+from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 from buildflow.core.types.portable_types import BucketName
 
 

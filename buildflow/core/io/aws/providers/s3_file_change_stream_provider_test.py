@@ -1,7 +1,6 @@
 import unittest
 
 import pulumi_aws
-
 import pytest
 
 from buildflow.core.io.aws.providers.s3_file_change_stream_provider import (

@@ -4,14 +4,10 @@ import pulumi
 import pulumi_gcp
 
 from buildflow.core.credentials import GCPCredentials
-from buildflow.core.providers.provider import (
-    PulumiProvider,
-    SinkProvider,
-)
-from buildflow.core.types.gcp_types import GCPProjectID, GCSBucketName, GCPRegion
-from buildflow.core.resources.pulumi import PulumiResource
-
 from buildflow.core.io.gcp.strategies.storage_strategies import GCSBucketSink
+from buildflow.core.providers.provider import PulumiProvider, SinkProvider
+from buildflow.core.resources.pulumi import PulumiResource
+from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 
 
 class GCSBucketProvider(SinkProvider, PulumiProvider):

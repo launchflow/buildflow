@@ -1,14 +1,14 @@
 import inspect
 import os
 import tempfile
-from typing import Dict
 import unittest
+from typing import Dict
 
 from buildflow.core.app.flow import Flow
 from buildflow.core.io.local.file import File
 from buildflow.core.io.local.pulse import Pulse
-from buildflow.core.types.local_types import FileFormat
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
+from buildflow.core.types.local_types import FileFormat
 
 
 class FlowTest(unittest.TestCase):

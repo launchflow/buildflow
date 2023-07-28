@@ -1,14 +1,14 @@
 import asyncio
-import duckdb
 import logging
-import pandas as pd
 from typing import Any, Callable, Dict, Iterable, Type
+
+import duckdb
+import pandas as pd
 
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.types.local_types import DuckDBDatabase, DuckDBTable
-
 
 _MAX_CONNECT_TRIES = 25
 

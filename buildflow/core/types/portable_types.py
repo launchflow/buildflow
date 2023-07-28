@@ -11,12 +11,11 @@
 # cloud-provider specific. For example, we can set a TopicID on a
 # Topic primitive, and then use that TopicID to create a GCP PubSub Topic.
 
-from dataclasses import dataclass
 import enum
+from dataclasses import dataclass
 from typing import Any, Dict
 
 from buildflow.core.types.shared_types import FilePath
-
 
 # Table Types
 TableName = str

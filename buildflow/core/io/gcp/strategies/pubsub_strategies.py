@@ -1,13 +1,13 @@
 import dataclasses
 import datetime
-from typing import Any, Callable, Type, Dict, Iterable, Optional, Union
 import logging
+from typing import Any, Callable, Dict, Iterable, Optional, Type, Union
 
 from google.cloud.monitoring_v3 import query
 from google.cloud.pubsub_v1.types import PubsubMessage as GCPPubSubMessage
 from google.protobuf.timestamp_pb2 import Timestamp
 
-
+from buildflow import exceptions
 from buildflow.core import utils
 from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.utils.clients import gcp_clients
@@ -16,12 +16,11 @@ from buildflow.core.strategies.sink import Batch, SinkStrategy
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.core.types.gcp_types import (
     GCPProjectID,
-    PubSubTopicID,
-    PubSubTopicName,
     PubSubSubscriptionID,
     PubSubSubscriptionName,
+    PubSubTopicID,
+    PubSubTopicName,
 )
-from buildflow import exceptions
 
 
 @dataclasses.dataclass(frozen=True)

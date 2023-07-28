@@ -3,12 +3,10 @@ from typing import List, Optional, Type
 import pulumi
 import pulumi_aws
 
-from buildflow.core.providers.provider import (
-    PulumiProvider,
-)
-from buildflow.core.types.aws_types import S3BucketName, AWSRegion
-from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.io.aws.providers.pulumi_providers import aws_provider
+from buildflow.core.providers.provider import PulumiProvider
+from buildflow.core.resources.pulumi import PulumiResource
+from buildflow.core.types.aws_types import AWSRegion, S3BucketName
 
 
 class S3BucketProvider(PulumiProvider):

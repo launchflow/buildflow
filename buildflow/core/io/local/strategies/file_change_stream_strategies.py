@@ -1,10 +1,10 @@
-from copy import deepcopy
 import dataclasses
+from copy import deepcopy
 from threading import RLock
 from typing import Any, Callable, Dict, Iterable, List, Type
 
-from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters

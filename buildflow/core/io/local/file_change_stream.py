@@ -3,10 +3,10 @@ import os
 from typing import Iterable
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.core.io.primitive import LocalPrimtive
 from buildflow.core.io.local.providers.file_change_stream_provider import (
     LocalFileChangeStreamProvider,
 )
+from buildflow.core.io.primitive import LocalPrimtive
 from buildflow.core.types.local_types import FileChangeStreamEventType
 from buildflow.core.types.shared_types import FilePath
 

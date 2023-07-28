@@ -4,7 +4,6 @@ from concurrent.futures import TimeoutError
 
 from google.cloud import pubsub_v1
 
-
 gcp_project = os.environ["GCP_PROJECT"]
 validation_sub = os.environ["VALIDATION_SUB"]
 

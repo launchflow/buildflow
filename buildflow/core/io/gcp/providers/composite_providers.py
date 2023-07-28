@@ -3,19 +3,18 @@ from typing import Iterable, List, Optional, Type
 import pulumi
 import pulumi_gcp
 
-from buildflow.core.types.gcp_types import GCPProjectID
-from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.credentials import GCPCredentials
-from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 from buildflow.core.io.gcp.providers.pubsub_providers import (
     GCPPubSubSubscriptionProvider,
     GCPPubSubTopicProvider,
 )
+from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 from buildflow.core.io.gcp.strategies.composite_strategies import (
     GCSFileChangeStreamSource,
 )
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
-from buildflow.core.types.gcp_types import GCSChangeStreamEventType
+from buildflow.core.resources.pulumi import PulumiResource
+from buildflow.core.types.gcp_types import GCPProjectID, GCSChangeStreamEventType
 
 
 class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):

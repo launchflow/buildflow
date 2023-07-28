@@ -7,9 +7,9 @@ from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.types.gcp_types import (
     BigQueryDatasetName,
-    GCPProjectID,
     BigQueryTableID,
     BigQueryTableName,
+    GCPProjectID,
 )
 
 

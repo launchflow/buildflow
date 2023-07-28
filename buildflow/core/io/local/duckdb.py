@@ -1,10 +1,8 @@
 import dataclasses
 
 from buildflow.config.cloud_provider_config import LocalOptions
+from buildflow.core.io.local.providers.duckdb_providers import DuckDBProvider
 from buildflow.core.io.primitive import LocalPrimtive
-from buildflow.core.io.local.providers.duckdb_providers import (
-    DuckDBProvider,
-)
 from buildflow.core.types.local_types import DuckDBDatabase, DuckDBTable
 
 

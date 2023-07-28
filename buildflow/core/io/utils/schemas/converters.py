@@ -14,9 +14,9 @@ Cause there's really a couple cases every converter needs to provide:
 """
 
 import datetime
-from dataclasses import is_dataclass
 import json
-from typing import Any, Dict, Callable, Optional, Type
+from dataclasses import is_dataclass
+from typing import Any, Callable, Dict, Optional, Type
 
 import dacite
 import pandas as pd

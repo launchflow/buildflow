@@ -1,10 +1,10 @@
 import enum
 
 from buildflow.config.cloud_provider_config import (
-    CloudProviderConfig,
-    GCPOptions,
     AWSOptions,
     AzureOptions,
+    CloudProviderConfig,
+    GCPOptions,
     LocalOptions,
 )
 from buildflow.core.providers.provider import (

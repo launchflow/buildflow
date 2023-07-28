@@ -7,20 +7,19 @@ to refactor this. It's still worth keeping the tests though cause they
 do test the basics of pulumi resources.
 """
 
-import pytest
 import unittest
 from unittest import mock
 
 import pulumi
 import pulumi_gcp
-
+import pytest
 
 from buildflow.core.io.gcp.providers.composite_providers import (
     GCSFileChangeStreamProvider,
 )
 from buildflow.core.io.gcp.providers.pubsub_providers import (
-    GCPPubSubTopicProvider,
     GCPPubSubSubscriptionProvider,
+    GCPPubSubTopicProvider,
 )
 from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 
