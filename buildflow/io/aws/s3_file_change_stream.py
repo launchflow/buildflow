@@ -6,9 +6,10 @@ from buildflow.core.io.aws.providers.s3_file_change_stream_provider import (
     S3FileChangeStreamProvider,
 )
 from buildflow.core.io.primitive import AWSPrimtive, CompositePrimitive
-from buildflow.core.types.aws_types import S3BucketName, S3ChangeStreamEventType
+from buildflow.core.types.aws_types import S3BucketName
 from buildflow.io.aws.s3 import S3Bucket
 from buildflow.io.aws.sqs import SQSQueue
+from buildflow.types.aws import S3ChangeStreamEventType
 
 
 @dataclasses.dataclass
