@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Dict
 
 import buildflow
-from buildflow.core.io.portable import AnalysisTable, Topic
+from buildflow.io.portable import AnalysisTable, Topic
 
 bigquery_table = os.getenv("BIGQUERY_TABLE", "taxi_rides")
 

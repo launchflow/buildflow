@@ -3,7 +3,7 @@ import unittest
 from dataclasses import asdict, dataclass
 from unittest import mock
 
-from buildflow.core.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
+from buildflow.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
 
 
 # TODO: Add tests for PulumiResources. Can reference bigquery_test.py for an example.

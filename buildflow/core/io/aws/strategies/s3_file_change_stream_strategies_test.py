@@ -12,7 +12,7 @@ from buildflow.core.io.aws.strategies.s3_file_change_stream_strategies import (
 from buildflow.core.io.aws.strategies.sqs_strategies import SQSSink, SQSSource
 from buildflow.core.options.credentials_options import CredentialsOptions
 from buildflow.core.types.aws_types import AWSRegion, SQSQueueName
-from buildflow.core.types.portable_types import PortableFileChangeEventType
+from buildflow.types.portable import PortableFileChangeEventType
 
 
 @pytest.mark.usefixtures("event_loop_instance")

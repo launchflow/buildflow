@@ -9,8 +9,8 @@ import pyarrow.csv as pcsv
 import pyarrow.parquet as pq
 import pytest
 
-from buildflow.core.io.local.file import File
-from buildflow.core.types.local_types import FileFormat
+from buildflow.io.local.file import File
+from buildflow.types.local import FileFormat
 
 
 @pytest.mark.usefixtures("event_loop_instance")

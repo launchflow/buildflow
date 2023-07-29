@@ -3,14 +3,13 @@ import dataclasses
 from typing import Iterable
 
 from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
-from buildflow.core.io.gcp.composite import GCSFileChangeStream
-from buildflow.core.io.local.file_change_stream import LocalFileChangeStream
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
 from buildflow.core.strategies._strategy import StategyType
-from buildflow.core.types.gcp_types import GCSChangeStreamEventType
-from buildflow.core.types.local_types import FileChangeStreamEventType
-from buildflow.core.types.portable_types import PortableFileChangeEventType
 from buildflow.core.types.shared_types import FilePath
+from buildflow.io.gcp.composite import GCSFileChangeStream
+from buildflow.io.local.file_change_stream import LocalFileChangeStream
+from buildflow.types.gcp import GCSChangeStreamEventType
+from buildflow.types.local import FileChangeStreamEventType, PortableFileChangeEventType
 
 
 @dataclasses.dataclass

@@ -1,7 +1,4 @@
-import dataclasses
 from typing import Any, Callable, Optional, Type
-
-from google.cloud import storage
 
 from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.gcp.strategies.pubsub_strategies import (
@@ -10,24 +7,8 @@ from buildflow.core.io.gcp.strategies.pubsub_strategies import (
 from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
-from buildflow.core.types.gcp_types import GCSChangeStreamEventType
-from buildflow.core.types.portable_types import (
-    FileChangeEvent,
-    PortableFileChangeEventType,
-)
-
-
-@dataclasses.dataclass
-class GCSFileChangeEvent(FileChangeEvent):
-    storage_client: storage.Client
-
-    @property
-    def blob(self) -> bytes:
-        if self.metadata["eventType"] == "OBJECT_DELETE":
-            raise ValueError("Can't fetch blob for `OBJECT_DELETE` event.")
-        bucket = self.storage_client.bucket(bucket_name=self.metadata["bucketId"])
-        blob = bucket.get_blob(self.metadata["objectId"])
-        return blob.download_as_bytes()
+from buildflow.types.gcp import GCSChangeStreamEventType, GCSFileChangeEvent
+from buildflow.types.portable import PortableFileChangeEventType
 
 
 def _gcs_event_to_portable_event(

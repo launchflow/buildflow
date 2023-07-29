@@ -6,10 +6,8 @@ import os
 from typing import List
 
 import buildflow
-from buildflow.core.io.gcp.bigquery import BigQueryTable
-from buildflow.core.io.gcp.composite import GCSFileChangeStream
-from buildflow.core.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
-from buildflow.core.io.gcp.storage import GCSBucket
+from buildflow.io.gcp import BigQueryTable, GCSBucket, GCSFileChangeStream
+from buildflow.types.gcp import GCSFileChangeEvent
 
 gcp_project = os.environ["GCP_PROJECT"]
 bucket_name = os.environ["BUCKET_NAME"]
@@ -25,15 +23,6 @@ source = GCSFileChangeStream(
         bucket_name=bucket_name,
         bucket_region="us-central1",
     ).options(managed=True, force_destroy=True),
-    pubsub_topic=GCPPubSubTopic(
-        project_id=gcp_project,
-        topic_name=f"{bucket_name}_storage_events_topic",
-    ).options(managed=True),
-    pubsub_subscription=GCPPubSubSubscription(
-        project_id=gcp_project,
-        subscription_name=f"{bucket_name}_storage_events_sub",
-        topic_id=f"projects/{gcp_project}/topics/{bucket_name}_storage_events_topic",
-    ).options(managed=True),
 )
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
@@ -73,9 +62,7 @@ app = buildflow.Flow(
 
 # Define our processor.
 @app.pipeline(source=source, sink=sink)
-def process(
-    gcs_file_event: buildflow.core.types.gcp_types.GCSChangeStreamEventType,
-) -> List[AggregateWikiPageViews]:
+def process(gcs_file_event: GCSFileChangeEvent) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))
     aggregate_stats = {}

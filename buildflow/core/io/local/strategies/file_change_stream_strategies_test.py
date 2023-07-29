@@ -9,8 +9,8 @@ import pytest
 from buildflow.core.io.local.strategies.file_change_stream_strategies import (
     LocalFileChangeStreamSource,
 )
-from buildflow.core.types.local_types import FileChangeStreamEventType
-from buildflow.core.types.portable_types import PortableFileChangeEventType
+from buildflow.types.local import FileChangeStreamEventType
+from buildflow.types.portable import PortableFileChangeEventType
 
 
 @pytest.mark.usefixtures("event_loop_instance")

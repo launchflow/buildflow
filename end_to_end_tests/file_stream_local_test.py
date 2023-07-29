@@ -9,9 +9,9 @@ import duckdb
 import pytest
 
 import buildflow
-from buildflow.core.io.portable.file_change_stream import FileChangeStream
-from buildflow.core.io.portable.table import AnalysisTable
-from buildflow.core.types.portable_types import FileChangeEvent
+from buildflow.io.portable.file_change_stream import FileChangeStream
+from buildflow.io.portable.table import AnalysisTable
+from buildflow.types.portable import FileChangeEvent
 
 
 @pytest.mark.usefixtures("ray_fix")

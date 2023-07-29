@@ -6,8 +6,8 @@ from unittest import mock
 import pulumi
 import pytest
 
-from buildflow.core.io.gcp.bigquery import BigQueryTable
 from buildflow.core.resources.pulumi import PulumiResource
+from buildflow.io.gcp.bigquery import BigQueryTable
 
 
 @dataclass

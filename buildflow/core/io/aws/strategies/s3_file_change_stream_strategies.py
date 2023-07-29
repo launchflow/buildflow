@@ -1,4 +1,3 @@
-import dataclasses
 import json
 from typing import Any, Callable, Coroutine, Type
 
@@ -7,22 +6,8 @@ from buildflow.core.io.aws.strategies.sqs_strategies import SQSSource
 from buildflow.core.io.utils.clients.aws_clients import AWSClients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
-from buildflow.core.types.aws_types import S3BucketName, S3ChangeStreamEventType
-from buildflow.core.types.portable_types import (
-    FileChangeEvent,
-    PortableFileChangeEventType,
-)
-
-
-@dataclasses.dataclass
-class S3FileChangeEvent(FileChangeEvent):
-    bucket_name: S3BucketName
-    s3_client: Any
-
-    @property
-    def blob(self) -> bytes:
-        data = self.s3_client.get_object(Bucket=self.bucket_name, Key=self.file_path)
-        return data["Body"].read()
+from buildflow.types.aws import S3ChangeStreamEventType, S3FileChangeEvent
+from buildflow.types.portable import PortableFileChangeEventType
 
 
 class S3FileChangeStreamSource(SourceStrategy):

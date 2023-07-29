@@ -9,12 +9,9 @@ from watchdog.observers import Observer
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
-from buildflow.core.types.local_types import FileChangeStreamEventType
-from buildflow.core.types.portable_types import (
-    FileChangeEvent,
-    PortableFileChangeEventType,
-)
 from buildflow.core.types.shared_types import FilePath
+from buildflow.types.local import FileChangeStreamEventType
+from buildflow.types.portable import FileChangeEvent, PortableFileChangeEventType
 
 
 def _watchdog_event_to_portable_event_type(

@@ -4,7 +4,7 @@ import sys
 from dataclasses import dataclass
 
 import buildflow
-from buildflow.core.io.aws.sqs import SQSQueue
+from buildflow.io.aws import SQSQueue
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
 

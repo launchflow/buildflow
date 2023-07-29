@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 
 import buildflow
-from buildflow.core.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
+from buildflow.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
 
 gcp_project = os.environ["GCP_PROJECT"]
 outgoing_topic = os.environ["OUTGOING_TOPIC"]

@@ -3,8 +3,8 @@ from typing import Optional, Type
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.local.strategies.file_strategies import FileSink
 from buildflow.core.providers.provider import PulumiProvider, SinkProvider
-from buildflow.core.types.local_types import FileFormat
 from buildflow.core.types.shared_types import FilePath
+from buildflow.types.local import FileFormat
 
 
 class FileProvider(SinkProvider, PulumiProvider):

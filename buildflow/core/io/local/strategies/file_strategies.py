@@ -11,8 +11,8 @@ import pyarrow.csv as pcsv
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
-from buildflow.core.types.local_types import FileFormat
 from buildflow.core.types.shared_types import FilePath
+from buildflow.types.local import FileFormat
 
 
 class FileSink(SinkStrategy):

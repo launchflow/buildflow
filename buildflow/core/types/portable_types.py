@@ -11,12 +11,6 @@
 # cloud-provider specific. For example, we can set a TopicID on a
 # Topic primitive, and then use that TopicID to create a GCP PubSub Topic.
 
-import enum
-from dataclasses import dataclass
-from typing import Any, Dict
-
-from buildflow.core.types.shared_types import FilePath
-
 # Table Types
 TableName = str
 
@@ -37,22 +31,3 @@ BucketName = str
 
 # Subscription Types
 SubscriptionName = str
-
-
-class PortableFileChangeEventType(enum.Enum):
-    CREATED = "created"
-    DELETED = "portable"
-    UNKNOWN = "unknown"
-
-
-@dataclass
-class FileChangeEvent:
-    file_path: FilePath
-    portable_event_type: PortableFileChangeEventType
-
-    # Metadata specific to the cloud provider.
-    metadata: Dict[str, Any]
-
-    @property
-    def blob(self) -> bytes:
-        raise NotImplementedError(f"blob not implemented for {type(self)}")
