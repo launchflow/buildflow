@@ -73,6 +73,7 @@ def dataclass_fields_to_bq_schema(
         ):  # noqa: E721
             mode = "NULLABLE"
             field_type = field.type.__args__[0]
+        # TODO: does this work for nullable lists?
         if hasattr(field.type, "__args__") and field.type.__origin__ is list:
             mode = "REPEATED"
             field_type = field.type.__args__[0]

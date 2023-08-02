@@ -193,7 +193,10 @@ class PullProcessPushActor(Runtime):
 
         async def process_element(element):
             results = await process_fn(pull_converter(element))
-            if isinstance(results, (list, tuple)):
+            if results is None:
+                # Exclude none results
+                return
+            elif isinstance(results, (list, tuple)):
                 return [push_converter(result) for result in results]
             else:
                 return push_converter(results)
@@ -235,6 +238,9 @@ class PullProcessPushActor(Runtime):
                 flattened_results = await asyncio.gather(*coros)
                 batch_results = []
                 for results in flattened_results:
+                    if results is None:
+                        # Exclude none from the users batch
+                        continue
                     if isinstance(results, list):
                         batch_results.extend(results)
                     else:
@@ -247,12 +253,13 @@ class PullProcessPushActor(Runtime):
                     (time.monotonic() - process_start_time) * 1000
                 )
                 element_process_time_millis = batch_process_time_millis / len(
-                    batch_results
+                    response.payload
                 )
                 self.process_time_counter.inc(element_process_time_millis)
 
                 # PUSH
-                await sink.push(batch_results)
+                if batch_results:
+                    await sink.push(batch_results)
             except Exception:
                 logging.exception(
                     "failed to process batch, messages will not be acknowledged"

@@ -1,14 +1,21 @@
+import csv
+import dataclasses
+import datetime
+import io
 import os
+from typing import List
 
 import buildflow
 from buildflow.io.aws import S3Bucket, S3FileChangeStream
+from buildflow.io.snowflake import SnowflakeTable
 from buildflow.types.aws import S3ChangeStreamEventType, S3FileChangeEvent
 from buildflow.types.portable import PortableFileChangeEventType
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
 
 
-bucket_name = os.getenv("BUCKET_NAME", "my_bucket_name")
+bucket_name = os.getenv("BUCKET_NAME", "caleb-test-s3-input-bucket")
+snowflake_bucket = os.getenv("SNOWFLAKE_BUCKET", "caleb-s3-snowflake-bucket")
 
 source = S3FileChangeStream(
     s3_bucket=S3Bucket(bucket_name=bucket_name, aws_region="us-east-1").options(
@@ -20,15 +27,82 @@ source = S3FileChangeStream(
         S3ChangeStreamEventType.OBJECT_REMOVED_ALL,
     ],
 )
+sink = SnowflakeTable(
+    table="snowflake-table",
+    database="snowflake-database",
+    schema="snowflake-schema",
+    bucket=S3Bucket(bucket_name=snowflake_bucket, aws_region="us-east-1").options(
+        managed=True, force_destroy=True
+    ),
+    account=os.env["SNOWFLAKE_ACCOUNT"],
+    user=os.env["SNOWFLAKE_USER"],
+    password=os.env["SNOWFLAKE_PASS"],
+).options(managed=True, database_managed=True, schema_managed=True)
 
 
-@app.pipeline(source=source, num_cpus=0.5)
-class InputPipeline:
-    def process(self, payload: S3FileChangeEvent):
-        if payload.portable_event_type == PortableFileChangeEventType.CREATED:
-            print("File created: ", payload.file_path)
-        elif payload.portable_event_type == PortableFileChangeEventType.DELETED:
-            print("File deleted: ", payload.file_path)
+# Nested dataclasses can be used inside of your schemas.
+@dataclasses.dataclass
+class HourAggregate:
+    hour: datetime.datetime
+    stat: int
+
+
+# Define an output type for our pipeline.
+# By using a dataclass we can ensure our python type hints are validated
+# against the BigQuery table's schema.
+@dataclasses.dataclass
+class AggregateWikiPageViews:
+    date: datetime.date
+    wiki: str
+    title: str
+    daily_page_views: int
+    max_page_views_per_hour: HourAggregate
+    min_page_views_per_hour: HourAggregate
+
+
+app = buildflow.Flow(
+    flow_options=buildflow.FlowOptions(
+        require_confirmation=False,
+        runtime_log_level="DEBUG",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    )
+)
+
+
+# Define our processor.
+@app.pipeline(source=source, sink=sink)
+def process(s3_file_event: S3FileChangeEvent) -> List[AggregateWikiPageViews]:
+    if s3_file_event.portable_event_type != PortableFileChangeEventType.CREATED:
+        # skip non-created events
+        return
+    csv_string = s3_file_event.blob.decode()
+    csv_reader = csv.DictReader(io.StringIO(csv_string))
+    aggregate_stats = {}
+    for row in csv_reader:
+        timestamp = datetime.datetime.strptime(
+            row["datehour"], "%Y-%m-%d %H:%M:%S.%f %Z"
+        )
+        wiki = row["wiki"]
+        title = row["title"]
+        views = row["views"]
+
+        key = (wiki, title)
+        if key in aggregate_stats:
+            stats = aggregate_stats[key]
+            stats.daily_page_views += views
+            if views > stats.max_page_views_per_hour.stat:
+                stats.max_page_views_per_hour = HourAggregate(timestamp, views)
+            if views < stats.min_page_views_per_hour.stat:
+                stats.min_page_views_per_hour = HourAggregate(timestamp, views)
         else:
-            # This happens for the initial test event sent by AWS
-            print("UNKNOWN EVENT TYPE: ", payload.metadata)
+            aggregate_stats[key] = AggregateWikiPageViews(
+                date=timestamp.date(),
+                wiki=wiki,
+                title=title,
+                daily_page_views=views,
+                max_page_views_per_hour=HourAggregate(timestamp, views),
+                min_page_views_per_hour=HourAggregate(timestamp, views),
+            )
+
+    return list(aggregate_stats.values())

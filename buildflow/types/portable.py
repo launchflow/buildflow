@@ -5,6 +5,13 @@ from typing import Any, Dict
 from buildflow.core.types.shared_types import FilePath
 
 
+class FileFormat(enum.Enum):
+    # TODO: Support additional file formats (Arrow, Avro, etc..)
+    PARQUET = "parquet"
+    CSV = "csv"
+    JSON = "json"
+
+
 class PortableFileChangeEventType(enum.Enum):
     CREATED = "created"
     DELETED = "portable"

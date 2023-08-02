@@ -7,6 +7,8 @@ from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 from buildflow.core.io.primitive import GCPPrimtive, Primitive
 from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 from buildflow.core.types.portable_types import BucketName
+from buildflow.core.types.shared_types import FilePath
+from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
@@ -14,6 +16,10 @@ class GCSBucket(GCPPrimtive):
     project_id: GCPProjectID
     bucket_name: GCSBucketName
     bucket_region: GCPRegion
+
+    # args if you are writing to the bucket as a sink
+    file_path: Optional[FilePath] = None
+    file_format: Optional[FileFormat] = None
 
     # optional args
     # If true destroy will delete the bucket and all contents. If false
@@ -26,6 +32,8 @@ class GCSBucket(GCPPrimtive):
         gcp_options: GCPOptions,
         *,
         bucket_name: Optional[BucketName] = None,
+        file_path: Optional[FilePath] = None,
+        file_format: Optional[FileFormat] = None,
     ) -> "GCSBucket":
         project_id = gcp_options.default_project_id
         if project_id is None:
@@ -46,6 +54,8 @@ class GCSBucket(GCPPrimtive):
             project_id=project_id,
             bucket_name=bucket_name,
             bucket_region=region,
+            file_path=file_path,
+            file_format=file_format,
         )
 
     def options(
@@ -64,6 +74,8 @@ class GCSBucket(GCPPrimtive):
             bucket_name=self.bucket_name,
             bucket_region=self.bucket_region,
             force_destroy=self.force_destroy,
+            file_path=self.file_path,
+            file_format=self.file_format,
         )
 
     def pulumi_provider(self):
@@ -72,4 +84,6 @@ class GCSBucket(GCPPrimtive):
             bucket_name=self.bucket_name,
             bucket_region=self.bucket_region,
             force_destroy=self.force_destroy,
+            file_path=self.file_path,
+            file_format=self.file_format,
         )

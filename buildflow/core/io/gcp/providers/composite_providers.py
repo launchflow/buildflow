@@ -56,7 +56,10 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
         )
 
     def pulumi_resources(
-        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+        self,
+        type_: Optional[Type],
+        credentials: GCPCredentials,
+        depends_on: List[PulumiResource] = [],
     ) -> List[PulumiResource]:
         if self.gcs_bucket_provider is None:
             raise ValueError(

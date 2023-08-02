@@ -1,16 +1,16 @@
-from typing import Optional, Type
+from typing import Optional
 
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.local.strategies.file_change_stream_strategies import (
     LocalFileChangeStreamSource,
 )
-from buildflow.core.providers.provider import PulumiProvider, SourceProvider
+from buildflow.core.providers.provider import EmptyPulumiProvider, SourceProvider
 from buildflow.core.strategies.source import SourceStrategy
 from buildflow.core.types.shared_types import FilePath
 from buildflow.types.local import FileChangeStreamEventType
 
 
-class LocalFileChangeStreamProvider(SourceProvider, PulumiProvider):
+class LocalFileChangeStreamProvider(SourceProvider, EmptyPulumiProvider):
     def __init__(
         self,
         *,
@@ -28,7 +28,3 @@ class LocalFileChangeStreamProvider(SourceProvider, PulumiProvider):
             file_path=self.file_path,
             event_types=self.event_types,
         )
-
-    def pulumi_resources(self, type_: Optional[Type], depends_on: list = []):
-        # Local file provider does not have any Pulumi resources
-        return []

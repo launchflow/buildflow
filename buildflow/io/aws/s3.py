@@ -6,11 +6,17 @@ from buildflow.core.io.aws.providers.s3_provider import S3BucketProvider
 from buildflow.core.io.primitive import AWSPrimtive
 from buildflow.core.providers.provider import PulumiProvider, SinkProvider
 from buildflow.core.types.aws_types import AWSRegion, S3BucketName
+from buildflow.core.types.shared_types import FilePath
+from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
 class S3Bucket(AWSPrimtive):
     bucket_name: S3BucketName
+
+    # args if you are writing to the bucket as a sink
+    file_path: Optional[FilePath] = None
+    file_format: Optional[FileFormat] = None
 
     # optional args
     aws_region: Optional[AWSRegion] = None
@@ -33,11 +39,19 @@ class S3Bucket(AWSPrimtive):
         return to_ret
 
     def sink_provider(self) -> SinkProvider:
-        raise NotImplementedError("Writing to an s3 bucket is currently not supported")
+        return S3BucketProvider(
+            bucket_name=self.bucket_name,
+            aws_region=self.aws_region,
+            force_destroy=self.force_destroy,
+            file_path=self.file_path,
+            file_format=self.file_format,
+        )
 
     def pulumi_provider(self) -> PulumiProvider:
         return S3BucketProvider(
             bucket_name=self.bucket_name,
             aws_region=self.aws_region,
             force_destroy=self.force_destroy,
+            file_path=self.file_path,
+            file_format=self.file_format,
         )

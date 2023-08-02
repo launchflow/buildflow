@@ -15,7 +15,6 @@ from buildflow.types.gcp import GCSChangeStreamEventType
 @dataclasses.dataclass
 class GCSFileChangeStream(GCPPrimtive, CompositePrimitive):
     gcs_bucket: GCSBucket
-    pubsub_subscription: GCPPubSubSubscription
     event_types: Iterable[GCSChangeStreamEventType] = (
         GCSChangeStreamEventType.OBJECT_FINALIZE,
     )

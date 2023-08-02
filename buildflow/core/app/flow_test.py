@@ -47,6 +47,7 @@ class FlowTest(unittest.TestCase):
         class MyPipeline:
             def setup(self):
                 self.value_to_add = 1
+                self.teardown_called = False
 
             def _duplicate(self, payload: Dict[str, int]) -> Dict[str, int]:
                 # Ensure we can still call inner methods
@@ -56,6 +57,9 @@ class FlowTest(unittest.TestCase):
 
             def process(self, payload: Dict[str, int]) -> Dict[str, int]:
                 return self._duplicate(payload)
+
+            def teardown(self):
+                self.teardown_called = True
 
         self.assertIsInstance(MyPipeline, PipelineProcessor)
 
@@ -68,8 +72,11 @@ class FlowTest(unittest.TestCase):
 
         p = MyPipeline()
         p.setup()
+        p.teardown()
+
         output = p.process({"field": 1})
         self.assertEqual(output, {"field": 2})
+        self.assertEqual(p.teardown_called, True)
 
 
 if __name__ == "__main__":
