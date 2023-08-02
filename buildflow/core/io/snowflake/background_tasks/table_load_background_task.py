@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import os
 from typing import Any, Dict, Union
@@ -25,8 +26,11 @@ class SnowflakeUploadBackgroundTask(BackgroundTask):
         bucket_name: str,
         account: str,
         user: str,
+        database: str,
+        schema: str,
         pipe: str,
         private_key: str,
+        flush_time_secs: int,
     ):
         self.bucket_name = bucket_name
         self.file_system = get_file_system(credentials)
@@ -34,8 +38,11 @@ class SnowflakeUploadBackgroundTask(BackgroundTask):
         self.flush_loop = None
         self.account = account
         self.user = user
+        self.database = database
+        self.schema = schema
         self.pipe = pipe
         self.private_key = private_key
+        self.flush_time_secs = flush_time_secs
 
     async def start(self):
         self.flush_actor = _SnowflakeUploadActor.options(name=UPLOAD_ACTOR_NAME).remote(
@@ -43,8 +50,11 @@ class SnowflakeUploadBackgroundTask(BackgroundTask):
             file_system=self.file_system,
             account=self.account,
             user=self.user,
+            database=self.database,
+            schema=self.schema,
             pipe=self.pipe,
             private_key=self.private_key,
+            flush_time_secs=self.flush_time_secs,
         )
         self.flush_loop = self.flush_actor.flush.remote()
 
@@ -65,17 +75,27 @@ class _SnowflakeUploadActor:
         file_system: fsspec.AbstractFileSystem,
         account: str,
         user: str,
+        database: str,
+        schema: str,
         pipe: str,
         private_key: str,
+        flush_time_secs: int,
     ):
         self.bucket_name = bucket_name
         self.file_system = file_system
         self.staging_dir = os.path.join(self.bucket_name, BASE_STAGING_DIR)
         self.upload_dir = os.path.join(self.bucket_name, BASE_UPLOAD_DIR)
         self.running = True
+        pipe = f'"{database}"."{schema}"."{pipe}"'
         self.ingest_manager = SimpleIngestManager(
             account=account, user=user, pipe=pipe, private_key=private_key
         )
+        self.flush_time_secs = flush_time_secs
+        self.staged_files = []
+
+    def mv_file(self, src_path: str, dest_path: str) -> str:
+        self.file_system.mv(src_path, dest_path)
+        return dest_path
 
     async def mv_files(self):
         loop = asyncio.get_event_loop()
@@ -93,28 +113,51 @@ class _SnowflakeUploadActor:
             upload_file_path = os.path.join(
                 self.upload_dir, os.path.basename(src_file_path)
             )
-            staged_files.append(StagedFile(upload_file_path, src_file_size))
-            coros.append(
-                loop.run_in_executor(
-                    None,
-                    self.file_system.mv,
-                    src_file_path,
-                    upload_file_path,
-                ),
-            )
-        # TODO: need to catch exceptions here log which ones failed and continue
-        # with ones that did not
-        await asyncio.wait(*coros)
+
+            def mv_file():
+                self.file_system.mv(src_file_path, upload_file_path)
+                return upload_file_path, src_file_size
+
+            coros.append(loop.run_in_executor(None, mv_file))
+        if coros:
+            done, _ = await asyncio.wait(coros)
+            for completed in done:
+                try:
+                    file_path, file_size = completed.result()
+                    # Trim the bucket name from the file path since the file system
+                    # expects
+                    # it but snowflake wants it relative to the URL.
+                    staged_files.append(
+                        StagedFile(
+                            file_path.removeprefix(f"{self.bucket_name}/"), file_size
+                        )
+                    )
+                except Exception:
+                    logging.exception(
+                        "Failed to move file will keep in staging dir and retry on next"
+                        " flush."
+                    )
         try:
             if staged_files:
-                self.ingest_manager.ingest_files(staged_files)
+                datetime.datetime.utcnow().isoformat()
+                response = self.ingest_manager.ingest_files(staged_files)
+                if response["responseCode"] != "SUCCESS":
+                    logging.error(
+                        "Failed to ingest files to Snowflake: %s", response["message"]
+                    )
+                    return
+                # while True:
+                #     history = self.ingest_manager.get_history_range(
+                #         start_time_inclusive=ingest_start
+                #     )
+
         except Exception:
             logging.exception("Failed to upload files to Snowflake")
             return
 
     async def flush(self):
         while self.running:
-            await asyncio.sleep(60)
+            await asyncio.sleep(self.flush_time_secs)
             await self.mv_files()
 
     async def shutdown(self):

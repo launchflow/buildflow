@@ -1,7 +1,7 @@
 import asyncio
 import enum
 import os
-from typing import Any, Callable, Dict, Optional, Type, Union
+from typing import Any, Callable, Dict, Type, Union
 
 import fsspec
 import ray
@@ -32,18 +32,8 @@ class SnowflakeTableSink(SinkStrategy):
     def __init__(
         self,
         credentials: Union[AWSCredentials, GCPCredentials],
-        table: str,
-        database: str,
-        schema: str,
         # Bucket for staging data for upload to snowflake
         bucket_sink: Union[S3BucketSink, GCSBucketSink],
-        # Authentication information
-        account: Optional[str],
-        user: Optional[str],
-        password: Optional[str],
-        private_key: Optional[str],
-        private_key_passphrase: Optional[str],
-        oauth_token: Optional[str],
     ):
         super().__init__(credentials, "snowflake-table-sink")
         self.credentials = credentials

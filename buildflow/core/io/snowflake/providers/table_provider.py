@@ -1,5 +1,4 @@
 import dataclasses
-import os
 from typing import List, Optional, Type, Union
 
 import pulumi
@@ -13,7 +12,6 @@ from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
 from buildflow.core.io.snowflake.background_tasks.table_load_background_task import (
     SnowflakeUploadBackgroundTask,
 )
-from buildflow.core.io.snowflake.constants import BASE_UPLOAD_DIR
 from buildflow.core.io.snowflake.providers.schemas import type_to_snowflake_columns
 from buildflow.core.io.snowflake.strategies.table_sink_startegy import (
     SnowflakeTableSink,
@@ -33,6 +31,8 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
     table: str
     database: str
     schema: str
+    # Options for configuring flushing
+    flush_time_secs: int
     # Bucket for staging data for upload to snowflake
     bucket_provider: Union[S3BucketProvider, GCSBucketProvider]
     snow_pipe: Optional[str]
@@ -44,26 +44,14 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
     snow_pipe_managed: bool
     stage_managed: bool
     # Authentication information
-    account: Optional[str]
-    user: Optional[str]
-    password: Optional[str]
-    private_key: Optional[str]
-    private_key_passphrase: Optional[str]
-    oauth_token: Optional[str]
+    account: str
+    user: str
+    private_key: str
 
     def sink(self, credentials: Union[AWSCredentials, GCPCredentials]) -> SinkStrategy:
         return SnowflakeTableSink(
             credentials=credentials,
-            table=self.table,
-            database=self.database,
-            schema=self.schema,
             bucket_sink=self.bucket_provider.sink(credentials),
-            account=self.account,
-            user=self.user,
-            password=self.password,
-            private_key=self.private_key,
-            private_key_passphrase=self.private_key_passphrase,
-            oauth_token=self.oauth_token,
         )
 
     def background_tasks(
@@ -75,8 +63,11 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
                 bucket_name=self.bucket_provider.bucket_name,
                 account=self.account,
                 user=self.user,
+                database=self.database,
+                schema=self.schema,
                 private_key=self.private_key,
                 pipe=self.snow_pipe,
+                flush_time_secs=self.flush_time_secs,
             )
         ]
 
@@ -99,10 +90,7 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
             resource_name=f"{table_id}.snowflake_provider",
             account=self.account,
             username=self.user,
-            password=self.password,
             private_key=self.private_key,
-            private_key_passphrase=self.private_key_passphrase,
-            oauth_access_token=self.oauth_token,
         )
         if type_ is None:
             raise ValueError(
@@ -196,9 +184,8 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
                 schema=self.schema,
                 copy_options="MATCH_BY_COLUMN_NAME = CASE_SENSITIVE",
                 file_format="TYPE = PARQUET",
-                url=os.path.join(self.bucket_provider.bucket_url, BASE_UPLOAD_DIR),
+                url=self.bucket_provider.bucket_url,
                 credentials=stage_credentials,
-                # TODO: need to figure out credentials here.
             )
             depends.append(snow_stage)
             pulumi.export(f"snowflake.stage.{snow_stage_id}", snow_stage_id)

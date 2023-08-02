@@ -5,6 +5,9 @@ import io
 import os
 from typing import List
 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+
 import buildflow
 from buildflow.io.aws import S3Bucket, S3FileChangeStream
 from buildflow.io.snowflake import SnowflakeTable
@@ -13,6 +16,21 @@ from buildflow.types.portable import PortableFileChangeEventType
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
 
+
+# TODO: remove this!
+with open("/home/caleb/code/backend/snowflake_keys/rsa_key.p8", "rb") as pem_in:
+    p_key = serialization.load_pem_private_key(
+        pem_in.read(),
+        password=None,
+        backend=default_backend(),
+    )
+
+
+pk_text = p_key.private_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PrivateFormat.PKCS8,
+    encryption_algorithm=serialization.NoEncryption(),
+).decode("utf-8")
 
 bucket_name = os.getenv("BUCKET_NAME", "caleb-test-s3-input-bucket")
 snowflake_bucket = os.getenv("SNOWFLAKE_BUCKET", "caleb-s3-snowflake-bucket")
@@ -36,7 +54,7 @@ sink = SnowflakeTable(
     ),
     account=os.environ["SNOWFLAKE_ACCOUNT"],
     user=os.environ["SNOWFLAKE_USER"],
-    password=os.environ["SNOWFLAKE_PASS"],
+    private_key=pk_text,
 ).options(managed=True, database_managed=True, schema_managed=True)
 
 
@@ -64,8 +82,8 @@ app = buildflow.Flow(
     flow_options=buildflow.FlowOptions(
         require_confirmation=False,
         runtime_log_level="DEBUG",
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
     )
 )
 

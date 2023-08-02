@@ -22,6 +22,10 @@ class SnowflakeTable(Primitive):
     database: str
     schema: str
     bucket: Union[S3Bucket, GCSBucket]
+    # Arguments for authentication
+    account: Optional[str]
+    user: Optional[str]
+    private_key: Optional[str]
     # Optional arguments to configure sink
     # If snow pipe is provided, the sink will use snowpipe to load data
     # Otherwise you should run `buildflow apply` to have a snow pipe created
@@ -32,17 +36,6 @@ class SnowflakeTable(Primitive):
     # Otherwise you should run `buildflow apply` to have a stage created
     # for you.
     snowflake_stage: Optional[str] = None
-    # Arguments for authentication
-    # Users must provie one of:
-    # 1. user and password
-    # 2. user and private_key
-    # 3. oauth_token
-    account: Optional[str] = None
-    user: Optional[str] = None
-    password: Optional[str] = None
-    private_key: Optional[str] = None
-    private_key_passphrase: Optional[str] = None
-    oauth_token: Optional[str] = None
 
     # Optional arguments to configure sink
     # The maximium number of seconds to wait before flushing to SnowPipe.
@@ -64,15 +57,6 @@ class SnowflakeTable(Primitive):
             raise ValueError(
                 "Bucket must be of type S3Bucket or GCSBucket. Got: "
                 f"{type(self.bucket)}"
-            )
-        if not (
-            self.oauth_token
-            or (self.user and self.password)
-            or (self.user and (self.private_key))
-        ):
-            raise ValueError(
-                "Must provide one of: (oauth_token), "
-                "(username and password), or (username and private_key)"
             )
         self.bucket.file_format = FileFormat.PARQUET
         self.bucket.file_path = f"{uuid()}.parquet"
@@ -109,10 +93,8 @@ class SnowflakeTable(Primitive):
             stage_managed=self.stage_managed,
             account=self.account,
             user=self.user,
-            password=self.password,
             private_key=self.private_key,
-            private_key_passphrase=self.private_key_passphrase,
-            oauth_token=self.oauth_token,
+            flush_time_secs=self.flush_time_limit_secs,
         )
 
     def pulumi_provider(self) -> PulumiProvider:
@@ -130,10 +112,8 @@ class SnowflakeTable(Primitive):
             stage_managed=self.stage_managed,
             account=self.account,
             user=self.user,
-            password=self.password,
             private_key=self.private_key,
-            private_key_passphrase=self.private_key_passphrase,
-            oauth_token=self.oauth_token,
+            flush_time_secs=self.flush_time_limit_secs,
         )
 
     def background_task_provider(self) -> BackgroundTaskProvider:
@@ -151,8 +131,6 @@ class SnowflakeTable(Primitive):
             stage_managed=self.stage_managed,
             account=self.account,
             user=self.user,
-            password=self.password,
             private_key=self.private_key,
-            private_key_passphrase=self.private_key_passphrase,
-            oauth_token=self.oauth_token,
+            flush_time_secs=self.flush_time_limit_secs,
         )
