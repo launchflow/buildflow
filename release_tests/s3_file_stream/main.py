@@ -34,9 +34,9 @@ sink = SnowflakeTable(
     bucket=S3Bucket(bucket_name=snowflake_bucket, aws_region="us-east-1").options(
         managed=True, force_destroy=True
     ),
-    account=os.env["SNOWFLAKE_ACCOUNT"],
-    user=os.env["SNOWFLAKE_USER"],
-    password=os.env["SNOWFLAKE_PASS"],
+    account=os.environ["SNOWFLAKE_ACCOUNT"],
+    user=os.environ["SNOWFLAKE_USER"],
+    password=os.environ["SNOWFLAKE_PASS"],
 ).options(managed=True, database_managed=True, schema_managed=True)
 
 
