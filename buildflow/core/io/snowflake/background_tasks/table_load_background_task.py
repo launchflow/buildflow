@@ -18,6 +18,8 @@ from buildflow.core.io.snowflake.constants import (
 )
 from buildflow.core.io.utils.file_systems import get_file_system
 
+_MAX_HISTORY_CHECK_TIME_SECS = 120
+
 
 class SnowflakeUploadBackgroundTask(BackgroundTask):
     def __init__(
@@ -139,20 +141,50 @@ class _SnowflakeUploadActor:
                     )
         try:
             if staged_files:
-                datetime.datetime.utcnow().isoformat()
+                ingest_start = datetime.datetime.utcnow().isoformat()
                 response = self.ingest_manager.ingest_files(staged_files)
                 if response["responseCode"] != "SUCCESS":
                     logging.error(
                         "Failed to ingest files to Snowflake: %s", response["message"]
                     )
                     return
-                # while True:
-                #     history = self.ingest_manager.get_history_range(
-                #         start_time_inclusive=ingest_start
-                #     )
 
         except Exception:
             logging.exception("Failed to upload files to Snowflake")
+            return
+        history_loop_start = datetime.datetime.utcnow()
+        staged_file_paths = {file.path for file in staged_files}
+        while True:
+            if not staged_file_paths:
+                break
+            if (
+                history_loop_start - datetime.datetime.utcnow()
+            ).total_seconds() > _MAX_HISTORY_CHECK_TIME_SECS:
+                break
+            history_resp = self.ingest_manager.get_history_range(
+                start_time_inclusive=ingest_start
+            )
+            print("DO NOT SUBMIT: ", history_resp)
+            if len(history_resp["files"], []) <= 0:
+                # wait ten seconds and search for me
+                await asyncio.sleep(10)
+                continue
+            for file in history_resp["files"]:
+                if "path" not in file or file.status == "LOAD_IN_PROGRESS":
+                    continue
+                path = file["path"]
+                if path in staged_file_paths:
+                    staged_file_paths.remove(path)
+                if path["errorsSeen"] > 0:
+                    logging.error("failed to load file to snowflake: ", file)
+
+        if staged_file_paths:
+            logging.error(
+                "Failed to find all files in Snowflake history after %s seconds. "
+                "Files: %s",
+                _MAX_HISTORY_CHECK_TIME_SECS,
+                staged_file_paths,
+            )
             return
 
     async def flush(self):
