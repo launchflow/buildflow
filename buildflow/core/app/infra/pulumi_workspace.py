@@ -5,6 +5,7 @@ import logging
 import re
 from typing import Any, Dict, Iterable, Optional
 
+import pytz
 from pulumi import automation as auto
 
 from buildflow.config.pulumi_config import PulumiConfig
@@ -141,8 +142,8 @@ class WrappedOutputMap:
 
 
 class _PulumiResourceType(enum.Enum):
-    BIGQUERY_DATASET = "BigQuery.DataSet"
-    BIGQUERY_TABLE = "BigQuery.Table"
+    BIGQUERY_DATASET = "gcp.bigquery.dataset_id"
+    BIGQUERY_TABLE = "gcp.bigquery.table_id"
     UNKNOWN = "Unknown"
 
 
@@ -156,7 +157,10 @@ class WrappedStackState:
     @property
     def last_updated(self):
         if self._update_summary is not None:
-            return self._update_summary.end_time
+            naive_utc_datetime = self._update_summary.end_time
+            aware_utc_datetime = pytz.utc.localize(naive_utc_datetime)
+            local_datetime = aware_utc_datetime.astimezone(tz=None)
+            return local_datetime
         else:
             return datetime.datetime.now()
 
@@ -192,7 +196,9 @@ class WrappedStackState:
                 resource_type = _PulumiResourceType(key)
             except ValueError:
                 resource_type = _PulumiResourceType.UNKNOWN
-            json_resource_outputs.append({"type": resource_type.value, "value": value})
+            json_resource_outputs.append(
+                {"type": resource_type.value, "value": str(value)[1:-1]}
+            )
         return {
             "project_name": self.project_name,
             "stack_name": self.stack_name,

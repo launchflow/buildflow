@@ -14,6 +14,7 @@ from buildflow.core.options.infra_options import InfraOptions
 from buildflow.core.processor.processor import ProcessorAPI
 
 
+# @ray.remote
 class InfraActor(Infra):
     def __init__(
         self,
