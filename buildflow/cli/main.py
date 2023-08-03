@@ -147,7 +147,7 @@ def inspect(
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
     # TODO: Add support for deployment grids
-    runtime = datetime.utcnow().timestamp()
+    timestamp = datetime.now().timestamp()
     if isinstance(imported, (buildflow.Flow)):
         flow_state = imported.inspect()
         if not as_json:
@@ -156,14 +156,16 @@ def inspect(
             flow_state.pulumi_stack_state.print_summary()
         else:
             InspectStatJSON(
-                success=True, timestamp=runtime, inspect_info=flow_state.as_json_dict()
+                success=True,
+                timestamp=timestamp,
+                inspect_info=flow_state.as_json_dict(),
             ).print_json()
     else:
         if not as_json:
             typer.echo("inspect-stack must be run on a flow")
         else:
             InspectStatJSON(
-                success=False, timestamp=runtime, inspect_info={}
+                success=False, timestamp=timestamp, inspect_info={}
             ).print_json()
         typer.Exit(1)
 
