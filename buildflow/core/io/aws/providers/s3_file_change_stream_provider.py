@@ -43,16 +43,19 @@ class S3FileChangeStreamProvider(SourceProvider, PulumiProvider):
         )
 
     def pulumi_resources(
-        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+        self,
+        type_: Optional[Type],
+        credentials: AWSCredentials,
+        depends_on: List[PulumiResource] = [],
     ) -> List[PulumiResource]:
         s3_resources = []
         sqs_resources = []
         if self.bucket_managed:
             s3_resources = self.s3_bucket_provider.pulumi_resources(
-                type_=type_, depends_on=depends_on
+                type_=type_, credentials=credentials, depends_on=depends_on
             )
         sqs_resources = self.sqs_queue_provider.pulumi_resources(
-            type_=type_, depends_on=depends_on
+            type_=type_, credentials=credentials, depends_on=depends_on
         )
         provider_id = (
             f"{self.s3_bucket_provider.bucket_name}-"

@@ -3,13 +3,6 @@ import enum
 from buildflow.types.portable import PortableFileChangeEventType
 
 
-class FileFormat(enum.Enum):
-    # TODO: Support additional file formats (Arrow, Avro, etc..)
-    PARQUET = "parquet"
-    CSV = "csv"
-    JSON = "json"
-
-
 class FileChangeStreamEventType(enum.Enum):
     CREATED = "created"
     DELETED = "deleted"

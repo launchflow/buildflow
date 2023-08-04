@@ -5,6 +5,7 @@ from typing import List
 import pulumi
 import pytest
 
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.io.gcp.storage import GCSBucket
 
@@ -45,7 +46,9 @@ class GCSTest(unittest.TestCase):
 
         pulumi_resources: List[
             PulumiResource
-        ] = gcs_bucket.pulumi_provider().pulumi_resources(type_=None)
+        ] = gcs_bucket.pulumi_provider().pulumi_resources(
+            type_=None, credentials=EmptyCredentials(None)
+        )
         self.assertEqual(len(pulumi_resources), 1)
 
         all_exports = {}

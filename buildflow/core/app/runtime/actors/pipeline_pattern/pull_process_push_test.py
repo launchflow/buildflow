@@ -14,7 +14,7 @@ from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import
 )
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
-from buildflow.types.local import FileFormat
+from buildflow.types.portable import FileFormat
 
 
 @pytest.mark.usefixtures("ray_fix")

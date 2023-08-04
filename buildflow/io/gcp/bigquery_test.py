@@ -6,6 +6,7 @@ from unittest import mock
 import pulumi
 import pytest
 
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.io.gcp.bigquery import BigQueryTable
 
@@ -45,7 +46,9 @@ class BigQueryTest(unittest.TestCase):
 
         pulumi_resources: List[
             PulumiResource
-        ] = bigquery_table.pulumi_provider().pulumi_resources(type_=FakeRow)
+        ] = bigquery_table.pulumi_provider().pulumi_resources(
+            type_=FakeRow, credentials=EmptyCredentials(None)
+        )
         self.assertEqual(len(pulumi_resources), 2)
 
         all_exports = {}
@@ -100,7 +103,9 @@ class BigQueryTest(unittest.TestCase):
 
         pulumi_resources: List[
             PulumiResource
-        ] = bigquery_table.pulumi_provider().pulumi_resources(type_=FakeRow)
+        ] = bigquery_table.pulumi_provider().pulumi_resources(
+            type_=FakeRow, credentials=EmptyCredentials(None)
+        )
         self.assertEqual(len(pulumi_resources), 2)
 
         table_resource = pulumi_resources[1].resource

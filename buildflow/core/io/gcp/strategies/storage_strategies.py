@@ -1,34 +1,27 @@
-from typing import Any, Callable, Type
+import os
 
 from buildflow.core.credentials import GCPCredentials
-from buildflow.core.io.utils.clients import gcp_clients
-from buildflow.core.strategies.sink import Batch, SinkStrategy
-from buildflow.core.types.gcp_types import GCPProjectID, GCSBucketName, GCSBucketURL
+from buildflow.core.io.local.strategies.file_strategies import FileSink
+from buildflow.core.io.utils.file_systems import get_file_system
+from buildflow.core.types.gcp_types import GCPProjectID, GCSBucketName
+from buildflow.core.types.shared_types import FilePath
+from buildflow.types.portable import FileFormat
 
 
-class GCSBucketSink(SinkStrategy):
+class GCSBucketSink(FileSink):
     def __init__(
         self,
         *,
         credentials: GCPCredentials,
         project_id: GCPProjectID,
         bucket_name: GCSBucketName,
+        file_path: FilePath,
+        file_format: FileFormat,
     ):
-        super().__init__(credentials=credentials, strategy_id="gcp-gcs-bucket-sink")
-        self.project_id = project_id
+        self.credentials = credentials
+        self.strategy_id = "gcs-bucket-sink"
         self.bucket_name = bucket_name
-        clients = gcp_clients.GCPClients(
-            credentials=credentials,
-            quota_project_id=project_id,
-        )
-        self.storage_client = clients.get_storage_client(project_id)
-
-    @property
-    def bucket_url(self) -> GCSBucketURL:
-        raise NotImplementedError("TODO: Implement this property")
-
-    async def push(self, batch: Batch):
-        raise NotImplementedError("TODO: Implement this method")
-
-    def push_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
-        raise NotImplementedError("TODO: Implement this method")
+        self.file_path = os.path.join(self.bucket_name, file_path)
+        self.file_format = file_format
+        self.file_system = get_file_system(credentials)
+        self.project_id = project_id

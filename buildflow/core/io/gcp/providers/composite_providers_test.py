@@ -14,6 +14,7 @@ import pulumi
 import pulumi_gcp
 import pytest
 
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.io.gcp.providers.composite_providers import (
     GCSFileChangeStreamProvider,
 )
@@ -60,7 +61,9 @@ class GCSFileChangeStreamTest(unittest.TestCase):
             bucket_managed=True,
         )
 
-        resources = provider.pulumi_resources(type_=None)
+        resources = provider.pulumi_resources(
+            type_=None, credentials=EmptyCredentials(None)
+        )
 
         self.assertEqual(len(resources), 5)
         bucket = resources[0]
@@ -104,7 +107,9 @@ class GCSFileChangeStreamTest(unittest.TestCase):
             bucket_managed=False,
         )
 
-        resources = provider.pulumi_resources(type_=None)
+        resources = provider.pulumi_resources(
+            type_=None, credentials=EmptyCredentials(None)
+        )
 
         self.assertEqual(len(resources), 2)
         notification = resources[0]

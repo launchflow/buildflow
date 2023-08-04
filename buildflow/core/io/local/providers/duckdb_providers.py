@@ -28,6 +28,11 @@ class DuckDBProvider(SinkProvider, PulumiProvider):
             table=self.table,
         )
 
-    def pulumi_resources(self, type_: Optional[Type], depends_on: list = []):
+    def pulumi_resources(
+        self,
+        type_: Optional[Type],
+        credeitnals: EmptyCredentials,
+        depends_on: list = [],
+    ):
         # Local file provider does not have any Pulumi resources
         return []

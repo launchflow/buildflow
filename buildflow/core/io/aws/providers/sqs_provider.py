@@ -45,7 +45,10 @@ class SQSQueueProvider(PulumiProvider, SinkProvider, SourceProvider):
         )
 
     def pulumi_resources(
-        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+        self,
+        type_: Optional[Type],
+        credentials: AWSCredentials,
+        depends_on: List[PulumiResource] = [],
     ) -> List[PulumiResource]:
         queue_id_components = []
         if self.aws_region is not None:

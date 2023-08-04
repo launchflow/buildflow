@@ -44,7 +44,10 @@ class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
         )
 
     def pulumi_resources(
-        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+        self,
+        type_: Optional[Type],
+        credentials: GCPCredentials,
+        depends_on: List[PulumiResource] = [],
     ):
         # TODO: Support schemas for topics
         del type_
@@ -95,7 +98,10 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
         )
 
     def pulumi_resources(
-        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+        self,
+        type_: Optional[Type],
+        credentials: GCPCredentials,
+        depends_on: List[PulumiResource] = [],
     ):
         depends = [tr.resource for tr in depends_on]
         subscription_resource = pulumi_gcp.pubsub.Subscription(

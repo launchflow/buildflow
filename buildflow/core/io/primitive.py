@@ -1,4 +1,5 @@
 import enum
+from typing import Optional
 
 from buildflow.config.cloud_provider_config import (
     AWSOptions,
@@ -8,6 +9,7 @@ from buildflow.config.cloud_provider_config import (
     LocalOptions,
 )
 from buildflow.core.providers.provider import (
+    BackgroundTaskProvider,
     PulumiProvider,
     SinkProvider,
     SourceProvider,
@@ -22,6 +24,7 @@ class PrimitiveType(enum.Enum):
     AZURE = "azure"
     LOCAL = "local"
     EMPTY = "empty"
+    AGNOSTIC = "agnostic"
 
 
 class Primitive:
@@ -49,6 +52,10 @@ class Primitive:
         raise NotImplementedError(
             f"Primitive.pulumi_provider() is not implemented for type: {type(self)}."
         )
+
+    def background_task_provider(self) -> Optional[BackgroundTaskProvider]:
+        """Return a background task provider for this primitive."""
+        return None
 
     def options(self, managed: bool = False) -> "Primitive":
         """Return a copy of this primitive with the managed flag set."""
@@ -131,3 +138,9 @@ class LocalPrimtive(Primitive):
     # They defer to their underlying primitives on what should actually be managed.
     def options(self) -> "Primitive":
         return self
+
+
+class AgnosticPrimitive(Primitive):
+    """Agnostic primitives are not tied to a specific cloud provider."""
+
+    primitive_type = PrimitiveType.AGNOSTIC
