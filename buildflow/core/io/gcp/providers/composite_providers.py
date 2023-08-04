@@ -71,11 +71,15 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
         subscription_resources = []
         # Set up GCP bucket
         if self.bucket_managed:
-            gcs_resources = self.gcs_bucket_provider.pulumi_resources(type_)
+            gcs_resources = self.gcs_bucket_provider.pulumi_resources(
+                type_, credentials=credentials
+            )
         gcs_pulumi_resources = [tr.resource for tr in gcs_resources]
         # Set up pubsub topic
         if self.topic_managed:
-            topic_resources = self.pubsub_topic_provider.pulumi_resources(type_)
+            topic_resources = self.pubsub_topic_provider.pulumi_resources(
+                type_, credentials=credentials
+            )
         gcs_account = pulumi_gcp.storage.get_project_service_account(
             project=self.gcs_bucket_provider.project_id,
             user_project=self.gcs_bucket_provider.project_id,
@@ -112,7 +116,7 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
         # Setup pubsub subscription
         if self.subscription_managed:
             subscription_resources = self.pubsub_subscription_provider.pulumi_resources(
-                type_, depends_on=topic_resources
+                type_, depends_on=topic_resources, credentials=credentials
             )
         return (
             gcs_resources

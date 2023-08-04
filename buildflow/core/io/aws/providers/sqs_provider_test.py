@@ -3,6 +3,7 @@ import unittest
 import pulumi
 import pulumi_aws
 
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.io.aws.providers import sqs_provider
 
 
@@ -27,7 +28,9 @@ class SqsProviderTest(unittest.TestCase):
             queue_name="test_queue", aws_account_id="123456789", aws_region="us-east-1"
         )
 
-        pulumi_resources = provider.pulumi_resources(type_=None, depends_on=[])
+        pulumi_resources = provider.pulumi_resources(
+            type_=None, depends_on=[], credentials=EmptyCredentials(None)
+        )
 
         self.assertEqual(len(pulumi_resources), 1)
 

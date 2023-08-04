@@ -46,7 +46,7 @@ class FileSink(SinkStrategy):
         elif self.file_format == FileFormat.CSV:
             if batch:
                 table = pa.Table.from_pylist(batch)
-                if exists:
+                if exists and self.file_system.size(self.file_path) > 0:
                     with self.file_system.open(self.file_path, "rb") as source:
                         table = pa.concat_tables([table, pcsv.read_csv(source)])
                 with self.file_system.open(self.file_path, "wb") as output:

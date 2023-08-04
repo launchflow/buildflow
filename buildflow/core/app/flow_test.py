@@ -8,7 +8,7 @@ from buildflow.core.app.flow import Flow
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
-from buildflow.types.local import FileFormat
+from buildflow.types.portable import FileFormat
 
 
 class FlowTest(unittest.TestCase):

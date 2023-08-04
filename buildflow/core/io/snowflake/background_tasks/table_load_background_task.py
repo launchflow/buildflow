@@ -101,12 +101,20 @@ class _SnowflakeUploadActor:
 
     async def mv_files(self):
         loop = asyncio.get_event_loop()
+        files = []
         try:
             files: Dict[str, Any] = await loop.run_in_executor(
                 None, self.file_system.ls, self.staging_dir, True
             )
         except FileNotFoundError:
-            files = []
+            # This happens when the staging dir doesn't exist yet.
+            # Meaning there are no files to upload
+            self.file_system.invalidate_cache(self.staging_dir)
+            return
+        except Exception:
+            logging.exception("Failed to list files in staging dir")
+            self.file_system.invalidate_cache(self.staging_dir)
+            return
         coros = []
         staged_files = []
         for file in files:
@@ -141,7 +149,11 @@ class _SnowflakeUploadActor:
                     )
         try:
             if staged_files:
-                ingest_start = datetime.datetime.utcnow().isoformat()
+                ingest_start = (
+                    datetime.datetime.utcnow()
+                    .replace(tzinfo=datetime.timezone.utc)
+                    .isoformat()
+                )
                 response = self.ingest_manager.ingest_files(staged_files)
                 if response["responseCode"] != "SUCCESS":
                     logging.error(
@@ -164,19 +176,19 @@ class _SnowflakeUploadActor:
             history_resp = self.ingest_manager.get_history_range(
                 start_time_inclusive=ingest_start
             )
-            print("DO NOT SUBMIT: ", history_resp)
-            if len(history_resp["files"], []) <= 0:
-                # wait ten seconds and search for me
+            ingest_start = history_resp["rangeEndTime"]
+            if len(history_resp.get("files", [])) <= 0:
+                # wait ten seconds and search for more
                 await asyncio.sleep(10)
                 continue
             for file in history_resp["files"]:
-                if "path" not in file or file.status == "LOAD_IN_PROGRESS":
+                if "path" not in file or file["status"] == "LOAD_IN_PROGRESS":
                     continue
                 path = file["path"]
                 if path in staged_file_paths:
                     staged_file_paths.remove(path)
-                if path["errorsSeen"] > 0:
-                    logging.error("failed to load file to snowflake: ", file)
+                    if file["errorsSeen"] > 0:
+                        logging.error("failed to load file to snowflake: ", file)
 
         if staged_file_paths:
             logging.error(
@@ -190,7 +202,10 @@ class _SnowflakeUploadActor:
     async def flush(self):
         while self.running:
             await asyncio.sleep(self.flush_time_secs)
-            await self.mv_files()
+            try:
+                await self.mv_files()
+            except Exception:
+                logging.exception("Failed to flush files to Snowflake")
 
     async def shutdown(self):
         self.running = False

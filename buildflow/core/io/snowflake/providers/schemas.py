@@ -34,11 +34,11 @@ def _dataclass_to_snowflake_columns(type_: Type):
             and len(field.type.__args__) == 2
             and field.type.__args__[-1] is type(None)
         ):  # noqa: E721
-            is_nullable = "NULLABLE"
+            is_nullable = True
             field_type = field.type.__args__[0]
-        if hasattr(field_type, "__args__") and field.type.__origin__ is list:
+        if hasattr(field_type, "__args__") and field_type.__origin__ is list:
             col_type = "ARRAY"
-        elif dataclasses.is_dataclass(field.type):
+        elif dataclasses.is_dataclass(field_type):
             col_type = "OBJECT"
         elif field_type in _PYTYPE_TO_SNOWFLAKE_TYPE:
             col_type = _PYTYPE_TO_SNOWFLAKE_TYPE[field_type]

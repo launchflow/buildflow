@@ -3,7 +3,7 @@ import unittest
 
 import boto3
 import pytest
-from moto import mock_s3, mock_sqs
+from moto import mock_sqs
 
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.io.aws.strategies.s3_file_change_stream_strategies import (
@@ -153,10 +153,6 @@ class S3FileChangeStreamTest(unittest.TestCase):
         )
         self.assertEqual(delete.metadata, contents["Records"][1])
         self.assertEqual(delete.file_path, want_delete_path)
-
-    @mock_s3
-    def test_s3_file_change_event_blob(self):
-        pass
 
 
 if __name__ == "__main__":
