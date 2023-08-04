@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 import os
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import fsspec
 import ray
@@ -33,6 +33,7 @@ class SnowflakeUploadBackgroundTask(BackgroundTask):
         pipe: str,
         private_key: str,
         flush_time_secs: int,
+        test_ingest_manager: Optional[Any] = None,
     ):
         self.bucket_name = bucket_name
         self.file_system = get_file_system(credentials)
@@ -45,6 +46,7 @@ class SnowflakeUploadBackgroundTask(BackgroundTask):
         self.pipe = pipe
         self.private_key = private_key
         self.flush_time_secs = flush_time_secs
+        self.test_ingest_manager = test_ingest_manager
 
     async def start(self):
         self.flush_actor = _SnowflakeUploadActor.options(name=UPLOAD_ACTOR_NAME).remote(
@@ -57,6 +59,7 @@ class SnowflakeUploadBackgroundTask(BackgroundTask):
             pipe=self.pipe,
             private_key=self.private_key,
             flush_time_secs=self.flush_time_secs,
+            test_ingest_manager=self.test_ingest_manager,
         )
         self.flush_loop = self.flush_actor.flush.remote()
 
@@ -82,6 +85,7 @@ class _SnowflakeUploadActor:
         pipe: str,
         private_key: str,
         flush_time_secs: int,
+        test_ingest_manager: Optional[Any] = None,
     ):
         self.bucket_name = bucket_name
         self.file_system = file_system
@@ -89,9 +93,12 @@ class _SnowflakeUploadActor:
         self.upload_dir = os.path.join(self.bucket_name, BASE_UPLOAD_DIR)
         self.running = True
         pipe = f'"{database}"."{schema}"."{pipe}"'
-        self.ingest_manager = SimpleIngestManager(
-            account=account, user=user, pipe=pipe, private_key=private_key
-        )
+        if test_ingest_manager is not None:
+            self.ingest_manager = test_ingest_manager
+        else:
+            self.ingest_manager = SimpleIngestManager(
+                account=account, user=user, pipe=pipe, private_key=private_key
+            )
         self.flush_time_secs = flush_time_secs
         self.staged_files = []
 
