@@ -7,7 +7,6 @@ from buildflow.core.io.utils.clients.aws_clients import AWSClients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.types.aws import S3ChangeStreamEventType, S3FileChangeEvent
-from buildflow.types.portable import PortableFileChangeEventType
 
 
 class S3FileChangeStreamSource(SourceStrategy):
@@ -40,7 +39,7 @@ class S3FileChangeStreamSource(SourceStrategy):
                             bucket_name=bucket_name,
                             s3_client=self._s3_client,
                             file_path=file_path,
-                            portable_event_type=s3_event_type.to_portable_type(),
+                            event_type=s3_event_type,
                             metadata=record,
                         )
                     )
@@ -53,7 +52,7 @@ class S3FileChangeStreamSource(SourceStrategy):
                         bucket_name=metadata.get("Bucket"),
                         metadata=metadata,
                         file_path=None,
-                        portable_event_type=PortableFileChangeEventType.UNKNOWN,
+                        event_type=S3ChangeStreamEventType.UNKNOWN,
                     )
                 )
         return PullResponse(parsed_payloads, sqs_response.ack_info)

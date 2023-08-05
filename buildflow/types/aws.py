@@ -15,6 +15,25 @@ class S3ChangeStreamEventType(enum.Enum):
     OBJECT_REMOVED_ALL = "ObjectRemoved:*"
     OBJECT_REMOVED_DELETE = "ObjectRemoved:Delete"
     OBJECT_REMOVED_DELETE_MARKER_CREATED = "ObjectRemoved:DeleteMarkerCreated"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def create_event_types(cls):
+        return [
+            cls.OBJECT_CREATED_ALL,
+            cls.OBJECT_CREATED_PUT,
+            cls.OBJECT_CREATED_POST,
+            cls.OBJECT_CREATED_COPY,
+            cls.OBJECT_CREATED_COMPLETE_MULTIPART_UPLOAD,
+        ]
+
+    @classmethod
+    def delete_event_types(cls):
+        return [
+            cls.OBJECT_REMOVED_ALL,
+            cls.OBJECT_REMOVED_DELETE,
+            cls.OBJECT_REMOVED_DELETE_MARKER_CREATED,
+        ]
 
     @classmethod
     def from_portable_type(cls, portable_type: PortableFileChangeEventType):
@@ -38,6 +57,7 @@ class S3ChangeStreamEventType(enum.Enum):
 
 @dataclasses.dataclass
 class S3FileChangeEvent(FileChangeEvent):
+    event_type: S3ChangeStreamEventType
     bucket_name: S3BucketName
     s3_client: Any
 

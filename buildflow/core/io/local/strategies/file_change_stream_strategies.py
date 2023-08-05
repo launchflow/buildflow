@@ -11,17 +11,7 @@ from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.core.types.shared_types import FilePath
 from buildflow.types.local import FileChangeStreamEventType
-from buildflow.types.portable import FileChangeEvent, PortableFileChangeEventType
-
-
-def _watchdog_event_to_portable_event_type(
-    watchdog_event_type: str,
-) -> PortableFileChangeEventType:
-    if watchdog_event_type == "created":
-        return PortableFileChangeEventType.CREATED
-    elif watchdog_event_type == "deleted":
-        return PortableFileChangeEventType.DELETED
-    return PortableFileChangeEventType.UNKNOWN
+from buildflow.types.portable import FileChangeEvent
 
 
 class EventHandler(FileSystemEventHandler):
@@ -65,6 +55,8 @@ class EventHandler(FileSystemEventHandler):
 
 @dataclasses.dataclass
 class LocalFileChangeEvent(FileChangeEvent):
+    event_type: FileChangeStreamEventType
+
     @property
     def blob(self) -> bytes:
         if self.metadata["eventType"] == "deleted":
@@ -110,9 +102,7 @@ class LocalFileChangeStreamSource(SourceStrategy):
             payloads.append(
                 LocalFileChangeEvent(
                     file_path=event.src_path,
-                    portable_event_type=_watchdog_event_to_portable_event_type(
-                        event.event_type
-                    ),
+                    event_type=FileChangeStreamEventType(event.event_type),
                     metadata=metadata,
                 )
             )
