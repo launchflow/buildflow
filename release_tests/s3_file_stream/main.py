@@ -91,7 +91,7 @@ app = buildflow.Flow(
 # Define our processor.
 @app.pipeline(source=source, sink=sink)
 def process(s3_file_event: S3FileChangeEvent) -> List[AggregateWikiPageViews]:
-    if s3_file_event.portable_event_type != PortableFileChangeEventType.CREATED:
+    if s3_file_event.event_type != PortableFileChangeEventType.CREATED:
         # skip non-created events
         return
     csv_string = s3_file_event.blob.decode()

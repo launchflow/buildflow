@@ -21,7 +21,7 @@ class PortableFileChangeEventType(enum.Enum):
 @dataclass
 class FileChangeEvent:
     file_path: FilePath
-    portable_event_type: PortableFileChangeEventType
+    event_type: PortableFileChangeEventType
 
     # Metadata specific to the cloud provider.
     metadata: Dict[str, Any]

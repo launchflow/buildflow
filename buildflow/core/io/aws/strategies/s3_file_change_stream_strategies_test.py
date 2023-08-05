@@ -12,7 +12,7 @@ from buildflow.core.io.aws.strategies.s3_file_change_stream_strategies import (
 from buildflow.core.io.aws.strategies.sqs_strategies import SQSSink, SQSSource
 from buildflow.core.options.credentials_options import CredentialsOptions
 from buildflow.core.types.aws_types import AWSRegion, SQSQueueName
-from buildflow.types.portable import PortableFileChangeEventType
+from buildflow.types.aws import S3ChangeStreamEventType
 
 
 @pytest.mark.usefixtures("event_loop_instance")
@@ -84,9 +84,7 @@ class S3FileChangeStreamTest(unittest.TestCase):
 
         payload = pull_response.payload[0]
         self.assertEqual(payload.bucket_name, "test-bucket")
-        self.assertEqual(
-            payload.portable_event_type, PortableFileChangeEventType.UNKNOWN
-        )
+        self.assertEqual(payload.event_type, S3ChangeStreamEventType.UNKNOWN)
         self.assertEqual(payload.metadata, contents)
         self.assertEqual(payload.file_path, None)
 
@@ -140,16 +138,14 @@ class S3FileChangeStreamTest(unittest.TestCase):
 
         create = pull_response.payload[0]
         self.assertEqual(create.bucket_name, "test-bucket")
-        self.assertEqual(
-            create.portable_event_type, PortableFileChangeEventType.CREATED
-        )
+        self.assertEqual(create.event_type, S3ChangeStreamEventType.OBJECT_CREATED_PUT)
         self.assertEqual(create.metadata, contents["Records"][0])
         self.assertEqual(create.file_path, want_create_path)
 
         delete = pull_response.payload[1]
         self.assertEqual(delete.bucket_name, "test-bucket")
         self.assertEqual(
-            delete.portable_event_type, PortableFileChangeEventType.DELETED
+            delete.event_type, S3ChangeStreamEventType.OBJECT_REMOVED_DELETE
         )
         self.assertEqual(delete.metadata, contents["Records"][1])
         self.assertEqual(delete.file_path, want_delete_path)

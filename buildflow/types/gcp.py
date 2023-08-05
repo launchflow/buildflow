@@ -25,6 +25,7 @@ class GCSChangeStreamEventType(enum.Enum):
 
 @dataclasses.dataclass
 class GCSFileChangeEvent(FileChangeEvent):
+    event_type: GCSChangeStreamEventType
     storage_client: storage.Client
 
     @property
