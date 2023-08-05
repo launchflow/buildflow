@@ -1,9 +1,9 @@
 from typing import Optional, Type
 
 from buildflow.core.credentials import EmptyCredentials
-from buildflow.core.io.local.strategies.duckdb_strategies import DuckDBSink
+from buildflow.core.io.duckdb.strategies.duckdb_strategies import DuckDBSink
 from buildflow.core.providers.provider import PulumiProvider, SinkProvider
-from buildflow.core.types.local_types import DuckDBDatabase, DuckDBTable
+from buildflow.core.types.duckdb_types import DuckDBDatabase, DuckDBTableID
 
 
 class DuckDBProvider(SinkProvider, PulumiProvider):
@@ -11,7 +11,7 @@ class DuckDBProvider(SinkProvider, PulumiProvider):
         self,
         *,
         database: DuckDBDatabase,
-        table: DuckDBTable,
+        table: DuckDBTableID,
         # source-only options
         # sink-only options
         # pulumi-only options

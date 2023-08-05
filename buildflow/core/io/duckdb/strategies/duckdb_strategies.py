@@ -8,7 +8,7 @@ import pandas as pd
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.sink import SinkStrategy
-from buildflow.core.types.local_types import DuckDBDatabase, DuckDBTable
+from buildflow.core.types.duckdb_types import DuckDBDatabase, DuckDBTableID
 
 _MAX_CONNECT_TRIES = 25
 
@@ -19,7 +19,7 @@ class DuckDBSink(SinkStrategy):
         *,
         credentials: EmptyCredentials,
         database: DuckDBDatabase,
-        table: DuckDBTable,
+        table: DuckDBTableID,
     ):
         super().__init__(credentials=credentials, strategy_id="local-duckdb-sink")
         self.database = database

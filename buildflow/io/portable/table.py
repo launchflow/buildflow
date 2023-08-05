@@ -6,8 +6,8 @@ from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderC
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
 from buildflow.core.strategies._strategy import StategyType
 from buildflow.core.types.portable_types import TableName
+from buildflow.io.duckdb.duckdb import DuckDBTable
 from buildflow.io.gcp.bigquery import BigQueryTable
-from buildflow.io.local.duckdb import DuckDB
 
 
 @dataclasses.dataclass
@@ -40,7 +40,7 @@ class AnalysisTable(PortablePrimtive):
         # Local Implementations
         elif cloud_provider_config.default_cloud_provider == CloudProvider.LOCAL:
             database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
-            return DuckDB(database=database, table=self.table_name)
+            return DuckDBTable(database=database, table=self.table_name)
         # Sanity check
         else:
             raise ValueError(
