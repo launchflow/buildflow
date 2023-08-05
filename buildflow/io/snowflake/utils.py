@@ -3,7 +3,7 @@ from cryptography.hazmat.primitives import serialization
 
 
 def read_private_key_file(file_path: str) -> str:
-    with open("/home/caleb/code/backend/snowflake_keys/rsa_key.p8", "rb") as pem_in:
+    with open(file_path, "rb") as pem_in:
         p_key = serialization.load_pem_private_key(
             pem_in.read(),
             password=None,
