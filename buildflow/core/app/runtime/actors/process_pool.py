@@ -9,6 +9,7 @@ from ray.actor import ActorHandle
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, Snapshot
 from buildflow.core.app.runtime.metrics import SimpleGaugeMetric
+from buildflow.core.background_tasks.background_task import BackgroundTask
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
 
@@ -67,6 +68,7 @@ class ProcessorReplicaPoolActor(Runtime):
         self.options = processor_options
         # initial runtime state
         self.replicas: List[ReplicaReference] = []
+        self.background_tasks: List[BackgroundTask] = self.processor.background_tasks()
         self._status = RuntimeStatus.IDLE
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
@@ -138,7 +140,7 @@ class ProcessorReplicaPoolActor(Runtime):
 
         self.num_replicas_gauge.set(len(self.replicas))
 
-    def run(self):
+    async def run(self):
         logging.info(f"Starting ProcessorPool({self.processor.processor_id})...")
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
@@ -146,10 +148,19 @@ class ProcessorReplicaPoolActor(Runtime):
         for replica in self.replicas:
             replica.ray_actor_handle.run.remote()
 
+        coros = []
+        for task in self.background_tasks:
+            coros.append(task.start())
+        await asyncio.gather(*coros)
+
     async def drain(self):
         logging.info(f"Draining ProcessorPool({self.processor.processor_id})...")
         self._status = RuntimeStatus.DRAINING
         await self.remove_replicas(len(self.replicas))
+        coros = []
+        for task in self.background_tasks:
+            coros.append(task.shutdown())
+        await asyncio.gather(*coros)
         self._status = RuntimeStatus.IDLE
         logging.info(f"Drain ProcessorPool({self.processor.processor_id}) complete.")
         return True

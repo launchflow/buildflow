@@ -156,6 +156,22 @@ class BigqueryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             bq_schemas.dataclass_fields_to_bq_schema(dataclasses.fields(Schema))
 
+    def test_optional_list(self):
+        @dataclass
+        class Schema:
+            opt_list: Optional[List[int]]
+
+        with self.assertRaises(ValueError):
+            bq_schemas.dataclass_fields_to_bq_schema(dataclasses.fields(Schema))
+
+    def test_list_of_optionals(self):
+        @dataclass
+        class Schema:
+            opt_list: List[Optional[int]]
+
+        with self.assertRaises(ValueError):
+            bq_schemas.dataclass_fields_to_bq_schema(dataclasses.fields(Schema))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,15 +1,15 @@
 import dataclasses
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.core.io.local.providers.duckdb_providers import DuckDBProvider
+from buildflow.core.io.duckdb.providers.duckdb_providers import DuckDBProvider
 from buildflow.core.io.primitive import LocalPrimtive
-from buildflow.core.types.local_types import DuckDBDatabase, DuckDBTable
+from buildflow.core.types.duckdb_types import DuckDBDatabase, DuckDBTableID
 
 
 @dataclasses.dataclass
-class DuckDB(LocalPrimtive):
+class DuckDBTable(LocalPrimtive):
     database: DuckDBDatabase
-    table: DuckDBTable
+    table: DuckDBTableID
 
     @classmethod
     def from_local_options(
@@ -17,7 +17,7 @@ class DuckDB(LocalPrimtive):
         local_options: LocalOptions,
         *,
         database: DuckDBDatabase,
-        table: DuckDBTable,
+        table: DuckDBTableID,
     ) -> "LocalPrimtive":
         """Create a primitive from LocalOptions."""
         return cls(database, table)

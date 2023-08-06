@@ -16,6 +16,7 @@ from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, WrappedSt
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.app.runtime.server import RuntimeServer
+from buildflow.core.background_tasks.background_task import BackgroundTask
 from buildflow.core.credentials._credentials import CredentialType
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
@@ -126,6 +127,14 @@ class Flow:
             )
             primitive.enable_managed()
         return primitive
+
+    def _background_tasks(
+        self, primitive: Primitive, credentials: CredentialType
+    ) -> List[BackgroundTask]:
+        provider = primitive.background_task_provider()
+        if provider is not None:
+            return provider.background_tasks(credentials)
+        return []
 
     # NOTE: The Flow class is responsible for converting Primitives into a Provider
     def pipeline(
@@ -294,8 +303,15 @@ class Flow:
                     if hasattr(self.instance, "setup"):
                         self.instance.setup()
 
-                def wrapper_function(self, args, **kwargs):
-                    return self.instance.process(*args, **kwargs)
+                async def teardown(self):
+                    coros = []
+                    if hasattr(self.instance, "teardown"):
+                        if inspect.iscoroutinefunction(self.instance.teardown()):
+                            coros.append(self.instance.teardown())
+                        else:
+                            self.instance.teardown()
+                    coros.extend([self.source().teardown(), self.sink().teardown()])
+                    await asyncio.gather(*coros)
 
                 full_arg_spec = inspect.getfullargspec(
                     original_process_fn_or_class.process
@@ -305,8 +321,10 @@ class Flow:
                 def setup(self):
                     return None
 
-                def wrapper_function(*args, **kwargs):
-                    return original_process_fn_or_class(*args, **kwargs)
+                async def teardown(self):
+                    await asyncio.gather(
+                        self.source().teardown(), self.sink().teardown()
+                    )
 
                 full_arg_spec = inspect.getfullargspec(original_process_fn_or_class)
             input_type = None
@@ -337,7 +355,8 @@ class Flow:
                 if source_primitive.managed and include_source_primitive:
                     source_pulumi_provider = source_primitive.pulumi_provider()
                     source_resources = source_pulumi_provider.pulumi_resources(
-                        input_type
+                        type_=input_type,
+                        credentials=source_credentials,
                     )
                 return source_resources
 
@@ -355,6 +374,11 @@ class Flow:
                 sink_resources = sink_resources_fn()
                 return source_resources + sink_resources
 
+            def background_tasks():
+                return self._background_tasks(
+                    source_primitive, source_credentials
+                ) + self._background_tasks(sink_primitive, sink_credentials)
+
             # Dynamically define a new class with the same structure as Processor
             processor_id = original_process_fn_or_class.__name__
             class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
@@ -369,6 +393,8 @@ class Flow:
                 # ProcessorAPI methods. NOTE: process() is attached separately below
                 "resources": lambda self: pulumi_resources(),
                 "setup": setup,
+                "teardown": teardown,
+                "background_tasks": lambda self: background_tasks(),
                 "__meta__": {
                     "source": {
                         "type": source_primitive.primitive_type.value,

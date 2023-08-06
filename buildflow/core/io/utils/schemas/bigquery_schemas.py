@@ -58,6 +58,14 @@ def dataclass_to_json_bq_schema(type_: Type) -> str:
     return json.dumps(json_fields)
 
 
+def _is_optional(field_type):
+    return (
+        hasattr(field_type, "__args__")
+        and len(field_type.__args__) == 2
+        and field_type.__args__[-1] is type(None)
+    )
+
+
 def dataclass_fields_to_bq_schema(
     fields: dataclasses.Field,
 ) -> List[bigquery.SchemaField]:
@@ -66,16 +74,20 @@ def dataclass_fields_to_bq_schema(
         name = field.name
         field_type = field.type
         mode = "REQUIRED"
-        if (
-            hasattr(field.type, "__args__")
-            and len(field.type.__args__) == 2
-            and field.type.__args__[-1] is type(None)
-        ):  # noqa: E721
+        if _is_optional(field.type):
             mode = "NULLABLE"
             field_type = field.type.__args__[0]
-        if hasattr(field.type, "__args__") and field.type.__origin__ is list:
+        if hasattr(field_type, "__args__") and field_type.__origin__ is list:
+            if mode == "NULLABLE":
+                raise ValueError("BigQuery does not support optional lists.")
             mode = "REPEATED"
-            field_type = field.type.__args__[0]
+            field_type = field_type.__args__[0]
+            if _is_optional(field_type):
+                raise ValueError(
+                    "BigQuery does not support optional fields inside of a list."
+                )
+                field_type = field_type.__args__[0]
+        print("DO NOT SUBMIT: ", field_type)
         if dataclasses.is_dataclass(field_type):
             sub_fields = dataclass_fields_to_bq_schema(_dataclass_fields(field_type))
             bq_fields.append(

@@ -55,7 +55,10 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         )
 
     def pulumi_resources(
-        self, type_: Optional[Type], depends_on: List[PulumiResource] = []
+        self,
+        type_: Optional[Type],
+        credentials: GCPCredentials,
+        depends_on: List[PulumiResource] = [],
     ):
         resources = []
         if self.include_dataset:

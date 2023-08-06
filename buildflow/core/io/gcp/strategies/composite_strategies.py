@@ -8,17 +8,6 @@ from buildflow.core.io.utils.clients import gcp_clients
 from buildflow.core.io.utils.schemas import converters
 from buildflow.core.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.types.gcp import GCSChangeStreamEventType, GCSFileChangeEvent
-from buildflow.types.portable import PortableFileChangeEventType
-
-
-def _gcs_event_to_portable_event(
-    gcs_event_type: GCSChangeStreamEventType,
-) -> PortableFileChangeEventType:
-    if gcs_event_type == GCSChangeStreamEventType.OBJECT_DELETE:
-        return PortableFileChangeEventType.DELETED
-    elif gcs_event_type == GCSChangeStreamEventType.OBJECT_FINALIZE:
-        return PortableFileChangeEventType.CREATED
-    return PortableFileChangeEventType.UNKNOWN
 
 
 class GCSFileChangeStreamSource(SourceStrategy):
@@ -45,9 +34,7 @@ class GCSFileChangeStreamSource(SourceStrategy):
         payload = [
             GCSFileChangeEvent(
                 file_path=payload.attributes["objectId"],
-                portable_event_type=_gcs_event_to_portable_event(
-                    GCSChangeStreamEventType[payload.attributes["eventType"]]
-                ),
+                event_type=GCSChangeStreamEventType[payload.attributes["eventType"]],
                 metadata=payload.attributes,
                 storage_client=self.storage_client,
             )

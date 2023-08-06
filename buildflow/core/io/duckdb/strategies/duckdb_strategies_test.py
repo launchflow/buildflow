@@ -8,7 +8,7 @@ from multiprocessing import Process
 import duckdb
 import pytest
 
-from buildflow.core.io.local.strategies import duckdb_strategies
+from buildflow.core.io.duckdb.strategies import duckdb_strategies
 
 
 @pytest.mark.usefixtures("event_loop_instance")

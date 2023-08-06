@@ -17,12 +17,17 @@ class AWSClients:
         self.region = region
 
     def _get_boto_client(self, service_name: str):
+        if self.creds.session_token:
+            return boto3.client(
+                service_name=service_name,
+                region_name=self.region,
+                aws_session_token=self.creds.session_token,
+            )
         return boto3.client(
             service_name=service_name,
             region_name=self.region,
             aws_access_key_id=self.creds.access_key_id,
             aws_secret_access_key=self.creds.secret_access_key,
-            aws_session_token=self.creds.session_token,
         )
 
     def sqs_client(self):

@@ -5,7 +5,7 @@ from buildflow.config.cloud_provider_config import LocalOptions
 from buildflow.core.io.local.providers.file_providers import FileProvider
 from buildflow.core.io.primitive import LocalPrimtive
 from buildflow.core.types.shared_types import FilePath
-from buildflow.types.local import FileFormat
+from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass

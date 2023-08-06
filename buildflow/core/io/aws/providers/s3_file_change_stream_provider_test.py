@@ -11,13 +11,15 @@ from buildflow.core.io.aws.providers.sqs_provider import SQSQueueProvider
 from buildflow.types.aws import S3ChangeStreamEventType
 
 
-@pytest.mark.skip("fails for some reason around the queue policy")
+@pytest.mark.skip("gets made about queue policy I think")
 class S3FileChangeStreamProviderTest(unittest.TestCase):
     def test_pulumi_resources(self):
         bucket_name = "test-bucket"
         queue_name = "queue-name"
         region = "us-east-1"
-        bucket_provider = S3BucketProvider(bucket_name=bucket_name, aws_region=region)
+        bucket_provider = S3BucketProvider(
+            bucket_name=bucket_name, aws_region=region, file_format=None, file_path=None
+        )
         sqs_provider = SQSQueueProvider(
             queue_name=queue_name, aws_region=region, aws_account_id=None
         )
@@ -28,7 +30,9 @@ class S3FileChangeStreamProviderTest(unittest.TestCase):
             event_types=[S3ChangeStreamEventType.OBJECT_CREATED_ALL],
         )
 
-        pulumi_resources = provider.pulumi_resources(type_=None, depends_on=[])
+        pulumi_resources = provider.pulumi_resources(
+            type_=None, depends_on=[], credentials=None
+        )
 
         self.assertEqual(len(pulumi_resources), 4)
 

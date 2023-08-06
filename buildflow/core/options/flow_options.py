@@ -97,7 +97,7 @@ class FlowOptions(Options):
                 service_account_info=gcp_service_account_info
             ),
             aws_credentials_options=AWSCredentialsOptions(
-                access_key_id=aws_secret_access_key,
+                access_key_id=aws_access_key_id,
                 secret_access_key=aws_secret_access_key,
                 session_token=aws_session_token,
             ),

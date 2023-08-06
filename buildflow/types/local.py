@@ -1,13 +1,7 @@
+import dataclasses
 import enum
 
-from buildflow.types.portable import PortableFileChangeEventType
-
-
-class FileFormat(enum.Enum):
-    # TODO: Support additional file formats (Arrow, Avro, etc..)
-    PARQUET = "parquet"
-    CSV = "csv"
-    JSON = "json"
+from buildflow.types.portable import FileChangeEvent, PortableFileChangeEventType
 
 
 class FileChangeStreamEventType(enum.Enum):
@@ -25,3 +19,15 @@ class FileChangeStreamEventType(enum.Enum):
                 "Cannot convert portable file event type to local file "
                 f"event type: {portable_type}"
             ) from None
+
+
+@dataclasses.dataclass
+class LocalFileChangeEvent(FileChangeEvent):
+    event_type: FileChangeStreamEventType
+
+    @property
+    def blob(self) -> bytes:
+        if self.metadata["eventType"] == "deleted":
+            raise ValueError("Can't fetch blob for `delete` event.")
+        with open(self.metadata["srcPath"], "rb") as f:
+            return f.read()

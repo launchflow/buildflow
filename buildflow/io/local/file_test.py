@@ -10,7 +10,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from buildflow.io.local.file import File
-from buildflow.types.local import FileFormat
+from buildflow.types.portable import FileFormat
 
 
 @pytest.mark.usefixtures("event_loop_instance")

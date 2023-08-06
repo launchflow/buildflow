@@ -16,7 +16,7 @@ from buildflow.core.options import ProcessorOptions, RuntimeOptions
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
 from buildflow.io.local.testing.pulse_with_backlog import PulseWithBacklog
-from buildflow.types.local import FileFormat
+from buildflow.types.portable import FileFormat
 
 
 @pytest.mark.usefixtures("ray_fix")

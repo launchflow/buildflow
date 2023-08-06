@@ -1,6 +1,7 @@
 import enum
 from typing import Any, Dict, List
 
+from buildflow.core.background_tasks.background_task import BackgroundTask
 from buildflow.core.resources._resource import Resource
 
 
@@ -27,3 +28,9 @@ class ProcessorAPI:
 
     def process(self, *args, **kwargs):
         raise NotImplementedError("process not implemented for Processor")
+
+    def background_tasks(self) -> List[BackgroundTask]:
+        raise NotImplementedError("background_tasks not implemented for Pipeline")
+
+    async def teardown(self):
+        raise NotImplementedError("teardown not implemented for Processor")

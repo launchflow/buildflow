@@ -40,3 +40,10 @@ class SourceStrategy(Strategy):
 
     def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
         raise NotImplementedError("pull_converter not implemented")
+
+    async def teardown(self):
+        """Teardown is called when the source is no longer needed.
+
+        This should perform any cleanup that is needed by the source.
+        """
+        pass

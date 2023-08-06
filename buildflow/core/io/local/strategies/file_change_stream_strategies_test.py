@@ -10,7 +10,6 @@ from buildflow.core.io.local.strategies.file_change_stream_strategies import (
     LocalFileChangeStreamSource,
 )
 from buildflow.types.local import FileChangeStreamEventType
-from buildflow.types.portable import PortableFileChangeEventType
 
 
 @pytest.mark.usefixtures("event_loop_instance")
@@ -47,9 +46,7 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
         self.assertEqual(len(data.payload), 4)
 
         create_data = data.payload[0]
-        self.assertEqual(
-            create_data.portable_event_type, PortableFileChangeEventType.CREATED
-        )
+        self.assertEqual(create_data.event_type, FileChangeStreamEventType.CREATED)
         self.assertEqual(create_data.metadata["eventType"], "created")
         self.assertEqual(create_data.file_path, create_path)
         self.assertEqual(create_data.metadata["srcPath"], create_path)
@@ -68,9 +65,7 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
         # Two payloads one for modified dir and one for modified file
         self.assertEqual(len(data.payload), 2)
         modified_data = data.payload[0]
-        self.assertEqual(
-            modified_data.portable_event_type, PortableFileChangeEventType.UNKNOWN
-        )
+        self.assertEqual(modified_data.event_type, FileChangeStreamEventType.MODIFIED)
         self.assertEqual(modified_data.metadata["eventType"], "modified")
         self.assertEqual(modified_data.file_path, create_path)
         self.assertEqual(modified_data.metadata["srcPath"], create_path)
@@ -82,9 +77,7 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
         # Two payloads one for modified dir and one for removed file
         self.assertEqual(len(data.payload), 2)
         modified_data = data.payload[0]
-        self.assertEqual(
-            modified_data.portable_event_type, PortableFileChangeEventType.DELETED
-        )
+        self.assertEqual(modified_data.event_type, FileChangeStreamEventType.DELETED)
         self.assertEqual(modified_data.metadata["eventType"], "deleted")
         self.assertEqual(modified_data.file_path, create_path)
         self.assertEqual(modified_data.metadata["srcPath"], create_path)
