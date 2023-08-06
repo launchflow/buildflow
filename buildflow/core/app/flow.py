@@ -6,6 +6,7 @@ import os
 import signal
 from typing import List, Optional
 
+import pulumi
 from ray import serve
 
 from buildflow.config.buildflow_config import BuildFlowConfig
@@ -43,12 +44,17 @@ FlowID = str
 @dataclasses.dataclass
 class FlowState:
     flow_id: FlowID
+    last_updated: float
+    num_pulumi_outputs: int
+    pulumi_stack_name: str
     processors: List[ProcessorAPI]
-    pulumi_stack_state: WrappedStackState
 
     def as_json_dict(self):
         return {
             "flow_id": self.flow_id,
+            "last_updated": self.last_updated,
+            "num_pulumi_outputs": self.num_pulumi_outputs,
+            "pulumi_stack_name": self.pulumi_stack_name,
             "processors": [
                 {
                     "processor_id": p.processor_id,
@@ -57,7 +63,6 @@ class FlowState:
                 }
                 for p in self.processors
             ],
-            "pulumi_stack_state": self.pulumi_stack_state.as_json_dict(),
         }
 
 
@@ -268,8 +273,10 @@ class Flow:
         pulumi_stack_state = pulumi_workspace.get_stack_state()
         return FlowState(
             flow_id=self.flow_id,
+            last_updated=pulumi_stack_state.last_updated.timestamp(),
+            num_pulumi_outputs=len(pulumi_stack_state.outputs()),
+            pulumi_stack_name=pulumi_stack_state.stack_name,
             processors=self._processors,
-            pulumi_stack_state=pulumi_stack_state,
         )
 
     def _pipeline_decorator(
@@ -323,17 +330,29 @@ class Flow:
                 self._primitive_cache.append(sink_primitive)
                 include_sink_primitive = True
 
-            def pulumi_resources():
+            def source_resources_fn(test_mode_enabled: bool = False):
+                # if test_mode_enabled:
+                #     pulumi.runtime.settings._set_test_mode_enabled(True)
                 source_resources = []
                 if source_primitive.managed and include_source_primitive:
                     source_pulumi_provider = source_primitive.pulumi_provider()
                     source_resources = source_pulumi_provider.pulumi_resources(
                         input_type
                     )
+                return source_resources
+
+            def sink_resources_fn(test_mode_enabled: bool = False):
+                # if test_mode_enabled:
+                #     pulumi.runtime.settings._set_test_mode_enabled(True)
                 sink_resources = []
                 if sink_primitive.managed and include_sink_primitive:
                     sink_pulumi_provider = sink_primitive.pulumi_provider()
                     sink_resources = sink_pulumi_provider.pulumi_resources(output_type)
+                return sink_resources
+
+            def pulumi_resources():
+                source_resources = source_resources_fn()
+                sink_resources = sink_resources_fn()
                 return source_resources + sink_resources
 
             # Dynamically define a new class with the same structure as Processor
@@ -351,8 +370,30 @@ class Flow:
                 "resources": lambda self: pulumi_resources(),
                 "setup": setup,
                 "__meta__": {
-                    "source": source_primitive,
-                    "sink": sink_primitive,
+                    "source": {
+                        "type": source_primitive.primitive_type.value,
+                        "name": source_primitive.__class__.__name__,
+                        "resources": [
+                            # {
+                            #     "name": resource.resource._name,
+                            #     "value": resource.resource_id,
+                            #     "url": resource.resource_url,
+                            # }
+                            # for resource in source_resources_fn(True)
+                        ],
+                    },
+                    "sink": {
+                        "type": sink_primitive.primitive_type.value,
+                        "name": sink_primitive.__class__.__name__,
+                        "resources": [
+                            # {
+                            #     "name": resource.resource._name,
+                            #     "value": resource.resource_id,
+                            #     "url": resource.resource_url,
+                            # }
+                            # for resource in sink_resources_fn(True)
+                        ],
+                    },
                 },
                 "__call__": original_process_fn_or_class,
             }

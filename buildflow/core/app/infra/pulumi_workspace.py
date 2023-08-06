@@ -3,7 +3,7 @@ import datetime
 import enum
 import logging
 import re
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import pytz
 from pulumi import automation as auto
@@ -153,6 +153,7 @@ class WrappedStackState:
     stack_name: str
     _update_summary: Optional[auto.UpdateSummary]
     _output_map: auto.OutputMap
+    _deployment: Optional[auto.Deployment]
 
     @property
     def last_updated(self):
@@ -167,7 +168,7 @@ class WrappedStackState:
     # NOTE: We only wrap this so we can have an interface between the Pulumi type
     # (in case they change their API)
     def outputs(self) -> Dict[str, Any]:
-        return self._output_map
+        return dict(self._output_map)
 
     def print_summary(self):
         if self._update_summary is None:
@@ -207,6 +208,62 @@ class WrappedStackState:
         }
 
 
+@dataclasses.dataclass
+class _ParsedAccess:
+    dataset: Optional[str]
+    domain: str
+    groupByEmail: str
+    role: str
+    routine: Optional[str]
+    specialGroup: str
+    userByEmail: str
+    view: Optional[str]
+
+
+@dataclasses.dataclass
+class _ParsedResource:
+    urn: str
+    custom: bool
+    type: str
+    outputs: Optional[Dict[str, Any]]
+    inputs: Optional[Dict[str, Any]]
+    id: Optional[str]
+    created: str
+    modified: str
+    parent: Optional[str]
+    provider: Optional[str]
+    propertyDependencies: Optional[Dict[str, Optional[Any]]]
+    accesses: Optional[List[_ParsedAccess]]
+
+
+@dataclasses.dataclass
+class _ParsedSecretsProviders:
+    type: str
+    state: Dict[str, str]
+
+
+@dataclasses.dataclass
+class _ParsedManifest:
+    time: str
+    magic: str
+    version: str
+
+
+@dataclasses.dataclass
+class _ParsedDeployment:
+    manifest: _ParsedManifest
+    secrets_providers: _ParsedSecretsProviders
+    resources: List[_ParsedResource]
+
+
+# Pulumi stores the Deployment data in an untype Mapping, so we parse into
+# dataclasses to make it easier to work with
+@dataclasses.dataclass
+class WrappedPulumiDeployment:
+    version: int
+    deployment: _ParsedDeployment
+
+
 class PulumiWorkspace:
     def __init__(
         self, pulumi_options: PulumiOptions, pulumi_config: PulumiConfig
@@ -226,11 +283,15 @@ class PulumiWorkspace:
                 work_dir=self.config.pulumi_home,
                 opts=self.config.workspace_options(),
             )
+
+            for key, val in stack.outputs().items():
+                print(f"{key}: {val}")
             return WrappedStackState(
                 project_name=self.config.project_name,
                 stack_name=self.config.stack_name,
                 _update_summary=stack.info(),
                 _output_map=stack.outputs(),
+                _deployment=stack.export_stack(),
             )
         except auto.StackNotFoundError:
             return WrappedStackState(
@@ -238,6 +299,7 @@ class PulumiWorkspace:
                 stack_name=self.config.stack_name,
                 _update_summary=None,
                 _output_map={},
+                _deployment=None,
             )
 
     async def refresh(

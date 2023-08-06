@@ -1,4 +1,5 @@
 import enum
+from typing import List
 
 from buildflow.config.cloud_provider_config import (
     AWSOptions,
@@ -26,6 +27,7 @@ class PrimitiveType(enum.Enum):
 
 class Primitive:
     primitive_type: PrimitiveType
+    depends_on: List["Primitive"]
     managed: bool = False
 
     def enable_managed(self):
