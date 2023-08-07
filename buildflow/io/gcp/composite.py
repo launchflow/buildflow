@@ -33,7 +33,7 @@ class GCSFileChangeStream(GCPPrimtive, CompositePrimitive):
             topic_id=self.pubsub_topic.topic_id,
             subscription_name=f"{self.gcs_bucket.bucket_name}_subscription",
             include_attributes=True,
-        )
+        ).options(managed=True)
 
     @classmethod
     def from_gcp_options(

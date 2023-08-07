@@ -14,7 +14,9 @@ from buildflow.types.local import FileChangeStreamEventType
 @dataclasses.dataclass
 class LocalFileChangeStream(LocalPrimtive):
     file_path: FilePath
-    event_types: Iterable[FileChangeStreamEventType]
+    event_types: Iterable[FileChangeStreamEventType] = (
+        FileChangeStreamEventType.CREATED,
+    )
 
     def __post_init__(self):
         if not self.file_path.startswith("/"):
