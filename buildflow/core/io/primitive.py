@@ -1,5 +1,5 @@
 import enum
-from typing import Optional
+from typing import Optional, final
 
 from buildflow.config.cloud_provider_config import (
     AWSOptions,
@@ -10,6 +10,7 @@ from buildflow.config.cloud_provider_config import (
 )
 from buildflow.core.providers.provider import (
     BackgroundTaskProvider,
+    EmptyPulumiProvider,
     PulumiProvider,
     SinkProvider,
     SourceProvider,
@@ -29,11 +30,29 @@ class PrimitiveType(enum.Enum):
 
 class Primitive:
     primitive_type: PrimitiveType
-    managed: bool = False
+    _managed: bool = False
 
     def enable_managed(self):
         """Enable managed mode."""
-        self.managed = True
+        self._managed = True
+
+    def pulumi_options(self, managed: bool = False) -> "Primitive":
+        """Return a copy of this primitive with the managed flag set."""
+        self._managed = managed
+        return self
+
+    @final
+    def pulumi_provider(self) -> PulumiProvider:
+        if self._managed:
+            return self._pulumi_provider()
+        return EmptyPulumiProvider()
+
+    # NOTE: This is the method that users should implement for custom providers.
+    def _pulumi_provider(self) -> PulumiProvider:
+        """Return a pulumi provider for this primitive."""
+        raise NotImplementedError(
+            f"Primitive.pulumi_provider() is not implemented for type: {type(self)}."
+        )
 
     def source_provider(self) -> SourceProvider:
         """Return a source provider for this primitive."""
@@ -47,20 +66,9 @@ class Primitive:
             f"Primitive.sink_provider() is not implemented for type: {type(self)}."
         )
 
-    def pulumi_provider(self) -> PulumiProvider:
-        """Return a pulumi provider for this primitive."""
-        raise NotImplementedError(
-            f"Primitive.pulumi_provider() is not implemented for type: {type(self)}."
-        )
-
     def background_task_provider(self) -> Optional[BackgroundTaskProvider]:
         """Return a background task provider for this primitive."""
         return None
-
-    def options(self, managed: bool = False) -> "Primitive":
-        """Return a copy of this primitive with the managed flag set."""
-        self.managed = managed
-        return self
 
 
 class PortablePrimtive(Primitive):
@@ -78,7 +86,7 @@ class PortablePrimtive(Primitive):
 
     # Override the super class options method since it doesn't make sense to non-manage
     # a portable primitive.
-    def options(self) -> Primitive:
+    def pulumi_options(self) -> Primitive:
         return self
 
 
@@ -87,7 +95,7 @@ class CompositePrimitive(Primitive):
     # They defer to their underlying primitives on what should actually be managed.
     managed: bool = True
 
-    def options(self) -> "Primitive":
+    def pulumi_options(self) -> "Primitive":
         return self
 
 
@@ -136,7 +144,7 @@ class LocalPrimtive(Primitive):
 
     # Composite primitives are always managed.
     # They defer to their underlying primitives on what should actually be managed.
-    def options(self) -> "Primitive":
+    def pulumi_options(self) -> "Primitive":
         return self
 
 

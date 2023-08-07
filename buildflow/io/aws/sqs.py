@@ -39,7 +39,7 @@ class SQSQueue(AWSPrimtive):
             aws_region=self.aws_region,
         )
 
-    def pulumi_provider(self) -> PulumiProvider:
+    def _pulumi_provider(self) -> PulumiProvider:
         return SQSQueueProvider(
             queue_name=self.queue_name,
             aws_account_id=self.aws_account_id,

@@ -67,13 +67,13 @@ class SnowflakeTable(Primitive):
         if self.snowflake_stage is None:
             self.snowflake_stage = "buildflow_managed_snowflake_stage"
 
-    def options(
+    def pulumi_options(
         self,
         managed: bool = False,
         database_managed: bool = True,
         schema_managed: bool = True,
     ) -> "SnowflakeTable":
-        to_ret = super().options(managed)
+        to_ret = super().pulumi_options(managed)
         to_ret.database_managed = database_managed
         to_ret.schema_managed = schema_managed
         return to_ret
@@ -88,7 +88,7 @@ class SnowflakeTable(Primitive):
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,
             schema_managed=self.schema_managed,
-            bucket_managed=self.bucket.managed,
+            bucket_managed=self.bucket._managed,
             snow_pipe_managed=self.snow_pipe_managed,
             stage_managed=self.stage_managed,
             account=self.account,
@@ -97,17 +97,17 @@ class SnowflakeTable(Primitive):
             flush_time_secs=self.flush_time_limit_secs,
         )
 
-    def pulumi_provider(self) -> PulumiProvider:
+    def _pulumi_provider(self) -> PulumiProvider:
         return SnowflakeTableProvider(
             table=self.table,
             database=self.database,
             schema=self.schema,
-            bucket_provider=self.bucket.pulumi_provider(),
+            bucket_provider=self.bucket._pulumi_provider(),
             snow_pipe=self.snow_pipe,
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,
             schema_managed=self.schema_managed,
-            bucket_managed=self.bucket.managed,
+            bucket_managed=self.bucket._managed,
             snow_pipe_managed=self.snow_pipe_managed,
             stage_managed=self.stage_managed,
             account=self.account,
@@ -121,12 +121,12 @@ class SnowflakeTable(Primitive):
             table=self.table,
             database=self.database,
             schema=self.schema,
-            bucket_provider=self.bucket.pulumi_provider(),
+            bucket_provider=self.bucket._pulumi_provider(),
             snow_pipe=self.snow_pipe,
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,
             schema_managed=self.schema_managed,
-            bucket_managed=self.bucket.managed,
+            bucket_managed=self.bucket._managed,
             snow_pipe_managed=self.snow_pipe_managed,
             stage_managed=self.stage_managed,
             account=self.account,

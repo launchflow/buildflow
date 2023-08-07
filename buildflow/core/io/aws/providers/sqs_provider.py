@@ -44,7 +44,7 @@ class SQSQueueProvider(PulumiProvider, SinkProvider, SourceProvider):
             aws_region=self.aws_region,
         )
 
-    def pulumi_resources(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: AWSCredentials,

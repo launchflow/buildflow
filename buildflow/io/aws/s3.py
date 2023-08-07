@@ -33,8 +33,8 @@ class S3Bucket(AWSPrimtive):
         region = aws_options.default_region
         return cls(bucket_name=bucket_name, aws_region=region)
 
-    def options(self, *, managed: bool = False, force_destroy: bool = False):
-        to_ret = super().options(managed)
+    def pulumi_options(self, *, managed: bool = False, force_destroy: bool = False):
+        to_ret = super().pulumi_options(managed)
         to_ret.force_destroy = force_destroy
         return to_ret
 
@@ -47,7 +47,7 @@ class S3Bucket(AWSPrimtive):
             file_format=self.file_format,
         )
 
-    def pulumi_provider(self) -> PulumiProvider:
+    def _pulumi_provider(self) -> PulumiProvider:
         return S3BucketProvider(
             bucket_name=self.bucket_name,
             aws_region=self.aws_region,

@@ -28,7 +28,7 @@ class DuckDBProvider(SinkProvider, PulumiProvider):
             table=self.table,
         )
 
-    def pulumi_resources(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credeitnals: EmptyCredentials,

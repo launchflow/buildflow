@@ -40,7 +40,7 @@ class LocalFileChangeStream(LocalPrimtive):
             file_path=self.file_path, event_types=self.event_types
         )
 
-    def pulumi_provider(self) -> LocalFileChangeStreamProvider:
+    def _pulumi_provider(self) -> LocalFileChangeStreamProvider:
         return LocalFileChangeStreamProvider(
             file_path=self.file_path, event_types=self.event_types
         )

@@ -272,7 +272,7 @@ class PulumiWorkspace:
                 # resources will be instantiated when called. Any Pulumi resources
                 # created in the scope of the pulumi_program function will be included
                 # in the Pulumi program / stack.
-                processor.resources()
+                processor.pulumi_program()
 
         return pulumi_program
 

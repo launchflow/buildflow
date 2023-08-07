@@ -47,7 +47,7 @@ class GCSBucketProvider(SinkProvider, PulumiProvider):
             file_format=self.file_format,
         )
 
-    def pulumi_resources(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: GCPCredentials,

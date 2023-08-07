@@ -71,7 +71,7 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
             )
         ]
 
-    def pulumi_resources(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: Union[AWSCredentials, GCPCredentials],

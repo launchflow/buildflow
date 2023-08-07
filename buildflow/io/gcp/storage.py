@@ -58,10 +58,10 @@ class GCSBucket(GCPPrimtive):
             file_format=file_format,
         )
 
-    def options(
+    def pulumi_options(
         self, *, managed: bool = False, force_destroy: bool = False
     ) -> Primitive:
-        to_ret = super().options(managed)
+        to_ret = super().pulumi_options(managed)
         to_ret.force_destroy = force_destroy
         return to_ret
 
@@ -78,7 +78,7 @@ class GCSBucket(GCPPrimtive):
             file_format=self.file_format,
         )
 
-    def pulumi_provider(self):
+    def _pulumi_provider(self):
         return GCSBucketProvider(
             project_id=self.project_id,
             bucket_name=self.bucket_name,

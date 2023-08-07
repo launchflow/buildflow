@@ -30,7 +30,7 @@ class Pulse(LocalPrimtive):
             pulse_interval_seconds=self.pulse_interval_seconds,
         )
 
-    def pulumi_provider(self) -> PulseProvider:
+    def _pulumi_provider(self) -> PulseProvider:
         return PulseProvider(
             items=self.items,
             pulse_interval_seconds=self.pulse_interval_seconds,
