@@ -7,7 +7,6 @@ import pulumi
 import pytest
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
-from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.io.gcp.bigquery import BigQueryTable
 
 

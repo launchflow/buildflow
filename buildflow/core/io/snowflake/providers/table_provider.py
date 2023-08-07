@@ -21,7 +21,6 @@ from buildflow.core.providers.provider import (
     PulumiProvider,
     SinkProvider,
 )
-from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.strategies.sink import SinkStrategy
 
 
@@ -75,8 +74,7 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
         self,
         type_: Optional[Type],
         credentials: Union[AWSCredentials, GCPCredentials],
-        depends_on: List[PulumiResource] = [],
-    ) -> List[PulumiResource]:
+    ):
         resources = []
         if self.bucket_managed:
             bucket_resources = self.bucket_provider.pulumi_resources(

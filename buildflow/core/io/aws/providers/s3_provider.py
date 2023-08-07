@@ -1,4 +1,4 @@
-from typing import List, Optional, Type
+from typing import Optional, Type
 
 import pulumi
 import pulumi_aws
@@ -7,7 +7,6 @@ from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.io.aws.providers.pulumi_providers import aws_provider
 from buildflow.core.io.aws.strategies.s3_strategies import S3BucketSink
 from buildflow.core.providers.provider import PulumiProvider, SinkProvider
-from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.types.aws_types import AWSRegion, S3BucketName
 from buildflow.core.types.shared_types import FilePath
@@ -50,7 +49,6 @@ class S3BucketProvider(PulumiProvider, SinkProvider):
         self,
         type_: Optional[Type],
         credentials: AWSCredentials,
-        depends_on: List[PulumiResource] = [],
     ):
         provider = aws_provider(
             self.bucket_name, aws_account_id=None, aws_region=self.aws_region

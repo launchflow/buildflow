@@ -12,7 +12,7 @@ from ray import serve
 from buildflow.config.buildflow_config import BuildFlowConfig
 from buildflow.core import utils
 from buildflow.core.app.infra.actors.infra import InfraActor
-from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, WrappedStackState
+from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.app.runtime.server import RuntimeServer
