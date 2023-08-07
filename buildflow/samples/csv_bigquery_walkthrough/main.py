@@ -21,8 +21,11 @@ source = GCSFileChangeStream(
     gcs_bucket=GCSBucket(
         project_id=gcp_project,
         bucket_name=bucket_name,
-        bucket_region="us-central1",
-    ).options(managed=True, force_destroy=True),
+    ).options(
+        managed=True,
+        force_destroy=True,
+        bucket_region="US",
+    ),
 )
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
@@ -30,7 +33,7 @@ sink = BigQueryTable(
     project_id=gcp_project,
     dataset_name=dataset,
     table_name=bigquery_table,
-).pulumi_options(managed=True, destroy_protection=False)
+).options(managed=True, destroy_protection=False)
 
 
 # Nested dataclasses can be used inside of your schemas.

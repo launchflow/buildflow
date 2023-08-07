@@ -1,7 +1,7 @@
 import unittest
 
 from buildflow.config.cloud_provider_config import GCPOptions
-from buildflow.io.gcp.composite import GCSFileChangeStream
+from buildflow.io.gcp.gcs_file_change_stream import GCSFileChangeStream
 
 
 class GCSFileChangeStreamTest(unittest.TestCase):

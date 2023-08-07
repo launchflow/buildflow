@@ -36,7 +36,7 @@ bucket_name = os.getenv("BUCKET_NAME", "caleb-test-s3-input-bucket")
 snowflake_bucket = os.getenv("SNOWFLAKE_BUCKET", "caleb-s3-snowflake-bucket")
 
 source = S3FileChangeStream(
-    s3_bucket=S3Bucket(bucket_name=bucket_name, aws_region="us-east-1").pulumi_options(
+    s3_bucket=S3Bucket(bucket_name=bucket_name, aws_region="us-east-1").options(
         managed=True,
         force_destroy=True,
     ),
@@ -49,13 +49,13 @@ sink = SnowflakeTable(
     table="snowflake-table",
     database="snowflake-database",
     schema="snowflake-schema",
-    bucket=S3Bucket(
-        bucket_name=snowflake_bucket, aws_region="us-east-1"
-    ).pulumi_options(managed=True, force_destroy=True),
+    bucket=S3Bucket(bucket_name=snowflake_bucket, aws_region="us-east-1").options(
+        managed=True, force_destroy=True
+    ),
     account=os.environ["SNOWFLAKE_ACCOUNT"],
     user=os.environ["SNOWFLAKE_USER"],
     private_key=pk_text,
-).pulumi_options(managed=True, database_managed=True, schema_managed=True)
+).options(managed=True, database_managed=True, schema_managed=True)
 
 
 # Nested dataclasses can be used inside of your schemas.

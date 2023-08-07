@@ -34,13 +34,13 @@ class BigQueryTable(GCPPrimtive):
     def table_id(self) -> BigQueryTableID:
         return f"{self.project_id}.{self.dataset_name}.{self.table_name}"
 
-    def pulumi_options(
+    def options(
         self,
         managed: bool = False,
         include_dataset: bool = _DEFAULT_INCLUDE_DATASET,
         destroy_protection: bool = False,
     ) -> Primitive:
-        to_ret = super().pulumi_options(managed)
+        to_ret = super().options(managed)
         to_ret.include_dataset = include_dataset
         to_ret.destroy_protection = destroy_protection
         return to_ret

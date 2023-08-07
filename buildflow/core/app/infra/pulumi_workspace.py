@@ -87,23 +87,24 @@ class WrappedPreviewResult:
         logging.debug(self.preview_result.change_summary)
 
     def print_change_summary(self):
-        num_to_create = self.preview_result.change_summary.get("create", 0)
-        resource_outputs = extract_outputs_from_stdout(self.preview_result.stdout)
-        resource_outputs_str = "\n".join(
-            [
-                f"    {output_key}:{output_value}"
-                for output_key, output_value in resource_outputs.items()
-            ]
-        )
-        lines = [
-            "-" * 80,
-            f"Number of Resources to create: {num_to_create}",
-            "",
-            "Resource Outputs:",
-            resource_outputs_str,
-            "-" * 80,
-        ]
-        print("\n".join(lines))
+        # num_to_create = self.preview_result.change_summary.get("create", 0)
+        # resource_outputs = extract_outputs_from_stdout(self.preview_result.stdout)
+        # resource_outputs_str = "\n".join(
+        #     [
+        #         f"    {output_key}:{output_value}"
+        #         for output_key, output_value in resource_outputs.items()
+        #     ]
+        # )
+        # lines = [
+        #     "-" * 80,
+        #     f"Number of Resources to create: {num_to_create}",
+        #     "",
+        #     "Resource Outputs:",
+        #     resource_outputs_str,
+        #     "-" * 80,
+        # ]
+        # print("\n".join(lines))
+        print(self.preview_result.stdout)
 
 
 @dataclasses.dataclass

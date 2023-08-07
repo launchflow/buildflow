@@ -67,13 +67,13 @@ class SnowflakeTable(Primitive):
         if self.snowflake_stage is None:
             self.snowflake_stage = "buildflow_managed_snowflake_stage"
 
-    def pulumi_options(
+    def options(
         self,
         managed: bool = False,
         database_managed: bool = True,
         schema_managed: bool = True,
     ) -> "SnowflakeTable":
-        to_ret = super().pulumi_options(managed)
+        to_ret = super().options(managed)
         to_ret.database_managed = database_managed
         to_ret.schema_managed = schema_managed
         return to_ret

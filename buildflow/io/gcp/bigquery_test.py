@@ -42,7 +42,7 @@ class BigQueryTest(unittest.TestCase):
             project_id="project_id",
             dataset_name="dataset_name",
             table_name="table_name",
-        ).pulumi_options(destroy_protection=False)
+        ).options(destroy_protection=False)
 
         pulumi_resources: List[
             PulumiResource

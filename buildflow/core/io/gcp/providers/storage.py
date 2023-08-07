@@ -1,4 +1,4 @@
-from typing import List, Optional, Type
+from typing import Optional, Type
 
 import pulumi
 import pulumi_gcp
@@ -6,10 +6,45 @@ import pulumi_gcp
 from buildflow.core.credentials import GCPCredentials
 from buildflow.core.io.gcp.strategies.storage_strategies import GCSBucketSink
 from buildflow.core.providers.provider import PulumiProvider, SinkProvider
-from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 from buildflow.core.types.shared_types import FilePath
 from buildflow.types.portable import FileFormat
+
+
+class _GCPStoragePulumiResource(pulumi.ComponentResource):
+    def __init__(
+        self,
+        bucket_name: GCSBucketName,
+        bucket_region: GCPRegion,
+        project_id: GCPProjectID,
+        force_destroy: bool,
+        # pulumi_resource options (buildflow internal concept)
+        type_: Optional[Type],
+        credentials: GCPCredentials,
+        opts: pulumi.ResourceOptions,
+    ):
+        super().__init__(
+            "buildflow:gcp:storage:Bucket",
+            f"buildflow-{bucket_name}",
+            None,
+            opts,
+        )
+
+        outputs = {}
+
+        self.bucket_resource = pulumi_gcp.storage.Bucket(
+            resource_name=bucket_name,
+            name=bucket_name,
+            location=bucket_region,
+            project=project_id,
+            force_destroy=force_destroy,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[]),
+        )
+
+        outputs["gcp.storage.bucket"] = self.bucket_resource.id
+        outputs["buildflow.cloud_console.url"] = "TODO"
+
+        self.register_outputs(outputs)
 
 
 class GCSBucketProvider(SinkProvider, PulumiProvider):
@@ -51,23 +86,14 @@ class GCSBucketProvider(SinkProvider, PulumiProvider):
         self,
         type_: Optional[Type],
         credentials: GCPCredentials,
-        depends_on: List[PulumiResource] = [],
+        opts: pulumi.ResourceOptions,
     ):
-        del type_
-        bucket_resource = pulumi_gcp.storage.Bucket(
-            resource_name=self.bucket_name,
-            name=self.bucket_name,
-            location=self.bucket_region,
-            project=self.project_id,
+        return _GCPStoragePulumiResource(
+            bucket_name=self.bucket_name,
+            bucket_region=self.bucket_region,
+            project_id=self.project_id,
             force_destroy=self.force_destroy,
+            type_=type_,
+            credentials=credentials,
+            opts=opts,
         )
-        pulumi.export("gcp.storage.bucket_id", self.bucket_name)
-        return [
-            PulumiResource(
-                resource_id=self.bucket_name,
-                resource=bucket_resource,
-                exports={
-                    "gcp.storage.bucket_id": self.bucket_name,
-                },
-            )
-        ]

@@ -1,3 +1,4 @@
+import copy
 import enum
 from typing import Optional, final
 
@@ -36,10 +37,11 @@ class Primitive:
         """Enable managed mode."""
         self._managed = True
 
-    def pulumi_options(self, managed: bool = False) -> "Primitive":
+    def options(self, managed: bool = False) -> "Primitive":
         """Return a copy of this primitive with the managed flag set."""
-        self._managed = managed
-        return self
+        to_ret = copy.deepcopy(self)
+        to_ret._managed = managed
+        return to_ret
 
     @final
     def pulumi_provider(self) -> PulumiProvider:
@@ -74,7 +76,7 @@ class Primitive:
 class PortablePrimtive(Primitive):
     primitive_type = PrimitiveType.PORTABLE
     # Portable primitives are always managed.
-    managed: bool = True
+    _managed: bool = True
 
     def to_cloud_primitive(
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
@@ -86,17 +88,17 @@ class PortablePrimtive(Primitive):
 
     # Override the super class options method since it doesn't make sense to non-manage
     # a portable primitive.
-    def pulumi_options(self) -> Primitive:
-        return self
+    def options(self) -> Primitive:
+        return copy.deepcopy(self)
 
 
 class CompositePrimitive(Primitive):
     # Composite primitives are always managed.
     # They defer to their underlying primitives on what should actually be managed.
-    managed: bool = True
+    _managed: bool = True
 
-    def pulumi_options(self) -> "Primitive":
-        return self
+    def options(self) -> "Primitive":
+        return copy.deepcopy(self)
 
 
 class GCPPrimtive(Primitive):
@@ -144,8 +146,8 @@ class LocalPrimtive(Primitive):
 
     # Composite primitives are always managed.
     # They defer to their underlying primitives on what should actually be managed.
-    def pulumi_options(self) -> "Primitive":
-        return self
+    def options(self) -> "Primitive":
+        return copy.deepcopy(self)
 
 
 class AgnosticPrimitive(Primitive):

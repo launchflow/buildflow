@@ -22,7 +22,7 @@ from buildflow.core.io.gcp.providers.pubsub_providers import (
     GCPPubSubSubscriptionProvider,
     GCPPubSubTopicProvider,
 )
-from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
+from buildflow.core.io.gcp.providers.storage import GCSBucketProvider
 
 
 @pytest.mark.usefixtures("event_loop_instance")

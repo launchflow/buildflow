@@ -8,12 +8,8 @@ from buildflow.core.io.gcp.providers.pubsub_subscription import (
 )
 from buildflow.core.io.primitive import GCPPrimtive
 from buildflow.core.options.runtime_options import RuntimeOptions
-from buildflow.core.types.gcp_types import (
-    GCPProjectID,
-    PubSubSubscriptionName,
-    PubSubTopicID,
-)
-from buildflow.core.types.portable_types import SubscriptionName, TopicID
+from buildflow.core.types.gcp_types import GCPProjectID, PubSubSubscriptionName
+from buildflow.core.types.portable_types import SubscriptionName
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
 
 _DEFAULT_ACK_DEADLINE_SECONDS = 10 * 60
@@ -38,16 +34,19 @@ class GCPPubSubSubscription(GCPPrimtive):
     message_retention_duration: str = dataclasses.field(
         default=_DEFAULT_MESSAGE_RETENTION_DURATION, init=False
     )
+    topic: Optional[GCPPubSubTopic] = dataclasses.field(default=None, init=False)
 
-    def pulumi_options(
+    def options(
         self,
         managed: bool = False,
         ack_deadline_seconds: bool = _DEFAULT_ACK_DEADLINE_SECONDS,
         message_retention_duration: str = _DEFAULT_MESSAGE_RETENTION_DURATION,
+        topic: Optional[GCPPubSubTopic] = None,
     ) -> "GCPPubSubSubscription":
-        to_ret = super().pulumi_options(managed)
+        to_ret = super().options(managed)
         to_ret.ack_deadline_seconds = ack_deadline_seconds
         to_ret.message_retention_duration = message_retention_duration
+        to_ret.topic = topic
         return to_ret
 
     @classmethod

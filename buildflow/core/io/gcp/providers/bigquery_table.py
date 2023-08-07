@@ -106,7 +106,7 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         self,
         type_: Optional[Type],
         credentials: GCPCredentials,
-        opts: Optional[pulumi.ResourceOptions] = None,
+        opts: pulumi.ResourceOptions,
     ):
         # TODO: Maybe throw an error if schema is None
         schema = None

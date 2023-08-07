@@ -41,6 +41,7 @@ class _PubSubSubscriptionPulumiResource(pulumi.ComponentResource):
         )
 
         self.subscription_resource = pulumi_gcp.pubsub.Subscription(
+            resource_name=f"{project_id}-{subscription_name}",
             opts=pulumi.ResourceOptions(parent=self),
             name=subscription_name,
             topic=topic.topic_id,

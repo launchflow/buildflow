@@ -13,7 +13,7 @@ bigquery_table = os.getenv("BIGQUERY_TABLE", "taxi_rides")
 input_source = Topic(topic_id="projects/pubsub-public-data/topics/taxirides-realtime")
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
-output_table = AnalysisTable(bigquery_table).pulumi_options(destroy_protection=False)
+output_table = AnalysisTable(bigquery_table).options(destroy_protection=False)
 
 
 # Define an output type for our pipeline.

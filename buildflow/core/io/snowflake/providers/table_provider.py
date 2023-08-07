@@ -8,7 +8,7 @@ from buildflow.core.background_tasks.background_task import BackgroundTask
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.io.aws.providers.s3_provider import S3BucketProvider
-from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
+from buildflow.core.io.gcp.providers.storage import GCSBucketProvider
 from buildflow.core.io.snowflake.background_tasks.table_load_background_task import (
     SnowflakeUploadBackgroundTask,
 )
