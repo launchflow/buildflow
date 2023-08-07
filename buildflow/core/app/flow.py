@@ -342,20 +342,25 @@ class Flow:
                 include_sink_primitive = True
 
             def pulumi_resources():
-                source_resources = []
+                all_resources = []
+                # Builds the source's pulumi.CompositeResource (if it exists)
                 if source_primitive.managed and include_source_primitive:
                     source_pulumi_provider = source_primitive.pulumi_provider()
-                    source_resources = source_pulumi_provider.pulumi_resources(
+                    source_resource = source_pulumi_provider.pulumi(
                         type_=input_type,
                         credentials=source_credentials,
                     )
-                sink_resources = []
+                    if source_resource is not None:
+                        all_resources.append(source_resource)
+                # Builds the sink's pulumi.CompositeResource (if it exists)
                 if sink_primitive.managed and include_sink_primitive:
                     sink_pulumi_provider = sink_primitive.pulumi_provider()
-                    sink_resources = sink_pulumi_provider.pulumi_resources(
+                    sink_resource = sink_pulumi_provider.pulumi(
                         type_=output_type, credentials=sink_credentials
                     )
-                return source_resources + sink_resources
+                    if sink_resource is not None:
+                        all_resources.append(sink_resource)
+                return all_resources
 
             def background_tasks():
                 return self._background_tasks(

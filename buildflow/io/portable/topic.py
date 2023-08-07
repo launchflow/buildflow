@@ -4,7 +4,8 @@ from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderC
 from buildflow.core.io.primitive import PortablePrimtive, Primitive
 from buildflow.core.strategies._strategy import StategyType
 from buildflow.core.types.portable_types import TopicID
-from buildflow.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
+from buildflow.io.gcp.pubsub_subscription import GCPPubSubSubscription
+from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
 
 
 @dataclasses.dataclass

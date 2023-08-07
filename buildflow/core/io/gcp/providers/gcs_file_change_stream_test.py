@@ -15,7 +15,7 @@ import pulumi_gcp
 import pytest
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
-from buildflow.core.io.gcp.providers.composite_providers import (
+from buildflow.core.io.gcp.providers.gcs_file_change_stream import (
     GCSFileChangeStreamProvider,
 )
 from buildflow.core.io.gcp.providers.pubsub_providers import (

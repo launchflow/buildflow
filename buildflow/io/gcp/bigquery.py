@@ -3,7 +3,7 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
-from buildflow.core.io.gcp.providers.bigquery_providers import BigQueryTableProvider
+from buildflow.core.io.gcp.providers.bigquery_table import BigQueryTableProvider
 from buildflow.core.io.primitive import GCPPrimtive, Primitive
 from buildflow.core.types.gcp_types import (
     BigQueryDatasetName,

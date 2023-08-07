@@ -11,7 +11,7 @@ from buildflow.core.io.aws.strategies.s3_file_change_stream_strategies import (
     S3FileChangeStreamSource,
 )
 from buildflow.core.providers.provider import PulumiProvider, SourceProvider
-from buildflow.core.resources.pulumi import PulumiResource
+from buildflow.core.resources.pulumi import PulumiComponentResource
 from buildflow.types.aws import S3ChangeStreamEventType
 
 
@@ -42,12 +42,12 @@ class S3FileChangeStreamProvider(SourceProvider, PulumiProvider):
             aws_region=self.sqs_queue_provider.aws_region,
         )
 
-    def pulumi_resources(
+    def pulumi(
         self,
         type_: Optional[Type],
         credentials: AWSCredentials,
-        depends_on: List[PulumiResource] = [],
-    ) -> List[PulumiResource]:
+        depends_on: List[PulumiComponentResource] = [],
+    ) -> PulumiComponentResource:
         s3_resources = []
         sqs_resources = []
         if self.bucket_managed:
