@@ -87,7 +87,6 @@ def dataclass_fields_to_bq_schema(
                     "BigQuery does not support optional fields inside of a list."
                 )
                 field_type = field_type.__args__[0]
-        print("DO NOT SUBMIT: ", field_type)
         if dataclasses.is_dataclass(field_type):
             sub_fields = dataclass_fields_to_bq_schema(_dataclass_fields(field_type))
             bq_fields.append(

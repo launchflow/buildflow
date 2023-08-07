@@ -39,7 +39,7 @@ class DuckDBSink(SinkStrategy):
                     try:
                         con.append(self.table, df)
                     except duckdb.CatalogException:
-                        con.execute(f"CREATE TABLE {self.table} AS SELECT * FROM df")
+                        con.execute(f'CREATE TABLE "{self.table}" AS SELECT * FROM df')
                     break
             except duckdb.IOException:
                 logging.exception("failed to connect to duckdb database")

@@ -42,5 +42,4 @@ class SnowflakeTableSink(SinkStrategy):
 
     async def push(self, batch: Batch):
         await self.bucket_sink.push(batch)
-        print("DO NOT SUBMIT: pushing: ", self.bucket_sink.file_path)
         self.bucket_sink.file_path = self._get_new_file_path()
