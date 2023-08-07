@@ -27,7 +27,7 @@ class S3FileChangeStream(AWSPrimtive, CompositePrimitive):
         self.sqs_queue = SQSQueue(
             queue_name=f"{self.s3_bucket.bucket_name}_queue",
             aws_region=self.s3_bucket.aws_region,
-        ).options(managed=True)
+        ).pulumi_options(managed=True)
 
     @classmethod
     def from_aws_options(
@@ -35,7 +35,7 @@ class S3FileChangeStream(AWSPrimtive, CompositePrimitive):
     ) -> AWSPrimtive:
         bucket = S3Bucket.from_aws_options(
             aws_options, bucket_name=bucket_name
-        ).options(managed=True)
+        ).pulumi_options(managed=True)
         return cls(bucket)
 
     def source_provider(self) -> S3FileChangeStreamProvider:
@@ -45,10 +45,10 @@ class S3FileChangeStream(AWSPrimtive, CompositePrimitive):
             event_types=self.event_types,
         )
 
-    def pulumi_provider(self) -> S3FileChangeStreamProvider:
+    def _pulumi_provider(self) -> S3FileChangeStreamProvider:
         return S3FileChangeStreamProvider(
-            s3_bucket_provider=self.s3_bucket.pulumi_provider(),
-            sqs_queue_provider=self.sqs_queue.pulumi_provider(),
-            bucket_managed=self.s3_bucket.managed,
+            s3_bucket_provider=self.s3_bucket._pulumi_provider(),
+            sqs_queue_provider=self.sqs_queue._pulumi_provider(),
+            bucket_managed=self.s3_bucket._managed,
             event_types=self.event_types,
         )

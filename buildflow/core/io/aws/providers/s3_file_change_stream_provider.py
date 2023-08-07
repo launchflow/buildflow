@@ -42,7 +42,7 @@ class S3FileChangeStreamProvider(SourceProvider, PulumiProvider):
             aws_region=self.sqs_queue_provider.aws_region,
         )
 
-    def pulumi(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: AWSCredentials,

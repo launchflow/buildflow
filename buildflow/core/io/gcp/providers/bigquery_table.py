@@ -18,6 +18,54 @@ from buildflow.core.types.gcp_types import (
 )
 
 
+class _BigQueryTablePulumiResource(pulumi.ComponentResource):
+    def __init__(
+        self,
+        table_name: BigQueryTableName,
+        dataset_name: BigQueryDatasetName,
+        project_id: GCPProjectID,
+        include_dataset: bool,
+        destroy_protection: bool,
+        schema: Optional[str],
+        # pulumi_resource options (buildflow internal concept)
+        type_: Optional[Type],
+        credentials: GCPCredentials,
+        opts: pulumi.ResourceOptions,
+    ):
+        super().__init__(
+            "buildflow:gcp:bigquery:Table",
+            f"buildflow-{project_id}-{dataset_name}-{table_name}",
+            None,
+            opts,
+        )
+
+        outputs = {}
+        table_depends_on = None
+        if include_dataset:
+            self.dataset_resource = pulumi_gcp.bigquery.Dataset(
+                f"buildflow-{dataset_name}",
+                project=project_id,
+                dataset_id=dataset_name,
+                delete_contents_on_destroy=(not destroy_protection),
+                opts=pulumi.ResourceOptions(parent=self),
+            )
+            outputs["gcp.bigquery.dataset_id"] = self.dataset_resource.id
+            table_depends_on = [self.dataset_resource]
+
+        self.table_resource = pulumi_gcp.bigquery.Table(
+            f"buildflow-{table_name}",
+            project=project_id,
+            dataset_id=dataset_name,
+            table_id=table_name,
+            schema=schema,
+            deletion_protection=destroy_protection,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=table_depends_on),
+        )
+        outputs["gcp.bigquery.table_id"] = self.table_resource.id
+
+        self.register_outputs(outputs)
+
+
 class BigQueryTableProvider(SinkProvider, PulumiProvider):
     def __init__(
         self,
@@ -26,10 +74,10 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         dataset_name: BigQueryDatasetName,
         table_name: BigQueryTableName,
         # sink-only options
-        batch_size: str = 10_000,
+        batch_size: str,
         # pulumi-only options
-        include_dataset: bool = True,
-        destroy_protection: bool = False,
+        include_dataset: bool,
+        destroy_protection: bool,
     ):
         self.project_id = project_id
         self.dataset_name = dataset_name
@@ -53,11 +101,13 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
             batch_size=self.batch_size,
         )
 
-    def pulumi(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: GCPCredentials,
+        opts: Optional[pulumi.ResourceOptions] = None,
     ):
+        # TODO: Maybe throw an error if schema is None
         schema = None
         if hasattr(type_, "__args__"):
             # Using a composite type hint like List or Optional
@@ -65,54 +115,14 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         if type_ and is_dataclass(type_):
             schema = bigquery_schemas.dataclass_to_json_bq_schema(type_)
 
-        class BigQueryTable(pulumi.ComponentResource):
-            def __init__(
-                self,
-                table_name: BigQueryTableName,
-                dataset_name: BigQueryDatasetName,
-                project_id: GCPProjectID,
-                include_dataset: bool,
-                destroy_protection: bool,
-            ):
-                component_name = f"buildflow-component-{table_name}"
-                props: pulumi.Inputs | None = None
-                opts: pulumi.ResourceOptions | None = None
-                super().__init__(
-                    "buildflow:gcp:bigquery:Table", component_name, props, opts
-                )
-
-                outputs = {}
-                table_depends_on = None
-                if include_dataset:
-                    self.dataset_resource = pulumi_gcp.bigquery.Dataset(
-                        f"buildflow-{dataset_name}",
-                        project=project_id,
-                        dataset_id=dataset_name,
-                        delete_contents_on_destroy=(not destroy_protection),
-                        opts=pulumi.ResourceOptions(parent=self),
-                    )
-                    outputs["gcp.bigquery.dataset_id"] = self.dataset_resource.id
-                    table_depends_on = [self.dataset_resource]
-
-                self.table_resource = pulumi_gcp.bigquery.Table(
-                    f"buildflow-{table_name}",
-                    project=project_id,
-                    dataset_id=dataset_name,
-                    table_id=table_name,
-                    schema=schema,
-                    deletion_protection=destroy_protection,
-                    opts=pulumi.ResourceOptions(
-                        parent=self, depends_on=table_depends_on
-                    ),
-                )
-                outputs["gcp.bigquery.table_id"] = self.table_resource.id
-
-                self.register_outputs(outputs)
-
-        return BigQueryTable(
+        return _BigQueryTablePulumiResource(
             self.table_name,
             self.dataset_name,
             self.project_id,
             self.include_dataset,
             self.destroy_protection,
+            schema,
+            type_,
+            credentials,
+            opts,
         )

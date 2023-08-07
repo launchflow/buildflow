@@ -14,9 +14,6 @@ from buildflow.io.gcp.bigquery import BigQueryTable
 class AnalysisTable(PortablePrimtive):
     table_name: Optional[TableName] = None
 
-    # Pulumi only options
-    destroy_protection: bool = dataclasses.field(default=False, init=False)
-
     def to_cloud_primitive(
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
     ) -> Primitive:
@@ -29,7 +26,6 @@ class AnalysisTable(PortablePrimtive):
             return BigQueryTable.from_gcp_options(
                 gcp_options=cloud_provider_config.gcp_options,
                 table_name=self.table_name,
-                destroy_protection=self.destroy_protection,
             )
         # AWS Implementations
         elif cloud_provider_config.default_cloud_provider == CloudProvider.AWS:
@@ -46,11 +42,6 @@ class AnalysisTable(PortablePrimtive):
             raise ValueError(
                 f"Unknown resource provider: {cloud_provider_config.default_cloud_provider}"  # noqa: E501
             )
-
-    def options(self, destroy_protection: bool = False) -> Primitive:
-        to_ret = super().options()
-        to_ret.destroy_protection = destroy_protection
-        return to_ret
 
 
 @dataclasses.dataclass

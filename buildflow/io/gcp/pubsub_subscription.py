@@ -16,6 +16,9 @@ from buildflow.core.types.gcp_types import (
 from buildflow.core.types.portable_types import SubscriptionName, TopicID
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
 
+_DEFAULT_ACK_DEADLINE_SECONDS = 10 * 60
+_DEFAULT_MESSAGE_RETENTION_DURATION = "1200s"
+
 
 # NOTE: A user should use this in the case where they want to connect to an existing
 # topic.
@@ -25,9 +28,27 @@ class GCPPubSubSubscription(GCPPrimtive):
     subscription_name: PubSubSubscriptionName
     # required fields
     topic: GCPPubSubTopic
-
     # Optional fields
+    batch_size: int = 1000
     include_attributes: bool = False
+    # pulumi options
+    ack_deadline_seconds: bool = dataclasses.field(
+        default=_DEFAULT_ACK_DEADLINE_SECONDS, init=False
+    )
+    message_retention_duration: str = dataclasses.field(
+        default=_DEFAULT_MESSAGE_RETENTION_DURATION, init=False
+    )
+
+    def pulumi_options(
+        self,
+        managed: bool = False,
+        ack_deadline_seconds: bool = _DEFAULT_ACK_DEADLINE_SECONDS,
+        message_retention_duration: str = _DEFAULT_MESSAGE_RETENTION_DURATION,
+    ) -> "GCPPubSubSubscription":
+        to_ret = super().pulumi_options(managed)
+        to_ret.ack_deadline_seconds = ack_deadline_seconds
+        to_ret.message_retention_duration = message_retention_duration
+        return to_ret
 
     @classmethod
     def from_gcp_options(
@@ -60,7 +81,10 @@ class GCPPubSubSubscription(GCPPrimtive):
             project_id=self.project_id,
             subscription_name=self.subscription_name,
             topic=self.topic,
+            batch_size=self.batch_size,
             include_attributes=self.include_attributes,
+            ack_deadline_seconds=self.ack_deadline_seconds,
+            message_retention_duration=self.message_retention_duration,
         )
 
     # NOTE: Subscriptions do not support sinks, but we "implement" it here to
@@ -71,10 +95,13 @@ class GCPPubSubSubscription(GCPPrimtive):
             "Please use GCPPubSubTopic instead."
         )
 
-    def pulumi_provider(self) -> GCPPubSubSubscriptionProvider:
-        # TODO: Add support to supply the pulumi-only options
+    def _pulumi_provider(self) -> GCPPubSubSubscriptionProvider:
         return GCPPubSubSubscriptionProvider(
             project_id=self.project_id,
             subscription_name=self.subscription_name,
             topic=self.topic,
+            batch_size=self.batch_size,
+            include_attributes=self.include_attributes,
+            ack_deadline_seconds=self.ack_deadline_seconds,
+            message_retention_duration=self.message_retention_duration,
         )

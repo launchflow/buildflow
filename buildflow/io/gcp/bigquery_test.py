@@ -42,11 +42,11 @@ class BigQueryTest(unittest.TestCase):
             project_id="project_id",
             dataset_name="dataset_name",
             table_name="table_name",
-        ).options(destroy_protection=False)
+        ).pulumi_options(destroy_protection=False)
 
         pulumi_resources: List[
             PulumiResource
-        ] = bigquery_table.pulumi_provider().pulumi_resources(
+        ] = bigquery_table._pulumi_provider().pulumi_resources(
             type_=FakeRow, credentials=EmptyCredentials(None)
         )
         self.assertEqual(len(pulumi_resources), 2)
@@ -103,7 +103,7 @@ class BigQueryTest(unittest.TestCase):
 
         pulumi_resources: List[
             PulumiResource
-        ] = bigquery_table.pulumi_provider().pulumi_resources(
+        ] = bigquery_table._pulumi_provider().pulumi_resources(
             type_=FakeRow, credentials=EmptyCredentials(None)
         )
         self.assertEqual(len(pulumi_resources), 2)

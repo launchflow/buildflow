@@ -30,7 +30,7 @@ sink = BigQueryTable(
     project_id=gcp_project,
     dataset_name=dataset,
     table_name=bigquery_table,
-).options(managed=True, destroy_protection=False)
+).pulumi_options(managed=True, destroy_protection=False)
 
 
 # Nested dataclasses can be used inside of your schemas.

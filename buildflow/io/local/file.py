@@ -40,7 +40,7 @@ class File(LocalPrimtive):
             file_format=self.file_format,
         )
 
-    def pulumi_provider(self) -> FileProvider:
+    def _pulumi_provider(self) -> FileProvider:
         return FileProvider(
             file_path=self.file_path,
             file_format=self.file_format,

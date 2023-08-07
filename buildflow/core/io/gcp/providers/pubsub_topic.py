@@ -30,7 +30,7 @@ class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
             topic_name=self.topic_name,
         )
 
-    def pulumi(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: GCPCredentials,

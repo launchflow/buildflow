@@ -6,6 +6,7 @@ import os
 import signal
 from typing import List, Optional
 
+import pulumi
 from ray import serve
 
 from buildflow.config.buildflow_config import BuildFlowConfig
@@ -284,7 +285,7 @@ class Flow:
     def _pipeline_decorator(
         self,
         source_primitive: Primitive,
-        sink_primitive: Optional[Primitive],
+        sink_primitive: Primitive,
         processor_options: ProcessorOptions,
         source_credentials: CredentialType,
         sink_credentials: CredentialType,
@@ -341,26 +342,53 @@ class Flow:
                 self._primitive_cache.append(sink_primitive)
                 include_sink_primitive = True
 
-            def pulumi_resources():
-                all_resources = []
-                # Builds the source's pulumi.CompositeResource (if it exists)
-                if source_primitive.managed and include_source_primitive:
-                    source_pulumi_provider = source_primitive.pulumi_provider()
-                    source_resource = source_pulumi_provider.pulumi(
-                        type_=input_type,
-                        credentials=source_credentials,
-                    )
-                    if source_resource is not None:
-                        all_resources.append(source_resource)
-                # Builds the sink's pulumi.CompositeResource (if it exists)
-                if sink_primitive.managed and include_sink_primitive:
-                    sink_pulumi_provider = sink_primitive.pulumi_provider()
-                    sink_resource = sink_pulumi_provider.pulumi(
-                        type_=output_type, credentials=sink_credentials
-                    )
-                    if sink_resource is not None:
-                        all_resources.append(sink_resource)
-                return all_resources
+            processor_id = original_process_fn_or_class.__name__
+
+            def pulumi_resources_for_pipeline():
+                class PipelineComponentResource(pulumi.ComponentResource):
+                    def __init__(
+                        self,
+                        processor_id: str,
+                        source_primitive: Primitive,
+                        sink_primitive: Primitive,
+                    ):
+                        super().__init__(
+                            "buildflow:processor:Pipeline",
+                            f"buildflow-component-{processor_id}",
+                            None,
+                            None,
+                        )
+                        self.register_outputs(
+                            {
+                                "processor_id": processor_id,
+                            }
+                        )
+
+                        child_opts = pulumi.ResourceOptions(parent=self)
+
+                        # Builds the source's pulumi.CompositeResource (if it exists)
+                        if include_source_primitive:
+                            source_pulumi_provider = source_primitive.pulumi_provider()
+                            source_pulumi_provider.pulumi_resource(
+                                type_=input_type,
+                                credentials=source_credentials,
+                                opts=child_opts,
+                            )
+
+                        # Builds the sink's pulumi.CompositeResource (if it exists)
+                        if include_sink_primitive:
+                            sink_pulumi_provider = sink_primitive.pulumi_provider()
+                            sink_pulumi_provider.pulumi_resource(
+                                type_=output_type,
+                                credentials=sink_credentials,
+                                opts=child_opts,
+                            )
+
+                return PipelineComponentResource(
+                    processor_id=processor_id,
+                    source_primitive=source_primitive,
+                    sink_primitive=sink_primitive,
+                )
 
             def background_tasks():
                 return self._background_tasks(
@@ -368,7 +396,6 @@ class Flow:
                 ) + self._background_tasks(sink_primitive, sink_credentials)
 
             # Dynamically define a new class with the same structure as Processor
-            processor_id = original_process_fn_or_class.__name__
             class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
             source_provider = source_primitive.source_provider()
             sink_provider = sink_primitive.sink_provider()
@@ -379,7 +406,7 @@ class Flow:
                 "source": lambda self: source_provider.source(source_credentials),
                 "sink": lambda self: sink_provider.sink(sink_credentials),
                 # ProcessorAPI methods. NOTE: process() is attached separately below
-                "resources": lambda self: pulumi_resources(),
+                "pulumi_program": lambda self: pulumi_resources_for_pipeline(),
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: background_tasks(),

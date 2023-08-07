@@ -2,7 +2,6 @@ import enum
 from typing import Any, Dict, List
 
 from buildflow.core.background_tasks.background_task import BackgroundTask
-from buildflow.core.resources._resource import Resource
 
 
 class ProcessorType(enum.Enum):
@@ -20,8 +19,8 @@ class ProcessorAPI:
     processor_type: ProcessorType
     __meta__: Dict[str, Any]
 
-    def resources(self) -> List[Resource]:
-        raise NotImplementedError("resources not implemented for Processor")
+    def pulumi_program(self):
+        raise NotImplementedError("pulumi_program not implemented for Processor")
 
     def setup(self):
         raise NotImplementedError("setup not implemented")

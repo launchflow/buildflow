@@ -1,8 +1,9 @@
 from typing import List, Optional, Type
 
+import pulumi
+
 from buildflow.core.background_tasks.background_task import BackgroundTask
 from buildflow.core.credentials import CredentialType
-from buildflow.core.resources.pulumi import PulumiComponentResource
 from buildflow.core.strategies.sink import SinkStrategy
 from buildflow.core.strategies.source import SourceStrategy
 
@@ -15,20 +16,22 @@ class ProviderAPI:
 
 class PulumiProvider(ProviderAPI):
     # TODO: Update type_ to use a BuildFlow.Schema type
-    def pulumi(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: CredentialType,
-    ) -> Optional[PulumiComponentResource]:
-        raise NotImplementedError("pulumi_resources not implemented for Provider")
+        opts: pulumi.ResourceOptions,
+    ) -> Optional[pulumi.ComponentResource]:
+        raise NotImplementedError("pulumi not implemented for Provider")
 
 
 class EmptyPulumiProvider(PulumiProvider):
-    def pulumi(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: CredentialType,
-    ) -> Optional[PulumiComponentResource]:
+        opts: pulumi.ResourceOptions,
+    ) -> Optional[pulumi.ComponentResource]:
         return None
 
 

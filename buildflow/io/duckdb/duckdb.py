@@ -25,5 +25,5 @@ class DuckDBTable(LocalPrimtive):
     def sink_provider(self) -> DuckDBProvider:
         return DuckDBProvider(database=self.database, table=self.table)
 
-    def pulumi_provider(self) -> DuckDBProvider:
+    def _pulumi_provider(self) -> DuckDBProvider:
         return DuckDBProvider(database=self.database, table=self.table)

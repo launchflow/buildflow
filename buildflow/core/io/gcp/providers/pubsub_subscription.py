@@ -12,6 +12,50 @@ from buildflow.core.types.gcp_types import GCPProjectID, PubSubSubscriptionName
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
 
 
+class _PubSubSubscriptionPulumiResource(pulumi.ComponentResource):
+    def __init__(
+        self,
+        # subscription primitive options
+        subscription_name: PubSubSubscriptionName,
+        project_id: GCPProjectID,
+        topic: GCPPubSubTopic,
+        ack_deadline_seconds: int,
+        message_retention_duration: str,
+        # pulumi_resource options (buildflow internal concept)
+        type_: Optional[Type],
+        credentials: GCPCredentials,
+        opts: pulumi.ResourceOptions,
+    ):
+        topic_resource = topic.pulumi_provider().pulumi_resource(
+            type_, credentials, opts
+        )
+        if topic_resource is not None:
+            opts = pulumi.ResourceOptions.merge(
+                opts, pulumi.ResourceOptions(depends_on=topic_resource)
+            )
+        super().__init__(
+            "buildflow:gcp:pubsub:Subscription",
+            f"buildflow-{project_id}-{subscription_name}",
+            None,
+            opts,
+        )
+
+        self.subscription_resource = pulumi_gcp.pubsub.Subscription(
+            opts=pulumi.ResourceOptions(parent=self),
+            name=subscription_name,
+            topic=topic.topic_id,
+            project=project_id,
+            ack_deadline_seconds=ack_deadline_seconds,
+            message_retention_duration=message_retention_duration,
+        )
+        self.register_outputs(
+            {
+                "gcp.pubsub.subscription.name": self.subscription_resource.name,
+                "gcp.pubsub.subscription.topic": self.subscription_resource.topic,  # noqa: E501
+            }
+        )
+
+
 class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
     def __init__(
         self,
@@ -20,11 +64,11 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
         subscription_name: PubSubSubscriptionName,
         topic: GCPPubSubTopic,
         # source-only options
-        batch_size: int = 1000,
-        include_attributes: bool = False,
+        batch_size: int,
+        include_attributes: bool,
         # pulumi-only options
-        ack_deadline_seconds: int = 10 * 60,
-        message_retention_duration: str = "1200s",
+        ack_deadline_seconds: int,
+        message_retention_duration: str,
     ):
         self.project_id = project_id
         self.subscription_name = subscription_name
@@ -45,47 +89,19 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
             include_attributes=self.include_attributes,
         )
 
-    def pulumi(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: GCPCredentials,
+        opts: pulumi.ResourceOptions,
     ):
-        class Subscription(pulumi.ComponentResource):
-            def __init__(
-                self,
-                subscription_name: PubSubSubscriptionName,
-                project_id: GCPProjectID,
-                topic: GCPPubSubTopic,
-                ack_deadline_seconds: int,
-                message_retention_duration: str,
-            ):
-                name = f"buildflow-{subscription_name}"
-                props: pulumi.Inputs | None = None
-                opts: pulumi.ResourceOptions | None = None
-                if topic.managed:
-                    topic_resource = topic.pulumi_provider().pulumi(type_, credentials)
-                    opts = pulumi.ResourceOptions(depends_on=topic_resource)
-                super().__init__("buildflow:gcp:pubsub:Subscription", name, props, opts)
-
-                self.subscription_resource = pulumi_gcp.pubsub.Subscription(
-                    opts=pulumi.ResourceOptions(parent=self),
-                    name=subscription_name,
-                    topic=topic.topic_id,
-                    project=project_id,
-                    ack_deadline_seconds=ack_deadline_seconds,
-                    message_retention_duration=message_retention_duration,
-                )
-                self.register_outputs(
-                    {
-                        "gcp.pubsub.subscription.name": self.subscription_resource.name,
-                        "gcp.pubsub.subscription.topic": self.subscription_resource.topic,  # noqa: E501
-                    }
-                )
-
-        return Subscription(
+        return _PubSubSubscriptionPulumiResource(
             self.subscription_name,
             self.project_id,
             self.topic,
             self.ack_deadline_seconds,
             self.message_retention_duration,
+            type_,
+            credentials,
+            opts,
         )

@@ -45,7 +45,7 @@ class GCPPubSubTopic(GCPPrimtive):
             topic_name=self.topic_name,
         )
 
-    def pulumi_provider(self) -> GCPPubSubTopicProvider:
+    def _pulumi_provider(self) -> GCPPubSubTopicProvider:
         return GCPPubSubTopicProvider(
             project_id=self.project_id,
             topic_name=self.topic_name,

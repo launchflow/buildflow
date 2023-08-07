@@ -54,7 +54,7 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
             pubsub_source=self.pubsub_subscription_provider.source(credentials),
         )
 
-    def pulumi(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: GCPCredentials,

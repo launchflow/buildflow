@@ -46,7 +46,7 @@ class S3BucketProvider(PulumiProvider, SinkProvider):
             file_format=self.file_format,
         )
 
-    def pulumi(
+    def pulumi_resource(
         self,
         type_: Optional[Type],
         credentials: AWSCredentials,
