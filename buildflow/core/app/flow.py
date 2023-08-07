@@ -46,7 +46,6 @@ FlowID = str
 class FlowState:
     flow_id: FlowID
     processors: List[ProcessorAPI]
-    pulumi_stack_state: WrappedStackState
 
     def as_json_dict(self):
         return {
@@ -55,11 +54,9 @@ class FlowState:
                 {
                     "processor_id": p.processor_id,
                     "processor_type": p.processor_type.value,
-                    "meta": p.__meta__,
                 }
                 for p in self.processors
             ],
-            "pulumi_stack_state": self.pulumi_stack_state.as_json_dict(),
         }
 
 
@@ -358,31 +355,38 @@ class Flow:
                             None,
                             None,
                         )
-                        self.register_outputs(
-                            {
-                                "processor_id": processor_id,
-                            }
-                        )
 
                         child_opts = pulumi.ResourceOptions(parent=self)
+                        outputs = {"processor_id": processor_id}
 
-                        # Builds the source's pulumi.CompositeResource (if it exists)
+                        # TODO: This does not handle the case where the same primitive
+                        # is used by multiple Processors. The first usage of the
+                        # primtive will create the Pulumi resource, but the second
+                        # usage will not, so the urn will not be included under this
+                        # Processor's ComponentResource. Builds the source's
+                        # pulumi.CompositeResource (if it exists)
                         if include_source_primitive:
                             source_pulumi_provider = source_primitive.pulumi_provider()
-                            source_pulumi_provider.pulumi_resource(
+                            source_resource = source_pulumi_provider.pulumi_resource(
                                 type_=input_type,
                                 credentials=source_credentials,
                                 opts=child_opts,
                             )
+                            if source_resource is not None:
+                                outputs["source_urn"] = source_resource.urn
 
                         # Builds the sink's pulumi.CompositeResource (if it exists)
                         if include_sink_primitive:
                             sink_pulumi_provider = sink_primitive.pulumi_provider()
-                            sink_pulumi_provider.pulumi_resource(
+                            sink_resource = sink_pulumi_provider.pulumi_resource(
                                 type_=output_type,
                                 credentials=sink_credentials,
                                 opts=child_opts,
                             )
+                            if sink_resource is not None:
+                                outputs["sink_urn"] = sink_resource.urn
+
+                        self.register_outputs(outputs)
 
                 return PipelineComponentResource(
                     processor_id=processor_id,
@@ -410,10 +414,6 @@ class Flow:
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: background_tasks(),
-                "__meta__": {
-                    "source": source_primitive,
-                    "sink": sink_primitive,
-                },
                 "__call__": original_process_fn_or_class,
             }
             if inspect.isclass(original_process_fn_or_class):

@@ -62,6 +62,7 @@ class _BigQueryTablePulumiResource(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self, depends_on=table_depends_on),
         )
         outputs["gcp.bigquery.table_id"] = self.table_resource.id
+        outputs["buildflow.cloud_console.url"] = "TODO"
 
         self.register_outputs(outputs)
 
