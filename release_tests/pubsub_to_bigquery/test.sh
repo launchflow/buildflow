@@ -17,7 +17,7 @@ buildflow run main:app &
 main_pid=$!
 
 sleep 45
-query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.buildflow_managed.$BIGQUERY_TABLE\`"
+query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.buildflow_pubsub_to_bigquery_test.$BIGQUERY_TABLE\`"
 echo "Running query: $query"
 num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
 
