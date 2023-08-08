@@ -24,7 +24,7 @@ output_table = BigQueryTable(
     project_id=gcp_project,
     dataset_name="buildflow_pubsub_to_bigquery_test",
     table_name=bigquery_table,
-).options(managed=True, destroy_protection=True)
+).options(managed=True, destroy_protection=False)
 
 
 # Define an output type for our pipeline.
