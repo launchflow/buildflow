@@ -15,6 +15,7 @@ from buildflow.io.primitive import GCPPrimtive, Primitive
 
 _DEFAULT_INCLUDE_DATASET = True
 _DEFAULT_DESTROY_PROTECTION = False
+_DEFAULT_BATCH_SIZE = 10_000
 
 
 @dataclasses.dataclass
@@ -33,7 +34,7 @@ class BigQueryTable(
     project_id: GCPProjectID
     dataset_name: BigQueryDatasetName
     table_name: BigQueryTableName
-    batch_size: int = 10_000
+    batch_size: int = dataclasses.field(default=_DEFAULT_BATCH_SIZE, init=False)
     include_dataset: bool = dataclasses.field(
         default=_DEFAULT_INCLUDE_DATASET, init=False
     )
@@ -47,13 +48,17 @@ class BigQueryTable(
 
     def options(
         self,
+        # Pulumi management options
         managed: bool = False,
         include_dataset: bool = _DEFAULT_INCLUDE_DATASET,
-        destroy_protection: bool = False,
+        destroy_protection: bool = _DEFAULT_DESTROY_PROTECTION,
+        # Sink options
+        batch_size: int = _DEFAULT_BATCH_SIZE,
     ) -> Primitive:
         to_ret = super().options(managed)
         to_ret.include_dataset = include_dataset
         to_ret.destroy_protection = destroy_protection
+        to_ret.batch_size = batch_size
         return to_ret
 
     @classmethod

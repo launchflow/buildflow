@@ -4,16 +4,27 @@ from datetime import datetime
 from typing import Any, Dict
 
 import buildflow
-from buildflow.io.portable import AnalysisTable, Topic
+from buildflow.io.gcp import BigQueryTable, GCPPubSubSubscription, GCPPubSubTopic
 
 bigquery_table = os.getenv("BIGQUERY_TABLE", "taxi_rides")
+gcp_project = os.getenv("GCP_PROJECT", "buildflow-internal")
 
 # Set up a subscriber for the source.
-# If this subscriber does not exist yet BuildFlow will create it.
-input_source = Topic(topic_id="projects/pubsub-public-data/topics/taxirides-realtime")
+input_source = GCPPubSubSubscription(
+    project_id=gcp_project,
+    subscription_name="taxi_rides",
+).options(
+    managed=True,
+    topic=GCPPubSubTopic(
+        project_id="pubsub-public-data", topic_name="taxirides-realtime"
+    ),
+)
 # Set up a BigQuery table for the sink.
-# If this table does not exist yet BuildFlow will create it.
-output_table = AnalysisTable(bigquery_table).options(destroy_protection=False)
+output_table = BigQueryTable(
+    project_id=gcp_project,
+    dataset_name="buildflow_pubsub_to_bigquery_test",
+    table_name=bigquery_table,
+).options(managed=True, destroy_protection=True)
 
 
 # Define an output type for our pipeline.

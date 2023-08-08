@@ -44,7 +44,6 @@ class _BigQueryTablePulumiResource(pulumi.ComponentResource):
                 f"buildflow-{dataset_name}",
                 project=project_id,
                 dataset_id=dataset_name,
-                delete_contents_on_destroy=(not destroy_protection),
                 opts=pulumi.ResourceOptions(parent=self),
             )
             outputs["gcp.bigquery.dataset_id"] = self.dataset_resource.id

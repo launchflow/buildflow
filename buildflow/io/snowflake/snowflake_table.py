@@ -9,6 +9,12 @@ from buildflow.io.provider import BackgroundTaskProvider, PulumiProvider, SinkPr
 from buildflow.io.snowflake.providers.table_provider import SnowflakeTableProvider
 from buildflow.types.portable import FileFormat
 
+_DEFAULT_DATABASE_MANAGED = True
+_DEFAULT_SCHEMA_MANAGED = True
+_DEFAULT_SNOW_PIPE_MANAGED = True
+_DEFAULT_STAGE_MANAGED = True
+_DEFAULT_FLUSH_TIME_LIMIT_SECS = 60
+
 
 @dataclasses.dataclass
 class SnowflakeTable(
@@ -46,14 +52,22 @@ class SnowflakeTable(
 
     # Optional arguments to configure sink
     # The maximium number of seconds to wait before flushing to SnowPipe.
-    flush_time_limit_secs: Optional[int] = 60
+    flush_time_limit_secs: int = dataclasses.field(
+        default=_DEFAULT_FLUSH_TIME_LIMIT_SECS, init=False
+    )
 
     # Optional arguments to configure pulumi. These can be set with the:
     # .options(...) method
-    database_managed: bool = dataclasses.field(default=False, init=False)
-    schema_managed: bool = dataclasses.field(default=False, init=False)
-    snow_pipe_managed: bool = dataclasses.field(default=False, init=False)
-    stage_managed: bool = dataclasses.field(default=False, init=False)
+    database_managed: bool = dataclasses.field(
+        default=_DEFAULT_DATABASE_MANAGED, init=False
+    )
+    schema_managed: bool = dataclasses.field(
+        default=_DEFAULT_SCHEMA_MANAGED, init=False
+    )
+    snow_pipe_managed: bool = dataclasses.field(
+        default=_DEFAULT_SNOW_PIPE_MANAGED, init=False
+    )
+    stage_managed: bool = dataclasses.field(default=_DEFAULT_STAGE_MANAGED, init=False)
 
     def __post_init__(self):
         if isinstance(self.bucket, S3Bucket):
@@ -76,13 +90,17 @@ class SnowflakeTable(
 
     def options(
         self,
+        # Pulumi management options
         managed: bool = False,
-        database_managed: bool = True,
-        schema_managed: bool = True,
+        database_managed: bool = _DEFAULT_DATABASE_MANAGED,
+        schema_managed: bool = _DEFAULT_SCHEMA_MANAGED,
+        # Sink options
+        flush_time_limit_secs: int = _DEFAULT_FLUSH_TIME_LIMIT_SECS,
     ) -> "SnowflakeTable":
         to_ret = super().options(managed)
         to_ret.database_managed = database_managed
         to_ret.schema_managed = schema_managed
+        to_ret.flush_time_limit_secs = flush_time_limit_secs
         return to_ret
 
     def sink_provider(self) -> SinkProvider:
