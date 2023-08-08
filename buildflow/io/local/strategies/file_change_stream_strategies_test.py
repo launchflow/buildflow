@@ -74,14 +74,22 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
         # On linux two payloads one for modified dir and one for modified file
         # On mac one payload for modified file
         self.assertGreaterEqual(len(data.payload), 1)
-        modified_data = data.payload[0]
-        self.assertEqual(modified_data.event_type, FileChangeStreamEventType.MODIFIED)
-        self.assertEqual(modified_data.metadata["eventType"], "modified")
-        # NOTE: we do "in" checks here because on OSX temp files
-        # get created in /var/... which is actualy a symlink to /private/var/...
-        self.assertIn(create_path, event.file_path)
-        self.assertIn(create_path, event.metadata["srcPath"])
-        self.assertEqual(modified_data.blob, b"hello, world")
+
+        found_modify_event = False
+        for event in data.payload:
+            if (
+                event.event_type == FileChangeStreamEventType.MODIFIED
+                and not event.metadata["isDirectory"]
+            ):
+                found_modify_event = True
+                self.assertEqual(event.metadata["eventType"], "modified")
+                # NOTE: we do "in" checks here because on OSX temp files
+                # get created in /var/... which is actualy a symlink to /private/var/...
+                self.assertIn(create_path, event.file_path)
+                self.assertIn(create_path, event.metadata["srcPath"])
+                self.assertEqual(event.blob, b"hello, world")
+        if not found_modify_event:
+            self.fail("Did not find file modify event")
 
         os.remove(create_path)
         time.sleep(1)
