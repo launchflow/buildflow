@@ -14,7 +14,6 @@ app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=Fal
 source = GCPPubSubSubscription(
     project_id=gcp_project,
     subscription_name=main_sub,
-    topic_id=f"projects/{gcp_project}/topics/{incoming_topic}",
 ).options(
     managed=True,
     topic=GCPPubSubTopic(project_id=gcp_project, topic_name=incoming_topic).options(
