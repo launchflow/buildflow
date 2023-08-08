@@ -39,13 +39,13 @@ class GCSFileChangeStream(
         self.pubsub_subscription = GCPPubSubSubscription(
             project_id=self.gcs_bucket.project_id,
             subscription_name=f"{self.gcs_bucket.bucket_name}_subscription",
-            include_attributes=True,
         ).options(
             managed=True,
             topic=GCPPubSubTopic(
                 self.gcs_bucket.project_id,
                 topic_name=f"{self.gcs_bucket.bucket_name}_topic",
             ).options(managed=True),
+            include_attributes=True,
         )
 
     @classmethod

@@ -12,6 +12,8 @@ from buildflow.io.primitive import GCPPrimtive
 
 _DEFAULT_ACK_DEADLINE_SECONDS = 10 * 60
 _DEFAULT_MESSAGE_RETENTION_DURATION = "1200s"
+_DEFAULT_BATCH_SIZE = 1_000
+_DEFAULT_INCLUDE_ATTRIBUTES = False
 
 
 # NOTE: A user should use this in the case where they want to connect to an existing
@@ -34,8 +36,10 @@ class GCPPubSubSubscription(
     # required fields
     topic: GCPPubSubTopic
     # Optional fields
-    batch_size: int = 1000
-    include_attributes: bool = False
+    batch_size: int = dataclasses.field(default=_DEFAULT_BATCH_SIZE, init=False)
+    include_attributes: bool = dataclasses.field(
+        default=_DEFAULT_INCLUDE_ATTRIBUTES, init=False
+    )
     # pulumi options
     ack_deadline_seconds: bool = dataclasses.field(
         default=_DEFAULT_ACK_DEADLINE_SECONDS, init=False
@@ -47,15 +51,21 @@ class GCPPubSubSubscription(
 
     def options(
         self,
+        # Pulumi management options
         managed: bool = False,
         ack_deadline_seconds: bool = _DEFAULT_ACK_DEADLINE_SECONDS,
         message_retention_duration: str = _DEFAULT_MESSAGE_RETENTION_DURATION,
         topic: Optional[GCPPubSubTopic] = None,
+        # Source options
+        batch_size: int = _DEFAULT_BATCH_SIZE,
+        include_attributes: bool = _DEFAULT_INCLUDE_ATTRIBUTES,
     ) -> "GCPPubSubSubscription":
         to_ret = super().options(managed)
         to_ret.ack_deadline_seconds = ack_deadline_seconds
         to_ret.message_retention_duration = message_retention_duration
         to_ret.topic = topic
+        to_ret.batch_size = batch_size
+        to_ret.include_attributes = include_attributes
         return to_ret
 
     @classmethod

@@ -7,8 +7,6 @@ export MAIN_SUB=main-$RANDOM
 
 cd release_tests/pubsub_to_pubsub
 
-gcloud pubsub topics create projects/$GCP_PROJECT/topics/$INCOMING_TOPIC
-
 ray start --head --num-cpus=2
 
 final_output=1
@@ -37,7 +35,6 @@ buildflow destroy pubsub_main:app || {
 }
 ray stop --force
 
-gcloud pubsub topics delete projects/$GCP_PROJECT/topics/$INCOMING_TOPIC
 gcloud pubsub subscriptions delete projects/$GCP_PROJECT/subscriptions/$VALIDATION_SUB
 
 exit $final_output

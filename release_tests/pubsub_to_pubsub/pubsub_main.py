@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 
 import buildflow
-from buildflow.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
+from buildflow.io.gcp import GCPPubSubSubscription, GCPPubSubTopic
 
 gcp_project = os.environ["GCP_PROJECT"]
 outgoing_topic = os.environ["OUTGOING_TOPIC"]
@@ -15,7 +15,12 @@ source = GCPPubSubSubscription(
     project_id=gcp_project,
     subscription_name=main_sub,
     topic_id=f"projects/{gcp_project}/topics/{incoming_topic}",
-).options(managed=True)
+).options(
+    managed=True,
+    topic=GCPPubSubTopic(project_id=gcp_project, topic_name=incoming_topic).options(
+        managed=True
+    ),
+)
 sink = GCPPubSubTopic(project_id=gcp_project, topic_name=outgoing_topic).options(
     managed=True
 )
