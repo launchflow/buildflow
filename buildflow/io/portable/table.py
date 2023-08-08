@@ -3,11 +3,11 @@ import os
 from typing import Optional
 
 from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
-from buildflow.core.io.primitive import PortablePrimtive, Primitive
-from buildflow.core.strategies._strategy import StategyType
 from buildflow.core.types.portable_types import TableName
 from buildflow.io.duckdb.duckdb import DuckDBTable
 from buildflow.io.gcp.bigquery import BigQueryTable
+from buildflow.io.primitive import PortablePrimtive, Primitive
+from buildflow.io.strategies._strategy import StategyType
 
 
 @dataclasses.dataclass

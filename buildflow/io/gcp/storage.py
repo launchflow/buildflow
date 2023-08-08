@@ -3,18 +3,29 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
-from buildflow.core.io.gcp.providers.storage import GCSBucketProvider
-from buildflow.core.io.primitive import GCPPrimtive
 from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 from buildflow.core.types.portable_types import BucketName
 from buildflow.core.types.shared_types import FilePath
+from buildflow.io.gcp.providers.storage import GCSBucketProvider
+from buildflow.io.primitive import GCPPrimtive
 from buildflow.types.portable import FileFormat
 
 _DEFAULT_BUCKET_LOCATION = "US"
 
 
 @dataclasses.dataclass
-class GCSBucket(GCPPrimtive):
+class GCSBucket(
+    GCPPrimtive[
+        # Pulumi provider type
+        GCSBucketProvider,
+        # Source provider type
+        None,
+        # Sink provider type
+        GCSBucketProvider,
+        # Background task provider type
+        None,
+    ]
+):
     project_id: GCPProjectID
     bucket_name: GCSBucketName
 
@@ -29,6 +40,10 @@ class GCSBucket(GCPPrimtive):
     bucket_region: GCPRegion = dataclasses.field(
         default=_DEFAULT_BUCKET_LOCATION, init=False
     )
+
+    @property
+    def bucket_url(self):
+        return f"gcs://{self.bucket_name}"
 
     @classmethod
     def from_gcp_options(
@@ -57,10 +72,9 @@ class GCSBucket(GCPPrimtive):
         return cls(
             project_id=project_id,
             bucket_name=bucket_name,
-            bucket_region=region,
             file_path=file_path,
             file_format=file_format,
-        )
+        ).options(managed=True, bucket_region=region)
 
     def options(
         self,

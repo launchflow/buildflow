@@ -2,19 +2,31 @@ import dataclasses
 from typing import Iterable
 
 from buildflow.config.cloud_provider_config import GCPOptions
-from buildflow.core.io.gcp.providers.gcs_file_change_stream import (
+from buildflow.core.types.portable_types import BucketName
+from buildflow.io.gcp.providers.gcs_file_change_stream import (
     GCSFileChangeStreamProvider,
 )
-from buildflow.core.io.primitive import CompositePrimitive, GCPPrimtive
-from buildflow.core.types.portable_types import BucketName
 from buildflow.io.gcp.pubsub_subscription import GCPPubSubSubscription
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
 from buildflow.io.gcp.storage import GCSBucket
+from buildflow.io.primitive import CompositePrimitive, GCPPrimtive
 from buildflow.types.gcp import GCSChangeStreamEventType
 
 
 @dataclasses.dataclass
-class GCSFileChangeStream(GCPPrimtive, CompositePrimitive):
+class GCSFileChangeStream(
+    GCPPrimtive[
+        # Pulumi provider type
+        GCSFileChangeStreamProvider,
+        # Source provider type
+        GCSFileChangeStreamProvider,
+        # Sink provider type
+        None,
+        # Background task provider type
+        None,
+    ],
+    CompositePrimitive,
+):
     gcs_bucket: GCSBucket
     event_types: Iterable[GCSChangeStreamEventType] = (
         GCSChangeStreamEventType.OBJECT_FINALIZE,

@@ -1,21 +1,28 @@
 import dataclasses
 from typing import Optional, Union
 
-from buildflow.core.io.primitive import Primitive, PrimitiveType
-from buildflow.core.io.snowflake.providers.table_provider import SnowflakeTableProvider
-from buildflow.core.providers.provider import (
-    BackgroundTaskProvider,
-    PulumiProvider,
-    SinkProvider,
-)
 from buildflow.core.utils import uuid
 from buildflow.io.aws.s3 import S3Bucket
 from buildflow.io.gcp.storage import GCSBucket
+from buildflow.io.primitive import Primitive, PrimitiveType
+from buildflow.io.provider import BackgroundTaskProvider, PulumiProvider, SinkProvider
+from buildflow.io.snowflake.providers.table_provider import SnowflakeTableProvider
 from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
-class SnowflakeTable(Primitive):
+class SnowflakeTable(
+    Primitive[
+        # Pulumi provider type
+        SnowflakeTableProvider,
+        # Source provider type
+        None,
+        # Sink provider type
+        SnowflakeTableProvider,
+        # Background task provider type
+        SnowflakeTableProvider,
+    ]
+):
     # TODO: make these types more concrete
     # Required arguments
     table: str
@@ -83,7 +90,7 @@ class SnowflakeTable(Primitive):
             table=self.table,
             database=self.database,
             schema=self.schema,
-            bucket_provider=self.bucket.sink_provider(),
+            bucket=self.bucket.sink_provider(),
             snow_pipe=self.snow_pipe,
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,
@@ -102,7 +109,7 @@ class SnowflakeTable(Primitive):
             table=self.table,
             database=self.database,
             schema=self.schema,
-            bucket_provider=self.bucket._pulumi_provider(),
+            bucket=self.bucket._pulumi_provider(),
             snow_pipe=self.snow_pipe,
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,
@@ -121,7 +128,7 @@ class SnowflakeTable(Primitive):
             table=self.table,
             database=self.database,
             schema=self.schema,
-            bucket_provider=self.bucket._pulumi_provider(),
+            bucket=self.bucket._pulumi_provider(),
             snow_pipe=self.snow_pipe,
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,

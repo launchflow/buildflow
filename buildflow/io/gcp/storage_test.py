@@ -2,6 +2,7 @@ import unittest
 from dataclasses import dataclass
 
 import pulumi
+import pulumi_gcp
 import pytest
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
@@ -42,20 +43,16 @@ class GCSTest(unittest.TestCase):
         ).options(managed=True, bucket_region="US")
 
         bucket_resource = gcs_bucket.pulumi_provider().pulumi_resource(
-            type_=None, credentials=EmptyCredentials(None)
+            type_=None,
+            credentials=EmptyCredentials(None),
+            opts=pulumi.ResourceOptions(),
         )
 
         self.assertIsNotNone(bucket_resource)
 
-        def check_bucket(args):
-            urn = args
-            self.assertTrue(urn.startswith("buildflow"))
-
-        print("DO NOT SUBMIT: ", dir(bucket_resource))
-
-        pulumi.Output.all(
-            bucket_resource.urn,
-        ).apply(check_bucket)
+        child_resources = bucket_resource._childResources
+        self.assertEqual(len(child_resources), 1)
+        self.assertIsInstance(list(child_resources)[0], pulumi_gcp.storage.Bucket)
 
 
 if __name__ == "__main__":

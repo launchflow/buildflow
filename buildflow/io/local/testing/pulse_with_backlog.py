@@ -2,8 +2,8 @@ import dataclasses
 from typing import Any, Iterable
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.core.io.local.providers.pulse_providers import PulseProvider
-from buildflow.core.io.primitive import LocalPrimtive
+from buildflow.io.local.providers.pulse_providers import PulseProvider
+from buildflow.io.primitive import LocalPrimtive
 
 
 @dataclasses.dataclass

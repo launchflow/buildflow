@@ -3,14 +3,12 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
-from buildflow.core.io.gcp.providers.pubsub_subscription import (
-    GCPPubSubSubscriptionProvider,
-)
-from buildflow.core.io.primitive import GCPPrimtive
 from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubSubscriptionName
 from buildflow.core.types.portable_types import SubscriptionName
+from buildflow.io.gcp.providers.pubsub_subscription import GCPPubSubSubscriptionProvider
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
+from buildflow.io.primitive import GCPPrimtive
 
 _DEFAULT_ACK_DEADLINE_SECONDS = 10 * 60
 _DEFAULT_MESSAGE_RETENTION_DURATION = "1200s"
@@ -19,7 +17,18 @@ _DEFAULT_MESSAGE_RETENTION_DURATION = "1200s"
 # NOTE: A user should use this in the case where they want to connect to an existing
 # topic.
 @dataclasses.dataclass
-class GCPPubSubSubscription(GCPPrimtive):
+class GCPPubSubSubscription(
+    GCPPrimtive[
+        # Pulumi provider type
+        GCPPubSubSubscriptionProvider,
+        # Source provider type
+        GCPPubSubSubscriptionProvider,
+        # Sink provider type
+        None,
+        # Background task provider type
+        None,
+    ]
+):
     project_id: GCPProjectID
     subscription_name: PubSubSubscriptionName
     # required fields

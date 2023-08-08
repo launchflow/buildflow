@@ -2,18 +2,30 @@ import dataclasses
 from typing import Iterable
 
 from buildflow.config.cloud_provider_config import AWSOptions
-from buildflow.core.io.aws.providers.s3_file_change_stream_provider import (
+from buildflow.core.types.aws_types import S3BucketName
+from buildflow.io.aws.providers.s3_file_change_stream_provider import (
     S3FileChangeStreamProvider,
 )
-from buildflow.core.io.primitive import AWSPrimtive, CompositePrimitive
-from buildflow.core.types.aws_types import S3BucketName
 from buildflow.io.aws.s3 import S3Bucket
 from buildflow.io.aws.sqs import SQSQueue
+from buildflow.io.primitive import AWSPrimtive, CompositePrimitive
 from buildflow.types.aws import S3ChangeStreamEventType
 
 
 @dataclasses.dataclass
-class S3FileChangeStream(AWSPrimtive, CompositePrimitive):
+class S3FileChangeStream(
+    AWSPrimtive[
+        # Pulumi provider type
+        S3FileChangeStreamProvider,
+        # Source provider type
+        S3FileChangeStreamProvider,
+        # Sink provider type
+        None,
+        # Background task provider type
+        None,
+    ],
+    CompositePrimitive,
+):
     s3_bucket: S3Bucket
     event_types: Iterable[S3ChangeStreamEventType] = (
         S3ChangeStreamEventType.OBJECT_CREATED_ALL,
@@ -40,15 +52,15 @@ class S3FileChangeStream(AWSPrimtive, CompositePrimitive):
 
     def source_provider(self) -> S3FileChangeStreamProvider:
         return S3FileChangeStreamProvider(
-            s3_bucket_provider=None,
-            sqs_queue_provider=self.sqs_queue.source_provider(),
+            s3_bucket=self.s3_bucket,
+            sqs_queue=self.sqs_queue,
             event_types=self.event_types,
         )
 
     def _pulumi_provider(self) -> S3FileChangeStreamProvider:
         return S3FileChangeStreamProvider(
-            s3_bucket_provider=self.s3_bucket._pulumi_provider(),
-            sqs_queue_provider=self.sqs_queue._pulumi_provider(),
+            s3_bucket=self.s3_bucket,
+            sqs_queue=self.sqs_queue,
             bucket_managed=self.s3_bucket._managed,
             event_types=self.event_types,
         )

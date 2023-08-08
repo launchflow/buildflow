@@ -3,8 +3,6 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
-from buildflow.core.io.gcp.providers.bigquery_table import BigQueryTableProvider
-from buildflow.core.io.primitive import GCPPrimtive, Primitive
 from buildflow.core.types.gcp_types import (
     BigQueryDatasetName,
     BigQueryTableID,
@@ -12,13 +10,26 @@ from buildflow.core.types.gcp_types import (
     GCPProjectID,
 )
 from buildflow.core.types.portable_types import TableName
+from buildflow.io.gcp.providers.bigquery_table import BigQueryTableProvider
+from buildflow.io.primitive import GCPPrimtive, Primitive
 
 _DEFAULT_INCLUDE_DATASET = True
 _DEFAULT_DESTROY_PROTECTION = False
 
 
 @dataclasses.dataclass
-class BigQueryTable(GCPPrimtive):
+class BigQueryTable(
+    GCPPrimtive[
+        # Pulumi provider type
+        BigQueryTableProvider,
+        # Source provider type
+        None,
+        # Sink provider type
+        BigQueryTableProvider,
+        # Background task provider type
+        None,
+    ]
+):
     project_id: GCPProjectID
     dataset_name: BigQueryDatasetName
     table_name: BigQueryTableName

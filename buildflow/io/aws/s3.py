@@ -2,16 +2,27 @@ import dataclasses
 from typing import Optional
 
 from buildflow.config.cloud_provider_config import AWSOptions
-from buildflow.core.io.aws.providers.s3_provider import S3BucketProvider
-from buildflow.core.io.primitive import AWSPrimtive
-from buildflow.core.providers.provider import PulumiProvider, SinkProvider
 from buildflow.core.types.aws_types import AWSRegion, S3BucketName
 from buildflow.core.types.shared_types import FilePath
+from buildflow.io.aws.providers.s3_provider import S3BucketProvider
+from buildflow.io.primitive import AWSPrimtive
+from buildflow.io.provider import PulumiProvider, SinkProvider
 from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
-class S3Bucket(AWSPrimtive):
+class S3Bucket(
+    AWSPrimtive[
+        # Pulumi provider type
+        S3BucketProvider,
+        # Source provider type
+        None,
+        # Sink provider type
+        S3BucketProvider,
+        # Background task provider type
+        None,
+    ]
+):
     bucket_name: S3BucketName
 
     # args if you are writing to the bucket as a sink
@@ -25,6 +36,10 @@ class S3Bucket(AWSPrimtive):
     # If true destroy will delete the bucket and all contents. If false
     # destroy will fail if the bucket contains data.
     force_destroy: bool = dataclasses.field(default=False, init=False)
+
+    @property
+    def bucket_url(self):
+        return f"s3://{self.bucket_name}"
 
     @classmethod
     def from_aws_options(

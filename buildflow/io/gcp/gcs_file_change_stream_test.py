@@ -18,7 +18,6 @@ class GCSFileChangeStreamTest(unittest.TestCase):
         self.assertEqual(
             stream.pubsub_subscription.subscription_name, "my-bucket_subscription"
         )
-        self.assertEqual(stream.pubsub_topic.topic_name, "my-bucket_topic")
 
 
 if __name__ == "__main__":

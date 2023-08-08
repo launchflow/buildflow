@@ -13,7 +13,6 @@ class GCPPubsubTest(unittest.TestCase):
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project",
             subscription_name="pubsub-sub",
-            topic_id="projects/project/topics/pubsub-topic",
         )
         pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 
@@ -29,7 +28,6 @@ class GCPPubsubTest(unittest.TestCase):
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project",
             subscription_name="pubsub-sub",
-            topic_id="projects/project/topics/pubsub-topic",
         )
         pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 
@@ -42,7 +40,6 @@ class GCPPubsubTest(unittest.TestCase):
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project",
             subscription_name="pubsub-sub",
-            topic_id="projects/project/topics/pubsub-topic",
         )
         pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 

@@ -3,14 +3,25 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
-from buildflow.core.io.gcp.providers.pubsub_topic import GCPPubSubTopicProvider
-from buildflow.core.io.primitive import GCPPrimtive
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubTopicID, PubSubTopicName
 from buildflow.core.types.portable_types import TopicName
+from buildflow.io.gcp.providers.pubsub_topic import GCPPubSubTopicProvider
+from buildflow.io.primitive import GCPPrimtive
 
 
 @dataclasses.dataclass
-class GCPPubSubTopic(GCPPrimtive):
+class GCPPubSubTopic(
+    GCPPrimtive[
+        # Pulumi provider type
+        GCPPubSubTopicProvider,
+        # Source provider type
+        None,
+        # Sink provider type
+        GCPPubSubTopicProvider,
+        # Background task provider type
+        None,
+    ]
+):
     project_id: GCPProjectID
     topic_name: PubSubTopicName
 

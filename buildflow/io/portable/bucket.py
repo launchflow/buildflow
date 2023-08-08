@@ -1,7 +1,7 @@
 import dataclasses
 
-from buildflow.core.io.primitive import PortablePrimtive
 from buildflow.core.types.portable_types import BucketName
+from buildflow.io.primitive import PortablePrimtive
 
 
 @dataclasses.dataclass

@@ -1,6 +1,6 @@
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
-from buildflow.core.strategies.sink import SinkStrategy
-from buildflow.core.strategies.source import SourceStrategy
+from buildflow.io.strategies.sink import SinkStrategy
+from buildflow.io.strategies.source import SourceStrategy
 
 
 class PipelineProcessor(ProcessorAPI):
