@@ -53,7 +53,7 @@ class SnowflakeTable(
     # Optional arguments to configure sink
     # The maximium number of seconds to wait before flushing to SnowPipe.
     flush_time_limit_secs: int = dataclasses.field(
-        _DEFAULT_FLUSH_TIME_LIMIT_SECS, init=False
+        default=_DEFAULT_FLUSH_TIME_LIMIT_SECS, init=False
     )
 
     # Optional arguments to configure pulumi. These can be set with the:
