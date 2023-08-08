@@ -3,16 +3,27 @@ import os
 from typing import Iterable
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.core.io.local.providers.file_change_stream_provider import (
+from buildflow.core.types.shared_types import FilePath
+from buildflow.io.local.providers.file_change_stream_provider import (
     LocalFileChangeStreamProvider,
 )
-from buildflow.core.io.primitive import LocalPrimtive
-from buildflow.core.types.shared_types import FilePath
+from buildflow.io.primitive import LocalPrimtive
 from buildflow.types.local import FileChangeStreamEventType
 
 
 @dataclasses.dataclass
-class LocalFileChangeStream(LocalPrimtive):
+class LocalFileChangeStream(
+    LocalPrimtive[
+        # Pulumi provider type
+        None,
+        # Source provider type
+        LocalFileChangeStreamProvider,
+        # Sink provider type
+        None,
+        # Background task provider type
+        None,
+    ]
+):
     file_path: FilePath
     event_types: Iterable[FileChangeStreamEventType] = (
         FileChangeStreamEventType.CREATED,
@@ -40,7 +51,7 @@ class LocalFileChangeStream(LocalPrimtive):
             file_path=self.file_path, event_types=self.event_types
         )
 
-    def pulumi_provider(self) -> LocalFileChangeStreamProvider:
+    def _pulumi_provider(self) -> LocalFileChangeStreamProvider:
         return LocalFileChangeStreamProvider(
             file_path=self.file_path, event_types=self.event_types
         )

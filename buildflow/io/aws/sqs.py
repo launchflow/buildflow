@@ -2,18 +2,25 @@ import dataclasses
 from typing import Optional
 
 from buildflow.config.cloud_provider_config import AWSOptions
-from buildflow.core.io.aws.providers.sqs_provider import SQSQueueProvider
-from buildflow.core.io.primitive import AWSPrimtive
-from buildflow.core.providers.provider import (
-    PulumiProvider,
-    SinkProvider,
-    SourceProvider,
-)
 from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, SQSQueueName
+from buildflow.io.aws.providers.sqs_provider import SQSQueueProvider
+from buildflow.io.primitive import AWSPrimtive
+from buildflow.io.provider import PulumiProvider, SinkProvider, SourceProvider
 
 
 @dataclasses.dataclass
-class SQSQueue(AWSPrimtive):
+class SQSQueue(
+    AWSPrimtive[
+        # Pulumi provider type
+        SQSQueueProvider,
+        # Source provider type
+        SQSQueueProvider,
+        # Sink provider type
+        SQSQueueProvider,
+        # Background task provider type
+        None,
+    ]
+):
     queue_name: SQSQueueName
     aws_account_id: Optional[AWSAccountID] = None
     aws_region: Optional[AWSRegion] = None
@@ -39,7 +46,7 @@ class SQSQueue(AWSPrimtive):
             aws_region=self.aws_region,
         )
 
-    def pulumi_provider(self) -> PulumiProvider:
+    def _pulumi_provider(self) -> PulumiProvider:
         return SQSQueueProvider(
             queue_name=self.queue_name,
             aws_account_id=self.aws_account_id,

@@ -3,28 +3,47 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
-from buildflow.core.io.gcp.providers.storage_providers import GCSBucketProvider
-from buildflow.core.io.primitive import GCPPrimtive, Primitive
 from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 from buildflow.core.types.portable_types import BucketName
 from buildflow.core.types.shared_types import FilePath
+from buildflow.io.gcp.providers.storage import GCSBucketProvider
+from buildflow.io.primitive import GCPPrimtive
 from buildflow.types.portable import FileFormat
+
+_DEFAULT_BUCKET_LOCATION = "US"
 
 
 @dataclasses.dataclass
-class GCSBucket(GCPPrimtive):
+class GCSBucket(
+    GCPPrimtive[
+        # Pulumi provider type
+        GCSBucketProvider,
+        # Source provider type
+        None,
+        # Sink provider type
+        GCSBucketProvider,
+        # Background task provider type
+        None,
+    ]
+):
     project_id: GCPProjectID
     bucket_name: GCSBucketName
-    bucket_region: GCPRegion
 
     # args if you are writing to the bucket as a sink
     file_path: Optional[FilePath] = None
     file_format: Optional[FileFormat] = None
 
-    # optional args
+    # pulumi optional args
     # If true destroy will delete the bucket and all contents. If false
     # destroy will fail if the bucket contains data.
     force_destroy: bool = dataclasses.field(default=False, init=False)
+    bucket_region: GCPRegion = dataclasses.field(
+        default=_DEFAULT_BUCKET_LOCATION, init=False
+    )
+
+    @property
+    def bucket_url(self):
+        return f"gcs://{self.bucket_name}"
 
     @classmethod
     def from_gcp_options(
@@ -53,22 +72,23 @@ class GCSBucket(GCPPrimtive):
         return cls(
             project_id=project_id,
             bucket_name=bucket_name,
-            bucket_region=region,
             file_path=file_path,
             file_format=file_format,
-        )
+        ).options(managed=True, bucket_region=region)
 
     def options(
-        self, *, managed: bool = False, force_destroy: bool = False
-    ) -> Primitive:
+        self,
+        *,
+        managed: bool = False,
+        force_destroy: bool = False,
+        bucket_region: GCPRegion = _DEFAULT_BUCKET_LOCATION,
+    ) -> "GCSBucket":
         to_ret = super().options(managed)
         to_ret.force_destroy = force_destroy
+        to_ret.bucket_region = bucket_region
         return to_ret
 
     def sink_provider(self):
-        # TODO: Add support to supply the source-only options. Maybe add some kind of
-        # "inject_options" method for the different provider types.
-        # Use a Builder pattern for this.
         return GCSBucketProvider(
             project_id=self.project_id,
             bucket_name=self.bucket_name,
@@ -78,7 +98,7 @@ class GCSBucket(GCPPrimtive):
             file_format=self.file_format,
         )
 
-    def pulumi_provider(self):
+    def _pulumi_provider(self):
         return GCSBucketProvider(
             project_id=self.project_id,
             bucket_name=self.bucket_name,

@@ -2,13 +2,24 @@ import dataclasses
 import os
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.core.io.duckdb.providers.duckdb_providers import DuckDBProvider
-from buildflow.core.io.primitive import LocalPrimtive
 from buildflow.core.types.duckdb_types import DuckDBDatabase, DuckDBTableID
+from buildflow.io.duckdb.providers.duckdb_providers import DuckDBProvider
+from buildflow.io.primitive import LocalPrimtive
 
 
 @dataclasses.dataclass
-class DuckDBTable(LocalPrimtive):
+class DuckDBTable(
+    LocalPrimtive[
+        # Pulumi provider type
+        None,
+        # Source provider type
+        None,
+        # Sink provider type
+        DuckDBProvider,
+        # Background task provider type
+        None,
+    ]
+):
     database: DuckDBDatabase
     table: DuckDBTableID
 
@@ -31,5 +42,5 @@ class DuckDBTable(LocalPrimtive):
     def sink_provider(self) -> DuckDBProvider:
         return DuckDBProvider(database=self.database, table=self.table)
 
-    def pulumi_provider(self) -> DuckDBProvider:
+    def _pulumi_provider(self) -> DuckDBProvider:
         return DuckDBProvider(database=self.database, table=self.table)

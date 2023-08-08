@@ -6,12 +6,13 @@ import os
 import signal
 from typing import List, Optional
 
+import pulumi
 from ray import serve
 
 from buildflow.config.buildflow_config import BuildFlowConfig
 from buildflow.core import utils
 from buildflow.core.app.infra.actors.infra import InfraActor
-from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, WrappedStackState
+from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.app.runtime.server import RuntimeServer
@@ -20,13 +21,13 @@ from buildflow.core.credentials._credentials import CredentialType
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.credentials.gcp_credentials import GCPCredentials
-from buildflow.core.io.primitive import PortablePrimtive, Primitive, PrimitiveType
 from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.processor.processor import ProcessorAPI
-from buildflow.core.strategies._strategy import StategyType
 from buildflow.io.local.empty import Empty
+from buildflow.io.primitive import PortablePrimtive, Primitive, PrimitiveType
+from buildflow.io.strategies._strategy import StategyType
 
 
 def _get_directory_path_of_caller():
@@ -45,7 +46,6 @@ FlowID = str
 class FlowState:
     flow_id: FlowID
     processors: List[ProcessorAPI]
-    pulumi_stack_state: WrappedStackState
 
     def as_json_dict(self):
         return {
@@ -54,11 +54,9 @@ class FlowState:
                 {
                     "processor_id": p.processor_id,
                     "processor_type": p.processor_type.value,
-                    "meta": p.__meta__,
                 }
                 for p in self.processors
             ],
-            "pulumi_stack_state": self.pulumi_stack_state.as_json_dict(),
         }
 
 
@@ -284,7 +282,7 @@ class Flow:
     def _pipeline_decorator(
         self,
         source_primitive: Primitive,
-        sink_primitive: Optional[Primitive],
+        sink_primitive: Primitive,
         processor_options: ProcessorOptions,
         source_credentials: CredentialType,
         sink_credentials: CredentialType,
@@ -341,21 +339,62 @@ class Flow:
                 self._primitive_cache.append(sink_primitive)
                 include_sink_primitive = True
 
-            def pulumi_resources():
-                source_resources = []
-                if source_primitive.managed and include_source_primitive:
-                    source_pulumi_provider = source_primitive.pulumi_provider()
-                    source_resources = source_pulumi_provider.pulumi_resources(
-                        type_=input_type,
-                        credentials=source_credentials,
-                    )
-                sink_resources = []
-                if sink_primitive.managed and include_sink_primitive:
-                    sink_pulumi_provider = sink_primitive.pulumi_provider()
-                    sink_resources = sink_pulumi_provider.pulumi_resources(
-                        type_=output_type, credentials=sink_credentials
-                    )
-                return source_resources + sink_resources
+            processor_id = original_process_fn_or_class.__name__
+
+            def pulumi_resources_for_pipeline():
+                class PipelineComponentResource(pulumi.ComponentResource):
+                    def __init__(
+                        self,
+                        processor_id: str,
+                        source_primitive: Primitive,
+                        sink_primitive: Primitive,
+                    ):
+                        super().__init__(
+                            "buildflow:processor:Pipeline",
+                            f"buildflow-component-{processor_id}",
+                            None,
+                            None,
+                        )
+
+                        child_opts = pulumi.ResourceOptions(parent=self)
+                        outputs = {"processor_id": processor_id}
+
+                        # TODO: This does not handle the case where the same primitive
+                        # is used by multiple Processors. The first usage of the
+                        # primtive will create the Pulumi resource, but the second
+                        # usage will not, so the urn will not be included under this
+                        # Processor's ComponentResource. Builds the source's
+                        # pulumi.CompositeResource (if it exists)
+                        if include_source_primitive:
+                            source_pulumi_provider = source_primitive.pulumi_provider()
+                            if source_pulumi_provider is not None:
+                                source_resource = (
+                                    source_pulumi_provider.pulumi_resource(
+                                        type_=input_type,
+                                        credentials=source_credentials,
+                                        opts=child_opts,
+                                    )
+                                )
+                                outputs["source_urn"] = source_resource.urn
+
+                        # Builds the sink's pulumi.CompositeResource (if it exists)
+                        if include_sink_primitive:
+                            sink_pulumi_provider = sink_primitive.pulumi_provider()
+                            if sink_pulumi_provider is not None:
+                                sink_resource = sink_pulumi_provider.pulumi_resource(
+                                    type_=output_type,
+                                    credentials=sink_credentials,
+                                    opts=child_opts,
+                                )
+                                outputs["sink_urn"] = sink_resource.urn
+
+                        self.register_outputs(outputs)
+
+                return PipelineComponentResource(
+                    processor_id=processor_id,
+                    source_primitive=source_primitive,
+                    sink_primitive=sink_primitive,
+                )
 
             def background_tasks():
                 return self._background_tasks(
@@ -363,7 +402,6 @@ class Flow:
                 ) + self._background_tasks(sink_primitive, sink_credentials)
 
             # Dynamically define a new class with the same structure as Processor
-            processor_id = original_process_fn_or_class.__name__
             class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
             source_provider = source_primitive.source_provider()
             sink_provider = sink_primitive.sink_provider()
@@ -374,14 +412,10 @@ class Flow:
                 "source": lambda self: source_provider.source(source_credentials),
                 "sink": lambda self: sink_provider.sink(sink_credentials),
                 # ProcessorAPI methods. NOTE: process() is attached separately below
-                "resources": lambda self: pulumi_resources(),
+                "pulumi_program": lambda self: pulumi_resources_for_pipeline(),
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: background_tasks(),
-                "__meta__": {
-                    "source": source_primitive,
-                    "sink": sink_primitive,
-                },
                 "__call__": original_process_fn_or_class,
             }
             if inspect.isclass(original_process_fn_or_class):

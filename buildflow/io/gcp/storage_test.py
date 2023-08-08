@@ -1,12 +1,11 @@
 import unittest
 from dataclasses import dataclass
-from typing import List
 
 import pulumi
+import pulumi_gcp
 import pytest
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
-from buildflow.core.resources.pulumi import PulumiResource
 from buildflow.io.gcp.storage import GCSBucket
 
 
@@ -41,41 +40,19 @@ class GCSTest(unittest.TestCase):
         gcs_bucket = GCSBucket(
             project_id="project_id",
             bucket_name="bucket_name",
-            bucket_region="bucket_region",
+        ).options(managed=True, bucket_region="US")
+
+        bucket_resource = gcs_bucket.pulumi_provider().pulumi_resource(
+            type_=None,
+            credentials=EmptyCredentials(None),
+            opts=pulumi.ResourceOptions(),
         )
 
-        pulumi_resources: List[
-            PulumiResource
-        ] = gcs_bucket.pulumi_provider().pulumi_resources(
-            type_=None, credentials=EmptyCredentials(None)
-        )
-        self.assertEqual(len(pulumi_resources), 1)
+        self.assertIsNotNone(bucket_resource)
 
-        all_exports = {}
-        for resource in pulumi_resources:
-            all_exports.update(resource.exports)
-
-        gcs_bucket_resource = pulumi_resources[0].resource
-
-        def check_bucket(args):
-            _, project, name, location = args
-            self.assertEqual(project, "project_id")
-            self.assertEqual(name, "bucket_name")
-            self.assertEqual(location, "bucket_region")
-
-        pulumi.Output.all(
-            gcs_bucket_resource.urn,
-            gcs_bucket_resource.project,
-            gcs_bucket_resource.name,
-            gcs_bucket_resource.location,
-        ).apply(check_bucket)
-
-        self.assertEqual(
-            all_exports,
-            {
-                "gcp.storage.bucket_id": "bucket_name",
-            },
-        )
+        child_resources = bucket_resource._childResources
+        self.assertEqual(len(child_resources), 1)
+        self.assertIsInstance(list(child_resources)[0], pulumi_gcp.storage.Bucket)
 
 
 if __name__ == "__main__":

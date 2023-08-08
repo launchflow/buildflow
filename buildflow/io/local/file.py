@@ -2,14 +2,25 @@ import dataclasses
 import os
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.core.io.local.providers.file_providers import FileProvider
-from buildflow.core.io.primitive import LocalPrimtive
 from buildflow.core.types.shared_types import FilePath
+from buildflow.io.local.providers.file_providers import FileProvider
+from buildflow.io.primitive import LocalPrimtive
 from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
-class File(LocalPrimtive):
+class File(
+    LocalPrimtive[
+        # Pulumi provider type
+        None,
+        # Source provider type
+        None,
+        # Sink provider type
+        FileProvider,
+        # Background task provider type
+        None,
+    ]
+):
     file_path: FilePath
     file_format: FileFormat
 
@@ -35,12 +46,6 @@ class File(LocalPrimtive):
     def sink_provider(
         self,
     ) -> FileProvider:
-        return FileProvider(
-            file_path=self.file_path,
-            file_format=self.file_format,
-        )
-
-    def pulumi_provider(self) -> FileProvider:
         return FileProvider(
             file_path=self.file_path,
             file_format=self.file_format,

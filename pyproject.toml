@@ -56,6 +56,9 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+    "aiobotocore",
+    "aiohttp",
+    "botocore",
     "isort",
     "moto",
     "pytest",

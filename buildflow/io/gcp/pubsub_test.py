@@ -3,7 +3,8 @@ import unittest
 from dataclasses import asdict, dataclass
 from unittest import mock
 
-from buildflow.io.gcp.pubsub import GCPPubSubSubscription, GCPPubSubTopic
+from buildflow.io.gcp.pubsub_subscription import GCPPubSubSubscription
+from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
 
 
 # TODO: Add tests for PulumiResources. Can reference bigquery_test.py for an example.
@@ -12,7 +13,6 @@ class GCPPubsubTest(unittest.TestCase):
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project",
             subscription_name="pubsub-sub",
-            topic_id="projects/project/topics/pubsub-topic",
         )
         pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 
@@ -28,7 +28,6 @@ class GCPPubsubTest(unittest.TestCase):
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project",
             subscription_name="pubsub-sub",
-            topic_id="projects/project/topics/pubsub-topic",
         )
         pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 
@@ -41,7 +40,6 @@ class GCPPubsubTest(unittest.TestCase):
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project",
             subscription_name="pubsub-sub",
-            topic_id="projects/project/topics/pubsub-topic",
         )
         pubsub_source = pubsub_subscription.source_provider().source(mock.MagicMock())
 
