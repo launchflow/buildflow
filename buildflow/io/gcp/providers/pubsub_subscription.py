@@ -52,7 +52,8 @@ class _PubSubSubscriptionPulumiResource(pulumi.ComponentResource):
         self.register_outputs(
             {
                 "gcp.pubsub.subscription.name": self.subscription_resource.name,
-                "gcp.pubsub.subscription.topic": self.subscription_resource.topic,  # noqa: E501
+                "gcp.pubsub.subscription.topic": self.subscription_resource.topic,
+                "buildflow.cloud_console.url": f"https://console.cloud.google.com/cloudpubsub/subscription/detail/{subscription_name}?project={property}",
             }
         )
 

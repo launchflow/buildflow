@@ -7,6 +7,7 @@ from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.types.aws_types import AWSRegion, S3BucketName
 from buildflow.core.types.shared_types import FilePath
 from buildflow.io.aws.providers.pulumi_providers import aws_provider
+from buildflow.io.aws.providers.utils import arn_to_cloud_console_url
 from buildflow.io.aws.strategies.s3_strategies import S3BucketSink
 from buildflow.io.provider import PulumiProvider, SinkProvider
 from buildflow.io.strategies.sink import SinkStrategy
@@ -41,7 +42,9 @@ class _S3BucketResource(pulumi.ComponentResource):
             force_destroy=force_destroy,
         )
         outputs["aws.s3.bucket"] = self.bucket_resource.id
-        outputs["buildflow.cloud_console.url"] = "TODO"
+        outputs["buildflow.cloud_console.url"] = pulumi.Output.all(
+            self.bucket_resource.arn
+        ).apply(arn_to_cloud_console_url)
 
         self.register_outputs(outputs)
 

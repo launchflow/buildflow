@@ -1,3 +1,4 @@
+import json
 import os
 import unittest
 
@@ -39,7 +40,7 @@ class SqsStrategiesTest(unittest.TestCase):
             aws_account_id=None,
         )
         # Add more than ten elements to ensure we chunk if up properly
-        self.get_async_result(sink.push([{"a": 1}] * 12))
+        self.get_async_result(sink.push([json.dumps({"a": 1})] * 12))
 
         response1 = self.sqs_client.receive_message(
             QueueUrl=self.queue_url,
@@ -64,7 +65,7 @@ class SqsStrategiesTest(unittest.TestCase):
             aws_account_id=None,
         )
         # push a bunch of elements to the queue
-        self.get_async_result(sink.push([{"a": 1}] * 12))
+        self.get_async_result(sink.push([json.dumps({"a": 1})] * 12))
 
         source = SQSSource(
             credentials=self.creds,

@@ -6,6 +6,7 @@ import pulumi_aws
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, SQSQueueName
 from buildflow.io.aws.providers.pulumi_providers import aws_provider
+from buildflow.io.aws.providers.utils import arn_to_cloud_console_url
 from buildflow.io.aws.strategies.sqs_strategies import SQSSink, SQSSource
 from buildflow.io.provider import PulumiProvider, SinkProvider, SourceProvider
 from buildflow.io.strategies.sink import SinkStrategy
@@ -47,7 +48,9 @@ class _SQSQueueResource(pulumi.ComponentResource):
         )
 
         outputs["aws.queue.sqs"] = self.queue_resource.id
-        outputs["buildflow.cloud_console.url"] = "TODO"
+        outputs["buildflow.cloud_console.url"] = pulumi.Output.all(
+            self.queue_resource.arn
+        ).apply(arn_to_cloud_console_url)
 
         self.register_outputs(outputs)
 

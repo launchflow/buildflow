@@ -36,7 +36,9 @@ class _PubSubTopic(pulumi.ComponentResource):
         )
 
         outputs["gcp.pubsub.topic"] = self.topic_resource.id
-        outputs["buildflow.cloud_console.url"] = "TODO"
+        outputs[
+            "buildflow.cloud_console.url"
+        ] = f"https://console.cloud.google.com/cloudpubsub/topic/detail/{topic_name}?project={project_id}"
 
         self.register_outputs(outputs)
 

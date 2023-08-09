@@ -42,7 +42,9 @@ class _GCPStoragePulumiResource(pulumi.ComponentResource):
         )
 
         outputs["gcp.storage.bucket"] = self.bucket_resource.id
-        outputs["buildflow.cloud_console.url"] = "TODO"
+        outputs[
+            "buildflow.cloud_console.url"
+        ] = f"https://console.cloud.google.com/storage/browser/{bucket_name}?project={project_id}"
 
         self.register_outputs(outputs)
 
