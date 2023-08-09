@@ -26,5 +26,3 @@ class FileProvider(SinkProvider):
             file_path=self.file_path,
             file_format=self.file_format,
         )
-        # Local file provider does not have any Pulumi resources
-        return []

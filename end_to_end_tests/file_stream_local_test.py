@@ -9,9 +9,10 @@ import duckdb
 import pytest
 
 import buildflow
+from buildflow.io.local import File
 from buildflow.io.portable.file_change_stream import FileChangeStream
 from buildflow.io.portable.table import AnalysisTable
-from buildflow.types.portable import FileChangeEvent
+from buildflow.types.portable import FileChangeEvent, FileFormat
 
 
 @pytest.mark.usefixtures("ray_fix")
@@ -42,9 +43,12 @@ class FileStreamLocalTest(unittest.TestCase):
 
     def tearDown(self) -> None:
         shutil.rmtree(self.dir_to_watch)
-        os.remove(self.database)
+        try:
+            os.remove(self.database)
+        except FileNotFoundError:
+            pass
 
-    def test_file_stream_end_to_end(self):
+    def test_file_stream_duckdb_end_to_end(self):
         app = buildflow.Flow()
 
         @app.pipeline(
@@ -57,7 +61,7 @@ class FileStreamLocalTest(unittest.TestCase):
 
         run_coro = app.run(block=False)
 
-        # wait for 10 seconds to let it spin up
+        # wait for 20 seconds to let it spin up
         run_coro = self.run_for_time(run_coro, time=20)
 
         create_path = os.path.join(self.dir_to_watch, "file.txt")
@@ -72,6 +76,51 @@ class FileStreamLocalTest(unittest.TestCase):
 
         self.assertEqual(got_data[0], 1)
         self.get_async_result(app._drain())
+
+    def test_file_stream_file_end_to_end(self):
+        output_dir = tempfile.mkdtemp()
+        try:
+            app = buildflow.Flow()
+
+            @app.pipeline(
+                source=FileChangeStream(file_path=self.dir_to_watch),
+                sink=File(
+                    os.path.join(output_dir, "file.csv"), file_format=FileFormat.CSV
+                ),
+                num_cpus=0.5,
+            )
+            def my_pipeline(event: FileChangeEvent) -> Dict[str, str]:
+                return {"content": event.blob.decode()}
+
+            run_coro = app.run(block=False)
+
+            # wait for 20 seconds to let it spin up
+            run_coro = self.run_for_time(run_coro, time=20)
+
+            create_path = os.path.join(self.dir_to_watch, "hello.txt")
+            with open(create_path, "w") as f:
+                f.write("hello")
+
+            create_path = os.path.join(self.dir_to_watch, "world.txt")
+            with open(create_path, "w") as f:
+                f.write("world")
+
+            run_coro = self.run_for_time(run_coro, time=20)
+
+            output_files = os.listdir(output_dir)
+            self.assertEqual(len(output_files), 1)
+            output_file = os.path.join(output_dir, output_files[0])
+
+            with open(output_file, "r") as f:
+                lines = f.readlines()
+                self.assertEqual(len(lines), 3)
+                self.assertEqual(lines[0], '"content"\n')
+                self.assertEqual(lines[1], '"hello"\n')
+                self.assertEqual(lines[2], '"world"\n')
+
+            self.get_async_result(app._drain())
+        finally:
+            shutil.rmtree(output_dir)
 
 
 if __name__ == "__main__":
