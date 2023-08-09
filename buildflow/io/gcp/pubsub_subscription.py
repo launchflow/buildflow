@@ -34,8 +34,6 @@ class GCPPubSubSubscription(
     project_id: GCPProjectID
     subscription_name: PubSubSubscriptionName
     # required fields
-    topic: GCPPubSubTopic
-    # Optional fields
     batch_size: int = dataclasses.field(default=_DEFAULT_BATCH_SIZE, init=False)
     include_attributes: bool = dataclasses.field(
         default=_DEFAULT_INCLUDE_ATTRIBUTES, init=False
