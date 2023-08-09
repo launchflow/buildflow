@@ -61,6 +61,5 @@ class S3FileChangeStream(
         return S3FileChangeStreamProvider(
             s3_bucket=self.s3_bucket,
             sqs_queue=self.sqs_queue,
-            bucket_managed=self.s3_bucket._managed,
             event_types=self.event_types,
         )

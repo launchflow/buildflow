@@ -190,7 +190,7 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
     def sink(self, credentials: Union[AWSCredentials, GCPCredentials]) -> SinkStrategy:
         return SnowflakeTableSink(
             credentials=credentials,
-            bucket_sink=self.bucket.sink(credentials),
+            bucket_sink=self.bucket.sink_provider().sink(credentials),
         )
 
     def background_tasks(
