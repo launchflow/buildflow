@@ -1,7 +1,6 @@
 import asyncio
 import dataclasses
-import json
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type
+from typing import Any, Callable, Iterable, List, Optional, Type
 
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, SQSQueueName
@@ -55,10 +54,10 @@ class SQSSink(SinkStrategy):
             self.sqs_client, self.queue_name, self.aws_account_id
         )
 
-    def _send_messages(self, messages: List[Dict[str, Any]]):
+    def _send_messages(self, messages: List[str]):
         to_send = []
         for message in messages:
-            to_send.append({"Id": uuid(80), "MessageBody": json.dumps(message)})
+            to_send.append({"Id": uuid(80), "MessageBody": message})
         response = self.sqs_client.send_message_batch(
             QueueUrl=self.queue_url, Entries=to_send
         )

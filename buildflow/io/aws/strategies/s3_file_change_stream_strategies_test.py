@@ -1,3 +1,4 @@
+import json
 import os
 import unittest
 
@@ -54,14 +55,16 @@ class S3FileChangeStreamTest(unittest.TestCase):
         self.get_async_result(
             sink.push(
                 [
-                    {
-                        "Service": "Amazon S3",
-                        "Event": "s3:TestEvent",
-                        "Time": "2023-07-28T16:34:05.246Z",
-                        "Bucket": "test-bucket",
-                        "RequestId": "request-id",
-                        "HostId": "host-id",
-                    }
+                    json.dumps(
+                        {
+                            "Service": "Amazon S3",
+                            "Event": "s3:TestEvent",
+                            "Time": "2023-07-28T16:34:05.246Z",
+                            "Bucket": "test-bucket",
+                            "RequestId": "request-id",
+                            "HostId": "host-id",
+                        }
+                    )
                 ]
             )
         )
@@ -118,7 +121,7 @@ class S3FileChangeStreamTest(unittest.TestCase):
                 },
             ]
         }
-        self.get_async_result(sink.push([contents]))
+        self.get_async_result(sink.push([json.dumps(contents)]))
 
         source = SQSSource(
             credentials=self.creds,
