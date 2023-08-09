@@ -31,7 +31,7 @@ with pubsub_v1.SubscriberClient() as subscriber:
     future = subscriber.subscribe(subscription_path, callback=callback)
     print("Subscribing to: ", subscription_path)
     try:
-        future.result(timeout=20)
+        future.result(timeout=60)
     except TimeoutError:
         print("Reached validation subscriber timeout.")
 
