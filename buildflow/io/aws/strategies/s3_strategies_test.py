@@ -39,7 +39,9 @@ class S3StrategiesTest(unittest.TestCase):
 
     def test_s3_file_system(self):
         self.get_async_result(self.sink.push([{"a": 1}]))
-        object = self.s3_bucket.Object(key=self.file_path)
+        objects = list(self.s3_bucket.objects.all())
+        self.assertEqual(1, len(objects))
+        object = objects[0]
         data = object.get()["Body"].read()
         table = pq.read_table(pa.BufferReader(data))
 

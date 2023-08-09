@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,11 +21,17 @@ from buildflow.types.portable import FileFormat
 @pytest.mark.usefixtures("ray_fix")
 @pytest.mark.usefixtures("event_loop_instance")
 class PullProcessPushTest(unittest.TestCase):
+    def get_output_file(self) -> str:
+        files = os.listdir(self.output_dir)
+        self.assertEqual(1, len(files))
+        return os.path.join(self.output_dir, files[0])
+
     def setUp(self) -> None:
-        self.output_path = tempfile.mkstemp(suffix=".csv")[1]
+        self.output_dir = tempfile.mkdtemp()
+        self.output_path = os.path.join(self.output_dir, "test.csv")
 
     def tearDown(self) -> None:
-        os.remove(self.output_path)
+        shutil.rmtree(self.output_dir)
 
     def run_with_timeout(self, coro):
         """Run a coroutine synchronously."""
@@ -55,7 +62,9 @@ class PullProcessPushTest(unittest.TestCase):
 
         self.run_with_timeout(actor.run.remote())
 
-        table = pcsv.read_csv(Path(self.output_path))
+        final_file = self.get_output_file()
+
+        table = pcsv.read_csv(Path(final_file))
         table_list = table.to_pylist()
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 2}, {"field": 3}], table_list[0:2])
@@ -78,7 +87,8 @@ class PullProcessPushTest(unittest.TestCase):
 
         self.run_with_timeout(actor.run.remote())
 
-        table = pcsv.read_csv(Path(self.output_path))
+        final_file = self.get_output_file()
+        table = pcsv.read_csv(Path(final_file))
         table_list = table.to_pylist()
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
@@ -101,7 +111,8 @@ class PullProcessPushTest(unittest.TestCase):
 
         self.run_with_timeout(actor.run.remote())
 
-        table = pcsv.read_csv(Path(self.output_path))
+        final_file = self.get_output_file()
+        table = pcsv.read_csv(Path(final_file))
         table_list = table.to_pylist()
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
@@ -124,7 +135,8 @@ class PullProcessPushTest(unittest.TestCase):
 
         self.run_with_timeout(actor.run.remote())
 
-        table = pcsv.read_csv(Path(self.output_path))
+        final_file = self.get_output_file()
+        table = pcsv.read_csv(Path(final_file))
         table_list = table.to_pylist()
         self.assertGreaterEqual(len(table_list), 4)
 

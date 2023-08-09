@@ -10,6 +10,7 @@ from fsspec.implementations.local import LocalFileSystem
 
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.types.shared_types import FilePath
+from buildflow.core.utils import uuid
 from buildflow.io.strategies.sink import SinkStrategy
 from buildflow.io.utils.schemas import converters
 from buildflow.types.portable import FileFormat
@@ -25,7 +26,15 @@ class FileSink(SinkStrategy):
         file_system: fsspec.AbstractFileSystem = LocalFileSystem(),
     ):
         super().__init__(credentials=credentials, strategy_id="local-file-sink")
-        self.file_path = file_path
+        split_path = file_path.split(".")
+        if len(split_path) > 1:
+            extension = split_path[-1]
+            base_file_path = ".".join(split_path[:-1])
+        else:
+            base_file_path = file_path
+            extension = ""
+        # This ensures each replica is writing to a unique file
+        self.file_path = f"{base_file_path}-{uuid(8)}.{extension}"
         self.file_format = file_format
         self.file_system = file_system
 

@@ -16,9 +16,11 @@ class S3BucketSink(FileSink):
         file_path: FilePath,
         file_format: FileFormat,
     ):
-        self.credentials = credentials
+        super().__init__(
+            credentials=credentials,
+            file_path=os.path.join(bucket_name, file_path),
+            file_format=file_format,
+            file_system=get_file_system(credentials),
+        )
         self.strategy_id = "s3-bucket-sink"
         self.bucket_name = bucket_name
-        self.file_path = os.path.join(self.bucket_name, file_path)
-        self.file_format = file_format
-        self.file_system = get_file_system(credentials)
