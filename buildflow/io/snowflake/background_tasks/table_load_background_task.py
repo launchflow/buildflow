@@ -106,21 +106,24 @@ class _SnowflakeUploadActor:
         self.file_system.mv(src_path, dest_path)
         return dest_path
 
+    def ls_files(self, src_path: str) -> Dict[str, Any]:
+        # NOTE: We include refresh=True here to ensure we are always
+        # getting the latest files from the bucket.
+        return self.file_system.ls(src_path, True, refresh=True)
+
     async def mv_files(self):
         loop = asyncio.get_event_loop()
         files = []
         try:
             files: Dict[str, Any] = await loop.run_in_executor(
-                None, self.file_system.ls, self.staging_dir, True
+                None, self.ls_files, self.staging_dir
             )
         except FileNotFoundError:
             # This happens when the staging dir doesn't exist yet.
             # Meaning there are no files to upload
-            self.file_system.invalidate_cache(self.staging_dir)
             return
         except Exception:
             logging.exception("Failed to list files in staging dir")
-            self.file_system.invalidate_cache(self.staging_dir)
             return
         coros = []
         staged_files = []
