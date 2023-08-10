@@ -532,23 +532,25 @@ class Flow:
                         # pulumi.CompositeResource (if it exists)
                         if include_source_primitive:
                             source_pulumi_provider = source_primitive.pulumi_provider()
-                            source_resource = source_pulumi_provider.pulumi_resource(
-                                type_=input_type,
-                                credentials=source_credentials,
-                                opts=child_opts,
-                            )
-                            if source_resource is not None:
+                            if source_pulumi_provider is not None:
+                                source_resource = (
+                                    source_pulumi_provider.pulumi_resource(
+                                        type_=input_type,
+                                        credentials=source_credentials,
+                                        opts=child_opts,
+                                    )
+                                )
                                 outputs["source_urn"] = source_resource.urn
 
                         # Builds the sink's pulumi.CompositeResource (if it exists)
                         if include_sink_primitive:
                             sink_pulumi_provider = sink_primitive.pulumi_provider()
-                            sink_resource = sink_pulumi_provider.pulumi_resource(
-                                type_=output_type,
-                                credentials=sink_credentials,
-                                opts=child_opts,
-                            )
-                            if sink_resource is not None:
+                            if sink_pulumi_provider is not None:
+                                sink_resource = sink_pulumi_provider.pulumi_resource(
+                                    type_=output_type,
+                                    credentials=sink_credentials,
+                                    opts=child_opts,
+                                )
                                 outputs["sink_urn"] = sink_resource.urn
 
                         self.register_outputs(outputs)
