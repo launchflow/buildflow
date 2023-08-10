@@ -3,6 +3,7 @@ import os
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from pprint import pprint
 from typing import Any, Dict, Optional
 
 import typer
@@ -153,7 +154,7 @@ def inspect(
         if not as_json:
             typer.echo(f"Fetching stack state for Flow(id={imported.flow_id})...")
 
-            flow_state.pulumi_stack_state.print_summary()
+            pprint(flow_state.as_json_dict())
         else:
             InspectStatJSON(
                 success=True, timestamp=runtime, inspect_info=flow_state.as_json_dict()

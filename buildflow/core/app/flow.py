@@ -91,12 +91,17 @@ class FlowState:
     ):
         def find_child_resources(parent_resource_type: str) -> List[ResourceState]:
             """Find direct child resources for a given URN."""
-            return [
-                resource
-                for resource in resource_states
-                if parent_resource_type in resource.resource_urn
-                and resource.resource_type != parent_resource_type
-            ]
+            resources = []
+            for resource in resource_states:
+                if (
+                    parent_resource_type in resource.resource_urn
+                    and resource.resource_type != parent_resource_type
+                ):
+                    child_resources = find_child_resources(resource.resource_type)
+                    if not child_resources:
+                        resources.append(resource)
+                    resources.extend(find_child_resources(resource.resource_type))
+            return resources
 
         def find_processor_resource(processor_id: str) -> Optional[ResourceState]:
             """Find the resource for a given processor_id."""

@@ -26,27 +26,21 @@ class _GCSFileChangeStreamPulumiResource(pulumi.ComponentResource):
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
-        self.bucket_resource = None
-        bucket_pulumi_provider = bucket.pulumi_provider()
-        if bucket_pulumi_provider is not None:
-            self.bucket_resource = bucket_pulumi_provider.pulumi_resource(
-                type_, credentials, opts
-            )
-            opts = pulumi.ResourceOptions.merge(
-                opts, pulumi.ResourceOptions(depends_on=self.bucket_resource)
-            )
-        self.subscription_resource = subscription.pulumi_provider().pulumi_resource(
-            type_, credentials, opts
-        )
-        opts = pulumi.ResourceOptions.merge(
-            opts, pulumi.ResourceOptions(depends_on=self.subscription_resource)
-        )
-
         super().__init__(
             "buildflow:gcp:storage:GCSFileChangeStream",
             f"buildflow-{bucket.project_id}-{bucket.bucket_name}",
             None,
             opts,
+        )
+
+        self.bucket_resource = None
+        bucket_pulumi_provider = bucket.pulumi_provider()
+        if bucket_pulumi_provider is not None:
+            self.bucket_resource = bucket_pulumi_provider.pulumi_resource(
+                type_, credentials, pulumi.ResourceOptions(parent=self)
+            )
+        self.subscription_resource = subscription.pulumi_provider().pulumi_resource(
+            type_, credentials, pulumi.ResourceOptions(parent=self)
         )
 
         gcs_account = pulumi_gcp.storage.get_project_service_account(
@@ -55,7 +49,9 @@ class _GCSFileChangeStreamPulumiResource(pulumi.ComponentResource):
         )
         self.binding = pulumi_gcp.pubsub.TopicIAMBinding(
             f"{bucket.bucket_name}-{subscription.topic.topic_name}_binding",
-            opts=pulumi.ResourceOptions(parent=self),
+            opts=pulumi.ResourceOptions(
+                parent=self, depends_on=[self.subscription_resource]
+            ),
             topic=subscription.topic.topic_name,
             role="roles/pubsub.publisher",
             project=subscription.topic.project_id,
