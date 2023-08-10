@@ -40,15 +40,6 @@ class _SnowflakeTableSinkResource(pulumi.ComponentResource):
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
-        self.bucket_resource = None
-        bucket_provider = bucket.pulumi_provider()
-        if bucket_provider is not None:
-            self.bucket_resource = bucket_provider.pulumi_resource(
-                type_=type_, credentials=credentials, opts=opts
-            )
-            opts = pulumi.ResourceOptions.merge(
-                opts, pulumi.ResourceOptions(depends_on=[self.bucket_resource])
-            )
         super().__init__(
             "buildflow:snowflake:Table",
             f"buildflow-{database}-{schema}-{table}",
@@ -56,6 +47,13 @@ class _SnowflakeTableSinkResource(pulumi.ComponentResource):
             opts,
         )
 
+        self.bucket_resource = None
+        bucket_provider = bucket.pulumi_provider()
+        opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(parent=self))
+        if bucket_provider is not None:
+            self.bucket_resource = bucket_provider.pulumi_resource(
+                type_=type_, credentials=credentials, opts=opts
+            )
         outputs = {}
 
         table_id = f"{database}.{schema}.{table}"

@@ -148,9 +148,28 @@ class _PulumiResourceType(enum.Enum):
 
 
 @dataclasses.dataclass
+class ResourceState:
+    resource_urn: str
+    resource_type: str
+    resource_id: Optional[str]
+    resource_outputs: Dict[str, Any]
+    cloud_console_url: Optional[str] = None
+
+    def as_json_dict(self) -> Dict[str, Any]:
+        return {
+            "resource_urn": self.resource_urn,
+            "resource_type": self.resource_type,
+            "resource_id": self.resource_id,
+            "resource_outputs": self.resource_outputs,
+            "cloud_console_url": self.cloud_console_url,
+        }
+
+
+@dataclasses.dataclass
 class WrappedStackState:
     project_name: str
     stack_name: str
+    _deployment: Optional[auto.Deployment]
     _update_summary: Optional[auto.UpdateSummary]
     _output_map: auto.OutputMap
 
@@ -160,6 +179,23 @@ class WrappedStackState:
             return self._update_summary.end_time
         else:
             return datetime.datetime.now()
+
+    def resources(self) -> Iterable[ResourceState]:
+        if self._deployment is None:
+            return []
+        else:
+            return [
+                ResourceState(
+                    resource_urn=resource["urn"],
+                    resource_type=resource["type"],
+                    resource_id=resource.get("id"),
+                    resource_outputs=resource.get("outputs", {}),
+                    cloud_console_url=resource.get("outputs", {}).get(
+                        "buildflow.cloud_console.url"
+                    ),
+                )
+                for resource in self._deployment.deployment.get("resources", [])
+            ]
 
     # NOTE: We only wrap this so we can have an interface between the Pulumi type
     # (in case they change their API)
@@ -224,6 +260,7 @@ class PulumiWorkspace:
             return WrappedStackState(
                 project_name=self.config.project_name,
                 stack_name=self.config.stack_name,
+                _deployment=stack.export_stack(),
                 _update_summary=stack.info(),
                 _output_map=stack.outputs(),
             )
@@ -231,6 +268,7 @@ class PulumiWorkspace:
             return WrappedStackState(
                 project_name=self.config.project_name,
                 stack_name=self.config.stack_name,
+                _deployment=None,
                 _update_summary=None,
                 _output_map={},
             )

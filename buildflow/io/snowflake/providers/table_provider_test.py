@@ -57,7 +57,7 @@ class SnowflakeTableProviderTest(unittest.TestCase):
         )
 
         child_resource = resource._childResources
-        self.assertEqual(len(child_resource), 5)
+        self.assertEqual(len(child_resource), 6)
 
         self.assertIsNotNone(resource.bucket_resource)
         self.assertIsInstance(resource.database_resource, pulumi_snowflake.Database)

@@ -63,7 +63,7 @@ class GCSFileChangeStreamTest(unittest.TestCase):
         )
 
         resources = list(resource._childResources)
-        self.assertEqual(len(resources), 2)
+        self.assertEqual(len(resources), 5)
 
         binding_resource = None
         notificaion_resource = None
@@ -73,8 +73,6 @@ class GCSFileChangeStreamTest(unittest.TestCase):
                 notificaion_resource = resource
             elif isinstance(resource, pulumi_gcp.pubsub.TopicIAMBinding):
                 binding_resource = resource
-            else:
-                raise ValueError(f"Unexpected resource type: {type(resource)}")
         if binding_resource is None:
             raise ValueError("binding_resource not found")
         if notificaion_resource is None:

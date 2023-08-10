@@ -25,26 +25,21 @@ class _S3FileChangeStreamResource(pulumi.ComponentResource):
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
+        super().__init__(
+            "buildflow:aws:s3:S3FileChangeStream",
+            f"buildflow-{s3_bucket.bucket_name}-{sqs_queue.queue_name}",
+            None,
+            opts,
+        )
+        opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(parent=self))
         self.s3_resource = None
         s3_pulumi_provider = s3_bucket.pulumi_provider()
         if s3_pulumi_provider is not None:
             self.s3_resource = s3_pulumi_provider.pulumi_resource(
                 type_=type_, credentials=credentials, opts=opts
             )
-            opts = pulumi.ResourceOptions.merge(
-                opts, pulumi.ResourceOptions(depends_on=[self.s3_resource])
-            )
         self.sqs_resource = sqs_queue.pulumi_provider().pulumi_resource(
             type_=type_, credentials=credentials, opts=opts
-        )
-        opts = pulumi.ResourceOptions.merge(
-            opts, pulumi.ResourceOptions(depends_on=[self.sqs_resource])
-        )
-        super().__init__(
-            "buildflow:aws:s3:S3FileChangeStream",
-            f"buildflow-{s3_bucket.bucket_name}-{sqs_queue.queue_name}",
-            None,
-            opts,
         )
         provider_id = f"{s3_bucket.bucket_name}-" f"{sqs_queue.queue_name}"
         provider = aws_provider(
