@@ -33,14 +33,15 @@ class _GCSFileChangeStreamPulumiResource(pulumi.ComponentResource):
             opts,
         )
 
+        opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(parent=self))
         self.bucket_resource = None
         bucket_pulumi_provider = bucket.pulumi_provider()
         if bucket_pulumi_provider is not None:
             self.bucket_resource = bucket_pulumi_provider.pulumi_resource(
-                type_, credentials, pulumi.ResourceOptions(parent=self)
+                type_, credentials, opts
             )
         self.subscription_resource = subscription.pulumi_provider().pulumi_resource(
-            type_, credentials, pulumi.ResourceOptions(parent=self)
+            type_, credentials, opts
         )
 
         gcs_account = pulumi_gcp.storage.get_project_service_account(

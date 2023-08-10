@@ -153,6 +153,7 @@ class ResourceState:
     resource_type: str
     resource_id: Optional[str]
     resource_outputs: Dict[str, Any]
+    cloud_console_url: Optional[str] = None
 
     def as_json_dict(self) -> Dict[str, Any]:
         return {
@@ -160,6 +161,7 @@ class ResourceState:
             "resource_type": self.resource_type,
             "resource_id": self.resource_id,
             "resource_outputs": self.resource_outputs,
+            "cloud_console_url": self.cloud_console_url,
         }
 
 
@@ -188,6 +190,9 @@ class WrappedStackState:
                     resource_type=resource["type"],
                     resource_id=resource.get("id"),
                     resource_outputs=resource.get("outputs", {}),
+                    cloud_console_url=resource.get("outputs", {}).get(
+                        "buildflow.cloud_console.url"
+                    ),
                 )
                 for resource in self._deployment.deployment.get("resources", [])
             ]

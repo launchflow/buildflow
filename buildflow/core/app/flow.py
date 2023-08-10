@@ -5,7 +5,7 @@ import inspect
 import logging
 import os
 import signal
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 import pulumi
 from ray import serve
@@ -89,18 +89,25 @@ class FlowState:
         last_updated: datetime.datetime,
         pulumi_stack_name: str,
     ):
-        def find_child_resources(parent_resource_type: str) -> List[ResourceState]:
+        def find_child_resources(
+            parent_resource: ResourceState,
+        ) -> Dict[str, ResourceState]:
             """Find direct child resources for a given URN."""
-            resources = []
+            resources = {}
             for resource in resource_states:
                 if (
-                    parent_resource_type in resource.resource_urn
-                    and resource.resource_type != parent_resource_type
+                    parent_resource.resource_type in resource.resource_urn
+                    and resource.resource_type != parent_resource.resource_type
                 ):
-                    child_resources = find_child_resources(resource.resource_type)
+                    if (
+                        resource.cloud_console_url is None
+                        and parent_resource.cloud_console_url is not None
+                    ):
+                        resource.cloud_console_url = parent_resource.cloud_console_url
+                    child_resources = find_child_resources(resource)
                     if not child_resources:
-                        resources.append(resource)
-                    resources.extend(find_child_resources(resource.resource_type))
+                        resources[resource.resource_urn] = resource
+                    resources.update(child_resources)
             return resources
 
         def find_processor_resource(processor_id: str) -> Optional[ResourceState]:
@@ -145,8 +152,8 @@ class FlowState:
                 source_resource = resource_dict.get(source_urn)
 
                 if source_resource:
-                    source_child_resources = find_child_resources(
-                        source_resource.resource_type
+                    source_child_resources = list(
+                        find_child_resources(source_resource).values()
                     )
                     tracked_resources.add(source_urn)
                     tracked_resources.update(
@@ -158,8 +165,8 @@ class FlowState:
                 sink_resource = resource_dict.get(sink_urn)
 
                 if sink_resource:
-                    sink_child_resources = find_child_resources(
-                        sink_resource.resource_type
+                    sink_child_resources = list(
+                        find_child_resources(sink_resource).values()
                     )
                     tracked_resources.add(sink_urn)
                     tracked_resources.update(
