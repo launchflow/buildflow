@@ -1,10 +1,12 @@
 import asyncio
+import copy
 import dataclasses
+import datetime
 import inspect
 import logging
 import os
 import signal
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import pulumi
 from ray import serve
@@ -12,7 +14,7 @@ from ray import serve
 from buildflow.config.buildflow_config import BuildFlowConfig
 from buildflow.core import utils
 from buildflow.core.app.infra.actors.infra import InfraActor
-from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, WrappedStackState
+from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, ResourceState
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.app.runtime.server import RuntimeServer
@@ -25,7 +27,7 @@ from buildflow.core.io.primitive import PortablePrimtive, Primitive, PrimitiveTy
 from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
-from buildflow.core.processor.processor import ProcessorAPI
+from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
 from buildflow.core.strategies._strategy import StategyType
 from buildflow.io.local.empty import Empty
 
@@ -43,20 +45,170 @@ FlowID = str
 
 
 @dataclasses.dataclass
+class PrimitiveState:
+    primitive_class: str
+    resources: List[ResourceState]
+
+    def as_json_dict(self):
+        return {
+            "primitive_class": self.primitive_class,
+            "resources": [r.as_json_dict() for r in self.resources],
+        }
+
+
+@dataclasses.dataclass
+class ProcessorState:
+    processor_id: ProcessorID
+    processor_type: ProcessorType
+    source: Optional[PrimitiveState]
+    sink: Optional[PrimitiveState]
+
+    def as_json_dict(self):
+        return {
+            "processor_id": self.processor_id,
+            "processor_type": self.processor_type,
+            "source": self.source.as_json_dict() if self.source else None,
+            "sink": self.sink.as_json_dict() if self.sink else None,
+        }
+
+
+@dataclasses.dataclass
 class FlowState:
     flow_id: FlowID
-    processors: List[ProcessorAPI]
+    processors: List[ProcessorState]
+    untracked_resources: List[ResourceState]
+    last_updated: datetime.datetime
+    num_pulumi_resources: int
+    pulumi_stack_name: str
+
+    @classmethod
+    def parse_resource_states(
+        cls,
+        flow_id: FlowID,
+        processor_refs: List[ProcessorAPI],
+        resource_states: List[ResourceState],
+        last_updated: datetime.datetime,
+        pulumi_stack_name: str,
+    ):
+        def find_child_resources(parent_resource_type: str) -> List[ResourceState]:
+            """Find direct child resources for a given URN."""
+            return [
+                resource
+                for resource in resource_states
+                if parent_resource_type in resource.resource_urn
+                and resource.resource_type != parent_resource_type
+            ]
+
+        def find_processor_resource(processor_id: str) -> Optional[ResourceState]:
+            """Find the resource for a given processor_id."""
+            for resource in resource_states:
+                if resource.resource_type == "buildflow:processor:Pipeline":
+                    if resource.resource_outputs.get("processor_id") == processor_id:
+                        return resource
+            return None
+
+        processors: List[ProcessorState] = []
+        tracked_resources: Set[str] = set()
+        num_pulumi_resources = 0
+
+        # Store the resources in a dict keyed by URN for quick lookup
+        resource_dict = {
+            resource.resource_urn: resource for resource in resource_states
+        }
+
+        for processor_ref in processor_refs:
+            # Get the processor_id and processor_type
+            processor_id = processor_ref.processor_id
+            processor_type = processor_ref.processor_type.value
+            # Look up the source and sink class names
+            source_class = ""
+            source_primitive = processor_ref.__meta__.get("source")
+            if source_primitive:
+                source_class = source_primitive.__class__.__name__
+            sink_class = ""
+            sink_primitive = processor_ref.__meta__.get("sink")
+            if sink_primitive:
+                sink_class = sink_primitive.__class__.__name__
+
+            source_child_resources = []
+            sink_child_resources = []
+            # Look for a resource for this processor_id
+            processor_resource = find_processor_resource(processor_id)
+            if processor_resource is not None:
+                tracked_resources.add(processor_resource.resource_urn)
+
+                source_urn = processor_resource.resource_outputs.get("source_urn", "")
+                source_resource = resource_dict.get(source_urn)
+
+                if source_resource:
+                    source_child_resources = find_child_resources(
+                        source_resource.resource_type
+                    )
+                    tracked_resources.add(source_urn)
+                    tracked_resources.update(
+                        [res.resource_urn for res in source_child_resources]
+                    )
+                    num_pulumi_resources += len(source_child_resources)
+
+                sink_urn = processor_resource.resource_outputs.get("sink_urn", "")
+                sink_resource = resource_dict.get(sink_urn)
+
+                if sink_resource:
+                    sink_child_resources = find_child_resources(
+                        sink_resource.resource_type
+                    )
+                    tracked_resources.add(sink_urn)
+                    tracked_resources.update(
+                        [res.resource_urn for res in sink_child_resources]
+                    )
+                    num_pulumi_resources += len(sink_child_resources)
+
+            source = PrimitiveState(
+                primitive_class=source_class,
+                resources=source_child_resources,
+            )
+
+            sink = PrimitiveState(
+                primitive_class=sink_class,
+                resources=sink_child_resources,
+            )
+
+            processor = ProcessorState(
+                processor_id=processor_id,
+                processor_type=processor_type,
+                source=source,
+                sink=sink,
+            )
+            processors.append(processor)
+
+        untracked_resources = [
+            res for res in resource_states if res.resource_urn not in tracked_resources
+        ]
+        # filter out any resources that are pulumi:providers or pulumi:stack
+        untracked_resources = [
+            res
+            for res in untracked_resources
+            if not res.resource_type.startswith("pulumi:")
+        ]
+        num_pulumi_resources += len(untracked_resources)
+
+        return cls(
+            flow_id=flow_id,
+            processors=processors,
+            untracked_resources=untracked_resources,
+            last_updated=last_updated,
+            num_pulumi_resources=num_pulumi_resources,
+            pulumi_stack_name=pulumi_stack_name,
+        )
 
     def as_json_dict(self):
         return {
             "flow_id": self.flow_id,
-            "processors": [
-                {
-                    "processor_id": p.processor_id,
-                    "processor_type": p.processor_type.value,
-                }
-                for p in self.processors
-            ],
+            "last_updated": self.last_updated.timestamp(),
+            "num_pulumi_resources": self.num_pulumi_resources,
+            "pulumi_stack_name": self.pulumi_stack_name,
+            "processors": {p.processor_id: p.as_json_dict() for p in self.processors},
+            "untracked_resources": [r.as_json_dict() for r in self.untracked_resources],
         }
 
 
@@ -273,10 +425,12 @@ class Flow:
             pulumi_config=self.config.pulumi_config,
         )
         pulumi_stack_state = pulumi_workspace.get_stack_state()
-        return FlowState(
+        return FlowState.parse_resource_states(
             flow_id=self.flow_id,
-            processors=self._processors,
-            pulumi_stack_state=pulumi_stack_state,
+            processor_refs=self._processors,
+            resource_states=pulumi_stack_state.resources(),
+            last_updated=pulumi_stack_state.last_updated,
+            pulumi_stack_name=pulumi_stack_state.stack_name,
         )
 
     def _pipeline_decorator(
@@ -414,6 +568,10 @@ class Flow:
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: background_tasks(),
+                "__meta__": {
+                    "source": source_primitive,
+                    "sink": sink_primitive,
+                },
                 "__call__": original_process_fn_or_class,
             }
             if inspect.isclass(original_process_fn_or_class):

@@ -1,5 +1,5 @@
 import enum
-from typing import List
+from typing import Any, Dict, List
 
 from buildflow.core.background_tasks.background_task import BackgroundTask
 
@@ -17,6 +17,7 @@ ProcessorID = str
 class ProcessorAPI:
     processor_id: ProcessorID
     processor_type: ProcessorType
+    __meta__: Dict[str, Any]
 
     def pulumi_program(self):
         raise NotImplementedError("pulumi_program not implemented for Processor")

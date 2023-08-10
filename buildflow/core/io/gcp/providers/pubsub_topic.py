@@ -56,4 +56,5 @@ class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
                     }
                 )
 
-        return Topic(self.topic_name, self.project_id)
+        t = Topic(self.topic_name, self.project_id)
+        t.topic_resource.name
