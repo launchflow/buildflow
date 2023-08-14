@@ -205,6 +205,5 @@ def my_processor(event: InputSchema) -> OutputSchema:
     return OutputSchema(event.TODO)
 """
 
-    print("DO NOT SUBMIT: ", template)
     template = black.format_str(template, mode=black.Mode())
     return template
