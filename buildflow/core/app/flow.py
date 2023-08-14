@@ -404,6 +404,14 @@ class Flow:
         logging.debug(f"...Finished draining Flow({self.flow_id})")
         return True
 
+    def refresh(self):
+        return asyncio.get_event_loop().run_until_complete(self._refresh())
+
+    async def _refresh(self):
+        logging.debug(f"Refreshing Infra for Flow({self.flow_id})...")
+        await self._get_infra_actor().refresh(processors=self._processors)
+        logging.debug(f"...Finished refreshing Infra for Flow({self.flow_id})")
+
     def plan(self):
         return asyncio.get_event_loop().run_until_complete(self._plan())
 

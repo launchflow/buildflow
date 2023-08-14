@@ -42,14 +42,6 @@ class GCPPubSubTopic(
             topic_name=topic_name,
         )
 
-    # NOTE: Topics do not support sinks, but we "implement" it here to
-    # give the user a better error message since this is a common mistake.
-    def source_provider(self):
-        raise ValueError(
-            "GCPPubSubTopic does not support source_provider()."
-            "Please use GCPPubSubSubscription instead."
-        )
-
     def sink_provider(self) -> GCPPubSubTopicProvider:
         return GCPPubSubTopicProvider(
             project_id=self.project_id,

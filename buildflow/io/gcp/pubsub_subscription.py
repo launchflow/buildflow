@@ -103,14 +103,6 @@ class GCPPubSubSubscription(
             message_retention_duration=self.message_retention_duration,
         )
 
-    # NOTE: Subscriptions do not support sinks, but we "implement" it here to
-    # give the user a better error message since this is a common mistake.
-    def sink_provider(self, runtime_options: RuntimeOptions):
-        raise ValueError(
-            "GCPPubSubSubscription does not support sink_provider()."
-            "Please use GCPPubSubTopic instead."
-        )
-
     def _pulumi_provider(self) -> GCPPubSubSubscriptionProvider:
         return GCPPubSubSubscriptionProvider(
             project_id=self.project_id,

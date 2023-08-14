@@ -8,6 +8,7 @@ from buildflow.core.app.infra.pulumi_workspace import (
     WrappedDestroyResult,
     WrappedOutputMap,
     WrappedPreviewResult,
+    WrappedRefreshResult,
     WrappedUpResult,
 )
 from buildflow.core.options.infra_options import InfraOptions
@@ -35,6 +36,19 @@ class InfraActor(Infra):
 
     def _set_status(self, status: InfraStatus):
         self._status = status
+
+    async def refresh(self, *, processors: Iterable[ProcessorAPI]):
+        logging.debug("Refreshing Infra...")
+        if self._status != InfraStatus.IDLE:
+            raise RuntimeError("Can only refresh Infra while Idle.")
+        self._set_status(InfraStatus.REFRESHING)
+
+        refresh_result: WrappedRefreshResult = await self._pulumi_workspace.refresh(
+            processors=processors
+        )
+        refresh_result.log_summary()
+
+        self._set_status(InfraStatus.IDLE)
 
     async def plan(self, *, processors: Iterable[ProcessorAPI]):
         logging.debug("Planning Infra...")

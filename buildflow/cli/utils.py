@@ -1,8 +1,27 @@
+import ast
 import importlib
 from typing import Any
 
 
+def find_flow_varname(filename: str) -> str:
+    with open(filename, "r") as file:
+        tree = ast.parse(file.read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+                if hasattr(node.value.func, "id") and node.value.func.id == "Flow":
+                    return node.targets[0].id
+    return None
+
+
 def import_from_string(import_str: str) -> Any:
+    if import_str.endswith(".py"):
+        filename = import_str
+        varname = find_flow_varname(filename)
+        if varname is not None:
+            import_str = f"{filename[:-3]}:{varname}"
+        else:
+            raise ValueError(f"Could not find Flow object in {filename}")
+
     module_str, _, attrs_str = import_str.partition(":")
     if not module_str or not attrs_str:
         message = (
