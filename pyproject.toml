@@ -13,6 +13,7 @@ description = "BuildFlow, is an open source framework for building large scale s
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
+    "black",
     # TODO: split up AWS and GCP dependencies.
     "boto3",
     "dacite",
@@ -65,7 +66,6 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "black",
     "pre-commit",
     "setuptools",
     "wheel",
