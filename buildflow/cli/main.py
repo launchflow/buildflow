@@ -251,7 +251,8 @@ def init(
                 file.write(file_template)
     else:
         typer.echo(
-            "NOTE: You can generate a main.py file by running `buildflow init --source <source_class_name> --sink <sink_class_name>`"
+            "NOTE: You can generate a main.py file by running `buildflow init --source "
+            "<source_class_name> --sink <sink_class_name>`"
         )
 
 

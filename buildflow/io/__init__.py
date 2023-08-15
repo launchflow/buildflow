@@ -2,8 +2,7 @@ import dataclasses
 import importlib
 import inspect
 import pkgutil
-from collections import defaultdict
-from typing import Dict, List
+from typing import List
 
 from buildflow.io.primitive import Primitive
 

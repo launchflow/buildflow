@@ -3,7 +3,6 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
-from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubSubscriptionName
 from buildflow.core.types.portable_types import SubscriptionName
 from buildflow.io.gcp.providers.pubsub_subscription import GCPPubSubSubscriptionProvider
