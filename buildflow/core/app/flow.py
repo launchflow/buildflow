@@ -361,6 +361,10 @@ class Flow:
 
         # Start the Runtime Server (maybe)
         if start_runtime_server:
+            # Shutdown serve to ensure any old runtime replicas are killed.
+            # If we don't do this than the runtime server port won't be respected
+            # and old instances will just be reused.
+            serve.shutdown()
             runtime_server = RuntimeServer.bind(
                 runtime_actor=self._get_runtime_actor(run_id=run_id)
             )
