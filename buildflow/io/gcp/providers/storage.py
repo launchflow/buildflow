@@ -38,7 +38,11 @@ class _GCPStoragePulumiResource(pulumi.ComponentResource):
             location=bucket_region,
             project=project_id,
             force_destroy=force_destroy,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[]),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[],
+                custom_timeouts=pulumi.CustomTimeouts(create="3m"),
+            ),
         )
 
         outputs["gcp.storage.bucket"] = self.bucket_resource.id

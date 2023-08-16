@@ -361,6 +361,10 @@ class Flow:
 
         # Start the Runtime Server (maybe)
         if start_runtime_server:
+            # Shutdown serve to ensure any old runtime replicas are killed.
+            # If we don't do this than the runtime server port won't be respected
+            # and old instances will just be reused.
+            serve.shutdown()
             runtime_server = RuntimeServer.bind(
                 runtime_actor=self._get_runtime_actor(run_id=run_id)
             )
@@ -403,6 +407,14 @@ class Flow:
         await self._get_runtime_actor().drain.remote()
         logging.debug(f"...Finished draining Flow({self.flow_id})")
         return True
+
+    def refresh(self):
+        return asyncio.get_event_loop().run_until_complete(self._refresh())
+
+    async def _refresh(self):
+        logging.debug(f"Refreshing Infra for Flow({self.flow_id})...")
+        await self._get_infra_actor().refresh(processors=self._processors)
+        logging.debug(f"...Finished refreshing Infra for Flow({self.flow_id})")
 
     def plan(self):
         return asyncio.get_event_loop().run_until_complete(self._plan())

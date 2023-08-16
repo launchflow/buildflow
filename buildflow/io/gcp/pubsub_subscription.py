@@ -3,7 +3,6 @@ from typing import Optional
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
-from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubSubscriptionName
 from buildflow.core.types.portable_types import SubscriptionName
 from buildflow.io.gcp.providers.pubsub_subscription import GCPPubSubSubscriptionProvider
@@ -101,14 +100,6 @@ class GCPPubSubSubscription(
             include_attributes=self.include_attributes,
             ack_deadline_seconds=self.ack_deadline_seconds,
             message_retention_duration=self.message_retention_duration,
-        )
-
-    # NOTE: Subscriptions do not support sinks, but we "implement" it here to
-    # give the user a better error message since this is a common mistake.
-    def sink_provider(self, runtime_options: RuntimeOptions):
-        raise ValueError(
-            "GCPPubSubSubscription does not support sink_provider()."
-            "Please use GCPPubSubTopic instead."
         )
 
     def _pulumi_provider(self) -> GCPPubSubSubscriptionProvider:
