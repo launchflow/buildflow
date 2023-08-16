@@ -92,6 +92,7 @@ class RunTimeTest(unittest.TestCase):
         self.run_with_timeout(actor.drain.remote())
 
         files = os.listdir(self.output_dir)
+        print("DO NOT SUBMIT: ", files)
         self.assertEqual(len(files), 1)
         csv_path = os.path.join(self.output_dir, files[0])
 
@@ -120,12 +121,14 @@ class RunTimeTest(unittest.TestCase):
         runtime_options = RuntimeOptions.default()
         runtime_options.log_level = "DEBUG"
         runtime_options.checkin_frequency_loop_secs = 1
-        runtime_options.autoscaler_options.autoscale_frequency_secs = 5
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
         # but I think its true)
         runtime_options.processor_options["process"].num_cpus = 0.25
+        runtime_options.processor_options[
+            "process"
+        ].autoscaler_options.autoscale_frequency_secs = 5
         actor = RuntimeActor.remote(
             run_id="test-run",
             runtime_options=runtime_options,
@@ -176,12 +179,14 @@ class RunTimeTest(unittest.TestCase):
         runtime_options = RuntimeOptions.default()
         runtime_options.log_level = "DEBUG"
         runtime_options.checkin_loop_frequency_sec = 1
-        runtime_options.autoscaler_options.autoscale_frequency_secs = 5
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
         # but I think its true)
         runtime_options.processor_options["process"].num_cpus = 0.25
+        runtime_options.processor_options[
+            "process"
+        ].autoscaler_options.autoscale_frequency_secs = 5
         actor = RuntimeActor.remote(
             run_id="test-run",
             runtime_options=runtime_options,
@@ -229,12 +234,14 @@ class RunTimeTest(unittest.TestCase):
         runtime_options = RuntimeOptions.default()
         runtime_options.log_level = "DEBUG"
         runtime_options.checkin_loop_frequency_sec = 1
-        runtime_options.autoscaler_options.autoscale_frequency_secs = 5
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
         # but I think its true)
         runtime_options.processor_options["process"].num_cpus = 0.25
+        runtime_options.processor_options[
+            "process"
+        ].autoscaler_options.autoscale_frequency_secs = 5
         actor = RuntimeActor.remote(
             run_id="test-run",
             runtime_options=runtime_options,
@@ -281,12 +288,14 @@ class RunTimeTest(unittest.TestCase):
 
         runtime_options = RuntimeOptions.default()
         runtime_options.checkin_loop_frequency_sec = 1
-        runtime_options.autoscaler_options.autoscale_frequency_secs = 1
         runtime_options.processor_options["process"] = ProcessorOptions.default()
         # NOTE: We need to set the num_cpus to a small value since pytest limits the
         # number of CPUs available to the test process. (I didnt actually verify this
         # but I think its true)
         runtime_options.processor_options["process"].num_cpus = 0.25
+        runtime_options.processor_options[
+            "process"
+        ].autoscaler_options.autoscale_frequency_secs = 5
         actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
         self.run_with_timeout(actor.run.remote(processors=[process]))

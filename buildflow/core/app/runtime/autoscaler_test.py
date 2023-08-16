@@ -4,7 +4,7 @@ from unittest import mock
 
 from buildflow.core.app.runtime import autoscaler
 from buildflow.core.app.runtime._runtime import RuntimeStatus
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
+from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool_snapshot import (
     PipelineProcessorSnapshot,
 )
 from buildflow.core.options.runtime_options import AutoscalerOptions
@@ -57,7 +57,10 @@ class PipelineAutoScalerTest(unittest.TestCase):
             backlog=backlog,
         )
         config = AutoscalerOptions(
-            enable_autoscaler=True, min_replicas=1, max_replicas=100, log_level="UNUSED"
+            enable_autoscaler=True,
+            min_replicas=1,
+            max_replicas=100,
+            num_replicas=1,
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
@@ -83,7 +86,10 @@ class PipelineAutoScalerTest(unittest.TestCase):
             avg_cpu_percent=avg_cpu_percent,
         )
         config = AutoscalerOptions(
-            enable_autoscaler=True, min_replicas=1, max_replicas=100, log_level="UNUSED"
+            enable_autoscaler=True,
+            min_replicas=1,
+            max_replicas=100,
+            num_replicas=1,
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
@@ -112,7 +118,10 @@ class PipelineAutoScalerTest(unittest.TestCase):
             backlog=backlog,
         )
         config = AutoscalerOptions(
-            enable_autoscaler=True, min_replicas=1, max_replicas=100, log_level="UNUSED"
+            enable_autoscaler=True,
+            min_replicas=1,
+            max_replicas=100,
+            num_replicas=1,
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
@@ -134,7 +143,10 @@ class PipelineAutoScalerTest(unittest.TestCase):
             backlog=backlog,
         )
         config = AutoscalerOptions(
-            enable_autoscaler=True, min_replicas=1, max_replicas=3, log_level="UNUSED"
+            enable_autoscaler=True,
+            min_replicas=1,
+            max_replicas=3,
+            num_replicas=1,
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
@@ -160,7 +172,10 @@ class PipelineAutoScalerTest(unittest.TestCase):
             avg_cpu_percent=avg_cpu_percent,
         )
         config = AutoscalerOptions(
-            enable_autoscaler=True, min_replicas=2, max_replicas=100, log_level="UNUSED"
+            enable_autoscaler=True,
+            min_replicas=2,
+            max_replicas=100,
+            num_replicas=1,
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
@@ -198,7 +213,10 @@ class PipelineAutoScalerTest(unittest.TestCase):
             avg_cpu_percent=100,
         )
         config = AutoscalerOptions(
-            enable_autoscaler=True, min_replicas=1, max_replicas=100, log_level="UNUSED"
+            enable_autoscaler=True,
+            min_replicas=1,
+            max_replicas=100,
+            num_replicas=1,
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(

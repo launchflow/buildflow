@@ -1,14 +1,13 @@
 import asyncio
 import dataclasses
 import datetime
-import inspect
+import inspect as type_inspect
 import logging
 import os
 import signal
-from typing import Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set, Tuple, Type
 
 import pulumi
-from ray import serve
 
 from buildflow.config.buildflow_config import BuildFlowConfig
 from buildflow.core import utils
@@ -23,9 +22,12 @@ from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.options.flow_options import FlowOptions
-from buildflow.core.options.runtime_options import ProcessorOptions
+from buildflow.core.options.runtime_options import AutoscalerOptions, ProcessorOptions
+from buildflow.core.processor.patterns.collector import CollectorProcessor
+from buildflow.core.processor.patterns.endpoint import EndpointProcessor
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
+from buildflow.io.endpoint import Endpoint, Method, Route
 from buildflow.io.local.empty import Empty
 from buildflow.io.primitive import PortablePrimtive, Primitive, PrimitiveType
 from buildflow.io.strategies._strategy import StategyType
@@ -35,8 +37,8 @@ def _get_directory_path_of_caller():
     # NOTE: This function is used to get the file path of the caller of the
     # Flow(). This is used to determine the directory to look for a BuildFlow
     # Config.
-    frame = inspect.stack()[2]
-    module = inspect.getmodule(frame[0])
+    frame = type_inspect.stack()[2]
+    module = type_inspect.getmodule(frame[0])
     return os.path.dirname(os.path.abspath(module.__file__))
 
 
@@ -113,7 +115,11 @@ class FlowState:
         def find_processor_resource(processor_id: str) -> Optional[ResourceState]:
             """Find the resource for a given processor_id."""
             for resource in resource_states:
-                if resource.resource_type == "buildflow:processor:Pipeline":
+                if (
+                    resource.resource_type == "buildflow:processor:Pipeline"
+                    or resource.resource_type == "buildflow:processor:Collector"
+                    or resource.resource_type == "buildflow:processor:Service"
+                ):
                     if resource.resource_outputs.get("processor_id") == processor_id:
                         return resource
             return None
@@ -300,6 +306,7 @@ class Flow:
         *,
         num_cpus: float = 1.0,
         num_concurrency: int = 1,
+        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
         log_level: str = "INFO",
     ):
         if sink is None:
@@ -320,9 +327,64 @@ class Flow:
                 num_cpus=num_cpus,
                 num_concurrency=num_concurrency,
                 log_level=log_level,
+                autoscaler_options=autoscale_options,
             ),
             source_credentials=source_credentials,
             sink_credentials=sink_credentials,
+        )
+
+    def collector(
+        self,
+        route: Route,
+        method: Method,
+        sink: Optional[Primitive] = None,
+        *,
+        num_cpus: float = 1.0,
+        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+        log_level: str = "INFO",
+    ):
+        if sink is None:
+            sink = Empty()
+
+        # Convert any Portableprimitives into cloud-specific primitives
+        sink = self._portable_primitive_to_cloud_primitive(sink, StategyType.SINK)
+
+        # Set up credentials
+        sink_credentials = self._get_credentials(sink.primitive_type)
+
+        return self._collector_decorator(
+            route=route,
+            method=method,
+            sink_primitive=sink,
+            processor_options=ProcessorOptions(
+                num_cpus=num_cpus,
+                # Collectors always have a concurrency of 1
+                num_concurrency=1,
+                log_level=log_level,
+                autoscaler_options=autoscale_options,
+            ),
+            sink_credentials=sink_credentials,
+        )
+
+    def endpoint(
+        self,
+        route: Route,
+        method: Method,
+        *,
+        num_cpus: float = 1.0,
+        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+        log_level: str = "INFO",
+    ):
+        return self._endpoint_decorator(
+            route=route,
+            method=method,
+            processor_options=ProcessorOptions(
+                num_cpus=num_cpus,
+                # Collectors always have a concurrency of 1
+                num_concurrency=1,
+                log_level=log_level,
+                autoscaler_options=autoscale_options,
+            ),
         )
 
     def add_processor(
@@ -346,7 +408,6 @@ class Flow:
     def run(
         self,
         *,
-        block: bool = True,
         # runtime-only options
         debug_run: bool = False,
         run_id: Optional[RunID] = None,
@@ -355,39 +416,41 @@ class Flow:
         start_runtime_server: bool = False,
         runtime_server_host: str = "127.0.0.1",
         runtime_server_port: int = 9653,
+        # Options for testing
+        block: bool = True,
     ):
         # Start the Flow Runtime
         runtime_coroutine = self._run(debug_run=debug_run)
 
         # Start the Runtime Server (maybe)
         if start_runtime_server:
-            # Shutdown serve to ensure any old runtime replicas are killed.
-            # If we don't do this than the runtime server port won't be respected
-            # and old instances will just be reused.
-            serve.shutdown()
-            runtime_server = RuntimeServer.bind(
-                runtime_actor=self._get_runtime_actor(run_id=run_id)
-            )
-            serve.run(
-                runtime_server,
+            runtime_server = RuntimeServer(
+                runtime_actor=self._get_runtime_actor(run_id=run_id),
                 host=runtime_server_host,
                 port=runtime_server_port,
             )
-            server_log_message = (
-                "-" * 80
-                + "\n\n"
-                + f"Runtime Server running at http://{runtime_server_host}:{runtime_server_port}\n\n"
-                + "-" * 80
-                + "\n\n"
-            )
-            logging.info(server_log_message)
-            print(server_log_message)
-
-        # Block until the Flow Runtime is finished (maybe)
-        if block:
-            asyncio.get_event_loop().run_until_complete(runtime_coroutine)
+            with runtime_server.run_in_thread():
+                server_log_message = (
+                    "-" * 80
+                    + "\n\n"
+                    + f"Runtime Server running at http://{runtime_server_host}:{runtime_server_port}\n\n"
+                    + "-" * 80
+                    + "\n\n"
+                )
+                logging.info(server_log_message)
+                print(server_log_message)
+                if block:
+                    asyncio.get_event_loop().run_until_complete(runtime_coroutine)
+                else:
+                    raise ValueError(
+                        "Starting the Runtime Server is only "
+                        "supported if blocking=True."
+                    )
         else:
-            return runtime_coroutine
+            if block:
+                asyncio.get_event_loop().run_until_complete(runtime_coroutine)
+            else:
+                return runtime_coroutine
 
     async def _run(self, debug_run: bool = False):
         # Add a signal handler to drain the runtime when the process is killed
@@ -456,6 +519,54 @@ class Flow:
             pulumi_stack_name=pulumi_stack_state.stack_name,
         )
 
+    def _lifecycle_functions(
+        self, original_process_fn_or_class: Callable
+    ) -> Tuple[Callable, Callable, type_inspect.FullArgSpec]:
+        """Returns the setup method, teardown method, and full arg spec respectfully."""
+        if type_inspect.isclass(original_process_fn_or_class):
+
+            def setup(self):
+                if hasattr(self.instance, "setup"):
+                    self.instance.setup()
+
+            async def teardown(self):
+                coros = []
+                if hasattr(self.instance, "teardown"):
+                    if type_inspect.iscoroutinefunction(self.instance.teardown()):
+                        coros.append(self.instance.teardown())
+                    else:
+                        self.instance.teardown()
+                coros.extend([self.source().teardown(), self.sink().teardown()])
+                await asyncio.gather(*coros)
+
+            full_arg_spec = type_inspect.getfullargspec(
+                original_process_fn_or_class.process
+            )
+        else:
+
+            def setup(self):
+                return None
+
+            async def teardown(self):
+                await asyncio.gather(self.source().teardown(), self.sink().teardown())
+
+            full_arg_spec = type_inspect.getfullargspec(original_process_fn_or_class)
+        return setup, teardown, full_arg_spec
+
+    def _input_output_type(
+        self, full_arg_spec: type_inspect.FullArgSpec
+    ) -> Tuple[Optional[Type], Optional[Type]]:
+        input_type = None
+        output_type = None
+        if (
+            len(full_arg_spec.args) > 1
+            and full_arg_spec.args[1] in full_arg_spec.annotations
+        ):
+            input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
+        if "return" in full_arg_spec.annotations:
+            output_type = full_arg_spec.annotations["return"]
+        return input_type, output_type
+
     def _pipeline_decorator(
         self,
         source_primitive: Primitive,
@@ -465,45 +576,10 @@ class Flow:
         sink_credentials: CredentialType,
     ):
         def decorator_function(original_process_fn_or_class):
-            if inspect.isclass(original_process_fn_or_class):
-
-                def setup(self):
-                    if hasattr(self.instance, "setup"):
-                        self.instance.setup()
-
-                async def teardown(self):
-                    coros = []
-                    if hasattr(self.instance, "teardown"):
-                        if inspect.iscoroutinefunction(self.instance.teardown()):
-                            coros.append(self.instance.teardown())
-                        else:
-                            self.instance.teardown()
-                    coros.extend([self.source().teardown(), self.sink().teardown()])
-                    await asyncio.gather(*coros)
-
-                full_arg_spec = inspect.getfullargspec(
-                    original_process_fn_or_class.process
-                )
-            else:
-
-                def setup(self):
-                    return None
-
-                async def teardown(self):
-                    await asyncio.gather(
-                        self.source().teardown(), self.sink().teardown()
-                    )
-
-                full_arg_spec = inspect.getfullargspec(original_process_fn_or_class)
-            input_type = None
-            output_type = None
-            if (
-                len(full_arg_spec.args) > 1
-                and full_arg_spec.args[1] in full_arg_spec.annotations
-            ):
-                input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
-            if "return" in full_arg_spec.annotations:
-                output_type = full_arg_spec.annotations["return"]
+            setup, teardown, full_arg_spec = self._lifecycle_functions(
+                original_process_fn_or_class
+            )
+            input_type, output_type = self._input_output_type(full_arg_spec)
 
             # NOTE: We only create Pulumi resources for managed primitives and only
             # for the first time we see a primitive.
@@ -599,7 +675,7 @@ class Flow:
                 },
                 "__call__": original_process_fn_or_class,
             }
-            if inspect.isclass(original_process_fn_or_class):
+            if type_inspect.isclass(original_process_fn_or_class):
 
                 def init_processor(self, processor_id):
                     self.processor_id = processor_id
@@ -611,7 +687,7 @@ class Flow:
                 (PipelineProcessor,),
                 adhoc_methods,
             )
-            if not inspect.isclass(original_process_fn_or_class):
+            if not type_inspect.isclass(original_process_fn_or_class):
                 utils.attach_method_to_class(
                     AdHocPipelineProcessorClass,
                     "process",
@@ -625,6 +701,205 @@ class Flow:
                 )
 
             processor = AdHocPipelineProcessorClass(processor_id=processor_id)
+            self.add_processor(processor, processor_options)
+
+            return processor
+
+        return decorator_function
+
+    def _collector_decorator(
+        self,
+        route: Route,
+        method: Method,
+        sink_primitive: Primitive,
+        processor_options: ProcessorOptions,
+        sink_credentials: CredentialType,
+    ):
+        def decorator_function(original_process_fn_or_class):
+            setup, teardown, full_arg_spec = self._lifecycle_functions(
+                original_process_fn_or_class
+            )
+            _, output_type = self._input_output_type(full_arg_spec)
+
+            # NOTE: We only create Pulumi resources for managed primitives and only
+            # for the first time we see a primitive.
+            include_sink_primitive = False
+            if sink_primitive not in self._primitive_cache:
+                self._primitive_cache.append(sink_primitive)
+                include_sink_primitive = True
+
+            processor_id = original_process_fn_or_class.__name__
+
+            def pulumi_resources_for_collector():
+                class CollectorComponentResource(pulumi.ComponentResource):
+                    def __init__(
+                        self,
+                        processor_id: str,
+                        sink_primitive: Primitive,
+                    ):
+                        super().__init__(
+                            "buildflow:processor:Collector",
+                            f"buildflow-component-{processor_id}",
+                            None,
+                            None,
+                        )
+
+                        child_opts = pulumi.ResourceOptions(parent=self)
+                        outputs = {"processor_id": processor_id}
+
+                        # TODO: This does not handle the case where the same primitive
+                        # is used by multiple Processors. The first usage of the
+                        # primtive will create the Pulumi resource, but the second
+                        # usage will not, so the urn will not be included under this
+                        # Processor's ComponentResource. Builds the source's
+                        # pulumi.CompositeResource (if it exists)
+
+                        # Builds the sink's pulumi.CompositeResource (if it exists)
+                        if include_sink_primitive:
+                            sink_pulumi_provider = sink_primitive.pulumi_provider()
+                            if sink_pulumi_provider is not None:
+                                sink_resource = sink_pulumi_provider.pulumi_resource(
+                                    type_=output_type,
+                                    credentials=sink_credentials,
+                                    opts=child_opts,
+                                )
+                                outputs["sink_urn"] = sink_resource.urn
+
+                        self.register_outputs(outputs)
+
+                return CollectorComponentResource(
+                    processor_id=processor_id,
+                    sink_primitive=sink_primitive,
+                )
+
+            def background_tasks():
+                return self._background_tasks(sink_primitive, sink_credentials)
+
+            # Dynamically define a new class with the same structure as Processor
+            class_name = f"CollectorProcessor{utils.uuid(max_len=8)}"
+            sink_provider = sink_primitive.sink_provider()
+            adhoc_methods = {
+                # PipelineProcessor methods.
+                "endpoint": lambda self: Endpoint(route, method),
+                # NOTE: We need to instantiate the sink strategies
+                # in the class to avoid issues passing to ray workers.
+                "sink": lambda self: sink_provider.sink(sink_credentials),
+                # ProcessorAPI methods. NOTE: process() is attached separately below
+                "pulumi_program": lambda self: pulumi_resources_for_collector(),
+                "setup": setup,
+                "teardown": teardown,
+                "background_tasks": lambda self: background_tasks(),
+                "__meta__": {
+                    "sink": sink_primitive,
+                },
+                "__call__": original_process_fn_or_class,
+            }
+            if type_inspect.isclass(original_process_fn_or_class):
+
+                def init_processor(self, processor_id):
+                    self.processor_id = processor_id
+                    self.instance = original_process_fn_or_class()
+
+                adhoc_methods["__init__"] = init_processor
+            AdHocCollectorProcessorClass = type(
+                class_name,
+                (CollectorProcessor,),
+                adhoc_methods,
+            )
+            if not type_inspect.isclass(original_process_fn_or_class):
+                utils.attach_method_to_class(
+                    AdHocCollectorProcessorClass,
+                    "process",
+                    original_func=original_process_fn_or_class,
+                )
+            else:
+                utils.attach_wrapped_method_to_class(
+                    AdHocCollectorProcessorClass,
+                    "process",
+                    original_func=original_process_fn_or_class.process,
+                )
+
+            processor = AdHocCollectorProcessorClass(processor_id=processor_id)
+            self.add_processor(processor, processor_options)
+
+            return processor
+
+        return decorator_function
+
+    def _endpoint_decorator(
+        self,
+        route: Route,
+        method: Method,
+        processor_options: ProcessorOptions,
+    ):
+        def decorator_function(original_process_fn_or_class):
+            setup, teardown, full_arg_spec = self._lifecycle_functions(
+                original_process_fn_or_class
+            )
+            _, output_type = self._input_output_type(full_arg_spec)
+
+            processor_id = original_process_fn_or_class.__name__
+
+            def pulumi_resources_for_service():
+                class ServiceComponentResource(pulumi.ComponentResource):
+                    def __init__(self, processor_id: str):
+                        super().__init__(
+                            "buildflow:processor:Service",
+                            f"buildflow-component-{processor_id}",
+                            None,
+                            None,
+                        )
+
+                        outputs = {"processor_id": processor_id}
+
+                        self.register_outputs(outputs)
+
+                return ServiceComponentResource(processor_id=processor_id)
+
+            def background_tasks():
+                return []
+
+            # Dynamically define a new class with the same structure as Processor
+            class_name = f"ServiceProcessor{utils.uuid(max_len=8)}"
+            adhoc_methods = {
+                # PipelineProcessor methods.
+                "endpoint": lambda self: Endpoint(route, method),
+                # NOTE: We need to instantiate the sink strategies
+                # in the class to avoid issues passing to ray workers.
+                # ProcessorAPI methods. NOTE: process() is attached separately below
+                "pulumi_program": lambda self: pulumi_resources_for_service(),
+                "setup": setup,
+                "teardown": teardown,
+                "background_tasks": lambda self: background_tasks(),
+                "__meta__": {},
+                "__call__": original_process_fn_or_class,
+            }
+            if type_inspect.isclass(original_process_fn_or_class):
+
+                def init_processor(self, processor_id):
+                    self.processor_id = processor_id
+                    self.instance = original_process_fn_or_class()
+
+                adhoc_methods["__init__"] = init_processor
+            AdHocCollectorProcessorClass = type(
+                class_name,
+                (EndpointProcessor,),
+                adhoc_methods,
+            )
+            if not type_inspect.isclass(original_process_fn_or_class):
+                utils.attach_method_to_class(
+                    AdHocCollectorProcessorClass,
+                    "process",
+                    original_func=original_process_fn_or_class,
+                )
+            else:
+                utils.attach_wrapped_method_to_class(
+                    AdHocCollectorProcessorClass,
+                    "process",
+                    original_func=original_process_fn_or_class.process,
+                )
+
+            processor = AdHocCollectorProcessorClass(processor_id=processor_id)
             self.add_processor(processor, processor_options)
 
             return processor

@@ -80,17 +80,11 @@ T = TypeVar("T")
 # This attaches a method to a class at runtime, while preserving the type signature
 # of the original function.
 def attach_method_to_class(cls, method_name, original_func):
-    if inspect.iscoroutinefunction(original_func):
-
-        @wraps(original_func)
-        async def wrapper(self, *args, **kwargs):
+    @wraps(original_func)
+    async def wrapper(self, *args, **kwargs):
+        if inspect.iscoroutinefunction(original_func):
             return await original_func(*args, **kwargs)
-
-    else:
-
-        @wraps(original_func)
-        def wrapper(self, *args, **kwargs):
-            return original_func(*args, **kwargs)
+        return original_func(*args, **kwargs)
 
     sig = inspect.signature(original_func)
     if (
@@ -109,16 +103,11 @@ def attach_method_to_class(cls, method_name, original_func):
 # This attaches a method to a class at runtime, while preserving the type signature
 # of the original function.
 def attach_wrapped_method_to_class(cls, method_name, original_func):
-    if inspect.iscoroutinefunction(original_func):
-
-        @wraps(original_func)
-        async def wrapper(self, *args, **kwargs):
+    @wraps(original_func)
+    async def wrapper(self, *args, **kwargs):
+        if inspect.iscoroutinefunction(original_func):
             return await self.instance.process(*args, **kwargs)
-
-    else:
-
-        @wraps(original_func)
-        def wrapper(self, *args, **kwargs):
+        else:
             return self.instance.process(*args, **kwargs)
 
     sig = inspect.signature(original_func)

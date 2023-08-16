@@ -1,4 +1,3 @@
-import dataclasses
 import logging
 from collections import deque
 from typing import List
@@ -7,7 +6,10 @@ import ray
 from ray.exceptions import OutOfMemoryError, RayActorError
 
 from buildflow.core import utils
-from buildflow.core.app.runtime._runtime import RunID
+from buildflow.core.app.runtime._runtime import RunID, RuntimeStatus
+from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool_snapshot import (
+    PipelineProcessorSnapshot,
+)
 from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import (
     PullProcessPushActor,
     PullProcessPushSnapshot,
@@ -17,41 +19,10 @@ from buildflow.core.app.runtime.actors.process_pool import (
     ProcessorSnapshot,
     ReplicaReference,
 )
+from buildflow.core.app.runtime.autoscaler import calculate_target_num_replicas
 from buildflow.core.app.runtime.metrics import RateCalculation, SimpleGaugeMetric
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
-
-
-# NOTE: The parent snapshot class includes metrics that are common to all Processor
-# types.
-@dataclasses.dataclass
-class PipelineProcessorSnapshot(ProcessorSnapshot):
-    source_backlog: float
-    total_events_processed_per_sec: float
-    eta_secs: float
-    total_pulls_per_sec: float
-    avg_num_elements_per_batch: float
-    avg_pull_percentage_per_replica: float
-    avg_process_time_millis_per_element: float
-    avg_process_time_millis_per_batch: float
-    avg_pull_to_ack_time_millis_per_batch: float
-    avg_cpu_percentage_per_replica: float
-
-    def as_dict(self) -> dict:
-        parent_dict = super().as_dict()
-        pipeline_dict = {
-            "source_backlog": self.source_backlog,
-            "total_events_processed_per_sec": self.total_events_processed_per_sec,
-            "eta_secs": self.eta_secs,
-            "total_pulls_per_sec": self.total_pulls_per_sec,
-            "avg_num_elements_per_batch": self.avg_num_elements_per_batch,
-            "avg_pull_percentage_per_replica": self.avg_pull_percentage_per_replica,
-            "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
-            "avg_process_time_millis_per_batch": self.avg_process_time_millis_per_batch,  # noqa: E501
-            "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
-            "avg_cpu_percentage_per_replica": self.avg_cpu_percentage_per_replica,
-        }
-        return {**parent_dict, **pipeline_dict}
 
 
 @ray.remote(num_cpus=0.1)
@@ -89,6 +60,36 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
                 "RunId": self.run_id,
             },
         )
+        self.prev_snapshot: ProcessorSnapshot = None
+
+    async def scale(self):
+        if self._status != RuntimeStatus.RUNNING:
+            return
+        processor_snapshot: ProcessorSnapshot = await self.snapshot()
+        if processor_snapshot.num_replicas == 0:
+            # This can happen if all actors unexpectedly die.
+            # Just restart with what the user initiall requested, and scale
+            # up from there.
+            await self.add_replicas(self.options.autoscaler_options.num_replicas)
+            return processor_snapshot
+        # Updates the current backlog gauge (metric: ray_current_backlog)
+        current_backlog = processor_snapshot.source_backlog
+        if current_backlog is None:
+            current_backlog = 0
+
+        current_num_replicas = processor_snapshot.num_replicas
+        target_num_replicas = calculate_target_num_replicas(
+            current_snapshot=processor_snapshot,
+            prev_snapshot=self.prev_snapshot,
+            config=self.options.autoscaler_options,
+        )
+
+        num_replicas_delta = target_num_replicas - current_num_replicas
+        if num_replicas_delta > 0:
+            await self.add_replicas(num_replicas_delta)
+        elif num_replicas_delta < 0:
+            await self.remove_replicas(abs(num_replicas_delta))
+        self.prev_snapshot = processor_snapshot
 
     # NOTE: Providing this method is the main purpose of this class. It allows us to
     # contain any runtime logic that applies to all Processor types.

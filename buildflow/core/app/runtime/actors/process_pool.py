@@ -63,6 +63,7 @@ class ProcessorReplicaPoolActor(Runtime):
         logging.getLogger().setLevel(processor_options.log_level)
 
         # configuration
+        self.initial_replicas = processor_options.autoscaler_options.num_replicas
         self.run_id = run_id
         self.processor = processor
         self.options = processor_options
@@ -91,6 +92,9 @@ class ProcessorReplicaPoolActor(Runtime):
             },
         )
         self.concurrency_gauge.set(self.options.num_concurrency)
+
+    async def scale(self):
+        raise NotImplementedError("scale must be implemented by subclasses.")
 
     # NOTE: This method must be implemented by subclasses
     async def create_replica(self):
@@ -146,8 +150,7 @@ class ProcessorReplicaPoolActor(Runtime):
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
-        for replica in self.replicas:
-            replica.ray_actor_handle.run.remote()
+        await self.add_replicas(self.initial_replicas)
 
         coros = []
         for task in self.background_tasks:
