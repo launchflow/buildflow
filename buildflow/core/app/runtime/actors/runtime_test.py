@@ -92,7 +92,6 @@ class RunTimeTest(unittest.TestCase):
         self.run_with_timeout(actor.drain.remote())
 
         files = os.listdir(self.output_dir)
-        print("DO NOT SUBMIT: ", files)
         self.assertEqual(len(files), 1)
         csv_path = os.path.join(self.output_dir, files[0])
 

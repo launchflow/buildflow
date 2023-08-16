@@ -103,6 +103,7 @@ class ReceiveProcessPushAck(Runtime):
                     job_id=job_id,
                     run_id=run_id,
                 )
+                self.processor.setup()
 
             @fastapi_method("/")
             async def root(self, request: input_type) -> None:

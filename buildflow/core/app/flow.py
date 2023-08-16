@@ -118,7 +118,7 @@ class FlowState:
                 if (
                     resource.resource_type == "buildflow:processor:Pipeline"
                     or resource.resource_type == "buildflow:processor:Collector"
-                    or resource.resource_type == "buildflow:processor:Service"
+                    or resource.resource_type == "buildflow:processor:Endpoint"
                 ):
                     if resource.resource_outputs.get("processor_id") == processor_id:
                         return resource
@@ -840,11 +840,11 @@ class Flow:
 
             processor_id = original_process_fn_or_class.__name__
 
-            def pulumi_resources_for_service():
-                class ServiceComponentResource(pulumi.ComponentResource):
+            def pulumi_resources_for_endpoint():
+                class EndpointComponentResource(pulumi.ComponentResource):
                     def __init__(self, processor_id: str):
                         super().__init__(
-                            "buildflow:processor:Service",
+                            "buildflow:processor:Endpoint",
                             f"buildflow-component-{processor_id}",
                             None,
                             None,
@@ -854,23 +854,20 @@ class Flow:
 
                         self.register_outputs(outputs)
 
-                return ServiceComponentResource(processor_id=processor_id)
-
-            def background_tasks():
-                return []
+                return EndpointComponentResource(processor_id=processor_id)
 
             # Dynamically define a new class with the same structure as Processor
-            class_name = f"ServiceProcessor{utils.uuid(max_len=8)}"
+            class_name = f"EndpointProcessor{utils.uuid(max_len=8)}"
             adhoc_methods = {
                 # PipelineProcessor methods.
                 "endpoint": lambda self: Endpoint(route, method),
                 # NOTE: We need to instantiate the sink strategies
                 # in the class to avoid issues passing to ray workers.
                 # ProcessorAPI methods. NOTE: process() is attached separately below
-                "pulumi_program": lambda self: pulumi_resources_for_service(),
+                "pulumi_program": lambda self: pulumi_resources_for_endpoint(),
                 "setup": setup,
                 "teardown": teardown,
-                "background_tasks": lambda self: background_tasks(),
+                "background_tasks": lambda self: [],
                 "__meta__": {},
                 "__call__": original_process_fn_or_class,
             }

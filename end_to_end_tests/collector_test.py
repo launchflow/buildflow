@@ -4,7 +4,6 @@ import os
 import shutil
 import tempfile
 import unittest
-from typing import Dict
 
 import duckdb
 import pytest
@@ -13,7 +12,7 @@ import requests
 import buildflow
 from buildflow.io.local import File
 from buildflow.io.portable.table import AnalysisTable
-from buildflow.types.portable import FileChangeEvent, FileFormat
+from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
@@ -91,15 +90,14 @@ class CollectorLocalTest(unittest.TestCase):
         try:
             app = buildflow.Flow()
 
-            @app.pipeline(
+            @app.collector(
+                route="/test",
+                method="POST",
                 sink=File(
                     os.path.join(output_dir, "file.csv"), file_format=FileFormat.CSV
                 ),
                 num_cpus=0.5,
             )
-            def my_pipeline(event: FileChangeEvent) -> Dict[str, str]:
-                return {"content": event.blob.decode()}
-
             def my_collector(input: InputRequest) -> OutputResponse:
                 return OutputResponse(input.val + 1)
 
@@ -121,10 +119,58 @@ class CollectorLocalTest(unittest.TestCase):
 
             with open(output_file, "r") as f:
                 lines = f.readlines()
-                self.assertEqual(len(lines), 3)
-                self.assertEqual(lines[0], '"content"\n')
-                self.assertEqual(lines[1], '"hello"\n')
-                self.assertEqual(lines[2], '"world"\n')
+                self.assertEqual(len(lines), 2)
+                self.assertEqual(lines[0], '"val"\n')
+                self.assertEqual(lines[1], "2\n")
+
+            self.get_async_result(app._drain())
+        finally:
+            shutil.rmtree(output_dir)
+
+    def test_collector_file_end_to_end_class(self):
+        output_dir = tempfile.mkdtemp()
+        try:
+            app = buildflow.Flow()
+
+            @app.collector(
+                route="/test",
+                method="POST",
+                sink=File(
+                    os.path.join(output_dir, "file.csv"), file_format=FileFormat.CSV
+                ),
+                num_cpus=0.5,
+            )
+            class Collector:
+                def setup(self):
+                    self.add_val = 10
+
+                def get_add_val(self):
+                    return self.add_val
+
+                def process(self, input: InputRequest) -> OutputResponse:
+                    return OutputResponse(input.val + self.get_add_val())
+
+            run_coro = app.run(block=False)
+
+            # wait for 20 seconds to let it spin up
+            run_coro = self.run_for_time(run_coro, time=20)
+
+            response = requests.post(
+                "http://localhost:8000/test", json={"val": 1}, timeout=10
+            )
+            response.raise_for_status()
+
+            run_coro = self.run_for_time(run_coro, time=20)
+
+            output_files = os.listdir(output_dir)
+            self.assertEqual(len(output_files), 1)
+            output_file = os.path.join(output_dir, output_files[0])
+
+            with open(output_file, "r") as f:
+                lines = f.readlines()
+                self.assertEqual(len(lines), 2)
+                self.assertEqual(lines[0], '"val"\n')
+                self.assertEqual(lines[1], "11\n")
 
             self.get_async_result(app._drain())
         finally:
