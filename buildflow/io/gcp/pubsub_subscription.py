@@ -57,6 +57,10 @@ class GCPPubSubSubscription(
         batch_size: int = _DEFAULT_BATCH_SIZE,
         include_attributes: bool = _DEFAULT_INCLUDE_ATTRIBUTES,
     ) -> "GCPPubSubSubscription":
+        if managed and topic is None:
+            raise ValueError(
+                "A topic must be provided when using managed mode. Please provide one."
+            )
         to_ret = super().options(managed)
         to_ret.ack_deadline_seconds = ack_deadline_seconds
         to_ret.message_retention_duration = message_retention_duration
