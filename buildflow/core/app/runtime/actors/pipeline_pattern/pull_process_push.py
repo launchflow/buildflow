@@ -169,7 +169,7 @@ class PullProcessPushActor(Runtime):
                 return push_converter(results)
 
         max_batch_size = source.max_batch_size()
-        logging.info("ready to receive data... %s", self._num_running_threads)
+        logging.info("ready to receive data...")
         while self._status == RuntimeStatus.RUNNING:
             # Add a small sleep here so none async sources can yield
             # otherwise drain signals never get received.

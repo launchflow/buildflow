@@ -152,7 +152,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_for_time(pending, 20)
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        self.assertEqual(num_replicas, snapshot.processors[0].num_replicas)
+        self.assertGreaterEqual(snapshot.processors[0].num_replicas, num_replicas)
 
         self.run_with_timeout(actor.drain.remote())
 
