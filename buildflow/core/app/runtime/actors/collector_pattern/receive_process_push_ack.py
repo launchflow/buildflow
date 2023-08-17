@@ -111,8 +111,14 @@ class ReceiveProcessPushAck(Runtime):
                 self.num_events_processed_counter.inc()
                 start_time = time.monotonic()
                 output = await self.processor.process(request)
-                to_send = self.push_converter(output)
-                await sink.push([to_send])
+                if output is None:
+                    # Exclude none results
+                    return
+                elif isinstance(output, (list, tuple)):
+                    to_send = [push_converter(result) for result in output]
+                else:
+                    to_send = [push_converter(output)]
+                await sink.push(to_send)
                 self.process_time_counter.inc((time.monotonic() - start_time) * 1000)
 
             def num_events_processed(self):

@@ -180,15 +180,19 @@ class FlowState:
                     )
                     num_pulumi_resources += len(sink_child_resources)
 
-            source = PrimitiveState(
-                primitive_class=source_class,
-                resources=source_child_resources,
-            )
+            source = None
+            if source_class:
+                source = PrimitiveState(
+                    primitive_class=source_class,
+                    resources=source_child_resources,
+                )
 
-            sink = PrimitiveState(
-                primitive_class=sink_class,
-                resources=sink_child_resources,
-            )
+            sink = None
+            if sink_class:
+                sink = PrimitiveState(
+                    primitive_class=sink_class,
+                    resources=sink_child_resources,
+                )
 
             processor = ProcessorState(
                 processor_id=processor_id,

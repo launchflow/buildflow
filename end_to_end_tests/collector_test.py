@@ -176,6 +176,47 @@ class CollectorLocalTest(unittest.TestCase):
         finally:
             shutil.rmtree(output_dir)
 
+    def test_collector_file_multi_output(self):
+        output_dir = tempfile.mkdtemp()
+        try:
+            app = buildflow.Flow()
+
+            @app.collector(
+                route="/test",
+                method="POST",
+                sink=File(
+                    os.path.join(output_dir, "file.csv"), file_format=FileFormat.CSV
+                ),
+                num_cpus=0.5,
+            )
+            def my_collector(input: InputRequest) -> OutputResponse:
+                return [OutputResponse(input.val + 1), OutputResponse(input.val + 2)]
+
+            run_coro = app.run(block=False)
+
+            # wait for 20 seconds to let it spin up
+            run_coro = self.run_for_time(run_coro, time=20)
+
+            response = requests.post(
+                "http://localhost:8000/test", json={"val": 1}, timeout=10
+            )
+            response.raise_for_status()
+
+            run_coro = self.run_for_time(run_coro, time=20)
+
+            output_files = os.listdir(output_dir)
+            self.assertEqual(len(output_files), 1)
+            output_file = os.path.join(output_dir, output_files[0])
+
+            with open(output_file, "r") as f:
+                lines = f.readlines()
+                self.assertEqual(len(lines), 3)
+                self.assertEqual(lines, ['"val"\n', "2\n", "3\n"])
+
+            self.get_async_result(app._drain())
+        finally:
+            shutil.rmtree(output_dir)
+
 
 if __name__ == "__main__":
     unittest.main()
