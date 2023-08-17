@@ -4,36 +4,50 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "buildflow"
-version = "0.0.14"
+version = "0.2.0"
 authors = [
     { name = "Caleb Van Dyke", email = "caleb@launchflow.com" },
     { name = "Josh Tanke", email = "josh@launchflow.com" },
 ]
-description = "buildflow is a unified **batch** and **streaming** framework that turns any python function into a scalable data pipeline that can read from our supported IO resources."
+description = "BuildFlow, is an open source framework for building large scale systems using Python. All you need to do is describe where your input is coming from and where your output should be written, and BuildFlow handles the rest."
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
+    "black",
     # TODO: split up AWS and GCP dependencies.
     "boto3",
-    "duckdb==0.6.0",
+    "dacite",
+    "duckdb",
+    "gcsfs",
     "google-auth",
     "google-cloud-bigquery",
     "google-cloud-bigquery-storage",
     "google-cloud-monitoring",
     "google-cloud-pubsub",
     "google-cloud-storage",
-    # TODO: https://github.com/grpc/grpc/issues/31885
-    "grpcio==1.48.2",
+    "grpcio!=1.49.1",
     "fastparquet",
     "opentelemetry-api",
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp",
     "opentelemetry-exporter-jaeger",
     "pandas",
+    "pulumi==3.35.3",
+    "pulumi_aws",
+    "pulumi_gcp",
+    "pulumi_snowflake",
     "pyarrow",
-    "pyyaml",
-    "ray[default]",
+    "pydantic<2.0.2",
+    # Avoid issue with cython 3.0.0 and pyyaml:
+    #   https://github.com/yaml/pyyaml/issues/724
+    "pyyaml!=5.4.1,!=5.4.0,!=6.0.0",
+    "s3fs",
+    "snowflake-ingest",
+    "ray[default]>=2.4.0",
+    "ray[serve]>=2.4.0",
+    "typer",
     "redis",
+    "watchdog",
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -44,13 +58,45 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+    "aiobotocore",
+    "aiohttp",
+    "botocore",
+    "isort",
     "moto",
     "pytest",
-    "pytest-timeout",
-    "flake8",
+    "pytest-cov",
+    "ruff",
+    "pre-commit",
     "setuptools",
-    "wheel"
+    "wheel",
 ]
 
-[tool.setuptools.packages]
-find = {}  # Scan the project directory with the default parameters
+[tool.setuptools.packages.find]
+exclude = ["tests", ".*tests", ".*tests.*"]
+
+[project.scripts]
+buildflow = "buildflow.cli.main:main"
+
+[tool.coverage.report]
+# Regexes for lines to exclude from consideration
+exclude_also = [
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    # Don't complain about abstract methods, they aren't run:
+    "@(abc\\.)?abstractmethod",
+]
+ignore_errors = true
+# Files to ignore
+omit = [
+    # Exclude samples
+    "buildflow/samples/*",
+    "buildflow/cli/*",
+    "release_tests/*",
+]
+
+[tool.isort]
+profile = "black"

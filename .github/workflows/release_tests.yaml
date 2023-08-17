@@ -1,0 +1,82 @@
+name: Release Tests
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    branches: ["release-*"]
+
+jobs:
+  gcp_release_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+
+      - name: Setup GCP Auth
+        uses: "google-github-actions/auth@v1"
+        with:
+          # NOTE: We use a key file here because changing the quota project
+          # doesn't work with WIF.
+          credentials_json: ${{ secrets.GCP_SA_JSON_KEY }}
+
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
+
+      - name: "Set up Pulumi"
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+
+      - name: Run Pub/Sub -> BigQuery Release Test
+        run: |
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          ./release_tests/pubsub_to_bigquery/test.sh
+
+      - name: Run CSV -> BigQuery Release Test
+        run: |
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          ./release_tests/gcs_to_bigquery/test.sh
+
+      - name: Run Pub/Sub Integration Test
+        run: |
+          export GCP_PROJECT=${{ secrets.GCP_PROJECT }}
+          ./release_tests/pubsub_to_pubsub/test.sh
+
+  aws_release_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+
+      - name: "Set up Pulumi"
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+
+      - name: Run SQS -> SQS Release Test
+        run: |
+          ./release_tests/sqs_to_sqs/test.sh

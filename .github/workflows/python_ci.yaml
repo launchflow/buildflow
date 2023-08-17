@@ -1,31 +1,38 @@
 name: Python CI
 
-on: [push]
-
-env:
-  BUILDFLOW_USAGE_STATS_DISABLE: 1
+on:
+  pull_request:
+    branches: ["main", "release-*"]
 
 jobs:
-  flake8:
-
+  code-health:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
       - name: Install dependencies
         run: |
-          pip install flake8
-      - name: Run flake8
-        uses: suo/flake8-github-action@releases/v1
+          pip install black ruff
+      - name: Run black checks
+        uses: psf/black@stable
         with:
-          checkName: 'test_and_lint'  # NOTE: this needs to be the same as the job name
+          options: "--check --verbose"
+          src: "buildflow"
+          version: "~= 23.0"
+          checkName: "test_and_lint" # NOTE: this needs to be the same as the job name
+      - name: Run ruff checks
+        uses: chartboost/ruff-action@v1
+        with:
+          src: "buildflow"
+          version: 0.0.265
+          checkName: "test_and_lint"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  test:
+  pytest:
     permissions:
       contents: write
       id-token: write
@@ -37,7 +44,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.10
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
@@ -48,31 +55,7 @@ jobs:
           pip install .[dev]
       - name: Test with pytest
         run: |
-          pytest --timeout=60
+          pytest --cov
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
-        with:
-          install_components: 'beta,pubsub-emulator'
-
-      - name: Setup GCP Auth
-        uses: 'google-github-actions/auth@v1'
-        with:
-          workload_identity_provider: ${{ secrets.WORKFLOW_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-
-      - name: Run Pub/Sub integration test
-        run: |
-          cd integration_tests/pubsub_to_pubsub
-          ./pubsub_integration.sh
-
-      - name: Run Pub/Sub multi-output integration test
-        run: |
-          cd integration_tests/pubsub_to_pubsub_multi_output
-          ./pubsub_integration.sh
-
-      - name: Run Pub/Sub to parquet local integration test
-        run: |
-          cd integration_tests/pubsub_to_local_parquet
-          ./pubsub_integration.sh
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
