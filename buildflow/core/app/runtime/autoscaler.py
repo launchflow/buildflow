@@ -5,7 +5,7 @@ from typing import Optional
 import ray
 from ray.autoscaler.sdk import request_resources
 
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
+from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool_snapshot import (
     PipelineProcessorSnapshot,
 )
 from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
@@ -222,7 +222,7 @@ def calculate_target_num_replicas(
         raise NotImplementedError("Collector autoscaling not implemented yet")
     elif current_snapshot.processor_type == ProcessorType.CONNECTION:
         raise NotImplementedError("Connection autoscaling not implemented yet")
-    elif current_snapshot.processor_type == ProcessorType.SERVICE:
+    elif current_snapshot.processor_type == ProcessorType.ENDPOINT:
         raise NotImplementedError("Service autoscaling not implemented yet")
     else:
         raise ValueError(f"Unknown processor type: {current_snapshot.processor_type}")

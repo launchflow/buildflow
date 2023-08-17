@@ -8,7 +8,7 @@ class ProcessorType(enum.Enum):
     COLLECTOR = "collector"
     CONNECTION = "connection"
     PIPELINE = "pipeline"
-    SERVICE = "service"
+    ENDPOINT = "endpoint"
 
 
 ProcessorID = str
@@ -24,7 +24,7 @@ class ProcessorAPI:
     def setup(self):
         raise NotImplementedError("setup not implemented")
 
-    def process(self, *args, **kwargs):
+    async def process(self, *args, **kwargs):
         raise NotImplementedError("process not implemented for Processor")
 
     def background_tasks(self) -> List[BackgroundTask]:

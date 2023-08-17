@@ -1,9 +1,13 @@
+import contextlib
 import logging
+import threading
+import time
 from typing import Optional
 
-from fastapi import FastAPI
+import uvicorn
+from fastapi import APIRouter, FastAPI
 from fastapi.responses import HTMLResponse
-from ray import kill, serve
+from ray import kill
 
 from buildflow.core.app.infra.actors.infra import InfraActor
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor, RuntimeSnapshot
@@ -44,21 +48,19 @@ index_html = """
 """  # noqa: E501
 
 
-# Set this to avoid noisy logs for alls to each endpoint
-logger = logging.getLogger("ray.serve")
-logger.setLevel("WARNING")
-
-
-@serve.deployment(route_prefix="/", ray_actor_options={"num_cpus": 0.1})
-@serve.ingress(app)
-class RuntimeServer:
+class RuntimeServer(uvicorn.Server):
     def __init__(
         self,
         runtime_actor: RuntimeActor,
+        host: str,
+        port: int,
         infra_actor: Optional[InfraActor] = None,
         *,
-        log_level: str = "DEBUG",
+        log_level: str = "WARNING",
     ) -> None:
+        super().__init__(
+            uvicorn.Config(app, host=host, port=port, log_level=log_level.lower())
+        )
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(log_level)
@@ -66,31 +68,51 @@ class RuntimeServer:
         # configuration
         self.runtime_actor = runtime_actor
         self.infra_actor = infra_actor
+        self.router = APIRouter()
+        self.router.add_api_route("/", self.index, methods=["GET"])
+        self.router.add_api_route(
+            "/runtime/drain", self.runtime_drain, methods=["POST"]
+        )
+        self.router.add_api_route("/runtime/stop", self.runtime_stop, methods=["POST"])
+        self.router.add_api_route(
+            "/runtime/snapshot", self.runtime_snapshot, methods=["GET"]
+        )
+        self.router.add_api_route(
+            "/runtime/status", self.runtime_status, methods=["GET"]
+        )
+        self.router.add_api_route("/infra/status", self.runtime_status, methods=["GET"])
+        app.include_router(self.router)
 
-    @app.get("/")
+    @contextlib.contextmanager
+    def run_in_thread(self):
+        thread = threading.Thread(target=self.run)
+        thread.start()
+        try:
+            while not self.started:
+                time.sleep(1e-3)
+            yield
+        finally:
+            self.should_exit = True
+            thread.join()
+
     async def index(self):
         return HTMLResponse(index_html)
 
-    @app.post("/runtime/drain")
     async def runtime_drain(self):
         # we dont want to block the request, so we dont await the drain
         self.runtime_actor.drain.remote()
         return "Drain request sent."
 
-    @app.get("/runtime/snapshot")
     async def runtime_snapshot(self):
         snapshot: RuntimeSnapshot = await self.runtime_actor.snapshot.remote()
         return snapshot.as_dict()
 
-    @app.post("/runtime/stop")
     async def runtime_stop(self):
         kill(self.runtime_actor)
 
-    @app.get("/runtime/status")
     async def runtime_status(self):
         status = await self.runtime_actor.status.remote()
         return {"status": status.name}
 
-    @app.get("/infra/snapshot")
     async def infra_snapshot(self):
         return "Not implemented yet."

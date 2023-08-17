@@ -1,6 +1,5 @@
 import asyncio
 import dataclasses
-import inspect
 import logging
 import os
 import time
@@ -14,8 +13,11 @@ from buildflow.core.app.runtime.actors.process_pool import ReplicaID
 from buildflow.core.app.runtime.metrics import (
     CompositeRateCounterMetric,
     RateCalculation,
+    num_events_processed,
+    process_time_counter,
 )
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
+from buildflow.core.processor.utils import process_types
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI
@@ -86,30 +88,20 @@ class PullProcessPushActor(Runtime):
         self._last_snapshot_time = time.monotonic()
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
-        # test
-        self.num_events_processed = CompositeRateCounterMetric(
-            "num_events_processed",
-            description="Number of events processed by the actor. Only increments.",
-            default_tags={
-                "processor_id": processor.processor_id,
-                "JobId": job_id,
-                "RunId": self.run_id,
-            },
+        self.num_events_processed = num_events_processed(
+            processor_id=self.processor.processor_id,
+            job_id=job_id,
+            run_id=self.run_id,
+        )
+        self.process_time_counter = process_time_counter(
+            processor_id=self.processor.processor_id,
+            job_id=job_id,
+            run_id=self.run_id,
         )
 
         self._pull_percentage_counter = CompositeRateCounterMetric(
             "pull_percentage",
             description="Percentage of the batch size that was pulled. Goes up and down.",  # noqa: E501
-            default_tags={
-                "processor_id": processor.processor_id,
-                "JobId": job_id,
-                "RunId": self.run_id,
-            },
-        )
-
-        self.process_time_counter = CompositeRateCounterMetric(
-            "process_time",
-            description="Current process time of the actor. Goes up and down.",
             default_tags={
                 "processor_id": processor.processor_id,
                 "JobId": job_id,
@@ -159,37 +151,12 @@ class PullProcessPushActor(Runtime):
         logging.debug("Starting Thread...")
         self._num_running_threads += 1
 
-        raw_process_fn = self.processor.process
-        full_arg_spec = inspect.getfullargspec(raw_process_fn)
-        output_type = None
-        input_type = None
-        if "return" in full_arg_spec.annotations:
-            output_type = full_arg_spec.annotations["return"]
-            if (
-                hasattr(output_type, "__origin__")
-                and (output_type.__origin__ is list or output_type.__origin__ is tuple)
-                and hasattr(output_type, "__args__")
-            ):
-                # We will flatten the return type if the outter most type is a tuple or
-                # list.
-                output_type = output_type.__args__[0]
-        if (
-            len(full_arg_spec.args) > 1
-            and full_arg_spec.args[1] in full_arg_spec.annotations
-        ):
-            input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
+        input_type, output_type = process_types(self.processor)
         source = self.processor.source()
         sink = self.processor.sink()
         pull_converter = source.pull_converter(input_type)
         push_converter = sink.push_converter(output_type)
-        process_fn = raw_process_fn
-        if not inspect.iscoroutinefunction(raw_process_fn):
-            # Wrap the raw process function in an async function to make our calls below
-            # easier
-            async def wrapped_process_fn(x):
-                return raw_process_fn(x)
-
-            process_fn = wrapped_process_fn
+        process_fn = self.processor.process
 
         async def process_element(element):
             results = await process_fn(pull_converter(element))
