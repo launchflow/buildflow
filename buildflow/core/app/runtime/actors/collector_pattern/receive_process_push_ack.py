@@ -18,6 +18,8 @@ from buildflow.core.processor.patterns.collector import CollectorProcessor
 from buildflow.core.processor.utils import process_types
 from buildflow.io.endpoint import Method
 
+_MAX_SERVE_START_TRIES = 10
+
 
 @dataclasses.dataclass
 class ReceiveProcessPushSnapshot(Snapshot):
@@ -133,12 +135,22 @@ class ReceiveProcessPushAck(Runtime):
         self.collector_application = FastAPIWrapper.bind(
             self.processor, self.run_id, push_converter
         )
-        self.serve_handle = serve.run(
-            self.collector_application,
-            host="0.0.0.0",
-            port=8000,
-            name=self.processor.processor_id,
-        )
+        tries = 0
+        while tries < _MAX_SERVE_START_TRIES:
+            try:
+                tries += 1
+                self.serve_handle = serve.run(
+                    self.collector_application,
+                    host="0.0.0.0",
+                    port=8000,
+                    name=self.processor.processor_id,
+                )
+                break
+            except ValueError:
+                # There's a edge case when we start multiple deployments from
+                # different processors at the same time
+                logging.exception("error starting serve, retrying in 1s")
+                await asyncio.sleep(1)
         self._status = RuntimeStatus.RUNNING
         while self._status == RuntimeStatus.RUNNING:
             await asyncio.sleep(1)
