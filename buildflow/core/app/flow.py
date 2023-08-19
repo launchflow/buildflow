@@ -309,6 +309,8 @@ class Flow:
         sink: Optional[Primitive] = None,
         *,
         num_cpus: float = 1.0,
+        num_gpus: Optional[float] = None,
+        memory: Optional[float] = None,
         num_concurrency: int = 1,
         autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
         log_level: str = "INFO",
@@ -329,6 +331,8 @@ class Flow:
             sink_primitive=sink,
             processor_options=ProcessorOptions(
                 num_cpus=num_cpus,
+                num_gpu=num_gpus,
+                memory=memory,
                 num_concurrency=num_concurrency,
                 log_level=log_level,
                 autoscaler_options=autoscale_options,
@@ -344,6 +348,8 @@ class Flow:
         sink: Optional[Primitive] = None,
         *,
         num_cpus: float = 1.0,
+        num_gpus: Optional[float] = None,
+        memory: Optional[float] = None,
         autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
         log_level: str = "INFO",
     ):
@@ -362,6 +368,8 @@ class Flow:
             sink_primitive=sink,
             processor_options=ProcessorOptions(
                 num_cpus=num_cpus,
+                num_gpu=num_gpus,
+                memory=memory,
                 # Collectors always have a concurrency of 1
                 num_concurrency=1,
                 log_level=log_level,
@@ -376,6 +384,8 @@ class Flow:
         method: Method,
         *,
         num_cpus: float = 1.0,
+        num_gpus: Optional[float] = None,
+        memory: Optional[float] = None,
         autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
         log_level: str = "INFO",
     ):
@@ -384,7 +394,9 @@ class Flow:
             method=method,
             processor_options=ProcessorOptions(
                 num_cpus=num_cpus,
-                # Collectors always have a concurrency of 1
+                num_gpu=num_gpus,
+                memory=memory,
+                # Endpoints always have a concurrency of 1
                 num_concurrency=1,
                 log_level=log_level,
                 autoscaler_options=autoscale_options,

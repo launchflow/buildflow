@@ -95,8 +95,17 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
     # contain any runtime logic that applies to all Processor types.
     async def create_replica(self) -> ReplicaReference:
         replica_id = utils.uuid()
+        # Some options are optional, so we need to filter out None values
+        ray_actor_options = {
+            "num_cpus": self.options.num_cpus,
+        }
+        if self.options.num_gpu is not None:
+            ray_actor_options["num_gpus"] = self.options.num_gpu
+        if self.options.memory is not None:
+            ray_actor_options["memory"] = self.options.memory
+
         replica_actor_handle = PullProcessPushActor.options(
-            num_cpus=self.options.num_cpus,
+            **ray_actor_options
         ).remote(
             self.run_id,
             self.processor,

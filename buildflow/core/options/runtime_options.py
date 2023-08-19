@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Dict
+from typing import Dict, Optional
 
 from buildflow.core.options._options import Options
 from buildflow.core.processor.processor import ProcessorID
@@ -53,7 +53,11 @@ class AutoscalerOptions(Options):
 # TODO: Add options for other pattern types, or merge into a single options object
 @dataclasses.dataclass
 class ProcessorOptions(Options):
+    # ray actor options
     num_cpus: float
+    num_gpu: Optional[float]
+    memory: Optional[float]
+    # Runtime API options
     num_concurrency: int
     log_level: str
     # the configuration of the autoscaler for this processor
@@ -63,6 +67,8 @@ class ProcessorOptions(Options):
     def default(cls) -> "ProcessorOptions":
         return cls(
             num_cpus=1.0,
+            num_gpu=None,
+            memory=None,
             num_concurrency=1,
             log_level="INFO",
             autoscaler_options=AutoscalerOptions.default(),
