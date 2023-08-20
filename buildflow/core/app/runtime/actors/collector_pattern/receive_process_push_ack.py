@@ -78,10 +78,19 @@ class ReceiveProcessPushAck(Runtime):
                 f"Method {self.processor.endpoint().method} is not supported "
                 "for collectors."
             )
+        
+        # Some ProcessorOptions fields are optional, so we need to filter out Nones
+        ray_actor_options = {
+            "num_cpus": self.processor_options.num_cpus,
+        }
+        if self.processor_options.num_gpu is not None:
+            ray_actor_options["num_gpus"] = self.options.num_gpu
+        if self.processor_options.memory is not None:
+            ray_actor_options["memory"] = self.options.memory
 
         @serve.deployment(
             route_prefix=self.endpoint.route,
-            ray_actor_options={"num_cpus": self.processor_options.num_cpus},
+            ray_actor_options=ray_actor_options,
             autoscaling_config={
                 "min_replicas": self.processor_options.autoscaler_options.min_replicas,
                 "initial_replicas": self.processor_options.autoscaler_options.num_replicas,  # noqa: E501
