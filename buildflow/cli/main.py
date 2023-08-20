@@ -180,6 +180,9 @@ def init(
         None,
         help="The default cloud provider to use",
     ),
+    processor: Optional[str] = typer.Option(
+        None, help="The type of Processor to create", hidden=True
+    ),
     source: Optional[str] = typer.Option(
         None, help="The IO primitive (class name) to use as a Source", hidden=True
     ),
@@ -242,8 +245,17 @@ def init(
 
     if source is not None and sink is not None:
         file_name = "main"
-        file_template = file_gen.generate_template(source, sink, file_name)
         file_path = os.path.join(directory, f"{file_name}.py")
+
+        if processor is None:
+            file_template = ""
+        elif processor == "pipeline":
+            file_template = file_gen.generate_pipeline_template(source, sink, file_name)
+        elif processor == "collector":
+            file_template = file_gen.generate_collector_template(sink, file_name)
+        elif processor == "endpoint":
+            file_template = file_gen.generate_endpoint_template(file_name)
+
         if os.path.exists(file_path):
             typer.echo(f"{file_path} already exists, skipping.")
         else:
