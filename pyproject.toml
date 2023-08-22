@@ -25,7 +25,7 @@ dependencies = [
     "google-cloud-monitoring",
     "google-cloud-pubsub",
     "google-cloud-storage",
-    "grpcio!=1.49.1",
+    "grpcio>=1.56.0",
     "fastparquet",
     "opentelemetry-api",
     "opentelemetry-sdk",
