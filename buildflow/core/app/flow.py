@@ -225,7 +225,7 @@ class FlowState:
     def as_json_dict(self):
         return {
             "flow_id": self.flow_id,
-            "last_updated": self.last_updated.timestamp(),
+            "last_updated": self.last_updated.isoformat(),
             "num_pulumi_resources": self.num_pulumi_resources,
             "pulumi_stack_name": self.pulumi_stack_name,
             "processors": {p.processor_id: p.as_json_dict() for p in self.processors},

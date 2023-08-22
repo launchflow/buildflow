@@ -133,7 +133,7 @@ def destroy(
 @dataclass
 class InspectJSON:
     success: bool
-    timestamp: float
+    timestamp: str
     inspect_info: Dict[str, Any]
 
     def print_json(self):
@@ -149,7 +149,7 @@ def inspect(
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
     # TODO: Add support for deployment grids
-    runtime = datetime.utcnow().timestamp()
+    runtime = datetime.utcnow().isoformat()
     if isinstance(imported, (buildflow.Flow)):
         flow_state = imported.inspect()
         if not as_json:
@@ -179,6 +179,9 @@ def init(
     default_cloud_provider: Optional[CloudProvider] = typer.Option(
         None,
         help="The default cloud provider to use",
+    ),
+    processor: Optional[str] = typer.Option(
+        None, help="The type of Processor to create", hidden=True
     ),
     source: Optional[str] = typer.Option(
         None, help="The IO primitive (class name) to use as a Source", hidden=True
@@ -242,8 +245,17 @@ def init(
 
     if source is not None and sink is not None:
         file_name = "main"
-        file_template = file_gen.generate_template(source, sink, file_name)
         file_path = os.path.join(directory, f"{file_name}.py")
+
+        if processor is None:
+            file_template = ""
+        elif processor == "pipeline":
+            file_template = file_gen.generate_pipeline_template(source, sink, file_name)
+        elif processor == "collector":
+            file_template = file_gen.generate_collector_template(sink, file_name)
+        elif processor == "endpoint":
+            file_template = file_gen.generate_endpoint_template(file_name)
+
         if os.path.exists(file_path):
             typer.echo(f"{file_path} already exists, skipping.")
         else:

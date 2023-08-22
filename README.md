@@ -15,7 +15,6 @@ Key Features (all provided out-of-the-box):
 - Automatic [resource creation / management](https://www.buildflow.dev/docs/features/infrastructure-from-code) (Infrastructure as Code) powered by [Pulumi](https://github.com/pulumi/pulumi) (Infrastructure from Code)
 - Automatic [parallelism & concurrency](https://www.buildflow.dev/docs/features/parallelism) powered by [Ray](https://github.com/ray-project/ray)
 - [Dynamic autoscaling](https://www.buildflow.dev/docs/features/autoscaling): scale up during high traffic / reduce costs during low traffic
-- [Schema validation](https://www.buildflow.dev/docs/features/schema-validation) powered by Python dataclasses and type hints
 
 ## Installation
 
@@ -40,7 +39,7 @@ Installing Pulumi unlocks:
 - **Docs**: https://www.buildflow.dev/docs
 - **Walkthroughs**: https://www.buildflow.dev/docs/walkthroughs/realtime-image-classification
 - **Discord**: https://discordapp.com/invite/wz7fjHyrCA
-- **Contribute**: https://www.buildflow.dev/docs/contribute
+- **Contribute**: https://www.buildflow.dev/docs/developers/contribute
 
 ## Code Health Checks
 
