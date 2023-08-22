@@ -133,7 +133,7 @@ def destroy(
 @dataclass
 class InspectJSON:
     success: bool
-    timestamp: float
+    timestamp: str
     inspect_info: Dict[str, Any]
 
     def print_json(self):
@@ -149,7 +149,7 @@ def inspect(
     sys.path.insert(0, app_dir)
     imported = utils.import_from_string(app)
     # TODO: Add support for deployment grids
-    runtime = datetime.utcnow().timestamp()
+    runtime = datetime.utcnow().isoformat()
     if isinstance(imported, (buildflow.Flow)):
         flow_state = imported.inspect()
         if not as_json:

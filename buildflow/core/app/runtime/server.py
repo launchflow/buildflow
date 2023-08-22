@@ -30,7 +30,6 @@ index_html = """
         function snapshot() {
             fetch('/runtime/snapshot')
                 .then(response => {
-                    console.log(response);
                     return response.json();
                 })
                 .then(json => document.getElementById('snapshot').innerHTML = JSON.stringify(json, null, 2));
