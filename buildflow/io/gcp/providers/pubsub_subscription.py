@@ -24,6 +24,14 @@ class _PubSubSubscriptionPulumiResource(pulumi.ComponentResource):
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
+        super().__init__(
+            "buildflow:gcp:pubsub:Subscription",
+            f"buildflow-{project_id}-{subscription_name}",
+            None,
+            opts,
+        )
+        opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(parent=self))
+
         self.topic_resource = None
         topic_pulumi_provider = topic.pulumi_provider()
         if topic_pulumi_provider is not None:
@@ -33,12 +41,6 @@ class _PubSubSubscriptionPulumiResource(pulumi.ComponentResource):
             opts = pulumi.ResourceOptions.merge(
                 opts, pulumi.ResourceOptions(depends_on=self.topic_resource)
             )
-        super().__init__(
-            "buildflow:gcp:pubsub:Subscription",
-            f"buildflow-{project_id}-{subscription_name}",
-            None,
-            opts,
-        )
 
         self.subscription_resource = pulumi_gcp.pubsub.Subscription(
             resource_name=f"{project_id}-{subscription_name}",

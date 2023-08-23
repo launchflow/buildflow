@@ -35,3 +35,13 @@ class GCSFileChangeEvent(FileChangeEvent):
         bucket = self.storage_client.bucket(bucket_name=self.metadata["bucketId"])
         blob = bucket.get_blob(self.metadata["objectId"])
         return blob.download_as_bytes()
+
+
+class CloudSQLPostgresVersion:
+    POSTGRES_9_6 = "POSTGRES_9_6"
+    POSTGRES_10 = "POSTGRES_10"
+    POSTGRES_11 = "POSTGRES_11"
+    POSTGRES_12 = "POSTGRES_12"
+    POSTGRES_13 = "POSTGRES_13"
+    POSTGRES_14 = "POSTGRES_14"
+    POSTGRES_15 = "POSTGRES_15"
