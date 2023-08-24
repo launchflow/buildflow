@@ -70,30 +70,6 @@ class InfraActor(Infra):
             raise RuntimeError("Can only apply Infra while Idle.")
         self._set_status(InfraStatus.APPLYING)
 
-        # Planning phase (no remote state changes)
-        preview_result: WrappedPreviewResult = await self._pulumi_workspace.preview(
-            processors=processors
-        )
-        if self.options.require_confirmation:
-            print("Would you like to apply these changes?")
-            preview_result.print_change_summary()
-            response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
-            while True:
-                if response.lower() in ["n", "no"]:
-                    print("User rejected Infra changes. Aborting.")
-                    return
-                elif response.lower() in ["y", "yes"]:
-                    print("User confirmed Infra changes. Applying.")
-                    break
-                else:
-                    response = input(
-                        'Invalid response. Enter "y (yes)" to '
-                        'confirm, "n (no) to reject": '
-                    )
-
-        # TODO: Aggregate all change summaries into a single summary and log it.
-        # logging.warning(f"apply: Applying: {preview_result.change_summary}")
-
         # Execution phase (potentially remote state changes)
         up_result: WrappedUpResult = await self._pulumi_workspace.up(
             processors=processors

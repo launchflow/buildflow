@@ -6,7 +6,12 @@ import os
 from typing import List
 
 import buildflow
-from buildflow.io.gcp import BigQueryTable, GCSBucket, GCSFileChangeStream
+from buildflow.io.gcp import (
+    BigQueryDataset,
+    BigQueryTable,
+    GCSBucket,
+    GCSFileChangeStream,
+)
 from buildflow.types.gcp import GCSFileChangeEvent
 
 gcp_project = os.environ["GCP_PROJECT"]
@@ -30,8 +35,7 @@ source = GCSFileChangeStream(
 # Set up a BigQuery table for the sink.
 # If this table does not exist yet BuildFlow will create it.
 sink = BigQueryTable(
-    project_id=gcp_project,
-    dataset_name=dataset,
+    BigQueryDataset(project_id=gcp_project, dataset_name=dataset),
     table_name=bigquery_table,
 ).options(managed=True, destroy_protection=False)
 
