@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from unittest import mock
 
 import pulumi
-import pulumi_gcp
 import pytest
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
-from buildflow.io.gcp.bigquery import BigQueryTable
+from buildflow.io.gcp.bigquery_dataset import BigQueryDataset
+from buildflow.io.gcp.bigquery_table import BigQueryTable
 
 
 @dataclass
@@ -37,34 +37,23 @@ class BigQueryTest(unittest.TestCase):
 
     @pulumi.runtime.test
     def test_bigquery_table_pulumi_base(self):
+        bigquery_dataset = BigQueryDataset(
+            project_id="project_id", dataset_name="dataset_name"
+        )
         bigquery_table = BigQueryTable(
-            project_id="project_id",
-            dataset_name="dataset_name",
-            table_name="table_name",
+            bigquery_dataset, table_name="table_name"
         ).options(destroy_protection=False)
 
-        bigquery_resource = bigquery_table._pulumi_provider().pulumi_resource(
+        bigquery_dataset_resource = bigquery_dataset._pulumi_provider().pulumi_resource(
             type_=FakeRow,
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )
-        child_resources = list(bigquery_resource._childResources)
-        self.assertEqual(len(child_resources), 2)
 
-        table_resource = None
-        dataset_resource = None
+        child_resources = list(bigquery_dataset_resource._childResources)
+        self.assertEqual(len(child_resources), 1)
 
-        for resource in child_resources:
-            if isinstance(resource, pulumi_gcp.bigquery.Dataset):
-                dataset_resource = resource
-            elif isinstance(resource, pulumi_gcp.bigquery.Table):
-                table_resource = resource
-            else:
-                raise ValueError(f"Unexpected resource type: {type(resource)}")
-        if table_resource is None:
-            raise ValueError("Table resource not found")
-        if dataset_resource is None:
-            raise ValueError("Dataset resource not found")
+        dataset_resource = child_resources[0]
 
         def check_dataset(args):
             _, project, dataset_id = args
@@ -74,6 +63,16 @@ class BigQueryTest(unittest.TestCase):
         pulumi.Output.all(
             dataset_resource.urn, dataset_resource.project, dataset_resource.dataset_id
         ).apply(check_dataset)
+
+        bigquery_table_resource = bigquery_table._pulumi_provider().pulumi_resource(
+            type_=FakeRow,
+            credentials=EmptyCredentials(None),
+            opts=pulumi.ResourceOptions(),
+        )
+        child_resources = list(bigquery_table_resource._childResources)
+        self.assertEqual(len(child_resources), 1)
+
+        table_resource = child_resources[0]
 
         def check_table(args):
             _, project, dataset_id, schema, delete_protect = args
@@ -95,8 +94,7 @@ class BigQueryTest(unittest.TestCase):
 
     def test_bigquery_table_pulumi_no_protect(self):
         bigquery_table = BigQueryTable(
-            project_id="project_id",
-            dataset_name="dataset_name",
+            BigQueryDataset(project_id="project_id", dataset_name="dataset_name"),
             table_name="table_name",
         )
 
@@ -106,22 +104,9 @@ class BigQueryTest(unittest.TestCase):
             opts=pulumi.ResourceOptions(),
         )
         child_resources = list(bigquery_resource._childResources)
-        self.assertEqual(len(child_resources), 2)
+        self.assertEqual(len(child_resources), 1)
 
-        table_resource = None
-        dataset_resource = None
-
-        for resource in child_resources:
-            if isinstance(resource, pulumi_gcp.bigquery.Dataset):
-                dataset_resource = resource
-            elif isinstance(resource, pulumi_gcp.bigquery.Table):
-                table_resource = resource
-            else:
-                raise ValueError(f"Unexpected resource type: {type(resource)}")
-        if table_resource is None:
-            raise ValueError("Table resource not found")
-        if dataset_resource is None:
-            raise ValueError("Dataset resource not found")
+        table_resource = child_resources[0]
 
         def check_table(args):
             _, delete_protect = args
@@ -140,8 +125,7 @@ class BigQueryTest(unittest.TestCase):
         insert_rows_mock.return_value = []
 
         bigquery_table = BigQueryTable(
-            project_id="project_id",
-            dataset_name="dataset_name",
+            BigQueryDataset(project_id="project_id", dataset_name="dataset_name"),
             table_name="table_name",
         )
         bigquery_sink = bigquery_table.sink_provider().sink(mock.MagicMock())

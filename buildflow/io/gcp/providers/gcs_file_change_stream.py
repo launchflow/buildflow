@@ -33,26 +33,13 @@ class _GCSFileChangeStreamPulumiResource(pulumi.ComponentResource):
             opts,
         )
 
-        opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(parent=self))
-        self.bucket_resource = None
-        bucket_pulumi_provider = bucket.pulumi_provider()
-        if bucket_pulumi_provider is not None:
-            self.bucket_resource = bucket_pulumi_provider.pulumi_resource(
-                type_, credentials, opts
-            )
-        self.subscription_resource = subscription.pulumi_provider().pulumi_resource(
-            type_, credentials, opts
-        )
-
         gcs_account = pulumi_gcp.storage.get_project_service_account(
             project=bucket.project_id,
             user_project=bucket.project_id,
         )
         self.binding = pulumi_gcp.pubsub.TopicIAMBinding(
             f"{bucket.bucket_name}-{subscription.topic.topic_name}_binding",
-            opts=pulumi.ResourceOptions(
-                parent=self, depends_on=[self.subscription_resource]
-            ),
+            opts=pulumi.ResourceOptions(parent=self),
             topic=subscription.topic.topic_name,
             role="roles/pubsub.publisher",
             project=subscription.topic.project_id,
@@ -61,14 +48,7 @@ class _GCSFileChangeStreamPulumiResource(pulumi.ComponentResource):
 
         self.notification = pulumi_gcp.storage.Notification(
             f"{bucket.bucket_name}_notification",
-            opts=pulumi.ResourceOptions(
-                parent=self,
-                depends_on=[
-                    self.bucket_resource,
-                    self.subscription_resource,
-                    self.binding,
-                ],
-            ),
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.binding]),
             bucket=bucket.bucket_name,
             topic=subscription.topic.topic_id,
             payload_format="JSON_API_V1",

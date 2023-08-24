@@ -2,12 +2,8 @@ import asyncio
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from buildflow.core.credentials import GCPCredentials
-from buildflow.core.types.gcp_types import (
-    BigQueryDatasetName,
-    BigQueryTableID,
-    BigQueryTableName,
-    GCPProjectID,
-)
+from buildflow.core.types.gcp_types import BigQueryTableID, BigQueryTableName
+from buildflow.io.gcp.bigquery_dataset import BigQueryDataset
 from buildflow.io.strategies.sink import SinkStrategy
 from buildflow.io.utils.clients import gcp_clients
 from buildflow.io.utils.schemas import converters
@@ -18,8 +14,7 @@ class StreamingBigQueryTableSink(SinkStrategy):
         self,
         *,
         credentials: GCPCredentials,
-        project_id: GCPProjectID,
-        dataset_name: BigQueryDatasetName,
+        dataset: BigQueryDataset,
         table_name: BigQueryTableName,
         batch_size: int = 10_000,
     ):
@@ -27,14 +22,14 @@ class StreamingBigQueryTableSink(SinkStrategy):
             credentials=credentials, strategy_id="streaming-bigquery-table-sink"
         )
         # configuration
-        self.project_id = project_id
-        self.dataset_name = dataset_name
+        self.project_id = dataset.project_id
+        self.dataset_name = dataset.dataset_name
         self.table_name = table_name
         self.batch_size = batch_size
         # setup
         clients = gcp_clients.GCPClients(
             credentials=credentials,
-            quota_project_id=project_id,
+            quota_project_id=self.project_id,
         )
         self.bq_client = clients.get_bigquery_client()
 
