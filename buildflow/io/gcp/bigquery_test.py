@@ -7,7 +7,7 @@ import pulumi_gcp
 import pytest
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
-from buildflow.io.gcp.bigquery import BigQueryTable
+from buildflow.io.gcp.bigquery_table import BigQueryTable
 
 
 @dataclass

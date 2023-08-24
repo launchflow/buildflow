@@ -18,7 +18,7 @@ class ProcessorAPI:
     processor_id: ProcessorID
     processor_type: ProcessorType
 
-    def pulumi_program(self):
+    def pulumi_program(self, preview: bool):
         raise NotImplementedError("pulumi_program not implemented for Processor")
 
     def setup(self):
