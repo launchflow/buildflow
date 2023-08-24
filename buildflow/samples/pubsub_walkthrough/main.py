@@ -28,7 +28,7 @@ input_source = GCPPubSubSubscription(
 output_table = BigQueryTable(
     BigQueryDataset(
         project_id=gcp_project, dataset_name="buildflow_pubsub_to_bigquery_test"
-    ),
+    ).options(managed=True),
     table_name=bigquery_table,
 ).options(managed=True, destroy_protection=False)
 
