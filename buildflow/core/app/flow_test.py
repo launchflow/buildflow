@@ -9,6 +9,7 @@ import pulumi
 
 from buildflow.core.app.flow import Flow
 from buildflow.core.processor.patterns.pipeline import PipelineProcessor
+from buildflow.io.aws.sqs import SQSQueue
 from buildflow.io.gcp.bigquery_dataset import BigQueryDataset
 from buildflow.io.gcp.bigquery_table import BigQueryTable
 from buildflow.io.gcp.pubsub_subscription import GCPPubSubSubscription
@@ -132,6 +133,29 @@ class FlowTest(unittest.TestCase):
         self.assertIn(bigquery_table, primitive_cache)
         self.assertIn(pubsub_subscription, primitive_cache)
         self.assertNotIn(pubsub_topic, primitive_cache)
+
+    @pulumi.runtime.test
+    def test_pulumi_program_same_sink(self):
+        app = Flow()
+
+        queue = SQSQueue(queue_name="queue_name").options(managed=True)
+
+        @app.pipeline(source=queue, sink=queue)
+        def process(payload: Dict[str, int]) -> Dict[str, int]:
+            return payload
+
+        stack = "test-stack"
+        project = "test-project"
+        pulumi.runtime.set_mocks(MyMocks(), project=project, stack=stack, preview=False)
+
+        process.pulumi_program()
+
+        primitive_cache = app._primitive_cache
+
+        # Ensure all the primitives get visited.
+        # We don't actually validate what pulumi resources are created here, since
+        # those should have their own tests.
+        self.assertEqual(len(primitive_cache.cache), 1)
 
 
 if __name__ == "__main__":

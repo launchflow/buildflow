@@ -715,7 +715,10 @@ class Flow:
                         # Processor's ComponentResource. Builds the source's
                         # pulumi.CompositeResource (if it exists)
                         source_pulumi_provider = source_primitive.pulumi_provider()
-                        if source_pulumi_provider is not None:
+                        if (
+                            source_pulumi_provider is not None
+                            and source_primitive not in primitive_cache
+                        ):
                             source_resource = _traverse_primitive_for_pulumi(
                                 primitive=source_primitive,
                                 type_=input_type,
@@ -727,7 +730,10 @@ class Flow:
 
                         # Builds the sink's pulumi.CompositeResource (if it exists)
                         sink_pulumi_provider = sink_primitive.pulumi_provider()
-                        if sink_pulumi_provider is not None:
+                        if (
+                            sink_pulumi_provider is not None
+                            and sink_primitive not in primitive_cache
+                        ):
                             sink_resource = _traverse_primitive_for_pulumi(
                                 primitive=sink_primitive,
                                 type_=output_type,
@@ -846,7 +852,10 @@ class Flow:
 
                         # Builds the sink's pulumi.CompositeResource (if it exists)
                         sink_pulumi_provider = sink_primitive.pulumi_provider()
-                        if sink_pulumi_provider is not None:
+                        if (
+                            sink_pulumi_provider is not None
+                            and sink_primitive not in primitive_cache
+                        ):
                             sink_resource = _traverse_primitive_for_pulumi(
                                 sink_primitive,
                                 output_type,
