@@ -44,7 +44,7 @@ class _PrimitiveCache:
     cache: List[_PrimitiveCacheEntry] = dataclasses.field(default_factory=list)
 
     def __contains__(self, primitive: Primitive):
-        return primitive in [entry.primitive for entry in self.cache]
+        return self.get(primitive) is not None
 
     def append(self, entry: _PrimitiveCacheEntry):
         self.cache.append(entry)
