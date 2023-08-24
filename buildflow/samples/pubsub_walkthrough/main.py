@@ -4,7 +4,12 @@ from datetime import datetime
 from typing import Any, Dict
 
 import buildflow
-from buildflow.io.gcp import BigQueryTable, GCPPubSubSubscription, GCPPubSubTopic
+from buildflow.io.gcp import (
+    BigQueryDataset,
+    BigQueryTable,
+    GCPPubSubSubscription,
+    GCPPubSubTopic,
+)
 
 bigquery_table = os.getenv("BIGQUERY_TABLE", "taxi_rides")
 gcp_project = os.getenv("GCP_PROJECT", "buildflow-internal")
@@ -21,8 +26,9 @@ input_source = GCPPubSubSubscription(
 )
 # Set up a BigQuery table for the sink.
 output_table = BigQueryTable(
-    project_id=gcp_project,
-    dataset_name="buildflow_pubsub_to_bigquery_test",
+    BigQueryDataset(
+        project_id=gcp_project, dataset_name="buildflow_pubsub_to_bigquery_test"
+    ),
     table_name=bigquery_table,
 ).options(managed=True, destroy_protection=False)
 

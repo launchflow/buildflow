@@ -63,7 +63,7 @@ class GCSFileChangeStreamTest(unittest.TestCase):
         )
 
         resources = list(resource._childResources)
-        self.assertEqual(len(resources), 5)
+        self.assertEqual(len(resources), 2)
 
         binding_resource = None
         notificaion_resource = None

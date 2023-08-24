@@ -42,7 +42,6 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             snowflake_stage="snowflake_stage",
             database_managed=True,
             schema_managed=True,
-            bucket_managed=True,
             snow_pipe_managed=True,
             stage_managed=True,
             account="account",
@@ -57,9 +56,8 @@ class SnowflakeTableProviderTest(unittest.TestCase):
         )
 
         child_resource = resource._childResources
-        self.assertEqual(len(child_resource), 6)
+        self.assertEqual(len(child_resource), 5)
 
-        self.assertIsNotNone(resource.bucket_resource)
         self.assertIsInstance(resource.database_resource, pulumi_snowflake.Database)
         self.assertIsInstance(resource.schema_resource, pulumi_snowflake.Schema)
         self.assertIsInstance(resource.table_resource, pulumi_snowflake.Table)
@@ -77,7 +75,6 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             snowflake_stage="snowflake_stage",
             database_managed=False,
             schema_managed=False,
-            bucket_managed=False,
             snow_pipe_managed=False,
             stage_managed=False,
             account="account",
@@ -93,7 +90,6 @@ class SnowflakeTableProviderTest(unittest.TestCase):
 
         self.assertEqual(len(resource._childResources), 1)
         self.assertIsInstance(resource.table_resource, pulumi_snowflake.Table)
-        self.assertIsNone(resource.bucket_resource)
         self.assertIsNone(resource.database_resource)
         self.assertIsNone(resource.schema_resource)
         self.assertIsNone(resource.stage_resource)
@@ -110,7 +106,6 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             snowflake_stage="snowflake_stage",
             database_managed=False,
             schema_managed=False,
-            bucket_managed=False,
             snow_pipe_managed=False,
             stage_managed=False,
             account="account",
@@ -134,7 +129,6 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             snowflake_stage="snowflake_stage",
             database_managed=False,
             schema_managed=False,
-            bucket_managed=False,
             snow_pipe_managed=False,
             stage_managed=False,
             account="account",
