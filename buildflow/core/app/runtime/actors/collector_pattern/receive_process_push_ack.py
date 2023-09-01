@@ -142,7 +142,7 @@ class ReceiveProcessPushAck(Runtime):
                 self.serve_handle = serve.run(
                     self.collector_application,
                     host="0.0.0.0",
-                    port=443,
+                    port=8000,
                     name=self.processor.processor_id,
                 )
                 break

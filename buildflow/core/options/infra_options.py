@@ -14,12 +14,14 @@ class SchemaValidation(enum.Enum):
 class PulumiOptions(Options):
     enable_destroy_protection: bool
     refresh_state: bool
+    selected_stack: str
     log_level: str
 
     @classmethod
     def default(cls) -> "PulumiOptions":
         return cls(
             enable_destroy_protection=False,
+            selected_stack="local",
             refresh_state=True,
             log_level="DEBUG",
         )

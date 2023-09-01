@@ -176,6 +176,12 @@ buildflow
 @app.command(help="Initialize a new buildflow app")
 def init(
     directory: str = typer.Option(default=".", help="The directory to initialize"),
+    application: str = typer.Option(
+        default="",
+        help=(
+            "The name of the application. Will default to the directory name if not set"
+        ),
+    ),
     default_cloud_provider: Optional[CloudProvider] = typer.Option(
         None,
         help="The default cloud provider to use",
@@ -196,6 +202,9 @@ def init(
         default=False, help="Skip requirements file creation", hidden=True
     ),
 ):
+    if application == "":
+        abspath = os.path.abspath(directory)
+        application = os.path.basename(abspath)
     buildflow_config_dir = os.path.join(directory, ".buildflow")
     if os.path.exists(buildflow_config_dir):
         typer.echo(
@@ -203,7 +212,7 @@ def init(
         )
         raise typer.Exit(1)
     buildflow_config = BuildFlowConfig.default(
-        buildflow_config_dir=buildflow_config_dir
+        application=application, buildflow_config_dir=buildflow_config_dir
     )
 
     cloud_provider_config = CloudProviderConfig.default()
