@@ -1,4 +1,5 @@
 import dataclasses
+import os
 from typing import List, Mapping
 
 import dacite
@@ -12,22 +13,33 @@ from buildflow.core import utils
 class PulumiStack(Config):
     name: str
     backend_url: str
-    pulumi_home: str
 
     @classmethod
     def default(cls, *, pulumi_home_dir: str) -> Config:
         return cls(
             name="local",
-            backend_url=f"file://{pulumi_home_dir}",
-            pulumi_home=pulumi_home_dir,
+            backend_url=f"file://{pulumi_home_dir}/local",
         )
+
+    @property
+    def full_backend_url(self) -> str:
+        if self.backend_url.startswith("file://"):
+            base_path = self.backend_url.removeprefix("file://")
+            abspath = os.path.abspath(base_path)
+            return f"file://{abspath}"
+        return self.backend_url
 
 
 @dataclasses.dataclass
 class PulumiConfig(Config):
     project_name: str
     stacks: List[PulumiStack]
+    pulumi_home: str
     passphrase: str
+
+    @property
+    def full_pulumi_home(self) -> str:
+        return os.path.abspath(self.pulumi_home)
 
     _stacks: Mapping[str, PulumiStack] = dataclasses.field(init=False)
 
@@ -40,6 +52,7 @@ class PulumiConfig(Config):
             project_name=project_name,
             stacks=[PulumiStack.default(pulumi_home_dir=pulumi_home_dir)],
             passphrase="buildflow-is-awesome",
+            pulumi_home_dir=pulumi_home_dir,
         )
 
     @classmethod
@@ -88,14 +101,14 @@ class PulumiConfig(Config):
             license=None,
             config=None,
             template=None,
-            backend=auto.ProjectBackend(stack.backend_url),
+            backend=auto.ProjectBackend(stack.full_backend_url),
         )
 
     def workspace_options(self, stack: str) -> auto.LocalWorkspaceOptions:
         selected_stack = self.get_stack(stack)
         return auto.LocalWorkspaceOptions(
-            work_dir=selected_stack.pulumi_home,
-            pulumi_home=selected_stack.pulumi_home,
+            work_dir=self.full_pulumi_home,
+            pulumi_home=self.full_pulumi_home,
             # NOTE: we set the program as None here because we will be using an inline
             # `pulumi_program` function to dynamically create the program at runtime.
             program=None,

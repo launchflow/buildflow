@@ -262,7 +262,7 @@ class PulumiWorkspace:
                 stack_name=self.stack.name,
                 project_name=self.config.project_name,
                 program=None,
-                work_dir=self.stack.pulumi_home,
+                work_dir=self.config.full_pulumi_home,
                 opts=self.config.workspace_options(self.stack.name),
             )
             return WrappedStackState(
