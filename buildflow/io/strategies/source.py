@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Callable, Iterable, Type
+from typing import Any, Callable, Iterable, Type, TypeAlias
 
 from buildflow.core.credentials import CredentialType
 from buildflow.io.strategies._strategy import StategyType, Strategy, StrategyID
@@ -47,3 +47,6 @@ class SourceStrategy(Strategy):
         This should perform any cleanup that is needed by the source.
         """
         pass
+
+
+Source: TypeAlias = SourceStrategy

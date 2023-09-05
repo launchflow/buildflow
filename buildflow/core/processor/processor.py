@@ -1,5 +1,6 @@
 import enum
-from typing import List
+from contextlib import contextmanager
+from typing import Any, Dict, List
 
 from buildflow.core.background_tasks.background_task import BackgroundTask
 
@@ -20,6 +21,10 @@ class ProcessorAPI:
 
     def pulumi_program(self, preview: bool):
         raise NotImplementedError("pulumi_program not implemented for Processor")
+
+    @contextmanager
+    def dependencies(self):
+        raise NotImplementedError("dependencies not implemented for Processor")
 
     def setup(self):
         raise NotImplementedError("setup not implemented")

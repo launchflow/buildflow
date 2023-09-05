@@ -158,8 +158,8 @@ class PullProcessPushActor(Runtime):
         push_converter = sink.push_converter(output_type)
         process_fn = self.processor.process
 
-        async def process_element(element):
-            results = await process_fn(pull_converter(element))
+        async def process_element(element, **process_kwargs):
+            results = await process_fn(pull_converter(element), **process_kwargs)
             if results is None:
                 # Exclude none results
                 return
@@ -201,9 +201,13 @@ class PullProcessPushActor(Runtime):
                 )
             try:
                 coros = []
-                for element in response.payload:
-                    coros.append(process_element(element))
-                flattened_results = await asyncio.gather(*coros)
+                # NOTE: process dependencies are acquired here (in context)
+                with self.processor.dependencies() as process_kwargs:
+                    for element in response.payload:
+                        coros.append(process_element(element, **process_kwargs))
+                    flattened_results = await asyncio.gather(*coros)
+                # NOTE: process dependencies are released here (out of context)
+
                 batch_results = []
                 for results in flattened_results:
                     if results is None:

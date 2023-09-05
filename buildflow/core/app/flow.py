@@ -21,6 +21,12 @@ from buildflow.core.credentials._credentials import CredentialType
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.credentials.gcp_credentials import GCPCredentials
+from buildflow.core.dependencies.dependency import (
+    Client,
+    Dependency,
+    KwargDependencies,
+    Sink,
+)
 from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import AutoscalerOptions, ProcessorOptions
 from buildflow.core.processor.patterns.collector import CollectorProcessor
@@ -315,6 +321,7 @@ class Flow:
         flow_id: FlowID = "buildflow-app",
         flow_options: Optional[FlowOptions] = None,
     ) -> None:
+        print("\n\nFLOW CREATED\n\n")
         # Load the BuildFlow Config to get the default options
         buildflow_config_dir = os.path.join(
             _get_directory_path_of_caller(), ".buildflow"
@@ -377,6 +384,26 @@ class Flow:
         if provider is not None:
             return provider.background_tasks(credentials)
         return []
+
+    def _dependencies(
+        self, full_arg_spec: type_inspect.FullArgSpec
+    ) -> KwargDependencies:
+        dependencies = {}
+        for i, arg_name in enumerate(full_arg_spec.args[1:]):
+            default_value = full_arg_spec.defaults[i]
+            if default_value is None:
+                raise ValueError(
+                    f"Processor arg dependency {arg_name} has no default value."
+                )
+
+            if isinstance(default_value, Dependency):
+                credentials = self._get_credentials(
+                    default_value.primitive.primitive_type
+                )
+                default_value.attach_credentials(credentials)
+                dependencies[arg_name] = default_value
+
+        return KwargDependencies(dependencies)
 
     # NOTE: The Flow class is responsible for converting Primitives into a Provider
     def pipeline(
@@ -743,6 +770,28 @@ class Flow:
                             )
                             outputs["sink_urn"] = sink_resource.urn
 
+                        # Builds the dependencies' pulumi.CompositeResources
+                        # (if they exist)
+                        for (
+                            arg_name,
+                            dependency,
+                        ) in kwarg_dependencies.arg_name_to_dependency.items():
+                            dependency_pulumi_provider = (
+                                dependency.primitive.pulumi_provider()
+                            )
+                            if (
+                                dependency_pulumi_provider is not None
+                                and dependency.primitive not in primitive_cache
+                            ):
+                                dependency_resource = _traverse_primitive_for_pulumi(
+                                    primitive=dependency.primitive,
+                                    type_=None,
+                                    credentials=dependency.credentials,
+                                    initial_opts=child_opts,
+                                    visited_primitives=primitive_cache,
+                                )
+                                outputs[f"{arg_name}_urn"] = dependency_resource.urn
+
                         self.register_outputs(outputs)
 
                 return PipelineComponentResource(
@@ -755,6 +804,8 @@ class Flow:
                 return self._background_tasks(
                     source_primitive, source_credentials
                 ) + self._background_tasks(sink_primitive, sink_credentials)
+
+            kwarg_dependencies = self._dependencies(full_arg_spec)
 
             # Dynamically define a new class with the same structure as Processor
             class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
@@ -771,6 +822,7 @@ class Flow:
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: background_tasks(),
+                "dependencies": kwarg_dependencies.materialize,
                 "__meta__": {
                     "source": source_primitive,
                     "sink": sink_primitive,
@@ -865,12 +917,36 @@ class Flow:
                             )
                             outputs["sink_urn"] = sink_resource.urn
 
+                        # Builds the dependencies' pulumi.CompositeResources
+                        # (if they exist)
+                        for (
+                            arg_name,
+                            dependency,
+                        ) in kwarg_dependencies.arg_name_to_dependency.items():
+                            dependency_pulumi_provider = (
+                                dependency.primitive.pulumi_provider()
+                            )
+                            if (
+                                dependency_pulumi_provider is not None
+                                and dependency.primitive not in primitive_cache
+                            ):
+                                dependency_resource = _traverse_primitive_for_pulumi(
+                                    primitive=dependency.primitive,
+                                    type_=None,
+                                    credentials=dependency.credentials,
+                                    initial_opts=child_opts,
+                                    visited_primitives=primitive_cache,
+                                )
+                                outputs[f"{arg_name}_urn"] = dependency_resource.urn
+
                         self.register_outputs(outputs)
 
                 return CollectorComponentResource(
                     processor_id=processor_id,
                     sink_primitive=sink_primitive,
                 )
+
+            kwarg_dependencies = self._dependencies(full_arg_spec)
 
             def background_tasks():
                 return self._background_tasks(sink_primitive, sink_credentials)
@@ -889,6 +965,7 @@ class Flow:
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: background_tasks(),
+                "dependencies": kwarg_dependencies.materialize,
                 "__meta__": {
                     "sink": sink_primitive,
                 },
@@ -939,6 +1016,7 @@ class Flow:
             _, output_type = self._input_output_type(full_arg_spec)
 
             processor_id = original_process_fn_or_class.__name__
+            primitive_cache = self._primitive_cache
 
             def pulumi_resources_for_endpoint():
                 class EndpointComponentResource(pulumi.ComponentResource):
@@ -950,11 +1028,36 @@ class Flow:
                             None,
                         )
 
+                        child_opts = pulumi.ResourceOptions(parent=self)
                         outputs = {"processor_id": processor_id}
+
+                        # Builds the dependencies' pulumi.CompositeResources
+                        # (if they exist)
+                        for (
+                            arg_name,
+                            dependency,
+                        ) in kwarg_dependencies.arg_name_to_dependency.items():
+                            dependency_pulumi_provider = (
+                                dependency.primitive.pulumi_provider()
+                            )
+                            if (
+                                dependency_pulumi_provider is not None
+                                and dependency.primitive not in primitive_cache
+                            ):
+                                dependency_resource = _traverse_primitive_for_pulumi(
+                                    primitive=dependency.primitive,
+                                    type_=None,
+                                    credentials=dependency.credentials,
+                                    initial_opts=child_opts,
+                                    visited_primitives=primitive_cache,
+                                )
+                                outputs[f"{arg_name}_urn"] = dependency_resource.urn
 
                         self.register_outputs(outputs)
 
                 return EndpointComponentResource(processor_id=processor_id)
+
+            kwarg_dependencies = self._dependencies(full_arg_spec)
 
             # Dynamically define a new class with the same structure as Processor
             class_name = f"EndpointProcessor{utils.uuid(max_len=8)}"
@@ -968,6 +1071,7 @@ class Flow:
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: [],
+                "dependencies": kwarg_dependencies.materialize,
                 "__meta__": {},
                 "__call__": original_process_fn_or_class,
             }
