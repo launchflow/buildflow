@@ -1,6 +1,6 @@
 import inspect
 from contextlib import ExitStack, contextmanager
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
 from buildflow.core.credentials import CredentialType
 from buildflow.io.primitive import Primitive
@@ -10,9 +10,13 @@ class Dependency:
     def __init__(self, primitive: Primitive):
         self.primitive = primitive
         self.credentials: Optional[CredentialType] = None
+        self.annotated_type: Optional[Type] = None
 
     def attach_credentials(self, credential_type: CredentialType) -> None:
         self.credentials = credential_type
+
+    def attach_annotated_type(self, annotated_type: Type) -> None:
+        self.annotated_type = annotated_type
 
     @contextmanager
     def materialize(self):
@@ -35,29 +39,12 @@ class KwargDependencies:
             yield kwargs
 
 
-# Python Magic - maybe not the best way to do this but should work as long as no
-# threads change their annotations dynamically
-class _AnnotationCapturer(type):
-    captured_annotation: Optional[Type] = None
-
-    def __call__(cls, *args, **kwargs):
-        print("CALLED")
-        frame = inspect.currentframe().f_back  # Capture the frame immediately
-        instance = super().__call__(*args, **kwargs)
-        print("INSTANCE", instance)
-        for name, value in frame.f_locals.items():
-            if value is instance:
-                print("FOUND: ", name, value)
-                annotations = frame.f_locals.get("__annotations__", {})
-                instance.captured_annotation = annotations.get(name, None)
-                break
-        return instance
+P = TypeVar("P", bound=Primitive)
 
 
-class Client(Dependency, metaclass=_AnnotationCapturer):
-    def __init__(self, primitive: Primitive):
+class Client(Generic[P], Dependency):
+    def __init__(self, primitive: P):
         super().__init__(primitive)
-        self.captured_annotation: Optional[Type] = None
         self.client: Optional[Any] = None
 
     @contextmanager
@@ -67,9 +54,8 @@ class Client(Dependency, metaclass=_AnnotationCapturer):
                 raise ValueError(
                     "Cannot materialize client without credentials attached"
                 )
-            self.client = self.primitive.client_provider().client(
-                self.credentials, self.captured_annotation
-            )
+            provider = self.primitive.client_provider()
+            self.client = provider.client(self.credentials, self.annotated_type)
         try:
             yield self.client
         finally:

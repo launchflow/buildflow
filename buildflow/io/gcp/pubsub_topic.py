@@ -20,6 +20,8 @@ class GCPPubSubTopic(
         GCPPubSubTopicProvider,
         # Background task provider type
         None,
+        # Client provider type
+        GCPPubSubTopicProvider,
     ]
 ):
     project_id: GCPProjectID

@@ -24,6 +24,8 @@ class BigQueryTable(
         BigQueryTableProvider,
         # Background task provider type
         None,
+        # Client provider type
+        None,
     ]
 ):
     dataset: BigQueryDataset

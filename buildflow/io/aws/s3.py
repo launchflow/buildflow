@@ -21,6 +21,8 @@ class S3Bucket(
         S3BucketProvider,
         # Background task provider type
         None,
+        # Client provider type
+        None,
     ]
 ):
     bucket_name: S3BucketName

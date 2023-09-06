@@ -201,12 +201,10 @@ class PullProcessPushActor(Runtime):
                 )
             try:
                 coros = []
-                # NOTE: process dependencies are acquired here (in context)
-                with self.processor.dependencies() as process_kwargs:
-                    for element in response.payload:
+                for element in response.payload:
+                    with self.processor.dependencies() as process_kwargs:
                         coros.append(process_element(element, **process_kwargs))
-                    flattened_results = await asyncio.gather(*coros)
-                # NOTE: process dependencies are released here (out of context)
+                flattened_results = await asyncio.gather(*coros)
 
                 batch_results = []
                 for results in flattened_results:

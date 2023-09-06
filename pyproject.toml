@@ -32,6 +32,9 @@ dependencies = [
     "opentelemetry-exporter-otlp",
     "opentelemetry-exporter-jaeger",
     "pandas",
+    # TODO: use psycopg2 instead of psycopg2-binary
+    # more context: https://www.psycopg.org/docs/install.html#psycopg-vs-psycopg-binary
+    "psycopg2-binary",
     "pulumi==3.35.3",
     "pulumi_aws",
     "pulumi_gcp",

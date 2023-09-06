@@ -24,7 +24,7 @@ class PrimitiveType(enum.Enum):
 
 
 class Primitive(Generic[PPT, SOT, SIT, BTT, CLT]):
-    primitive_type: PrimitiveType
+    primitive_type: PrimitiveType = PrimitiveType.AGNOSTIC
     _managed: bool = False
 
     def enable_managed(self):
@@ -101,7 +101,7 @@ class CompositePrimitive(Primitive):
         return copy.deepcopy(self)
 
 
-class GCPPrimtive(Primitive[PPT, SOT, SIT, BTT]):
+class GCPPrimtive(Primitive[PPT, SOT, SIT, BTT, CLT]):
     # TODO: We need to check the infra State to warn the user if the infra has not been
     # created yet.
     primitive_type = PrimitiveType.GCP
@@ -112,7 +112,7 @@ class GCPPrimtive(Primitive[PPT, SOT, SIT, BTT]):
         raise NotImplementedError("GCPPrimtive.from_gcp_options() is not implemented.")
 
 
-class AWSPrimtive(Primitive[PPT, SOT, SIT, BTT]):
+class AWSPrimtive(Primitive[PPT, SOT, SIT, BTT, CLT]):
     primitive_type = PrimitiveType.AWS
 
     @classmethod
@@ -121,7 +121,7 @@ class AWSPrimtive(Primitive[PPT, SOT, SIT, BTT]):
         raise NotImplementedError("AWSPrimtive.from_aws_options() is not implemented.")
 
 
-class AzurePrimtive(Primitive[PPT, SOT, SIT, BTT]):
+class AzurePrimtive(Primitive[PPT, SOT, SIT, BTT, CLT]):
     primitive_type = PrimitiveType.AZURE
 
     @classmethod
@@ -132,7 +132,7 @@ class AzurePrimtive(Primitive[PPT, SOT, SIT, BTT]):
         )
 
 
-class LocalPrimtive(Primitive[PPT, SOT, SIT, BTT]):
+class LocalPrimtive(Primitive[PPT, SOT, SIT, BTT, CLT]):
     primitive_type = PrimitiveType.LOCAL
     # LocalPrimitives are never managed.
     managed: bool = False

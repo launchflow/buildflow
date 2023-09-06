@@ -19,6 +19,8 @@ class SQSQueue(
         SQSQueueProvider,
         # Background task provider type
         None,
+        # Client provider type
+        None,
     ]
 ):
     queue_name: SQSQueueName

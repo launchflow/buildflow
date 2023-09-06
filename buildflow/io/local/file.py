@@ -19,6 +19,8 @@ class File(
         FileProvider,
         # Background task provider type
         None,
+        # Client provider type
+        None,
     ]
 ):
     file_path: FilePath

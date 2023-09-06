@@ -401,6 +401,7 @@ class Flow:
                     default_value.primitive.primitive_type
                 )
                 default_value.attach_credentials(credentials)
+                default_value.attach_annotated_type(full_arg_spec.annotations[arg_name])
                 dependencies[arg_name] = default_value
 
         return KwargDependencies(dependencies)

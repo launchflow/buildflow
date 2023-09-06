@@ -27,6 +27,8 @@ class SnowflakeTable(
         SnowflakeTableProvider,
         # Background task provider type
         SnowflakeTableProvider,
+        # Client provider type
+        None,
     ]
 ):
     # TODO: make these types more concrete

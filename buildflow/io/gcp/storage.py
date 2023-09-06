@@ -24,6 +24,8 @@ class GCSBucket(
         GCSBucketProvider,
         # Background task provider type
         None,
+        # Client provider type
+        None,
     ]
 ):
     project_id: GCPProjectID

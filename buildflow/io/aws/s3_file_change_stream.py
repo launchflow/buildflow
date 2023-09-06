@@ -23,6 +23,8 @@ class S3FileChangeStream(
         None,
         # Background task provider type
         None,
+        # Client provider type
+        None,
     ],
     CompositePrimitive,
 ):
