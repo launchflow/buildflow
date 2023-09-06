@@ -59,8 +59,6 @@ class PulumiConfig(Config):
     def load(cls, pulumi_config_path: str) -> "PulumiConfig":
         utils.assert_path_exists(pulumi_config_path)
         config_dict = utils.read_yaml_file(pulumi_config_path)
-        print("DO NOT SUBMIT: ", pulumi_config_path)
-        print("DO NOT SUBMIT: ", config_dict)
         return dacite.from_dict(cls, config_dict)
 
     def dump(self, pulumi_config_path: str):
