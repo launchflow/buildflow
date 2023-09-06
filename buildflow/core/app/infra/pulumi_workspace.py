@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, Optional
 
 from pulumi import automation as auto
 
-from buildflow.config.pulumi_config import PulumiConfig
+from buildflow.config.pulumi_config import PulumiConfig, PulumiStack
 from buildflow.core.options.infra_options import PulumiOptions
 from buildflow.core.processor.processor import ProcessorAPI
 
@@ -251,21 +251,23 @@ class PulumiWorkspace:
         # configuration
         self.options = pulumi_options
         self.config = pulumi_config
+        self.workspace_id = self.config.workspace_id(self.options.selected_stack)
+        self.stack: PulumiStack = self.config.get_stack(self.options.selected_stack)
         # initial state
         self._pulumi_program_cache = {}
 
     def get_stack_state(self) -> WrappedStackState:
         try:
             stack = auto.select_stack(
-                stack_name=self.config.stack_name,
+                stack_name=self.stack.name,
                 project_name=self.config.project_name,
                 program=None,
-                work_dir=self.config.pulumi_home,
-                opts=self.config.workspace_options(),
+                work_dir=self.config.full_pulumi_home,
+                opts=self.config.workspace_options(self.stack.name),
             )
             return WrappedStackState(
                 project_name=self.config.project_name,
-                stack_name=self.config.stack_name,
+                stack_name=self.stack.name,
                 _deployment=stack.export_stack(),
                 _update_summary=stack.info(),
                 _output_map=stack.outputs(),
@@ -273,7 +275,7 @@ class PulumiWorkspace:
         except auto.StackNotFoundError:
             return WrappedStackState(
                 project_name=self.config.project_name,
-                stack_name=self.config.stack_name,
+                stack_name=self.stack.name,
                 _deployment=None,
                 _update_summary=None,
                 _output_map={},
@@ -282,31 +284,31 @@ class PulumiWorkspace:
     async def refresh(
         self, *, processors: Iterable[ProcessorAPI]
     ) -> WrappedRefreshResult:
-        logging.debug(f"Pulumi Refresh: {self.config.workspace_id}")
+        logging.debug(f"Pulumi Refresh: {self.workspace_id}")
         stack = self._create_or_select_stack(processors)
         return WrappedRefreshResult(refresh_result=stack.refresh())
 
     async def preview(
         self, *, processors: Iterable[ProcessorAPI]
     ) -> WrappedPreviewResult:
-        logging.debug(f"Pulumi Preview: {self.config.workspace_id}")
+        logging.debug(f"Pulumi Preview: {self.workspace_id}")
         stack = self._create_or_select_stack(processors)
         return WrappedPreviewResult(preview_result=stack.preview())
 
     async def up(self, *, processors: Iterable[ProcessorAPI]) -> WrappedUpResult:
-        logging.debug(f"Pulumi Up: {self.config.workspace_id}")
+        logging.debug(f"Pulumi Up: {self.workspace_id}")
         stack = self._create_or_select_stack(processors)
         return WrappedUpResult(up_result=stack.up())
 
     async def outputs(self, *, processors: Iterable[ProcessorAPI]) -> WrappedOutputMap:
-        logging.debug(f"Pulumi Outputs: {self.config.workspace_id}")
+        logging.debug(f"Pulumi Outputs: {self.workspace_id}")
         stack = self._create_or_select_stack(processors)
         return WrappedOutputMap(output_map=stack.outputs())
 
     async def destroy(
         self, *, processors: Iterable[ProcessorAPI]
     ) -> WrappedDestroyResult:
-        logging.debug(f"Pulumi Destroy: {self.config.workspace_id}")  # noqa: E501
+        logging.debug(f"Pulumi Destroy: {self.workspace_id}")  # noqa: E501
         stack = self._create_or_select_stack(processors)
         return WrappedDestroyResult(destroy_result=stack.destroy())
 
@@ -322,17 +324,17 @@ class PulumiWorkspace:
         return pulumi_program
 
     def _create_or_select_stack(self, processors: Iterable[ProcessorAPI]):
-        if self.config.workspace_id not in self._pulumi_program_cache:
+        if self.workspace_id not in self._pulumi_program_cache:
             pulumi_program = self._create_pulumi_program(processors)
-            self._pulumi_program_cache[self.config.workspace_id] = pulumi_program
+            self._pulumi_program_cache[self.workspace_id] = pulumi_program
         else:
-            pulumi_program = self._pulumi_program_cache[self.config.workspace_id]
+            pulumi_program = self._pulumi_program_cache[self.workspace_id]
 
         stack = auto.create_or_select_stack(
-            stack_name=self.config.stack_name,
+            stack_name=self.stack.name,
             project_name=self.config.project_name,
             program=pulumi_program,
-            opts=self.config.workspace_options(),
+            opts=self.config.workspace_options(self.stack.name),
         )
 
         if self.options.refresh_state:

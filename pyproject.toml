@@ -31,7 +31,9 @@ dependencies = [
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp",
     "opentelemetry-exporter-jaeger",
-    "pandas",
+    # Duckdb doesn't work with this version.
+    # We can remove this once duckdb has released version 0.8.2
+    "pandas!=2.1.0",
     "pulumi==3.35.3",
     "pulumi_aws",
     "pulumi_gcp",

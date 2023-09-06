@@ -1,5 +1,6 @@
-stack_name: buildflow-stack
 project_name: buildflow-project
+pulumi_home: .buildflow/_pulumi
+stacks:
+  - name: local
+    backend_url: file://.buildflow/_pulumi/local
 passphrase: buildflow-is-awesome
-backend_url: file:///home/caleb/code/backend/caleb-bf-fork/end_to_end_tests/.buildflow/_pulumi
-pulumi_home: /home/caleb/code/backend/caleb-bf-fork/end_to_end_tests/.buildflow/_pulumi
