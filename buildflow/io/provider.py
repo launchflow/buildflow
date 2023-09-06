@@ -1,4 +1,4 @@
-from typing import List, Optional, Type, TypeVar
+from typing import Any, List, Optional, Type, TypeVar
 
 import pulumi
 
@@ -42,6 +42,14 @@ class SinkProvider(ProviderAPI):
 
 
 SIT = TypeVar("SIT", bound=SinkProvider)
+
+
+class ClientProvider(ProviderAPI):
+    def client(self, credentials: CredentialType, client_type: Optional[Type]) -> Any:
+        raise NotImplementedError("client not implemented for Provider")
+
+
+CLT = TypeVar("CLT", bound=ClientProvider)
 
 
 class BackgroundTaskProvider(ProviderAPI):

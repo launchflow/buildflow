@@ -20,6 +20,8 @@ class GCPPubSubTopic(
         GCPPubSubTopicProvider,
         # Background task provider type
         None,
+        # Client provider type
+        GCPPubSubTopicProvider,
     ]
 ):
     project_id: GCPProjectID
@@ -43,6 +45,12 @@ class GCPPubSubTopic(
         )
 
     def sink_provider(self) -> GCPPubSubTopicProvider:
+        return GCPPubSubTopicProvider(
+            project_id=self.project_id,
+            topic_name=self.topic_name,
+        )
+
+    def client_provider(self) -> GCPPubSubTopicProvider:
         return GCPPubSubTopicProvider(
             project_id=self.project_id,
             topic_name=self.topic_name,

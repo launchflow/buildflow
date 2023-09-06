@@ -16,6 +16,8 @@ class Empty(
         EmptyProvider,
         # Background task provider type
         None,
+        # Client provider type
+        None,
     ]
 ):
     @classmethod

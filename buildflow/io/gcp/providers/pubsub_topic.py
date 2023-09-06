@@ -2,11 +2,13 @@ from typing import Optional, Type
 
 import pulumi
 import pulumi_gcp
+from google.cloud import pubsub
 
 from buildflow.core.credentials import GCPCredentials
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubTopicID, PubSubTopicName
 from buildflow.io.gcp.strategies.pubsub_strategies import GCPPubSubTopicSink
 from buildflow.io.provider import PulumiProvider, SinkProvider
+from buildflow.io.utils.clients import gcp_clients
 
 
 class _PubSubTopic(pulumi.ComponentResource):
@@ -64,6 +66,17 @@ class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
             topic_name=self.topic_name,
         )
 
+    def client(self, credentials: GCPCredentials, client_type: Optional[Type]):
+        if client_type is not None and client_type != pubsub.PublisherClient:
+            raise NotImplementedError(
+                f"Client type {client_type} is not supported by this provider"
+            )
+        clients = gcp_clients.GCPClients(
+            credentials=credentials,
+            quota_project_id=self.project_id,
+        )
+        return clients.get_publisher_client()
+    
     def pulumi_resource(
         self,
         type_: Optional[Type],

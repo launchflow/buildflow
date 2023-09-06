@@ -18,6 +18,8 @@ class DuckDBTable(
         DuckDBProvider,
         # Background task provider type
         None,
+        # Client provider type
+        None,
     ]
 ):
     database: DuckDBDatabase

@@ -69,14 +69,15 @@ class ReceiveProcessPushAck(Runtime):
         push_converter = self.sink.push_converter(output_type)
         app = fastapi.FastAPI()
         fastapi_method = None
-        if self.processor.endpoint().method == Method.GET:
+
+        endpoint = self.processor.endpoint()
+        if endpoint.method == Method.GET:
             fastapi_method = app.get
-        elif self.processor.endpoint().method == Method.POST:
+        elif endpoint.method == Method.POST:
             fastapi_method = app.post
         else:
             raise NotImplementedError(
-                f"Method {self.processor.endpoint().method} is not supported "
-                "for collectors."
+                f"Method {endpoint.method} is not supported " "for collectors."
             )
 
         @serve.deployment(
@@ -112,7 +113,8 @@ class ReceiveProcessPushAck(Runtime):
                 sink = self.processor.sink()
                 self.num_events_processed_counter.inc()
                 start_time = time.monotonic()
-                output = await self.processor.process(request)
+                with self.processor.dependencies() as kwargs:
+                    output = await self.processor.process(request, **kwargs)
                 if output is None:
                     # Exclude none results
                     return

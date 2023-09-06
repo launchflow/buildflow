@@ -67,14 +67,15 @@ class ReceiveProcessRespond(Runtime):
         input_type, output_type = process_types(self.processor)
         app = fastapi.FastAPI()
         fastapi_method = None
-        if self.processor.endpoint().method == Method.GET:
+
+        endpoint = self.processor.endpoint()
+        if endpoint.method == Method.GET:
             fastapi_method = app.get
-        elif self.processor.endpoint().method == Method.POST:
+        elif endpoint.method == Method.POST:
             fastapi_method = app.post
         else:
             raise NotImplementedError(
-                f"Method {self.processor.endpoint().method} is not supported "
-                "for endpoints."
+                f"Method {endpoint.method} is not supported " "for endpoints."
             )
 
         @serve.deployment(
@@ -108,7 +109,8 @@ class ReceiveProcessRespond(Runtime):
             async def root(self, request: input_type) -> output_type:
                 self.num_events_processed_counter.inc()
                 start_time = time.monotonic()
-                output = await self.processor.process(request)
+                with self.processor.dependencies() as kwargs:
+                    output = await self.processor.process(request, **kwargs)
                 self.process_time_counter.inc((time.monotonic() - start_time) * 1000)
                 return output
 
