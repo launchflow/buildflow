@@ -52,13 +52,15 @@ class PulumiConfig(Config):
             project_name=project_name,
             stacks=[PulumiStack.default(pulumi_home_dir=pulumi_home_dir)],
             passphrase="buildflow-is-awesome",
-            pulumi_home_dir=pulumi_home_dir,
+            pulumi_home=pulumi_home_dir,
         )
 
     @classmethod
     def load(cls, pulumi_config_path: str) -> "PulumiConfig":
         utils.assert_path_exists(pulumi_config_path)
         config_dict = utils.read_yaml_file(pulumi_config_path)
+        print("DO NOT SUBMIT: ", pulumi_config_path)
+        print("DO NOT SUBMIT: ", config_dict)
         return dacite.from_dict(cls, config_dict)
 
     def dump(self, pulumi_config_path: str):
@@ -66,6 +68,7 @@ class PulumiConfig(Config):
             "project_name": self.project_name,
             "stacks": [dataclasses.asdict(s) for s in self.stacks],
             "passphrase": self.passphrase,
+            "pulumi_home": self.pulumi_home,
         }
         utils.write_yaml_file(pulumi_config_path, config_dict)
 

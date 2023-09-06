@@ -30,7 +30,10 @@ class BuildFlowConfig(Config):
         if os.path.exists(buildflow_config_dir):
             return cls.load(buildflow_config_dir)
         else:
-            config = cls.default(buildflow_config_dir=buildflow_config_dir)
+            config = cls.default(
+                application="buildflow-project",
+                buildflow_config_dir=buildflow_config_dir,
+            )
             config.dump(buildflow_config_dir)
             return config
 
