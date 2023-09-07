@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable
+from typing import Callable
 
 from buildflow.config.pulumi_config import PulumiConfig
 from buildflow.core.app.infra._infra import Infra, InfraStatus
@@ -12,7 +12,6 @@ from buildflow.core.app.infra.pulumi_workspace import (
     WrappedUpResult,
 )
 from buildflow.core.options.infra_options import InfraOptions
-from buildflow.core.processor.processor import ProcessorAPI
 
 
 class InfraActor(Infra):
@@ -37,34 +36,34 @@ class InfraActor(Infra):
     def _set_status(self, status: InfraStatus):
         self._status = status
 
-    async def refresh(self, *, processors: Iterable[ProcessorAPI]):
+    async def refresh(self, *, pulumi_program: Callable):
         logging.debug("Refreshing Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only refresh Infra while Idle.")
         self._set_status(InfraStatus.REFRESHING)
 
         refresh_result: WrappedRefreshResult = await self._pulumi_workspace.refresh(
-            processors=processors
+            pulumi_program=pulumi_program,
         )
         refresh_result.log_summary()
 
         self._set_status(InfraStatus.IDLE)
 
-    async def plan(self, *, processors: Iterable[ProcessorAPI]):
+    async def plan(self, *, pulumi_program: Callable):
         logging.debug("Planning Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only plan Infra while Idle.")
         self._set_status(InfraStatus.PLANNING)
 
         preview_result: WrappedPreviewResult = await self._pulumi_workspace.preview(
-            processors=processors
+            pulumi_program=pulumi_program,
         )
         preview_result.log_summary()
         preview_result.print_change_summary()
 
         self._set_status(InfraStatus.IDLE)
 
-    async def apply(self, *, processors: Iterable[ProcessorAPI]):
+    async def apply(self, *, pulumi_program: Callable):
         logging.info("Applying Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only apply Infra while Idle.")
@@ -72,13 +71,13 @@ class InfraActor(Infra):
 
         # Execution phase (potentially remote state changes)
         up_result: WrappedUpResult = await self._pulumi_workspace.up(
-            processors=processors
+            pulumi_program=pulumi_program,
         )
         up_result.log_summary()
 
         self._set_status(InfraStatus.IDLE)
 
-    async def destroy(self, *, processors: Iterable[ProcessorAPI]):
+    async def destroy(self, *, pulumi_program: Callable):
         logging.info("Destroying Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only destroy Infra while Idle.")
@@ -86,7 +85,7 @@ class InfraActor(Infra):
 
         # Planning phase (no remote state changes)
         output_map: WrappedOutputMap = await self._pulumi_workspace.outputs(
-            processors=processors
+            pulumi_program=pulumi_program,
         )
         if self.options.require_confirmation:
             print("Would you like to delete this infra?")
@@ -107,7 +106,7 @@ class InfraActor(Infra):
 
         # Execution phase (potentially remote state changes)
         destroy_result: WrappedDestroyResult = await self._pulumi_workspace.destroy(
-            processors=processors
+            pulumi_program=pulumi_program,
         )
         destroy_result.log_summary()
 

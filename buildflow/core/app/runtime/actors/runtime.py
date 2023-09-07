@@ -16,11 +16,11 @@ from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, S
 from buildflow.core.app.runtime.actors.collector_pattern.collector_pool import (
     CollectorProcessorPoolActor,
 )
+from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool import (
+    ConsumerProcessorReplicaPoolActor,
+)
 from buildflow.core.app.runtime.actors.endpoint_pattern.endpoint_pool import (
     EndpointProcessorPoolActor,
-)
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool import (
-    PipelineProcessorReplicaPoolActor,
 )
 from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
 from buildflow.core.options.runtime_options import RuntimeOptions
@@ -74,9 +74,9 @@ class RuntimeActor(Runtime):
 
     def _start_processor(self, processor: ProcessorAPI):
         processor_options = self.options.processor_options[processor.processor_id]
-        if processor.processor_type == ProcessorType.PIPELINE:
+        if processor.processor_type == ProcessorType.CONSUMER:
             processor_pool_ref = ProcessPoolReference(
-                actor_handle=PipelineProcessorReplicaPoolActor.remote(
+                actor_handle=ConsumerProcessorReplicaPoolActor.remote(
                     self.run_id,
                     processor,
                     processor_options,
@@ -180,7 +180,7 @@ class RuntimeActor(Runtime):
         # We keep running the loop while the job is running or draining to ensure
         # we don't exit the main process before the drain is complete.
         # TODO: consider splitting these into two loops, this might be nice as not all
-        # processor types need scaling (e.g. only pipeline).
+        # processor types need scaling (e.g. only consumer).
         #   - one for checking the status (i.e. is it still running)
         #   - one for autoscaling
         while (

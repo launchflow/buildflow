@@ -47,7 +47,7 @@ class HourAggregate:
     stat: int
 
 
-# Define an output type for our pipeline.
+# Define an output type for our consumer.
 # By using a dataclass we can ensure our python type hints are validated
 # against the BigQuery table's schema.
 @dataclasses.dataclass
@@ -68,7 +68,7 @@ app = buildflow.Flow(
 
 
 # Define our processor.
-@app.pipeline(source=source, sink=sink)
+@app.consumer(source=source, sink=sink)
 def process(gcs_file_event: GCSFileChangeEvent) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))

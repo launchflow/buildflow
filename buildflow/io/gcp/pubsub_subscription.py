@@ -49,7 +49,6 @@ class GCPPubSubSubscription(
     def options(
         self,
         # Pulumi management options
-        managed: bool = False,
         ack_deadline_seconds: bool = _DEFAULT_ACK_DEADLINE_SECONDS,
         message_retention_duration: str = _DEFAULT_MESSAGE_RETENTION_DURATION,
         topic: Optional[GCPPubSubTopic] = None,
@@ -57,17 +56,12 @@ class GCPPubSubSubscription(
         batch_size: int = _DEFAULT_BATCH_SIZE,
         include_attributes: bool = _DEFAULT_INCLUDE_ATTRIBUTES,
     ) -> "GCPPubSubSubscription":
-        if managed and topic is None:
-            raise ValueError(
-                "A topic must be provided when using managed mode. Please provide one."
-            )
-        to_ret = super().options(managed)
-        to_ret.ack_deadline_seconds = ack_deadline_seconds
-        to_ret.message_retention_duration = message_retention_duration
-        to_ret.topic = topic
-        to_ret.batch_size = batch_size
-        to_ret.include_attributes = include_attributes
-        return to_ret
+        self.ack_deadline_seconds = ack_deadline_seconds
+        self.message_retention_duration = message_retention_duration
+        self.topic = topic
+        self.batch_size = batch_size
+        self.include_attributes = include_attributes
+        return self
 
     @classmethod
     def from_gcp_options(
@@ -107,6 +101,12 @@ class GCPPubSubSubscription(
         )
 
     def _pulumi_provider(self) -> GCPPubSubSubscriptionProvider:
+        if self.topic is None:
+            raise ValueError(
+                "A topic must be provided to the GCPPubSubSubscription. Please provide "
+                "one via GCPPubSubSubscription(...).options(topic=GCPPubSubTopic(...))"
+                " method."
+            )
         return GCPPubSubSubscriptionProvider(
             project_id=self.project_id,
             subscription_name=self.subscription_name,

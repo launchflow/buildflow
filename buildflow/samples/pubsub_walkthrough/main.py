@@ -33,7 +33,7 @@ output_table = BigQueryTable(
 ).options(managed=True, destroy_protection=False)
 
 
-# Define an output type for our pipeline.
+# Define an output type for our consumer.
 # By using a dataclass we can ensure our python type hints are validated
 # against the BigQuery table's schema.
 @dataclasses.dataclass
@@ -53,6 +53,6 @@ app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=Fal
 
 
 # Define our processor.
-@app.pipeline(source=input_source, sink=output_table)
+@app.consumer(source=input_source, sink=output_table)
 def process(element: Dict[str, Any]) -> TaxiOutput:
     return TaxiOutput(**element)

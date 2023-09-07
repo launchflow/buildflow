@@ -23,11 +23,11 @@ class EndpointProcessorSnapshot(ProcessorSnapshot):
 
     def as_dict(self) -> dict:
         parent_dict = super().as_dict()
-        pipeline_dict = {
+        endpoint_dict = {
             "total_events_processed_per_sec": self.total_events_processed_per_sec,
             "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
         }
-        return {**parent_dict, **pipeline_dict}
+        return {**parent_dict, **endpoint_dict}
 
 
 @ray.remote(num_cpus=0.1)

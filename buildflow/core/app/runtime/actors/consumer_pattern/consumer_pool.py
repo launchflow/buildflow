@@ -7,10 +7,10 @@ from ray.exceptions import OutOfMemoryError, RayActorError
 
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import RunID, RuntimeStatus
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool_snapshot import (
-    PipelineProcessorSnapshot,
+from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool_snapshot import (
+    ConsumerProcessorSnapshot,
 )
-from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import (
+from buildflow.core.app.runtime.actors.consumer_pattern.pull_process_push import (
     PullProcessPushActor,
     PullProcessPushSnapshot,
 )
@@ -22,11 +22,11 @@ from buildflow.core.app.runtime.actors.process_pool import (
 from buildflow.core.app.runtime.autoscaler import calculate_target_num_replicas
 from buildflow.core.app.runtime.metrics import RateCalculation, SimpleGaugeMetric
 from buildflow.core.options.runtime_options import ProcessorOptions
-from buildflow.core.processor.patterns.pipeline import PipelineProcessor
+from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 
 
 @ray.remote(num_cpus=0.1)
-class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
+class ConsumerProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
     """
     This actor acts as a proxy reference for a group of replica Processors.
     Runtime methods are forwarded to the replicas (i.e. 'drain'). Includes
@@ -37,7 +37,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
     def __init__(
         self,
         run_id: RunID,
-        processor: PipelineProcessor,
+        processor: ConsumerProcessor,
         processor_options: ProcessorOptions,
     ) -> None:
         super().__init__(run_id, processor, processor_options)
@@ -109,7 +109,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
             ray_actor_handle=replica_actor_handle,
         )
 
-    async def snapshot(self) -> PipelineProcessorSnapshot:
+    async def snapshot(self) -> ConsumerProcessorSnapshot:
         source_backlog = await self.source.backlog()
         # Log the current backlog so ray metrics can pick it up
         self.current_backlog_gauge.set(source_backlog)
@@ -190,7 +190,7 @@ class PipelineProcessorReplicaPoolActor(ProcessorReplicaPoolActor):
         else:
             eta_secs = source_backlog / total_events_processed_per_sec
 
-        return PipelineProcessorSnapshot(
+        return ConsumerProcessorSnapshot(
             # parent snapshot fields
             status=parent_snapshot.status,
             timestamp_millis=utils.timestamp_millis(),

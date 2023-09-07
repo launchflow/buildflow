@@ -10,7 +10,7 @@ import pyarrow.csv as pcsv
 import pytest
 
 from buildflow.core.app.flow import Flow
-from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import (
+from buildflow.core.app.runtime.actors.consumer_pattern.pull_process_push import (
     PullProcessPushActor,
 )
 from buildflow.io.local.file import File
@@ -43,7 +43,7 @@ class PullProcessPushTest(unittest.TestCase):
     def test_end_to_end_with_processor_class(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
@@ -72,7 +72,7 @@ class PullProcessPushTest(unittest.TestCase):
     def test_end_to_end_with_processor_decorator(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
@@ -96,7 +96,7 @@ class PullProcessPushTest(unittest.TestCase):
     def test_end_to_end_with_processor_decorator_async(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
@@ -120,7 +120,7 @@ class PullProcessPushTest(unittest.TestCase):
     def test_end_to_end_with_processor_decorator_flatten(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )

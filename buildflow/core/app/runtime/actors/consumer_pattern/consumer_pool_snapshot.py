@@ -4,7 +4,7 @@ from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
 
 
 @dataclasses.dataclass
-class PipelineProcessorSnapshot(ProcessorSnapshot):
+class ConsumerProcessorSnapshot(ProcessorSnapshot):
     source_backlog: float
     total_events_processed_per_sec: float
     eta_secs: float
@@ -18,7 +18,7 @@ class PipelineProcessorSnapshot(ProcessorSnapshot):
 
     def as_dict(self) -> dict:
         parent_dict = super().as_dict()
-        pipeline_dict = {
+        consumer_dict = {
             "source_backlog": self.source_backlog,
             "total_events_processed_per_sec": self.total_events_processed_per_sec,
             "eta_secs": self.eta_secs,
@@ -30,4 +30,4 @@ class PipelineProcessorSnapshot(ProcessorSnapshot):
             "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
             "avg_cpu_percentage_per_replica": self.avg_cpu_percentage_per_replica,
         }
-        return {**parent_dict, **pipeline_dict}
+        return {**parent_dict, **consumer_dict}

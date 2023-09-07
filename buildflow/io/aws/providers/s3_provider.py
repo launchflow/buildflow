@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import pulumi
 import pulumi_aws
@@ -21,7 +21,6 @@ class _S3BucketResource(pulumi.ComponentResource):
         aws_region: Optional[AWSRegion],
         force_destroy: bool,
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -83,7 +82,6 @@ class S3BucketProvider(PulumiProvider, SinkProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ) -> _S3BucketResource:
@@ -92,7 +90,6 @@ class S3BucketProvider(PulumiProvider, SinkProvider):
             aws_region=self.aws_region,
             force_destroy=self.force_destroy,
             # pulumi_resource options (buildflow internal concept)
-            type_=type_,
             credentials=credentials,
             opts=opts,
         )

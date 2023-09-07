@@ -42,10 +42,9 @@ class BigQueryTest(unittest.TestCase):
         )
         bigquery_table = BigQueryTable(
             bigquery_dataset, table_name="table_name"
-        ).options(destroy_protection=False)
+        ).options(destroy_protection=False, schema=FakeRow)
 
         bigquery_dataset_resource = bigquery_dataset._pulumi_provider().pulumi_resource(
-            type_=FakeRow,
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )
@@ -65,7 +64,6 @@ class BigQueryTest(unittest.TestCase):
         ).apply(check_dataset)
 
         bigquery_table_resource = bigquery_table._pulumi_provider().pulumi_resource(
-            type_=FakeRow,
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )
@@ -99,7 +97,6 @@ class BigQueryTest(unittest.TestCase):
         )
 
         bigquery_resource = bigquery_table._pulumi_provider().pulumi_resource(
-            type_=FakeRow,
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )

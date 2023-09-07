@@ -1,5 +1,3 @@
-from typing import Optional, Type
-
 import pulumi
 import pulumi_gcp
 
@@ -20,7 +18,6 @@ class _PubSubSubscriptionPulumiResource(pulumi.ComponentResource):
         ack_deadline_seconds: int,
         message_retention_duration: str,
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -84,7 +81,6 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -94,7 +90,6 @@ class GCPPubSubSubscriptionProvider(SourceProvider, PulumiProvider):
             self.topic,
             self.ack_deadline_seconds,
             self.message_retention_duration,
-            type_,
             credentials,
             opts,
         )

@@ -57,7 +57,6 @@ class GCSFileChangeStreamTest(unittest.TestCase):
         )
 
         resource = provider.pulumi_resource(
-            type_=None,
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )
