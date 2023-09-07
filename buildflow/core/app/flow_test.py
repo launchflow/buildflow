@@ -8,7 +8,7 @@ from typing import Dict
 import pulumi
 
 from buildflow.core.app.flow import Flow
-from buildflow.core.processor.patterns.pipeline import PipelineProcessor
+from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.io.aws.sqs import SQSQueue
 from buildflow.io.gcp.bigquery_dataset import BigQueryDataset
 from buildflow.io.gcp.bigquery_table import BigQueryTable
@@ -39,14 +39,14 @@ class FlowTest(unittest.TestCase):
     def test_flow_process_fn_decorator(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
         def process(payload: Dict[str, int]) -> Dict[str, int]:
             return payload
 
-        self.assertIsInstance(process, PipelineProcessor)
+        self.assertIsInstance(process, ConsumerProcessor)
 
         full_arg_spec = inspect.getfullargspec(process.process)
         self.assertEqual(full_arg_spec.args, ["self", "payload"])
@@ -58,11 +58,11 @@ class FlowTest(unittest.TestCase):
     def test_flow_process_class_decorator(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
-        class MyPipeline:
+        class MyConsumer:
             def setup(self):
                 self.value_to_add = 1
                 self.teardown_called = False
@@ -79,16 +79,16 @@ class FlowTest(unittest.TestCase):
             def teardown(self):
                 self.teardown_called = True
 
-        self.assertIsInstance(MyPipeline, PipelineProcessor)
+        self.assertIsInstance(MyConsumer, ConsumerProcessor)
 
-        full_arg_spec = inspect.getfullargspec(MyPipeline.process)
+        full_arg_spec = inspect.getfullargspec(MyConsumer.process)
         self.assertEqual(full_arg_spec.args, ["self", "payload"])
         self.assertEqual(
             full_arg_spec.annotations,
             {"return": Dict[str, int], "payload": Dict[str, int]},
         )
 
-        p = MyPipeline()
+        p = MyConsumer()
         p.setup()
         p.teardown()
 
@@ -113,7 +113,7 @@ class FlowTest(unittest.TestCase):
             project_id="project_id", subscription_name="subscription_name"
         ).options(managed=True, topic=pubsub_topic)
 
-        @app.pipeline(source=pubsub_subscription, sink=bigquery_table)
+        @app.consumer(source=pubsub_subscription, sink=bigquery_table)
         def process(payload: Dict[str, int]) -> Dict[str, int]:
             return payload
 
@@ -140,7 +140,7 @@ class FlowTest(unittest.TestCase):
 
         queue = SQSQueue(queue_name="queue_name").options(managed=True)
 
-        @app.pipeline(source=queue, sink=queue)
+        @app.consumer(source=queue, sink=queue)
         def process(payload: Dict[str, int]) -> Dict[str, int]:
             return payload
 

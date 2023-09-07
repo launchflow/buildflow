@@ -27,6 +27,6 @@ def my_collector_processor(input: InputRequest) -> OuptutResponse:
     return OuptutResponse(val=input.val + 1)
 
 
-@app.pipeline(source=Pulse([InputRequest(1)], 1), sink=File("output.txt", "csv"))
-def my_pipeline_processor(input: InputRequest) -> OuptutResponse:
+@app.consumer(source=Pulse([InputRequest(1)], 1), sink=File("output.txt", "csv"))
+def my_consumer_processor(input: InputRequest) -> OuptutResponse:
     return OuptutResponse(val=input.val + 1)

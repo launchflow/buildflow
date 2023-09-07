@@ -32,7 +32,7 @@ class Output:
     output_val: int
 
 
-@app.pipeline(source=source, sink=sink)
+@app.consumer(source=source, sink=sink)
 class MyProcessor:
     def process(self, payload: Input) -> Output:
         return Output(output_val=payload.val + 1)

@@ -51,12 +51,12 @@ class FileStreamLocalTest(unittest.TestCase):
     def test_file_stream_duckdb_end_to_end(self):
         app = buildflow.Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=FileChangeStream(file_path=self.dir_to_watch),
             sink=AnalysisTable(table_name=self.table),
             num_cpus=0.5,
         )
-        def my_pipeline(event: FileChangeEvent) -> Dict[str, str]:
+        def my_consumer(event: FileChangeEvent) -> Dict[str, str]:
             return event.metadata
 
         run_coro = app.run(block=False)
@@ -82,14 +82,14 @@ class FileStreamLocalTest(unittest.TestCase):
         try:
             app = buildflow.Flow()
 
-            @app.pipeline(
+            @app.consumer(
                 source=FileChangeStream(file_path=self.dir_to_watch),
                 sink=File(
                     os.path.join(output_dir, "file.csv"), file_format=FileFormat.CSV
                 ),
                 num_cpus=0.5,
             )
-            def my_pipeline(event: FileChangeEvent) -> Dict[str, str]:
+            def my_consumer(event: FileChangeEvent) -> Dict[str, str]:
                 return {"content": event.blob.decode()}
 
             run_coro = app.run(block=False)

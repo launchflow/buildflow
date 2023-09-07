@@ -1,5 +1,3 @@
-from typing import Optional, Type
-
 import pulumi
 import pulumi_gcp
 
@@ -15,7 +13,6 @@ class _PubSubTopic(pulumi.ComponentResource):
         project_id: GCPProjectID,
         topic_name: PubSubTopicName,
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -66,7 +63,6 @@ class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -74,7 +70,6 @@ class GCPPubSubTopicProvider(SinkProvider, PulumiProvider):
         return _PubSubTopic(
             topic_name=self.topic_name,
             project_id=self.project_id,
-            type_=type_,
             credentials=credentials,
             opts=opts,
         )

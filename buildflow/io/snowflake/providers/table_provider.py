@@ -34,8 +34,8 @@ class _SnowflakeTableSinkResource(pulumi.ComponentResource):
         account: str,
         user: str,
         private_key: str,
-        # pulumi_resource options (buildflow internal concept)
         type_: Optional[Type],
+        # pulumi_resource options (buildflow internal concept)
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -171,6 +171,7 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
     schema_managed: bool
     snow_pipe_managed: bool
     stage_managed: bool
+    table_schema: Optional[Type]
     # Authentication information
     account: str
     user: str
@@ -201,7 +202,6 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: Union[AWSCredentials, GCPCredentials],
         opts: pulumi.ResourceOptions,
     ) -> _SnowflakeTableSinkResource:
@@ -219,7 +219,7 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
             account=self.account,
             user=self.user,
             private_key=self.private_key,
-            type_=type_,
+            type_=self.table_schema,
             credentials=credentials,
             opts=opts,
         )

@@ -16,7 +16,7 @@ from buildflow.core.app.runtime.metrics import (
     num_events_processed,
     process_time_counter,
 )
-from buildflow.core.processor.patterns.pipeline import PipelineProcessor
+from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.core.processor.utils import process_types
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
@@ -62,7 +62,7 @@ class PullProcessPushActor(Runtime):
     def __init__(
         self,
         run_id: RunID,
-        processor: PipelineProcessor,
+        processor: ConsumerProcessor,
         *,
         replica_id: ReplicaID,
         log_level: str = "INFO",

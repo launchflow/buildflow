@@ -5,8 +5,8 @@ from typing import Optional
 import ray
 from ray.autoscaler.sdk import request_resources
 
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool_snapshot import (
-    PipelineProcessorSnapshot,
+from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool_snapshot import (
+    ConsumerProcessorSnapshot,
 )
 from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
 from buildflow.core.options.runtime_options import AutoscalerOptions
@@ -19,13 +19,13 @@ def _available_replicas(cpu_per_replica: float):
     return int(num_cpus / cpu_per_replica)
 
 
-def _calculate_target_num_replicas_for_pipeline_v2(
+def _calculate_target_num_replicas_for_consumer_v2(
     *,
-    current_snapshot: PipelineProcessorSnapshot,
-    prev_snapshot: Optional[PipelineProcessorSnapshot],
+    current_snapshot: ConsumerProcessorSnapshot,
+    prev_snapshot: Optional[ConsumerProcessorSnapshot],
     config: AutoscalerOptions,
 ):
-    """The autoscaler used by the pipeline runtime.
+    """The autoscaler used by the consumer runtime.
 
     First we check if we need to scale up. If we do not then we check
     if we should scale down.
@@ -112,8 +112,8 @@ def _calculate_target_num_replicas_for_pipeline_v2(
     logging.debug("-------------------------AUTOSCALER----------------------\n")
     logging.debug("config max replicas: %s", config.max_replicas)
     logging.debug("config min replicas: %s", config.min_replicas)
-    logging.debug("backlog burn threshold: %s", config.pipeline_backlog_burn_threshold)
-    logging.debug("cpu percent target: %s", config.pipeline_cpu_percent_target)
+    logging.debug("backlog burn threshold: %s", config.consumer_backlog_burn_threshold)
+    logging.debug("cpu percent target: %s", config.consumer_cpu_percent_target)
     logging.debug("cpus per replica: %s", cpus_per_replica)
     logging.debug("start num replicas: %s", num_replicas)
     logging.debug("backlog: %s", backlog)
@@ -123,16 +123,16 @@ def _calculate_target_num_replicas_for_pipeline_v2(
     logging.debug("max available cluster replicas: %s", available_replicas)
 
     new_num_replicas = num_replicas
-    # Major backlog event. This happens when the pipeline is way behind.
+    # Major backlog event. This happens when the consumer is way behind.
     if (
         throughput > 0
-        and (backlog / throughput) > config.pipeline_backlog_burn_threshold
+        and (backlog / throughput) > config.consumer_backlog_burn_threshold
     ):
         # Backlog is too high, scale up
-        want_throughput = backlog / config.pipeline_backlog_burn_threshold
+        want_throughput = backlog / config.consumer_backlog_burn_threshold
         logging.debug("want throughput: %s", want_throughput)
         new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
-    # Minor backlog event. This happens when the pipeline is just slightly behind during
+    # Minor backlog event. This happens when the consumer is just slightly behind during
     # it's normal operation. We only perform this check if our current replicas are
     # fully utlized.
     elif (
@@ -140,7 +140,7 @@ def _calculate_target_num_replicas_for_pipeline_v2(
         and prev_snapshot.source_backlog < current_snapshot.source_backlog
     ):
         # This if block is nested to avoid triggering a down scale.
-        if avg_replica_cpu_percentage > config.pipeline_cpu_percent_target:
+        if avg_replica_cpu_percentage > config.consumer_cpu_percent_target:
             time_gap_ms = (
                 current_snapshot.timestamp_millis - prev_snapshot.timestamp_millis
             )
@@ -156,14 +156,14 @@ def _calculate_target_num_replicas_for_pipeline_v2(
     # Scale down event.
     elif (
         avg_replica_cpu_percentage > 0
-        and avg_replica_cpu_percentage < config.pipeline_cpu_percent_target
+        and avg_replica_cpu_percentage < config.consumer_cpu_percent_target
     ):
         # Utilization is too low, scale down
         # We use floor here because we're trying to keep their utilization at
         # or above a target.
         new_num_replicas = math.floor(
             num_replicas
-            / (config.pipeline_cpu_percent_target / avg_replica_cpu_percentage)
+            / (config.consumer_cpu_percent_target / avg_replica_cpu_percentage)
         )
     # Sanity check to make sure we don't scale below 0.
     new_num_replicas = max(new_num_replicas, 1)
@@ -212,8 +212,8 @@ def calculate_target_num_replicas(
     prev_snapshot: Optional[ProcessorSnapshot],
     config: AutoscalerOptions,
 ):
-    if current_snapshot.processor_type == ProcessorType.PIPELINE:
-        return _calculate_target_num_replicas_for_pipeline_v2(
+    if current_snapshot.processor_type == ProcessorType.CONSUMER:
+        return _calculate_target_num_replicas_for_consumer_v2(
             current_snapshot=current_snapshot,
             prev_snapshot=prev_snapshot,
             config=config,

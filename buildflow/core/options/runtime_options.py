@@ -14,11 +14,11 @@ class AutoscalerOptions(Options):
         Defaults to 1.
     max_replicas (int): The maximum number of replicas to scale up to.
         Defaults to 1000.
-    pipeline_backlog_burn_threshold (int): The threshold for how long it will
+    consumer_backlog_burn_threshold (int): The threshold for how long it will
         take to burn down a backlog before scaling up. Increasing this number
-        will cause your pipeline to scale up more aggresively. Defaults to 60.
-    pipeline_cpu_percent_target (int): The target cpu percentage for scaling
-        down. Increasing this number will cause your pipeline to scale down
+        will cause your consumer to scale up more aggresively. Defaults to 60.
+    consumer_cpu_percent_target (int): The target cpu percentage for scaling
+        down. Increasing this number will cause your consumer to scale down
         more aggresively. Defaults to 25.
     """
 
@@ -27,9 +27,9 @@ class AutoscalerOptions(Options):
     min_replicas: int
     max_replicas: int
     autoscale_frequency_secs: int = 60
-    # Options for configuring scaling for pipelines
-    pipeline_backlog_burn_threshold: int = 60
-    pipeline_cpu_percent_target: int = 25
+    # Options for configuring scaling for consumers
+    consumer_backlog_burn_threshold: int = 60
+    consumer_cpu_percent_target: int = 25
     # Options for configuring scaling for collectors
     target_num_ongoing_requests_per_replica: int = 10
 
@@ -44,10 +44,10 @@ class AutoscalerOptions(Options):
 
     def __post_init__(self):
         if (
-            self.pipeline_cpu_percent_target < 0
-            or self.pipeline_cpu_percent_target > 100
+            self.consumer_cpu_percent_target < 0
+            or self.consumer_cpu_percent_target > 100
         ):
-            raise ValueError("pipeline_cpu_percent_target must be between 0 and 100")
+            raise ValueError("consumer_cpu_percent_target must be between 0 and 100")
 
 
 # TODO: Add options for other pattern types, or merge into a single options object

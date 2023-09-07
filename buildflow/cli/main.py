@@ -258,8 +258,8 @@ def init(
 
         if processor is None:
             file_template = ""
-        elif processor == "pipeline":
-            file_template = file_gen.generate_pipeline_template(source, sink, file_name)
+        elif processor == "consumer":
+            file_template = file_gen.generate_consumer_template(source, sink, file_name)
         elif processor == "collector":
             file_template = file_gen.generate_collector_template(sink, file_name)
         elif processor == "endpoint":

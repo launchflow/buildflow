@@ -79,14 +79,12 @@ class GCSBucket(
     def options(
         self,
         *,
-        managed: bool = False,
         force_destroy: bool = False,
         bucket_region: GCPRegion = _DEFAULT_BUCKET_LOCATION,
     ) -> "GCSBucket":
-        to_ret = super().options(managed)
-        to_ret.force_destroy = force_destroy
-        to_ret.bucket_region = bucket_region
-        return to_ret
+        self.force_destroy = force_destroy
+        self.bucket_region = bucket_region
+        return self
 
     def sink_provider(self):
         return GCSBucketProvider(

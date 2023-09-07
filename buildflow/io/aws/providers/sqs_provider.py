@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import pulumi
 import pulumi_aws
@@ -20,7 +20,6 @@ class SQSQueueResource(pulumi.ComponentResource):
         aws_region: Optional[AWSRegion],
         aws_account_id: Optional[AWSAccountID],
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -87,7 +86,6 @@ class SQSQueueProvider(PulumiProvider, SinkProvider, SourceProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -95,7 +93,6 @@ class SQSQueueProvider(PulumiProvider, SinkProvider, SourceProvider):
             queue_name=self.queue_name,
             aws_region=self.aws_region,
             aws_account_id=self.aws_account_id,
-            type_=type_,
             credentials=credentials,
             opts=opts,
         )

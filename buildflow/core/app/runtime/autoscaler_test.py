@@ -4,8 +4,8 @@ from unittest import mock
 
 from buildflow.core.app.runtime import autoscaler
 from buildflow.core.app.runtime._runtime import RuntimeStatus
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool_snapshot import (
-    PipelineProcessorSnapshot,
+from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool_snapshot import (
+    ConsumerProcessorSnapshot,
 )
 from buildflow.core.options.runtime_options import AutoscalerOptions
 from buildflow.core.processor.processor import ProcessorType
@@ -22,8 +22,8 @@ def create_snapshot(
     num_cpu_per_replica: float = 1,
     avg_cpu_percent: float = 1,
     timestamp_millis: int = 1,
-) -> PipelineProcessorSnapshot:
-    return PipelineProcessorSnapshot(
+) -> ConsumerProcessorSnapshot:
+    return ConsumerProcessorSnapshot(
         source_backlog=backlog,
         total_events_processed_per_sec=throughput,
         num_replicas=num_replicas,
@@ -32,7 +32,7 @@ def create_snapshot(
         status=RuntimeStatus.RUNNING,
         timestamp_millis=timestamp_millis,
         processor_id="id",
-        processor_type=ProcessorType.PIPELINE,
+        processor_type=ProcessorType.CONSUMER,
         num_concurrency_per_replica=1,
         eta_secs=1,
         total_pulls_per_sec=1,
@@ -45,7 +45,7 @@ def create_snapshot(
 
 
 @mock.patch("ray.available_resources", return_value={"CPU": 32})
-class PipelineAutoScalerTest(unittest.TestCase):
+class ConsumerAutoScalerTest(unittest.TestCase):
     def test_scale_up_to_estimated_replicas(self, resources_mock):
         current_num_replics = 2
         current_throughput = 10

@@ -1,5 +1,3 @@
-from typing import Optional, Type
-
 import pulumi
 import pulumi_gcp
 
@@ -14,7 +12,6 @@ class _BigqueryDatasetPulumiResource(pulumi.ComponentResource):
         dataset_name: BigQueryDatasetName,
         project_id: GCPProjectID,
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -47,10 +44,9 @@ class BigQueryDatasetProvider(PulumiProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ) -> _BigqueryDatasetPulumiResource:
         return _BigqueryDatasetPulumiResource(
-            self.dataset_name, self.project_id, type_, credentials, opts
+            self.dataset_name, self.project_id, credentials, opts
         )

@@ -33,7 +33,6 @@ class S3FileChangeStreamProviderTest(unittest.TestCase):
         )
 
         pulumi_resource = provider.pulumi_resource(
-            type_=None,
             credentials=None,
             opts=pulumi.ResourceOptions(),
         )

@@ -65,7 +65,7 @@ class HourAggregate:
     stat: int
 
 
-# Define an output type for our pipeline.
+# Define an output type for our consumer.
 # By using a dataclass we can ensure our python type hints are validated
 # against the BigQuery table's schema.
 @dataclasses.dataclass
@@ -89,7 +89,7 @@ app = buildflow.Flow(
 
 
 # Define our processor.
-@app.pipeline(source=source, sink=sink)
+@app.consumer(source=source, sink=sink)
 def process(s3_file_event: S3FileChangeEvent) -> List[AggregateWikiPageViews]:
     if s3_file_event.event_type != PortableFileChangeEventType.CREATED:
         # skip non-created events

@@ -43,7 +43,6 @@ class GCSTest(unittest.TestCase):
         ).options(managed=True, bucket_region="US")
 
         bucket_resource = gcs_bucket.pulumi_provider().pulumi_resource(
-            type_=None,
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )

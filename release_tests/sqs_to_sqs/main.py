@@ -26,8 +26,8 @@ class Output:
     output_val: int
 
 
-@app.pipeline(source=source, sink=sink, num_cpus=0.5)
-class InputPipeline:
+@app.consumer(source=source, sink=sink, num_cpus=0.5)
+class InputConsumer:
     def setup(self):
         self.counter = 0
 
@@ -40,8 +40,8 @@ class InputPipeline:
         return Output(output_val=payload.val + 1)
 
 
-@app.pipeline(source=sink, num_cpus=0.5)
-class ValidatePipeline:
+@app.consumer(source=sink, num_cpus=0.5)
+class ValidateConsumer:
     def setup(self):
         self.counter = 0
 

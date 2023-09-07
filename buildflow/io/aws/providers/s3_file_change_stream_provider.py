@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Type
+from typing import Iterable
 
 import pulumi
 import pulumi_aws
@@ -22,7 +22,6 @@ class _S3FileChangeStreamResource(pulumi.ComponentResource):
         sqs_queue: SQSQueue,
         event_types: Iterable[S3ChangeStreamEventType],
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -130,13 +129,12 @@ class S3FileChangeStreamProvider(SourceProvider, PulumiProvider):
         )
 
     def pulumi_resource(
-        self, type_: Optional[Type], credentials: AWSCredentials, opts
+        self, credentials: AWSCredentials, opts
     ) -> _S3FileChangeStreamResource:
         return _S3FileChangeStreamResource(
             s3_bucket=self.s3_bucket,
             sqs_queue=self.sqs_queue,
             event_types=self.event_types,
-            type_=type_,
             credentials=credentials,
             opts=opts,
         )

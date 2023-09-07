@@ -5,7 +5,7 @@ import inspect as type_inspect
 import logging
 import os
 import signal
-from typing import Callable, Dict, List, Optional, Set, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import pulumi
 
@@ -24,8 +24,8 @@ from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import AutoscalerOptions, ProcessorOptions
 from buildflow.core.processor.patterns.collector import CollectorProcessor
+from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.core.processor.patterns.endpoint import EndpointProcessor
-from buildflow.core.processor.patterns.pipeline import PipelineProcessor
 from buildflow.core.processor.processor import ProcessorAPI, ProcessorID, ProcessorType
 from buildflow.io.endpoint import Endpoint, Method, Route
 from buildflow.io.local.empty import Empty
@@ -73,7 +73,6 @@ FlowID = str
 
 def _traverse_primitive_for_pulumi(
     primitive: Primitive,
-    type_: Type,
     credentials: CredentialType,
     initial_opts: pulumi.ResourceOptions,
     visited_primitives: _PrimitiveCache,
@@ -99,7 +98,6 @@ def _traverse_primitive_for_pulumi(
                 parent_resources.append(
                     _traverse_primitive_for_pulumi(
                         field_value,
-                        type_,
                         credentials,
                         initial_opts,
                         visited_primitives,
@@ -111,11 +109,24 @@ def _traverse_primitive_for_pulumi(
     opts = pulumi.ResourceOptions.merge(
         initial_opts, pulumi.ResourceOptions(depends_on=parent_resources)
     )
-    resource = pulumi_provider.pulumi_resource(
-        type_=type_, credentials=credentials, opts=opts
-    )
+    resource = pulumi_provider.pulumi_resource(credentials=credentials, opts=opts)
     visited_primitives.append(_PrimitiveCacheEntry(primitive, resource))
     return resource
+
+
+def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primitive]:
+    primitives_without_parents = primitives.copy()
+    for primitive in primitives:
+        fields = dataclasses.fields(primitive)
+        for field in fields:
+            field_value = getattr(primitive, field.name)
+            if (
+                field_value is not None
+                and isinstance(field_value, Primitive)
+                and field_value.pulumi_provider() is not None
+            ):
+                primitives_without_parents.remove(field_value)
+    return primitives_without_parents
 
 
 @dataclasses.dataclass
@@ -190,9 +201,10 @@ class FlowState:
 
         def find_processor_resource(processor_id: str) -> Optional[ResourceState]:
             """Find the resource for a given processor_id."""
+            # TODO: need to find a different way to do this
             for resource in resource_states:
                 if (
-                    resource.resource_type == "buildflow:processor:Pipeline"
+                    resource.resource_type == "buildflow:processor:Consumer"
                     or resource.resource_type == "buildflow:processor:Collector"
                     or resource.resource_type == "buildflow:processor:Endpoint"
                 ):
@@ -309,6 +321,82 @@ class FlowState:
         }
 
 
+def _lifecycle_functions(
+    original_process_fn_or_class: Callable,
+) -> Tuple[Callable, Callable, type_inspect.FullArgSpec]:
+    """Returns the setup method, teardown method, and full arg spec respectfully."""
+    if type_inspect.isclass(original_process_fn_or_class):
+
+        def setup(self):
+            if hasattr(self.instance, "setup"):
+                self.instance.setup()
+
+        async def teardown(self):
+            coros = []
+            if hasattr(self.instance, "teardown"):
+                if type_inspect.iscoroutinefunction(self.instance.teardown()):
+                    coros.append(self.instance.teardown())
+                else:
+                    self.instance.teardown()
+            coros.extend([self.source().teardown(), self.sink().teardown()])
+            await asyncio.gather(*coros)
+
+    else:
+
+        def setup(self):
+            return None
+
+        async def teardown(self):
+            await asyncio.gather(self.source().teardown(), self.sink().teardown())
+
+    return setup, teardown
+
+
+def _background_tasks(
+    primitive: Primitive, credentials: CredentialType
+) -> List[BackgroundTask]:
+    provider = primitive.background_task_provider()
+    if provider is not None:
+        return provider.background_tasks(credentials)
+    return []
+
+
+@dataclasses.dataclass
+class _ConsumerWrapper:
+    source_primitive: Primitive
+    sink_primitive: Optional[Primitive]
+    processor_options: ProcessorOptions
+    original_process_fn_or_class: Callable
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.original_process_fn_or_class(*args, **kwargs)
+
+
+def consumer(
+    source: Primitive,
+    sink: Optional[Primitive] = None,
+    *,
+    num_cpus: float = 1.0,
+    num_concurrency: int = 1,
+    autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+    log_level: str = "INFO",
+):
+    def decorator_function(original_fn_or_class):
+        return _ConsumerWrapper(
+            source_primitive=source,
+            sink_primitive=sink,
+            processor_options=ProcessorOptions(
+                num_cpus=num_cpus,
+                num_concurrency=num_concurrency,
+                log_level=log_level,
+                autoscaler_options=autoscale_options,
+            ),
+            original_process_fn_or_class=original_fn_or_class,
+        )
+
+    return decorator_function
+
+
 class Flow:
     def __init__(
         self,
@@ -329,9 +417,32 @@ class Flow:
         self._runtime_actor_ref: Optional[RuntimeActor] = None
         # Infra configuration
         self._infra_actor_ref: Optional[InfraActor] = None
+        self._managed_primitives: List[Primitive] = []
         # NOTE: we use a list here instead of a set because we have no
         # guarantee that primitives will be cachable.
         self._primitive_cache: _PrimitiveCache = _PrimitiveCache()
+
+    def _pulumi_program(self):
+        visited_primitives = _PrimitiveCache()
+        start_primitives = _find_primitives_with_no_parents(self._managed_primitives)
+        if not start_primitives:
+            raise ValueError(
+                "Unable to build pulumi dependency tree. "
+                "Is there a cycle in your pulumi dependencies?"
+            )
+        for primitive in start_primitives:
+            creds = self._get_credentials(primitive.primitive_type)
+            _traverse_primitive_for_pulumi(
+                primitive=primitive,
+                credentials=creds,
+                initial_opts=pulumi.ResourceOptions(),
+                visited_primitives=visited_primitives,
+            )
+
+    def manage(self, *args: Primitive):
+        for primitive in args:
+            primitive.enable_managed()
+        self._managed_primitives.extend(args)
 
     def _get_infra_actor(self) -> InfraActor:
         if self._infra_actor_ref is None:
@@ -370,16 +481,8 @@ class Flow:
             primitive.enable_managed()
         return primitive
 
-    def _background_tasks(
-        self, primitive: Primitive, credentials: CredentialType
-    ) -> List[BackgroundTask]:
-        provider = primitive.background_task_provider()
-        if provider is not None:
-            return provider.background_tasks(credentials)
-        return []
-
     # NOTE: The Flow class is responsible for converting Primitives into a Provider
-    def pipeline(
+    def consumer(
         self,
         source: Primitive,
         sink: Optional[Primitive] = None,
@@ -408,7 +511,7 @@ class Flow:
         source_credentials = self._get_credentials(source.primitive_type)
         sink_credentials = self._get_credentials(sink.primitive_type)
 
-        return self._pipeline_decorator(
+        return self._consumer_decorator(
             source_primitive=source,
             sink_primitive=sink,
             processor_options=ProcessorOptions(
@@ -417,6 +520,20 @@ class Flow:
                 log_level=log_level,
                 autoscaler_options=autoscale_options,
             ),
+            source_credentials=source_credentials,
+            sink_credentials=sink_credentials,
+        )
+
+    def add_consumer(self, consumer_wrapper: _ConsumerWrapper):
+        # Set up credentials
+        source_credentials = self._get_credentials(
+            consumer_wrapper.source_primitive.primitive_type
+        )
+        sink_credentials = self._get_credentials(
+            consumer_wrapper.sink_primitive.primitive_type
+        )
+        self._consumer_processor(
+            consumer_wrapper=consumer_wrapper,
             source_credentials=source_credentials,
             sink_credentials=sink_credentials,
         )
@@ -475,7 +592,7 @@ class Flow:
             ),
         )
 
-    def add_processor(
+    def _add_processor(
         self,
         processor: ProcessorAPI,
         options: Optional[ProcessorOptions] = None,
@@ -564,7 +681,7 @@ class Flow:
 
     async def _refresh(self):
         logging.debug(f"Refreshing Infra for Flow({self.flow_id})...")
-        await self._get_infra_actor().refresh(processors=self._processors)
+        await self._get_infra_actor().refresh(pulumi_program=self._pulumi_program)
         logging.debug(f"...Finished refreshing Infra for Flow({self.flow_id})")
 
     def plan(self):
@@ -572,7 +689,7 @@ class Flow:
 
     async def _plan(self):
         logging.debug(f"Planning Infra for Flow({self.flow_id})...")
-        await self._get_infra_actor().plan(processors=self._processors)
+        await self._get_infra_actor().plan(pulumi_program=self._pulumi_program)
         logging.debug(f"...Finished planning Infra for Flow({self.flow_id})")
 
     def apply(self):
@@ -581,7 +698,7 @@ class Flow:
     async def _apply(self):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
         if self.options.infra_options.require_confirmation:
-            await self._get_infra_actor().plan(processors=self._processors)
+            await self._get_infra_actor().plan(pulumi_program=self._pulumi_program)
             print("Would you like to apply these changes?")
             response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
             while True:
@@ -598,7 +715,7 @@ class Flow:
                         'Invalid response. Enter "y (yes)" to '
                         'confirm, "n (no) to reject": '
                     )
-        await self._get_infra_actor().apply(processors=self._processors)
+        await self._get_infra_actor().apply(pulumi_program=self._pulumi_program)
         logging.debug(f"...Finished setting up Infra for Flow({self.flow_id})")
 
     def destroy(self):
@@ -606,7 +723,7 @@ class Flow:
 
     async def _destroy(self):
         logging.debug(f"Tearing down infrastructure for Flow({self.flow_id})...")
-        await self._get_infra_actor().destroy(processors=self._processors)
+        await self._get_infra_actor().destroy(pulumi_program=self._pulumi_program)
         logging.debug(
             f"...Finished tearing down infrastructure for Flow({self.flow_id})"
         )
@@ -645,9 +762,6 @@ class Flow:
                 coros.extend([self.source().teardown(), self.sink().teardown()])
                 await asyncio.gather(*coros)
 
-            full_arg_spec = type_inspect.getfullargspec(
-                original_process_fn_or_class.process
-            )
         else:
 
             def setup(self):
@@ -656,24 +770,75 @@ class Flow:
             async def teardown(self):
                 await asyncio.gather(self.source().teardown(), self.sink().teardown())
 
-            full_arg_spec = type_inspect.getfullargspec(original_process_fn_or_class)
-        return setup, teardown, full_arg_spec
+        return setup, teardown
 
-    def _input_output_type(
-        self, full_arg_spec: type_inspect.FullArgSpec
-    ) -> Tuple[Optional[Type], Optional[Type]]:
-        input_type = None
-        output_type = None
-        if (
-            len(full_arg_spec.args) > 1
-            and full_arg_spec.args[1] in full_arg_spec.annotations
-        ):
-            input_type = full_arg_spec.annotations[full_arg_spec.args[1]]
-        if "return" in full_arg_spec.annotations:
-            output_type = full_arg_spec.annotations["return"]
-        return input_type, output_type
+    def _consumer_processor(
+        self,
+        consumer_wrapper: _ConsumerWrapper,
+        source_credentials: CredentialType,
+        sink_credentials: CredentialType,
+    ):
+        setup, teardown = _lifecycle_functions(
+            consumer_wrapper.original_process_fn_or_class
+        )
+        processor_id = consumer_wrapper.original_process_fn_or_class.__name__
 
-    def _pipeline_decorator(
+        def background_tasks():
+            return _background_tasks(
+                consumer_wrapper.source_primitive, source_credentials
+            ) + _background_tasks(consumer_wrapper.sink_primitive, sink_credentials)
+
+        # Dynamically define a new class with the same structure as Processor
+        class_name = f"ConsumerProcessor{utils.uuid(max_len=8)}"
+        source_provider = consumer_wrapper.source_primitive.source_provider()
+        sink_provider = consumer_wrapper.sink_primitive.sink_provider()
+        adhoc_methods = {
+            # ConsumerProcessor methods.
+            # NOTE: We need to instantiate the source and sink strategies
+            # in the class to avoid issues passing to ray workers.
+            "source": lambda self: source_provider.source(source_credentials),
+            "sink": lambda self: sink_provider.sink(sink_credentials),
+            # ProcessorAPI methods. NOTE: process() is attached separately below
+            "setup": setup,
+            "teardown": teardown,
+            "background_tasks": lambda self: background_tasks(),
+            "__meta__": {
+                "source": consumer_wrapper.source_primitive,
+                "sink": consumer_wrapper.sink_primitive,
+            },
+            "__call__": consumer_wrapper.original_process_fn_or_class,
+        }
+        if type_inspect.isclass(consumer_wrapper.original_process_fn_or_class):
+
+            def init_processor(self, processor_id):
+                self.processor_id = processor_id
+                self.instance = consumer_wrapper.original_process_fn_or_class()
+
+            adhoc_methods["__init__"] = init_processor
+        AdHocConsumerProcessorClass = type(
+            class_name,
+            (ConsumerProcessor,),
+            adhoc_methods,
+        )
+        if not type_inspect.isclass(consumer_wrapper.original_process_fn_or_class):
+            utils.attach_method_to_class(
+                AdHocConsumerProcessorClass,
+                "process",
+                original_func=consumer_wrapper.original_process_fn_or_class,
+            )
+        else:
+            utils.attach_wrapped_method_to_class(
+                AdHocConsumerProcessorClass,
+                "process",
+                original_func=consumer_wrapper.original_process_fn_or_class.process,
+            )
+
+        processor = AdHocConsumerProcessorClass(processor_id=processor_id)
+        self._add_processor(processor, consumer_wrapper.processor_options)
+
+        return processor
+
+    def _consumer_decorator(
         self,
         source_primitive: Primitive,
         sink_primitive: Primitive,
@@ -682,130 +847,16 @@ class Flow:
         sink_credentials: CredentialType,
     ):
         def decorator_function(original_process_fn_or_class):
-            setup, teardown, full_arg_spec = self._lifecycle_functions(
-                original_process_fn_or_class
-            )
-            input_type, output_type = self._input_output_type(full_arg_spec)
-
-            processor_id = original_process_fn_or_class.__name__
-            primitive_cache = self._primitive_cache
-
-            def pulumi_resources_for_pipeline():
-                class PipelineComponentResource(pulumi.ComponentResource):
-                    def __init__(
-                        self,
-                        processor_id: str,
-                        source_primitive: Primitive,
-                        sink_primitive: Primitive,
-                    ):
-                        super().__init__(
-                            "buildflow:processor:Pipeline",
-                            f"buildflow-component-{processor_id}",
-                            None,
-                            None,
-                        )
-
-                        child_opts = pulumi.ResourceOptions(parent=self)
-                        outputs = {"processor_id": processor_id}
-
-                        # TODO: This does not handle the case where the same primitive
-                        # is used by multiple Processors. The first usage of the
-                        # primtive will create the Pulumi resource, but the second
-                        # usage will not, so the urn will not be included under this
-                        # Processor's ComponentResource. Builds the source's
-                        # pulumi.CompositeResource (if it exists)
-                        source_pulumi_provider = source_primitive.pulumi_provider()
-                        if (
-                            source_pulumi_provider is not None
-                            and source_primitive not in primitive_cache
-                        ):
-                            source_resource = _traverse_primitive_for_pulumi(
-                                primitive=source_primitive,
-                                type_=input_type,
-                                credentials=source_credentials,
-                                initial_opts=child_opts,
-                                visited_primitives=primitive_cache,
-                            )
-                            outputs["source_urn"] = source_resource.urn
-
-                        # Builds the sink's pulumi.CompositeResource (if it exists)
-                        sink_pulumi_provider = sink_primitive.pulumi_provider()
-                        if (
-                            sink_pulumi_provider is not None
-                            and sink_primitive not in primitive_cache
-                        ):
-                            sink_resource = _traverse_primitive_for_pulumi(
-                                primitive=sink_primitive,
-                                type_=output_type,
-                                credentials=sink_credentials,
-                                initial_opts=child_opts,
-                                visited_primitives=primitive_cache,
-                            )
-                            outputs["sink_urn"] = sink_resource.urn
-
-                        self.register_outputs(outputs)
-
-                return PipelineComponentResource(
-                    processor_id=processor_id,
+            return self._consumer_processor(
+                consumer_wrapper=_ConsumerWrapper(
                     source_primitive=source_primitive,
                     sink_primitive=sink_primitive,
-                )
-
-            def background_tasks():
-                return self._background_tasks(
-                    source_primitive, source_credentials
-                ) + self._background_tasks(sink_primitive, sink_credentials)
-
-            # Dynamically define a new class with the same structure as Processor
-            class_name = f"PipelineProcessor{utils.uuid(max_len=8)}"
-            source_provider = source_primitive.source_provider()
-            sink_provider = sink_primitive.sink_provider()
-            adhoc_methods = {
-                # PipelineProcessor methods.
-                # NOTE: We need to instantiate the source and sink strategies
-                # in the class to avoid issues passing to ray workers.
-                "source": lambda self: source_provider.source(source_credentials),
-                "sink": lambda self: sink_provider.sink(sink_credentials),
-                # ProcessorAPI methods. NOTE: process() is attached separately below
-                "pulumi_program": lambda self: pulumi_resources_for_pipeline(),
-                "setup": setup,
-                "teardown": teardown,
-                "background_tasks": lambda self: background_tasks(),
-                "__meta__": {
-                    "source": source_primitive,
-                    "sink": sink_primitive,
-                },
-                "__call__": original_process_fn_or_class,
-            }
-            if type_inspect.isclass(original_process_fn_or_class):
-
-                def init_processor(self, processor_id):
-                    self.processor_id = processor_id
-                    self.instance = original_process_fn_or_class()
-
-                adhoc_methods["__init__"] = init_processor
-            AdHocPipelineProcessorClass = type(
-                class_name,
-                (PipelineProcessor,),
-                adhoc_methods,
+                    processor_options=processor_options,
+                    original_process_fn_or_class=original_process_fn_or_class,
+                ),
+                source_credentials=source_credentials,
+                sink_credentials=sink_credentials,
             )
-            if not type_inspect.isclass(original_process_fn_or_class):
-                utils.attach_method_to_class(
-                    AdHocPipelineProcessorClass,
-                    "process",
-                    original_func=original_process_fn_or_class,
-                )
-            else:
-                utils.attach_wrapped_method_to_class(
-                    AdHocPipelineProcessorClass,
-                    "process",
-                    original_func=original_process_fn_or_class.process,
-                )
-
-            processor = AdHocPipelineProcessorClass(processor_id=processor_id)
-            self.add_processor(processor, processor_options)
-
-            return processor
 
         return decorator_function
 
@@ -818,59 +869,8 @@ class Flow:
         sink_credentials: CredentialType,
     ):
         def decorator_function(original_process_fn_or_class):
-            setup, teardown, full_arg_spec = self._lifecycle_functions(
-                original_process_fn_or_class
-            )
-            _, output_type = self._input_output_type(full_arg_spec)
-
+            setup, teardown = self._lifecycle_functions(original_process_fn_or_class)
             processor_id = original_process_fn_or_class.__name__
-            primitive_cache = self._primitive_cache
-
-            def pulumi_resources_for_collector():
-                class CollectorComponentResource(pulumi.ComponentResource):
-                    def __init__(
-                        self,
-                        processor_id: str,
-                        sink_primitive: Primitive,
-                    ):
-                        super().__init__(
-                            "buildflow:processor:Collector",
-                            f"buildflow-component-{processor_id}",
-                            None,
-                            None,
-                        )
-
-                        child_opts = pulumi.ResourceOptions(parent=self)
-                        outputs = {"processor_id": processor_id}
-
-                        # TODO: This does not handle the case where the same primitive
-                        # is used by multiple Processors. The first usage of the
-                        # primtive will create the Pulumi resource, but the second
-                        # usage will not, so the urn will not be included under this
-                        # Processor's ComponentResource. Builds the source's
-                        # pulumi.CompositeResource (if it exists)
-
-                        # Builds the sink's pulumi.CompositeResource (if it exists)
-                        sink_pulumi_provider = sink_primitive.pulumi_provider()
-                        if (
-                            sink_pulumi_provider is not None
-                            and sink_primitive not in primitive_cache
-                        ):
-                            sink_resource = _traverse_primitive_for_pulumi(
-                                sink_primitive,
-                                output_type,
-                                sink_credentials,
-                                child_opts,
-                                visited_primitives=primitive_cache,
-                            )
-                            outputs["sink_urn"] = sink_resource.urn
-
-                        self.register_outputs(outputs)
-
-                return CollectorComponentResource(
-                    processor_id=processor_id,
-                    sink_primitive=sink_primitive,
-                )
 
             def background_tasks():
                 return self._background_tasks(sink_primitive, sink_credentials)
@@ -879,13 +879,12 @@ class Flow:
             class_name = f"CollectorProcessor{utils.uuid(max_len=8)}"
             sink_provider = sink_primitive.sink_provider()
             adhoc_methods = {
-                # PipelineProcessor methods.
+                # CollectorProcessor methods.
                 "endpoint": lambda self: Endpoint(route, method),
                 # NOTE: We need to instantiate the sink strategies
                 # in the class to avoid issues passing to ray workers.
                 "sink": lambda self: sink_provider.sink(sink_credentials),
                 # ProcessorAPI methods. NOTE: process() is attached separately below
-                "pulumi_program": lambda self: pulumi_resources_for_collector(),
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: background_tasks(),
@@ -920,7 +919,7 @@ class Flow:
                 )
 
             processor = AdHocCollectorProcessorClass(processor_id=processor_id)
-            self.add_processor(processor, processor_options)
+            self._add_processor(processor, processor_options)
 
             return processor
 
@@ -933,38 +932,18 @@ class Flow:
         processor_options: ProcessorOptions,
     ):
         def decorator_function(original_process_fn_or_class):
-            setup, teardown, full_arg_spec = self._lifecycle_functions(
-                original_process_fn_or_class
-            )
-            _, output_type = self._input_output_type(full_arg_spec)
+            setup, teardown = self._lifecycle_functions(original_process_fn_or_class)
 
             processor_id = original_process_fn_or_class.__name__
-
-            def pulumi_resources_for_endpoint():
-                class EndpointComponentResource(pulumi.ComponentResource):
-                    def __init__(self, processor_id: str):
-                        super().__init__(
-                            "buildflow:processor:Endpoint",
-                            f"buildflow-component-{processor_id}",
-                            None,
-                            None,
-                        )
-
-                        outputs = {"processor_id": processor_id}
-
-                        self.register_outputs(outputs)
-
-                return EndpointComponentResource(processor_id=processor_id)
 
             # Dynamically define a new class with the same structure as Processor
             class_name = f"EndpointProcessor{utils.uuid(max_len=8)}"
             adhoc_methods = {
-                # PipelineProcessor methods.
+                # EndpointProcessor methods.
                 "endpoint": lambda self: Endpoint(route, method),
                 # NOTE: We need to instantiate the sink strategies
                 # in the class to avoid issues passing to ray workers.
                 # ProcessorAPI methods. NOTE: process() is attached separately below
-                "pulumi_program": lambda self: pulumi_resources_for_endpoint(),
                 "setup": setup,
                 "teardown": teardown,
                 "background_tasks": lambda self: [],
@@ -997,7 +976,7 @@ class Flow:
                 )
 
             processor = AdHocCollectorProcessorClass(processor_id=processor_id)
-            self.add_processor(processor, processor_options)
+            self._add_processor(processor, processor_options)
 
             return processor
 

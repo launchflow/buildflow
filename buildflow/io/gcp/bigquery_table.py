@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional
+from typing import Optional, Type
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
@@ -32,6 +32,7 @@ class BigQueryTable(
     destroy_protection: bool = dataclasses.field(
         default=_DEFAULT_DESTROY_PROTECTION, init=False
     )
+    schema: Optional[Type] = dataclasses.field(default=None, init=False)
 
     @property
     def table_id(self) -> BigQueryTableID:
@@ -42,15 +43,15 @@ class BigQueryTable(
     def options(
         self,
         # Pulumi management options
-        managed: bool = False,
         destroy_protection: bool = _DEFAULT_DESTROY_PROTECTION,
+        schema: Optional[Type] = None,
         # Sink options
         batch_size: int = _DEFAULT_BATCH_SIZE,
     ) -> Primitive:
-        to_ret = super().options(managed)
-        to_ret.destroy_protection = destroy_protection
-        to_ret.batch_size = batch_size
-        return to_ret
+        self.destroy_protection = destroy_protection
+        self.batch_size = batch_size
+        self.schema = schema
+        return self
 
     @classmethod
     def from_gcp_options(
@@ -82,6 +83,7 @@ class BigQueryTable(
             table_name=self.table_name,
             batch_size=self.batch_size,
             destroy_protection=self.destroy_protection,
+            schema=self.schema,
         )
 
     def _pulumi_provider(self) -> BigQueryTableProvider:
@@ -90,4 +92,5 @@ class BigQueryTable(
             table_name=self.table_name,
             batch_size=self.batch_size,
             destroy_protection=self.destroy_protection,
+            schema=self.schema,
         )

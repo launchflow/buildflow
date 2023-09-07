@@ -110,7 +110,7 @@ def get_field_default_value(field) -> Tuple[str, str]:
     return default_value, imports
 
 
-def generate_pipeline_template(
+def generate_consumer_template(
     source_class_name: str,
     sink_class_name: str,
     file_name: str = "main",
@@ -201,9 +201,9 @@ sink = {sink_class_name}(
 )
 
 
-# Attach a Pipeline to the Flow
-@app.pipeline(source=source, sink=sink)
-def my_pipeline(event: InputSchema) -> OutputSchema:
+# Attach a Consumer to the Flow
+@app.consumer(source=source, sink=sink)
+def my_consumer(event: InputSchema) -> OutputSchema:
     return OutputSchema(event.TODO)
 """
 
