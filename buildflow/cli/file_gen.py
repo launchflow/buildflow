@@ -195,7 +195,6 @@ app = Flow()
 # TODO: uncomment if you want pulumi to manage the source and sink resources.
 # app.manage(source, sink)
 
-
 # Attach a Consumer to the Flow
 @app.consumer(source=source, sink=sink)
 def my_consumer(event: InputSchema) -> OutputSchema:
@@ -268,7 +267,6 @@ class OutputSchema:
     TODO: str
 
 
-app = Flow()
 
 
 sink = {sink_class_name}(
@@ -277,6 +275,10 @@ sink = {sink_class_name}(
     # TODO: uncomment if you want Pulumi to manage the sink's resource(s)
     # managed=True,
 )
+
+app = Flow()
+# TODO: uncomment if you want pulumi to manage the sink resources.
+# app.manage(sink)
 
 
 # Attach a Collector to the Flow

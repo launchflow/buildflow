@@ -583,6 +583,23 @@ class Flow:
             primitive.enable_managed()
         self._managed_primitives.extend(args)
 
+    def _pulumi_program(self):
+        visited_primitives = _PrimitiveCache()
+        start_primitives = _find_primitives_with_no_parents(self._managed_primitives)
+        if not start_primitives:
+            raise ValueError(
+                "Unable to build pulumi dependency tree. "
+                "Is there a cycle in your pulumi dependencies?"
+            )
+        for primitive in start_primitives:
+            creds = self._get_credentials(primitive.primitive_type)
+            _traverse_primitive_for_pulumi(
+                primitive=primitive,
+                credentials=creds,
+                initial_opts=pulumi.ResourceOptions(),
+                visited_primitives=visited_primitives,
+            )
+
     def _get_infra_actor(self) -> InfraActor:
         if self._infra_actor_ref is None:
             self._infra_actor_ref = InfraActor(
