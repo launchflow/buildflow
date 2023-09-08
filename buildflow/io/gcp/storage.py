@@ -69,12 +69,19 @@ class GCSBucket(
         project_hash = utils.stable_hash(project_id)
         if bucket_name is None:
             bucket_name = f"buildflow_{project_hash[:8]}"
+        bucket = cls(
+            project_id=project_id,
+            bucket_name=bucket_name,
+            file_path=file_path,
+            file_format=file_format,
+        ).options(bucket_region=region)
+        bucket.enable_managed()
         return cls(
             project_id=project_id,
             bucket_name=bucket_name,
             file_path=file_path,
             file_format=file_format,
-        ).options(managed=True, bucket_region=region)
+        ).options(bucket_region=region)
 
     def options(
         self,

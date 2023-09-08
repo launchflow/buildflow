@@ -66,8 +66,6 @@ class Primitive(Generic[PPT, SOT, SIT, BTT]):
 
 class PortablePrimtive(Primitive):
     primitive_type = PrimitiveType.PORTABLE
-    # Portable primitives are always managed.
-    _managed: bool = True
 
     def to_cloud_primitive(
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
@@ -76,12 +74,6 @@ class PortablePrimtive(Primitive):
         raise NotImplementedError(
             "PortablePrimtive.to_cloud_primitive() is not implemented."
         )
-
-
-class CompositePrimitive(Primitive):
-    # Composite primitives are always managed.
-    # They defer to their underlying primitives on what should actually be managed.
-    _managed: bool = True
 
 
 class GCPPrimtive(Primitive[PPT, SOT, SIT, BTT]):

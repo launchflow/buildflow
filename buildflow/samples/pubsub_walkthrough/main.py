@@ -19,7 +19,6 @@ input_source = GCPPubSubSubscription(
     project_id=gcp_project,
     subscription_name="taxi_rides",
 ).options(
-    managed=True,
     topic=GCPPubSubTopic(
         project_id="pubsub-public-data", topic_name="taxirides-realtime"
     ),
@@ -28,9 +27,9 @@ input_source = GCPPubSubSubscription(
 output_table = BigQueryTable(
     BigQueryDataset(
         project_id=gcp_project, dataset_name="buildflow_pubsub_to_bigquery_test"
-    ).options(managed=True),
+    ),
     table_name=bigquery_table,
-).options(managed=True, destroy_protection=False)
+).options(destroy_protection=False)
 
 
 # Define an output type for our consumer.
@@ -50,6 +49,8 @@ class TaxiOutput:
 
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
+
+app.manage(input_source, output_table)
 
 
 # Define our processor.

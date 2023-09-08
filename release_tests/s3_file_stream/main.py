@@ -37,7 +37,6 @@ snowflake_bucket = os.getenv("SNOWFLAKE_BUCKET", "caleb-s3-snowflake-bucket")
 
 source = S3FileChangeStream(
     s3_bucket=S3Bucket(bucket_name=bucket_name, aws_region="us-east-1").options(
-        managed=True,
         force_destroy=True,
     ),
     event_types=[
@@ -50,12 +49,15 @@ sink = SnowflakeTable(
     database="snowflake-database",
     schema="snowflake-schema",
     bucket=S3Bucket(bucket_name=snowflake_bucket, aws_region="us-east-1").options(
-        managed=True, force_destroy=True
+        force_destroy=True
     ),
     account=os.environ["SNOWFLAKE_ACCOUNT"],
     user=os.environ["SNOWFLAKE_USER"],
     private_key=pk_text,
-).options(managed=True, database_managed=True, schema_managed=True)
+).options(database_managed=True, schema_managed=True)
+
+
+app.manage(source, sink)
 
 
 # Nested dataclasses can be used inside of your schemas.

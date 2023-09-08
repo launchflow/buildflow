@@ -122,6 +122,37 @@ class FileStreamLocalTest(unittest.TestCase):
         finally:
             shutil.rmtree(output_dir)
 
+    def test_file_stream_duckdb_end_to_end_unattached(self):
+        app = buildflow.Flow()
+
+        @buildflow.consumer(
+            source=FileChangeStream(file_path=self.dir_to_watch),
+            sink=AnalysisTable(table_name=self.table),
+            num_cpus=0.5,
+        )
+        def my_consumer(event: FileChangeEvent) -> Dict[str, str]:
+            return event.metadata
+
+        app.add_consumer(my_consumer)
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        create_path = os.path.join(self.dir_to_watch, "file.txt")
+        with open(create_path, "w") as f:
+            f.write("hello")
+
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
+        conn = duckdb.connect(database=database, read_only=True)
+        got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
+
+        self.assertEqual(got_data[0], 1)
+        self.get_async_result(app._drain())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,11 +20,14 @@ from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool import (
     ConsumerProcessorReplicaPoolActor,
 )
 from buildflow.core.app.runtime.actors.endpoint_pattern.endpoint_pool import (
-    EndpointProcessorPoolActor,
+    EndpointProcessorGroupPoolActor,
 )
-from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
+from buildflow.core.app.runtime.actors.process_pool import ProcessorGroupSnapshot
 from buildflow.core.options.runtime_options import RuntimeOptions
-from buildflow.core.processor.processor import ProcessorAPI, ProcessorType
+from buildflow.core.processor.processor import (
+    ProcessorGroup,
+    ProcessorType,
+)
 
 
 @dataclasses.dataclass
@@ -33,7 +36,7 @@ class RuntimeSnapshot(Snapshot):
     status: RuntimeStatus
     timestamp_millis: int
     # fields specific to this snapshot class
-    processors: List[ProcessorSnapshot]
+    processors: List[ProcessorGroupSnapshot]
 
     def as_dict(self):
         return {
@@ -44,9 +47,9 @@ class RuntimeSnapshot(Snapshot):
 
 
 @dataclasses.dataclass
-class ProcessPoolReference:
+class ProcessorGroupPoolReference:
     actor_handle: ActorHandle
-    processor: ProcessorAPI
+    processor_group: ProcessorGroup
 
 
 @ray.remote(num_cpus=0.1)
@@ -66,58 +69,61 @@ class RuntimeActor(Runtime):
         self.options = runtime_options
         # initial runtime state
         self._status = RuntimeStatus.IDLE
-        self._processor_pool_refs: List[ProcessPoolReference] = []
+        self._processor_group_pool_refs: List[ProcessorGroupPoolReference] = []
         self._runtime_loop_future = None
 
     def _set_status(self, status: RuntimeStatus):
         self._status = status
 
-    def _start_processor(self, processor: ProcessorAPI):
-        processor_options = self.options.processor_options[processor.processor_id]
-        if processor.processor_type == ProcessorType.CONSUMER:
-            processor_pool_ref = ProcessPoolReference(
+    def _start_processor_group(self, group: ProcessorGroup):
+        processor_options = self.options.processor_options[group.group_id]
+        if group.group_type == ProcessorType.CONSUMER:
+            processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=ConsumerProcessorReplicaPoolActor.remote(
                     self.run_id,
-                    processor,
+                    group,
                     processor_options,
                 ),
-                processor=processor,
+                processor_group=group,
             )
-        elif processor.processor_type == ProcessorType.COLLECTOR:
-            processor_pool_ref = ProcessPoolReference(
+        elif group.group_type == ProcessorType.COLLECTOR:
+            processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=CollectorProcessorPoolActor.remote(
                     self.run_id,
-                    processor,
+                    group,
                     processor_options,
                 ),
-                processor=processor,
+                processor_group=group,
             )
-        elif processor.processor_type == ProcessorType.CONNECTION:
-            raise NotImplementedError("Connection Processors are not yet supported.")
-        elif processor.processor_type == ProcessorType.ENDPOINT:
-            processor_pool_ref = ProcessPoolReference(
-                actor_handle=EndpointProcessorPoolActor.remote(
-                    self.run_id, processor, processor_options
+        elif group.group_type == ProcessorType.CONNECTION:
+            raise ValueError("Collector processor groups are not supported")
+        elif group.group_type == ProcessorType.ENDPOINT:
+            processor_pool_group_ref = ProcessorGroupPoolReference(
+                actor_handle=EndpointProcessorGroupPoolActor.remote(
+                    self.run_id,
+                    group,
+                    processor_options,
                 ),
-                processor=processor,
+                processor_group=group,
             )
         else:
-            raise ValueError(f"Unknown ProcessorType: {processor.processor_type}")
-        processor_pool_ref.actor_handle.run.remote()
-        return processor_pool_ref
+            raise ValueError(f"Unknown group type: {group.group_type}")
+        processor_pool_group_ref.actor_handle.run.remote()
+        return processor_pool_group_ref
 
-    async def run(self, *, processors: Iterable[ProcessorAPI]):
+    async def run(
+        self,
+        *,
+        processor_groups: Iterable[ProcessorGroup],
+    ):
         logging.info("Starting Runtime...")
         if self._status != RuntimeStatus.IDLE:
             raise RuntimeError("Can only start an Idle Runtime.")
         self._set_status(RuntimeStatus.RUNNING)
-        self._processor_pool_refs = []
-        for processor in processors:
-            # TODO: these can fail when the converter isn't provided correctly.
-            # i.e. a user provides a type that we don't know how to convert for a source
-            # or sink. Right now we just log the error but keep trying.
-            process_pool_ref = self._start_processor(processor)
-            self._processor_pool_refs.append(process_pool_ref)
+        self._processor_group_pool_refs = []
+        for processor_group in processor_groups:
+            process_group_pool_ref = self._start_processor_group(processor_group)
+            self._processor_group_pool_refs.append(process_group_pool_ref)
 
         self._runtime_loop_future = self._runtime_checkin_loop()
 
@@ -126,7 +132,7 @@ class RuntimeActor(Runtime):
             logging.warning("Received drain single twice. Killing remaining actors.")
             [
                 ray.kill(processor_pool.actor_handle)
-                for processor_pool in self._processor_pool_refs
+                for processor_pool in self._processor_group_pool_refs
             ]
             # Kill the runtime actor to stop the even loop.
             ray.actor.exit_actor()
@@ -136,7 +142,7 @@ class RuntimeActor(Runtime):
             self._set_status(RuntimeStatus.DRAINING)
             drain_tasks = [
                 processor_pool.actor_handle.drain.remote()
-                for processor_pool in self._processor_pool_refs
+                for processor_pool in self._processor_group_pool_refs
             ]
             await asyncio.gather(*drain_tasks)
             self._set_status(RuntimeStatus.IDLE)
@@ -145,7 +151,7 @@ class RuntimeActor(Runtime):
 
     async def status(self):
         if self._status == RuntimeStatus.DRAINING:
-            for processor_pool in self._processor_pool_refs:
+            for processor_pool in self._processor_group_pool_refs:
                 if (
                     await processor_pool.actor_handle.status.remote()
                     != RuntimeStatus.IDLE
@@ -157,7 +163,7 @@ class RuntimeActor(Runtime):
     async def snapshot(self):
         snapshot_tasks = [
             processor_pool.actor_handle.snapshot.remote()
-            for processor_pool in self._processor_pool_refs
+            for processor_pool in self._processor_group_pool_refs
         ]
         processor_snapshots = await asyncio.gather(*snapshot_tasks)
         return RuntimeSnapshot(
@@ -188,7 +194,7 @@ class RuntimeActor(Runtime):
             or self._status == RuntimeStatus.DRAINING
         ):
             scaling_coros = []
-            for processor_pool in self._processor_pool_refs:
+            for processor_pool in self._processor_group_pool_refs:
                 try:
                     # Check to see if our processpool actor needs to be restarted.
                     await processor_pool.actor_handle.status.remote()
@@ -196,12 +202,12 @@ class RuntimeActor(Runtime):
                     logging.exception("process actor unexpectedly died. will restart.")
                     if self._status == RuntimeStatus.RUNNING:
                         # Only restart if we are running, otherwise we are draining
-                        new_processor_ref = self._start_processor(
-                            processor_pool.processor
+                        new_processor_ref = self._start_processor_group(
+                            processor_pool.processor_group
                         )
                         processor_pool.actor_handle = new_processor_ref.actor_handle
                 processor_options = self.options.processor_options[
-                    processor_pool.processor.processor_id
+                    processor_pool.processor_group.group_id
                 ]
                 autoscale_frequency = timedelta(
                     seconds=processor_options.autoscaler_options.autoscale_frequency_secs
@@ -216,7 +222,6 @@ class RuntimeActor(Runtime):
                     scaling_coros.append(processor_pool.actor_handle.scale.remote())
                     last_autoscale_event = time.monotonic()
             if scaling_coros:
-                # TODO: add a try catch here
                 try:
                     await asyncio.gather(*scaling_coros)
                 except Exception:

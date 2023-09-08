@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import math
 from typing import Optional
@@ -6,9 +7,9 @@ import ray
 from ray.autoscaler.sdk import request_resources
 
 from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool_snapshot import (
-    ConsumerProcessorSnapshot,
+    ConsumerProcessorGroupSnapshot,
 )
-from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
+from buildflow.core.app.runtime.actors.process_pool import ProcessorGroupSnapshot
 from buildflow.core.options.runtime_options import AutoscalerOptions
 from buildflow.core.processor.processor import ProcessorType
 
@@ -19,10 +20,34 @@ def _available_replicas(cpu_per_replica: float):
     return int(num_cpus / cpu_per_replica)
 
 
+@dataclasses.dataclass
+class _CombinedMetrics:
+    backlog: int
+    throughput: float
+    avg_replica_cpu_percentage: float
+
+    @classmethod
+    def from_snapshot(cls, snapshot: ConsumerProcessorGroupSnapshot):
+        backlog = sum(s.source_backlog for s in snapshot.processor_snapshots.values())
+        throughput = sum(
+            s.total_events_processed_per_sec
+            for s in snapshot.processor_snapshots.values()
+        )
+        avg_replica_cpu_percentage = sum(
+            s.avg_cpu_percentage_per_replica
+            for s in snapshot.processor_snapshots.values()
+        ) / len(snapshot.processor_snapshots)
+        return cls(
+            backlog=backlog,
+            throughput=throughput,
+            avg_replica_cpu_percentage=avg_replica_cpu_percentage,
+        )
+
+
 def _calculate_target_num_replicas_for_consumer_v2(
     *,
-    current_snapshot: ConsumerProcessorSnapshot,
-    prev_snapshot: Optional[ConsumerProcessorSnapshot],
+    current_snapshot: ConsumerProcessorGroupSnapshot,
+    prev_snapshot: Optional[ConsumerProcessorGroupSnapshot],
     config: AutoscalerOptions,
 ):
     """The autoscaler used by the consumer runtime.
@@ -102,12 +127,16 @@ def _calculate_target_num_replicas_for_consumer_v2(
 
     """
     cpus_per_replica = current_snapshot.num_cpu_per_replica
-    backlog = current_snapshot.source_backlog
     num_replicas = current_snapshot.num_replicas
-    throughput = current_snapshot.total_events_processed_per_sec
+    current_metrics = _CombinedMetrics.from_snapshot(current_snapshot)
+    backlog = current_metrics.backlog
+    throughput = current_metrics.throughput
     throughput_per_replica = throughput / num_replicas
-    avg_replica_cpu_percentage = current_snapshot.avg_cpu_percentage_per_replica
+    avg_replica_cpu_percentage = current_metrics.avg_replica_cpu_percentage
     available_replicas = _available_replicas(cpus_per_replica)
+    previous_metrics = None
+    if prev_snapshot is not None:
+        previous_metrics = _CombinedMetrics.from_snapshot(prev_snapshot)
 
     logging.debug("-------------------------AUTOSCALER----------------------\n")
     logging.debug("config max replicas: %s", config.max_replicas)
@@ -135,19 +164,14 @@ def _calculate_target_num_replicas_for_consumer_v2(
     # Minor backlog event. This happens when the consumer is just slightly behind during
     # it's normal operation. We only perform this check if our current replicas are
     # fully utlized.
-    elif (
-        prev_snapshot is not None
-        and prev_snapshot.source_backlog < current_snapshot.source_backlog
-    ):
+    elif previous_metrics is not None and previous_metrics.backlog < backlog:
         # This if block is nested to avoid triggering a down scale.
         if avg_replica_cpu_percentage > config.consumer_cpu_percent_target:
             time_gap_ms = (
                 current_snapshot.timestamp_millis - prev_snapshot.timestamp_millis
             )
             logging.debug("backlog gap ms : %s", time_gap_ms)
-            backlog_growth = (
-                current_snapshot.source_backlog - prev_snapshot.source_backlog
-            )
+            backlog_growth = backlog - previous_metrics.backlog
             logging.debug("backlog growth: %s", backlog_growth)
             backlog_growth_per_sec = backlog_growth / (time_gap_ms / 1000)
             want_throughput = throughput + backlog_growth_per_sec
@@ -208,21 +232,21 @@ def _calculate_target_num_replicas_for_consumer_v2(
 
 def calculate_target_num_replicas(
     *,
-    current_snapshot: ProcessorSnapshot,
-    prev_snapshot: Optional[ProcessorSnapshot],
+    current_snapshot: ProcessorGroupSnapshot,
+    prev_snapshot: Optional[ProcessorGroupSnapshot],
     config: AutoscalerOptions,
 ):
-    if current_snapshot.processor_type == ProcessorType.CONSUMER:
+    if current_snapshot.group_type == ProcessorType.CONSUMER:
         return _calculate_target_num_replicas_for_consumer_v2(
             current_snapshot=current_snapshot,
             prev_snapshot=prev_snapshot,
             config=config,
         )
-    elif current_snapshot.processor_type == ProcessorType.COLLECTOR:
+    elif current_snapshot.group_type == ProcessorType.COLLECTOR:
         raise NotImplementedError("Collector autoscaling not implemented yet")
-    elif current_snapshot.processor_type == ProcessorType.CONNECTION:
+    elif current_snapshot.group_type == ProcessorType.CONNECTION:
         raise NotImplementedError("Connection autoscaling not implemented yet")
-    elif current_snapshot.processor_type == ProcessorType.ENDPOINT:
+    elif current_snapshot.group_type == ProcessorType.ENDPOINT:
         raise NotImplementedError("Service autoscaling not implemented yet")
     else:
         raise ValueError(f"Unknown processor type: {current_snapshot.processor_type}")
