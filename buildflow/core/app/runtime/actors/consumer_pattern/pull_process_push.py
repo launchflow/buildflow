@@ -3,6 +3,7 @@ import dataclasses
 import logging
 import os
 import time
+from typing import Dict
 
 import psutil
 import ray
@@ -17,6 +18,7 @@ from buildflow.core.app.runtime.metrics import (
     process_time_counter,
 )
 from buildflow.core.processor.patterns.consumer import ConsumerProcessor
+from buildflow.core.processor.processor import ProcessorGroup
 from buildflow.core.processor.utils import process_types
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
@@ -34,9 +36,7 @@ from buildflow.core.processor.utils import process_types
 
 
 @dataclasses.dataclass
-class PullProcessPushSnapshot(Snapshot):
-    status: RuntimeStatus
-    timestamp_millis: int
+class IndividualProcessorMetrics:
     events_processed_per_sec: RateCalculation
     pull_percentage: RateCalculation
     process_time_millis: RateCalculation
@@ -46,8 +46,6 @@ class PullProcessPushSnapshot(Snapshot):
 
     def as_dict(self) -> dict:
         return {
-            "status": self.status.name,
-            "timestamp_millis": self.timestamp_millis,
             "events_processed_per_sec": self.events_processed_per_sec.total_value_rate(),  # noqa: E501
             "pull_percentage": self.pull_percentage.total_count_rate(),
             "process_time_millis": self.process_time_millis.average_value_rate(),
@@ -57,12 +55,28 @@ class PullProcessPushSnapshot(Snapshot):
         }
 
 
+@dataclasses.dataclass
+class PullProcessPushSnapshot(Snapshot):
+    status: RuntimeStatus
+    timestamp_millis: int
+    processor_metrics: Dict[str, IndividualProcessorMetrics]
+
+    def as_dict(self) -> dict:
+        snapshot_dict = {
+            "status": self.status.name,
+            "timestamp_millis": self.timestamp_millis,
+        }
+        for processor_id, processor_metrics in self.processor_metrics.items():
+            snapshot_dict[processor_id] = processor_metrics.as_dict()
+        return snapshot_dict
+
+
 @ray.remote
 class PullProcessPushActor(Runtime):
     def __init__(
         self,
         run_id: RunID,
-        processor: ConsumerProcessor,
+        processor_group: ProcessorGroup[ConsumerProcessor],
         *,
         replica_id: ReplicaID,
         log_level: str = "INFO",
@@ -73,10 +87,7 @@ class PullProcessPushActor(Runtime):
 
         # setup
         self.run_id = run_id
-        self.processor = processor
-        # NOTE: This is where the setup Processor lifecycle method is called.
-        # TODO: Support Depends use case
-        self.processor.setup()
+        self.processor_group = processor_group
 
         # validation
         # TODO: Validate that the schemas & types are all compatible
@@ -88,59 +99,66 @@ class PullProcessPushActor(Runtime):
         self._last_snapshot_time = time.monotonic()
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
-        self.num_events_processed = num_events_processed(
-            processor_id=self.processor.processor_id,
-            job_id=job_id,
-            run_id=self.run_id,
-        )
-        self.process_time_counter = process_time_counter(
-            processor_id=self.processor.processor_id,
-            job_id=job_id,
-            run_id=self.run_id,
-        )
+        self.num_events_processed = {}
+        self.process_time_counter = {}
+        self.pull_percentage_counter = {}
+        self.batch_time_counter = {}
+        self.total_time_counter = {}
+        self.cpu_percentage = {}
+        for processor in self.processor_group.processors:
+            processor_id = processor.processor_id
+            processor.setup()
+            self.num_events_processed[processor_id] = num_events_processed(
+                processor_id=processor_id,
+                job_id=job_id,
+                run_id=self.run_id,
+            )
+            self.process_time_counter[processor_id] = process_time_counter(
+                processor_id=processor_id,
+                job_id=job_id,
+                run_id=self.run_id,
+            )
 
-        self._pull_percentage_counter = CompositeRateCounterMetric(
-            "pull_percentage",
-            description="Percentage of the batch size that was pulled. Goes up and down.",  # noqa: E501
-            default_tags={
-                "processor_id": processor.processor_id,
-                "JobId": job_id,
-                "RunId": self.run_id,
-            },
-        )
+            self.pull_percentage_counter[processor_id] = CompositeRateCounterMetric(
+                "pull_percentage",
+                description="Percentage of the batch size that was pulled. Goes up and down.",  # noqa: E501
+                default_tags={
+                    "processor_id": processor_id,
+                    "JobId": job_id,
+                    "RunId": self.run_id,
+                },
+            )
 
-        self.batch_time_counter = CompositeRateCounterMetric(
-            "batch_time",
-            description="Current batch process time of the actor. Goes up and down.",
-            default_tags={
-                "processor_id": processor.processor_id,
-                "JobId": job_id,
-                "RunId": self.run_id,
-            },
-        )
-        self.total_time_counter = CompositeRateCounterMetric(
-            "total_time",
-            description="Current total process time of the actor. Goes up and down.",
-            default_tags={
-                "processor_id": processor.processor_id,
-                "JobId": job_id,
-                "RunId": self.run_id,
-            },
-        )
-        self.cpu_percentage = CompositeRateCounterMetric(
-            "cpu_percentage",
-            description="Current CPU percentage of a replica. Goes up and down.",
-            default_tags={
-                "processor_id": processor.processor_id,
-                "JobId": job_id,
-                "RunId": self.run_id,
-                "ReplicaID": self._replica_id,
-            },
-        )
+            self.batch_time_counter[processor_id] = CompositeRateCounterMetric(
+                "batch_time",
+                description="Current batch process time of the actor. Goes up and down.",
+                default_tags={
+                    "processor_id": processor_id,
+                    "JobId": job_id,
+                    "RunId": self.run_id,
+                },
+            )
+            self.total_time_counter[processor_id] = CompositeRateCounterMetric(
+                "total_time",
+                description="Current total process time of the actor. Goes up and down.",
+                default_tags={
+                    "processor_id": processor_id,
+                    "JobId": job_id,
+                    "RunId": self.run_id,
+                },
+            )
+            self.cpu_percentage[processor_id] = CompositeRateCounterMetric(
+                "cpu_percentage",
+                description="Current CPU percentage of a replica. Goes up and down.",
+                default_tags={
+                    "processor_id": processor_id,
+                    "JobId": job_id,
+                    "RunId": self.run_id,
+                    "ReplicaID": self._replica_id,
+                },
+            )
 
     async def run(self):
-        pid = os.getpid()
-        proc = psutil.Process(pid)
         if self._status == RuntimeStatus.IDLE:
             logging.info("Starting PullProcessPushActor...")
             self._status = RuntimeStatus.RUNNING
@@ -150,13 +168,28 @@ class PullProcessPushActor(Runtime):
 
         logging.debug("Starting Thread...")
         self._num_running_threads += 1
+        tasks = []
+        for processor in self.processor_group.processors:
+            tasks.append(asyncio.create_task(self._run_processor(processor)))
+        await asyncio.gather(*tasks)
+        self._num_running_threads -= 1
+        if self._num_running_threads == 0:
+            self._status = RuntimeStatus.IDLE
+            logging.info("PullProcessPushActor Complete.")
 
-        input_type, output_type = process_types(self.processor)
-        source = self.processor.source()
-        sink = self.processor.sink()
+        logging.debug("Thread Complete.")
+
+    async def _run_processor(self, processor: ConsumerProcessor):
+        processor_id = processor.processor_id
+        pid = os.getpid()
+        proc = psutil.Process(pid)
+
+        input_type, output_type = process_types(processor)
+        source = processor.source()
+        sink = processor.sink()
         pull_converter = source.pull_converter(input_type)
         push_converter = sink.push_converter(output_type)
-        process_fn = self.processor.process
+        process_fn = processor.process
 
         async def process_element(element):
             results = await process_fn(pull_converter(element))
@@ -169,7 +202,6 @@ class PullProcessPushActor(Runtime):
                 return push_converter(results)
 
         max_batch_size = source.max_batch_size()
-        logging.info("ready to receive data...")
         while self._status == RuntimeStatus.RUNNING:
             # Add a small sleep here so none async sources can yield
             # otherwise drain signals never get received.
@@ -184,19 +216,19 @@ class PullProcessPushActor(Runtime):
                 logging.exception("pull failed")
                 continue
             if not response.payload:
-                self._pull_percentage_counter.empty_inc()
+                self.pull_percentage_counter[processor_id].empty_inc()
                 cpu_percent = proc.cpu_percent()
                 if cpu_percent > 0.0:
-                    self.cpu_percentage.inc(cpu_percent)
+                    self.cpu_percentage[processor_id].inc(cpu_percent)
                 else:
-                    self.cpu_percentage.empty_inc()
+                    self.cpu_percentage[processor_id].empty_inc()
                 continue
             # PROCESS
             process_success = True
             process_start_time = time.monotonic()
 
             if max_batch_size > 0:
-                self._pull_percentage_counter.inc(
+                self.pull_percentage_counter[processor_id].inc(
                     len(response.payload) / source.max_batch_size()
                 )
             try:
@@ -217,13 +249,13 @@ class PullProcessPushActor(Runtime):
                 batch_process_time_millis = (
                     time.monotonic() - process_start_time
                 ) * 1000
-                self.batch_time_counter.inc(
+                self.batch_time_counter[processor_id].inc(
                     (time.monotonic() - process_start_time) * 1000
                 )
                 element_process_time_millis = batch_process_time_millis / len(
                     response.payload
                 )
-                self.process_time_counter.inc(element_process_time_millis)
+                self.process_time_counter[processor_id].inc(element_process_time_millis)
 
                 # PUSH
                 if batch_results:
@@ -243,22 +275,17 @@ class PullProcessPushActor(Runtime):
                     # doesn't die.
                     logging.exception("failed to ack batch, will continue")
                     continue
-            self.num_events_processed.inc(len(response.payload))
+            self.num_events_processed[processor_id].inc(len(response.payload))
             # DONE -> LOOP
-            self.total_time_counter.inc((time.monotonic() - total_start_time) * 1000)
+            self.total_time_counter[processor_id].inc(
+                (time.monotonic() - total_start_time) * 1000
+            )
             cpu_percent = proc.cpu_percent()
             if cpu_percent > 0.0:
                 # Ray doesn't like it when we try to set a metric to 0
-                self.cpu_percentage.inc(cpu_percent)
+                self.cpu_percentage[processor_id].inc(cpu_percent)
             else:
-                self.cpu_percentage.empty_inc()
-
-        self._num_running_threads -= 1
-        if self._num_running_threads == 0:
-            self._status = RuntimeStatus.IDLE
-            logging.info("PullProcessPushActor Complete.")
-
-        logging.debug("Thread Complete.")
+                self.cpu_percentage[processor_id].empty_inc()
 
     async def status(self):
         # TODO: Have this method count the number of active threads
@@ -273,15 +300,31 @@ class PullProcessPushActor(Runtime):
         return True
 
     async def snapshot(self):
+        individual_metrics = {}
+        for processor in self.processor_group.processors:
+            processor_id = processor.processor_id
+            individual_metrics[processor_id] = IndividualProcessorMetrics(
+                events_processed_per_sec=self.num_events_processed[
+                    processor_id
+                ].calculate_rate(),
+                pull_percentage=self.pull_percentage_counter[
+                    processor_id
+                ].calculate_rate(),
+                process_time_millis=self.process_time_counter[
+                    processor_id
+                ].calculate_rate(),
+                process_batch_time_millis=self.batch_time_counter[
+                    processor_id
+                ].calculate_rate(),
+                pull_to_ack_time_millis=self.total_time_counter[
+                    processor_id
+                ].calculate_rate(),
+                cpu_percentage=self.cpu_percentage[processor_id].calculate_rate(),
+            )
         snapshot = PullProcessPushSnapshot(
             status=self._status,
             timestamp_millis=utils.timestamp_millis(),
-            events_processed_per_sec=self.num_events_processed.calculate_rate(),  # noqa: E501
-            pull_percentage=self._pull_percentage_counter.calculate_rate(),
-            process_time_millis=self.process_time_counter.calculate_rate(),
-            process_batch_time_millis=self.batch_time_counter.calculate_rate(),
-            pull_to_ack_time_millis=self.total_time_counter.calculate_rate(),
-            cpu_percentage=self.cpu_percentage.calculate_rate(),
+            processor_metrics=individual_metrics,
         )
         # reset the counters
         self._last_snapshot_time = time.monotonic()

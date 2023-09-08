@@ -9,7 +9,7 @@ from buildflow.io.gcp.providers.gcs_file_change_stream import (
 from buildflow.io.gcp.pubsub_subscription import GCPPubSubSubscription
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
 from buildflow.io.gcp.storage import GCSBucket
-from buildflow.io.primitive import CompositePrimitive, GCPPrimtive
+from buildflow.io.primitive import GCPPrimtive
 from buildflow.types.gcp import GCSChangeStreamEventType
 
 
@@ -25,7 +25,6 @@ class GCSFileChangeStream(
         # Background task provider type
         None,
     ],
-    CompositePrimitive,
 ):
     gcs_bucket: GCSBucket
     event_types: Iterable[GCSChangeStreamEventType] = (
@@ -40,13 +39,13 @@ class GCSFileChangeStream(
             project_id=self.gcs_bucket.project_id,
             subscription_name=f"{self.gcs_bucket.bucket_name}_subscription",
         ).options(
-            managed=True,
             topic=GCPPubSubTopic(
                 self.gcs_bucket.project_id,
                 topic_name=f"{self.gcs_bucket.bucket_name}_topic",
-            ).options(managed=True),
+            ),
             include_attributes=True,
         )
+        self.pubsub_subscription.enable_managed()
 
     @classmethod
     def from_gcp_options(
@@ -56,9 +55,8 @@ class GCSFileChangeStream(
         bucket_name: BucketName,
         event_types: Iterable[GCSChangeStreamEventType],
     ) -> "GCSFileChangeStream":
-        gcs_bucket = GCSBucket.from_gcp_options(
-            gcp_options, bucket_name=bucket_name
-        ).options(managed=True)
+        gcs_bucket = GCSBucket.from_gcp_options(gcp_options, bucket_name=bucket_name)
+        gcs_bucket.enable_managed()
         return cls(gcs_bucket=gcs_bucket, event_types=event_types)
 
     def source_provider(self) -> GCSFileChangeStreamProvider:

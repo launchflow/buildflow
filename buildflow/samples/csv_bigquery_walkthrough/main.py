@@ -27,7 +27,6 @@ source = GCSFileChangeStream(
         project_id=gcp_project,
         bucket_name=bucket_name,
     ).options(
-        managed=True,
         force_destroy=True,
         bucket_region="US",
     ),
@@ -37,7 +36,7 @@ source = GCSFileChangeStream(
 sink = BigQueryTable(
     BigQueryDataset(project_id=gcp_project, dataset_name=dataset).options(managed=True),
     table_name=bigquery_table,
-).options(managed=True, destroy_protection=False)
+).options(destroy_protection=False)
 
 
 # Nested dataclasses can be used inside of your schemas.
@@ -65,6 +64,7 @@ app = buildflow.Flow(
         require_confirmation=False, runtime_log_level="DEBUG"
     )
 )
+app.manage(source, sink)
 
 
 # Define our processor.

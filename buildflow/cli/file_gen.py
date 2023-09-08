@@ -184,21 +184,16 @@ class OutputSchema:
     TODO: str
 
 
-app = Flow()
-
-
 source = {source_class_name}(
     {source_fields}
-).options(
-    # TODO: uncomment if you want Pulumi to manage the source's resource(s)
-    # managed=True,
 )
 sink = {sink_class_name}(
     {sink_fields}
-).options(
-    # TODO: uncomment if you want Pulumi to manage the sink's resource(s)
-    # managed=True,
 )
+
+app = Flow()
+# TODO: uncomment if you want pulumi to manage the source and sink resources.
+# app.manage(source, sink)
 
 
 # Attach a Consumer to the Flow

@@ -94,7 +94,7 @@ class BigQueryTest(unittest.TestCase):
         bigquery_table = BigQueryTable(
             BigQueryDataset(project_id="project_id", dataset_name="dataset_name"),
             table_name="table_name",
-        )
+        ).options(schema=FakeRow, destroy_protection=False)
 
         bigquery_resource = bigquery_table._pulumi_provider().pulumi_resource(
             credentials=EmptyCredentials(None),

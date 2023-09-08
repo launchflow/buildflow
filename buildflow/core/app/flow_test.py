@@ -9,7 +9,6 @@ import pulumi
 
 from buildflow.core.app.flow import Flow
 from buildflow.core.processor.patterns.consumer import ConsumerProcessor
-from buildflow.io.aws.sqs import SQSQueue
 from buildflow.io.gcp.bigquery_dataset import BigQueryDataset
 from buildflow.io.gcp.bigquery_table import BigQueryTable
 from buildflow.io.gcp.pubsub_subscription import GCPPubSubSubscription
@@ -102,16 +101,16 @@ class FlowTest(unittest.TestCase):
 
         bigquery_dataset = BigQueryDataset(
             project_id="project_id", dataset_name="dataset_name"
-        ).options(managed=True)
+        )
         bigquery_table = BigQueryTable(
             bigquery_dataset, table_name="table_name"
-        ).options(managed=True)
-        pubsub_topic = GCPPubSubTopic(
-            project_id="project_id", topic_name="topic_name"
-        ).options(managed=False)
+        ).options(schema=Dict[str, str])
+        pubsub_topic = GCPPubSubTopic(project_id="project_id", topic_name="topic_name")
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project_id", subscription_name="subscription_name"
-        ).options(managed=True, topic=pubsub_topic)
+        ).options(topic=pubsub_topic)
+
+        app.manage(bigquery_dataset, bigquery_table, pubsub_subscription)
 
         @app.consumer(source=pubsub_subscription, sink=bigquery_table)
         def process(payload: Dict[str, int]) -> Dict[str, int]:
@@ -121,41 +120,12 @@ class FlowTest(unittest.TestCase):
         project = "test-project"
         pulumi.runtime.set_mocks(MyMocks(), project=project, stack=stack, preview=False)
 
-        process.pulumi_program()
-
-        primitive_cache = app._primitive_cache
+        pulumi_resources = app._pulumi_program()
 
         # Ensure all the primitives get visited.
         # We don't actually validate what pulumi resources are created here, since
         # those should have their own tests.
-        self.assertEqual(len(primitive_cache.cache), 3)
-        self.assertIn(bigquery_dataset, primitive_cache)
-        self.assertIn(bigquery_table, primitive_cache)
-        self.assertIn(pubsub_subscription, primitive_cache)
-        self.assertNotIn(pubsub_topic, primitive_cache)
-
-    @pulumi.runtime.test
-    def test_pulumi_program_same_sink(self):
-        app = Flow()
-
-        queue = SQSQueue(queue_name="queue_name").options(managed=True)
-
-        @app.consumer(source=queue, sink=queue)
-        def process(payload: Dict[str, int]) -> Dict[str, int]:
-            return payload
-
-        stack = "test-stack"
-        project = "test-project"
-        pulumi.runtime.set_mocks(MyMocks(), project=project, stack=stack, preview=False)
-
-        process.pulumi_program()
-
-        primitive_cache = app._primitive_cache
-
-        # Ensure all the primitives get visited.
-        # We don't actually validate what pulumi resources are created here, since
-        # those should have their own tests.
-        self.assertEqual(len(primitive_cache.cache), 1)
+        self.assertEqual(len(pulumi_resources), 3)
 
 
 if __name__ == "__main__":

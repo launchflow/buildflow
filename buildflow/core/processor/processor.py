@@ -1,5 +1,6 @@
+import dataclasses
 import enum
-from typing import List
+from typing import Generic, List, TypeVar
 
 from buildflow.core.background_tasks.background_task import BackgroundTask
 
@@ -12,6 +13,7 @@ class ProcessorType(enum.Enum):
 
 
 ProcessorID = str
+GroupID = str
 
 
 class ProcessorAPI:
@@ -29,3 +31,14 @@ class ProcessorAPI:
 
     async def teardown(self):
         raise NotImplementedError("teardown not implemented for Processor")
+
+
+T = TypeVar("T", bound=ProcessorAPI)
+
+
+class ProcessorGroup(Generic[T]):
+    group_type: ProcessorType
+
+    def __init__(self, group_id: GroupID, processors: List[T]) -> None:
+        self.group_id = group_id
+        self.processors = processors

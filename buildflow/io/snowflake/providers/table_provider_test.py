@@ -37,7 +37,7 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             database="database",
             schema="schema",
             flush_time_secs=10,
-            bucket=S3Bucket(bucket_name="bucket").options(managed=True),
+            bucket=S3Bucket(bucket_name="bucket"),
             snow_pipe="snow_pipe",
             snowflake_stage="snowflake_stage",
             database_managed=True,

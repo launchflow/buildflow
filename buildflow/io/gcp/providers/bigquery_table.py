@@ -106,7 +106,6 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
             self.table_name,
             self.destroy_protection,
             schema,
-            type_,
             credentials,
             opts,
         )
