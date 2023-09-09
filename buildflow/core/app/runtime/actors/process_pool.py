@@ -1,7 +1,7 @@
 import asyncio
 import dataclasses
 import logging
-from typing import List
+from typing import Dict, List
 
 import ray
 from ray.actor import ActorHandle
@@ -12,7 +12,9 @@ from buildflow.core.app.runtime.metrics import SimpleGaugeMetric
 from buildflow.core.background_tasks.background_task import BackgroundTask
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.processor import (
+    GroupID,
     ProcessorGroup,
+    ProcessorGroupType,
     ProcessorID,
     ProcessorType,
 )
@@ -27,15 +29,28 @@ class ReplicaReference:
 
 
 @dataclasses.dataclass
+class IndividualProcessorSnapshot:
+    processor_id: ProcessorID
+    processor_type: ProcessorType
+
+    def as_dict(self) -> dict:
+        return {
+            "processor_id": self.processor_id,
+            "processor_type": self.processor_type.name,
+        }
+
+
+@dataclasses.dataclass
 class ProcessorGroupSnapshot(Snapshot):
     # required snapshot fields
     status: RuntimeStatus
     timestamp_millis: int
-    group_id: ProcessorID
-    group_type: ProcessorType
+    group_id: GroupID
+    group_type: ProcessorGroupType
     num_replicas: float
     num_cpu_per_replica: float
     num_concurrency_per_replica: float
+    processor_snapshots: Dict[str, IndividualProcessorSnapshot]
 
     def as_dict(self) -> dict:
         return {
@@ -46,6 +61,10 @@ class ProcessorGroupSnapshot(Snapshot):
             "num_replicas": self.num_replicas,
             "num_cpu_per_replica": self.num_cpu_per_replica,
             "num_concurrency_per_replica": self.num_concurrency_per_replica,
+            "processor_snapshots": {
+                pid: snapshot.as_dict()
+                for pid, snapshot in self.processor_snapshots.items()
+            },
         }
 
 
@@ -194,4 +213,5 @@ class ProcessorGroupReplicaPoolActor(Runtime):
             num_replicas=self.num_replicas_gauge.get_latest_value(),
             num_cpu_per_replica=self.options.num_cpus,
             num_concurrency_per_replica=self.concurrency_gauge.get_latest_value(),
+            processor_snapshots={},
         )

@@ -23,7 +23,6 @@ _model = None
 async def load_model():
     global _model
     if _model is None:
-        print("DO NOT SUBMIT: LOADING MODEL")
         await asyncio.sleep(5)
         _model = "model"
     return _model

@@ -14,6 +14,7 @@ from ray.util.state import list_actors
 from buildflow.core.app.flow import Flow
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.options import ProcessorOptions, RuntimeOptions
+from buildflow.core.processor.patterns.consumer import ConsumerGroup
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
 from buildflow.io.local.testing.pulse_with_backlog import PulseWithBacklog
@@ -85,7 +86,9 @@ class RunTimeTest(unittest.TestCase):
         runtime_options.processor_options["process"].num_cpus = 0.5
         actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
-        actor.run.remote(processors=[process])
+        actor.run.remote(
+            processor_groups=[ConsumerGroup(processors=[process], group_id="process")]
+        )
 
         time.sleep(15)
 
@@ -133,13 +136,19 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
         pending = self.run_for_time(actor.run_until_complete.remote(), 10)
 
         # Grab snapshot to see how many replicas we have scaled up to.
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        num_replicas = snapshot.processors[0].num_replicas
+        num_replicas = snapshot.processor_groups[0].num_replicas
 
         # Kill our process pool actor.
         # The let the consumer run for a couple seconds to allow it to be spun
@@ -152,7 +161,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_for_time(pending, 20)
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        self.assertGreaterEqual(snapshot.processors[0].num_replicas, num_replicas)
+        self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, num_replicas)
 
         self.run_with_timeout(actor.drain.remote())
 
@@ -191,13 +200,19 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
-        pending = self.run_for_time(actor.run_until_complete.remote(), 10)
+        pending = self.run_for_time(actor.run_until_complete.remote(), 20)
 
         # Grab snapshot to see how many replicas we have scaled up to.
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        num_replicas = snapshot.processors[0].num_replicas
+        num_replicas = snapshot.processor_groups[0].num_replicas
 
         # Kill all replica actors.
         # Then let the consumer run for a couple seconds to allow them to be spun
@@ -208,7 +223,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_for_time(pending, 10)
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        self.assertEqual(num_replicas, snapshot.processors[0].num_replicas)
+        self.assertEqual(num_replicas, snapshot.processor_groups[0].num_replicas)
 
         self.run_with_timeout(actor.drain.remote())
         self.assertInStderr("replica actor unexpectedly died. will restart.")
@@ -246,7 +261,13 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
         pending = self.run_for_time(actor.run_until_complete.remote(), 10)
 
@@ -265,7 +286,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_for_time(pending, 10)
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        self.assertGreaterEqual(snapshot.processors[0].num_replicas, 1)
+        self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, 1)
 
         self.run_with_timeout(actor.drain.remote())
         self.assertInStderr("replica actor unexpectedly died. will restart.")
@@ -297,7 +318,13 @@ class RunTimeTest(unittest.TestCase):
         ].autoscaler_options.autoscale_frequency_secs = 5
         actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
 
         self.run_for_time(actor.run_until_complete.remote(), 15)
 
@@ -305,7 +332,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_with_timeout(actor.drain.remote())
 
-        self.assertGreaterEqual(snapshot.processors[0].num_replicas, 2)
+        self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, 2)
 
 
 if __name__ == "__main__":

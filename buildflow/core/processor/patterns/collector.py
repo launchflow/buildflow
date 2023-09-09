@@ -1,9 +1,10 @@
-import dataclasses
 from typing import List
+
 from buildflow.core.processor.processor import (
     GroupID,
     ProcessorAPI,
     ProcessorGroup,
+    ProcessorGroupType,
     ProcessorID,
     ProcessorType,
 )
@@ -18,7 +19,7 @@ class CollectorProcessor(ProcessorAPI):
         self.processor_id = processor_id
 
     def route_info(self) -> RouteInfo:
-        raise NotImplementedError("endpoint not implemented for CollectorProcessor")
+        raise NotImplementedError("route_info not implemented for CollectorProcessor")
 
     def sink(self) -> SinkStrategy:
         raise NotImplementedError("sink not implemented for CollectorProcessor")
@@ -29,7 +30,7 @@ class CollectorProcessor(ProcessorAPI):
 
 
 class CollectorGroup(ProcessorGroup[CollectorProcessor]):
-    group_type: ProcessorType = ProcessorType.COLLECTOR
+    group_type: ProcessorGroupType = ProcessorGroupType.COLLECTOR
 
     def __init__(
         self,

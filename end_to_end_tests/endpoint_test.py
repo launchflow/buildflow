@@ -41,8 +41,9 @@ class EndpointLocalTest(unittest.TestCase):
 
     def test_endpoint_end_to_end(self):
         app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
 
-        @app.endpoint(route="/test", method="POST", num_cpus=0.5)
+        @service.endpoint(route="/test", method="POST")
         def my_endpoint(input: InputRequest) -> OutputResponse:
             return OutputResponse(input.val + 1)
 
@@ -61,8 +62,9 @@ class EndpointLocalTest(unittest.TestCase):
 
     def test_endpoint_end_to_end_class(self):
         app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
 
-        @app.endpoint(route="/test", method="POST", num_cpus=0.5)
+        @service.endpoint(route="/test", method="POST")
         class Endpoint:
             def setup(self):
                 self.val_to_add = 10
@@ -83,6 +85,28 @@ class EndpointLocalTest(unittest.TestCase):
         )
         response.raise_for_status()
         self.assertEqual(response.json(), {"val": 11})
+
+        self.get_async_result(app._drain())
+
+    def test_endpoint_end_to_end_detached(self):
+        app = buildflow.Flow()
+        service = buildflow.Service(num_cpus=0.5)
+        app.add_service(service)
+
+        @service.endpoint(route="/test", method="POST")
+        def my_endpoint(input: InputRequest) -> OutputResponse:
+            return OutputResponse(input.val + 1)
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        response = requests.post(
+            "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
+        )
+        response.raise_for_status()
+        self.assertEqual(response.json(), {"val": 2})
 
         self.get_async_result(app._drain())
 

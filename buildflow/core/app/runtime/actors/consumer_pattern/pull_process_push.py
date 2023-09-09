@@ -59,15 +59,15 @@ class IndividualProcessorMetrics:
 class PullProcessPushSnapshot(Snapshot):
     status: RuntimeStatus
     timestamp_millis: int
-    processor_metrics: Dict[str, IndividualProcessorMetrics]
+    processor_snapshots: Dict[str, IndividualProcessorMetrics]
 
     def as_dict(self) -> dict:
         snapshot_dict = {
             "status": self.status.name,
             "timestamp_millis": self.timestamp_millis,
         }
-        for processor_id, processor_metrics in self.processor_metrics.items():
-            snapshot_dict[processor_id] = processor_metrics.as_dict()
+        for processor_id, processor_snapshot in self.processor_snapshots.items():
+            snapshot_dict[processor_id] = processor_snapshot.as_dict()
         return snapshot_dict
 
 
@@ -131,7 +131,7 @@ class PullProcessPushActor(Runtime):
 
             self.batch_time_counter[processor_id] = CompositeRateCounterMetric(
                 "batch_time",
-                description="Current batch process time of the actor. Goes up and down.",
+                description="Current batch process time of the actor. Goes up and down.",  # noqa: E501
                 default_tags={
                     "processor_id": processor_id,
                     "JobId": job_id,
@@ -140,7 +140,7 @@ class PullProcessPushActor(Runtime):
             )
             self.total_time_counter[processor_id] = CompositeRateCounterMetric(
                 "total_time",
-                description="Current total process time of the actor. Goes up and down.",
+                description="Current total process time of the actor. Goes up and down.",  # noqa: E501
                 default_tags={
                     "processor_id": processor_id,
                     "JobId": job_id,
@@ -324,7 +324,7 @@ class PullProcessPushActor(Runtime):
         snapshot = PullProcessPushSnapshot(
             status=self._status,
             timestamp_millis=utils.timestamp_millis(),
-            processor_metrics=individual_metrics,
+            processor_snapshots=individual_metrics,
         )
         # reset the counters
         self._last_snapshot_time = time.monotonic()

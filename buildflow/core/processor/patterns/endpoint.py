@@ -1,9 +1,10 @@
-import dataclasses
 from typing import List
+
 from buildflow.core.processor.processor import (
     GroupID,
     ProcessorAPI,
     ProcessorGroup,
+    ProcessorGroupType,
     ProcessorID,
     ProcessorType,
 )
@@ -28,7 +29,7 @@ class EndpointProcessor(ProcessorAPI):
 
 
 class EndpointGroup(ProcessorGroup[EndpointProcessor]):
-    group_type: ProcessorType = ProcessorType.ENDPOINT
+    group_type: ProcessorGroupType = ProcessorGroupType.SERVICE
 
     def __init__(
         self,

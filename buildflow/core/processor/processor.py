@@ -1,4 +1,3 @@
-import dataclasses
 import enum
 from typing import Generic, List, TypeVar
 
@@ -36,8 +35,14 @@ class ProcessorAPI:
 T = TypeVar("T", bound=ProcessorAPI)
 
 
+class ProcessorGroupType(enum.Enum):
+    COLLECTOR = "collector"
+    CONSUMER = "consumer"
+    SERVICE = "service"
+
+
 class ProcessorGroup(Generic[T]):
-    group_type: ProcessorType
+    group_type: ProcessorGroupType
 
     def __init__(self, group_id: GroupID, processors: List[T]) -> None:
         self.group_id = group_id

@@ -26,7 +26,7 @@ from buildflow.core.app.runtime.actors.process_pool import ProcessorGroupSnapsho
 from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.processor.processor import (
     ProcessorGroup,
-    ProcessorType,
+    ProcessorGroupType,
 )
 
 
@@ -36,13 +36,13 @@ class RuntimeSnapshot(Snapshot):
     status: RuntimeStatus
     timestamp_millis: int
     # fields specific to this snapshot class
-    processors: List[ProcessorGroupSnapshot]
+    processor_groups: List[ProcessorGroupSnapshot]
 
     def as_dict(self):
         return {
             "status": self.status.name,
             "timestamp_millis": self.timestamp_millis,
-            "processors": [p.as_dict() for p in self.processors],
+            "processor_groups": [p.as_dict() for p in self.processor_groups],
         }
 
 
@@ -77,7 +77,7 @@ class RuntimeActor(Runtime):
 
     def _start_processor_group(self, group: ProcessorGroup):
         processor_options = self.options.processor_options[group.group_id]
-        if group.group_type == ProcessorType.CONSUMER:
+        if group.group_type == ProcessorGroupType.CONSUMER:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=ConsumerProcessorReplicaPoolActor.remote(
                     self.run_id,
@@ -86,7 +86,7 @@ class RuntimeActor(Runtime):
                 ),
                 processor_group=group,
             )
-        elif group.group_type == ProcessorType.COLLECTOR:
+        elif group.group_type == ProcessorGroupType.COLLECTOR:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=CollectorProcessorPoolActor.remote(
                     self.run_id,
@@ -95,9 +95,7 @@ class RuntimeActor(Runtime):
                 ),
                 processor_group=group,
             )
-        elif group.group_type == ProcessorType.CONNECTION:
-            raise ValueError("Collector processor groups are not supported")
-        elif group.group_type == ProcessorType.ENDPOINT:
+        elif group.group_type == ProcessorGroupType.SERVICE:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=EndpointProcessorGroupPoolActor.remote(
                     self.run_id,
@@ -169,7 +167,7 @@ class RuntimeActor(Runtime):
         return RuntimeSnapshot(
             status=self._status,
             timestamp_millis=utils.timestamp_millis(),
-            processors=processor_snapshots,
+            processor_groups=processor_snapshots,
         )
 
     async def run_until_complete(self):

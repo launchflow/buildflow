@@ -39,7 +39,7 @@ from buildflow.core.processor.processor import (
     ProcessorID,
     ProcessorType,
 )
-from buildflow.io.endpoint import RouteInfo, Method, Route
+from buildflow.io.endpoint import Method, Route, RouteInfo
 from buildflow.io.local.empty import Empty
 from buildflow.io.primitive import PortablePrimtive, Primitive, PrimitiveType
 from buildflow.io.strategies._strategy import StategyType
@@ -448,7 +448,7 @@ def _collector_processor(collector: Collector, sink_credentials: CredentialType)
     sink_provider = collector.sink_primitive.sink_provider()
     adhoc_methods = {
         # CollectorProcessor methods.
-        "endpoint": lambda self: RouteInfo(collector.route, collector.method),
+        "route_info": lambda self: RouteInfo(collector.route, collector.method),
         # NOTE: We need to instantiate the sink strategies
         # in the class to avoid issues passing to ray workers.
         "sink": lambda self: sink_provider.sink(sink_credentials),
@@ -582,23 +582,6 @@ class Flow:
         for primitive in args:
             primitive.enable_managed()
         self._managed_primitives.extend(args)
-
-    def _pulumi_program(self):
-        visited_primitives = _PrimitiveCache()
-        start_primitives = _find_primitives_with_no_parents(self._managed_primitives)
-        if not start_primitives:
-            raise ValueError(
-                "Unable to build pulumi dependency tree. "
-                "Is there a cycle in your pulumi dependencies?"
-            )
-        for primitive in start_primitives:
-            creds = self._get_credentials(primitive.primitive_type)
-            _traverse_primitive_for_pulumi(
-                primitive=primitive,
-                credentials=creds,
-                initial_opts=pulumi.ResourceOptions(),
-                visited_primitives=visited_primitives,
-            )
 
     def _get_infra_actor(self) -> InfraActor:
         if self._infra_actor_ref is None:

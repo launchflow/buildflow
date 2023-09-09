@@ -13,6 +13,7 @@ from buildflow.core.app.flow import Flow
 from buildflow.core.app.runtime.actors.consumer_pattern.pull_process_push import (
     PullProcessPushActor,
 )
+from buildflow.core.processor.patterns.consumer import ConsumerGroup
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
 from buildflow.types.portable import FileFormat
@@ -57,7 +58,9 @@ class PullProcessPushTest(unittest.TestCase):
                 return new_payload
 
         actor = PullProcessPushActor.remote(
-            run_id="test-run", processor=MyProcesesor, replica_id="1"
+            run_id="test-run",
+            processor_group=ConsumerGroup(group_id="g", processors=[MyProcesesor]),
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -81,7 +84,7 @@ class PullProcessPushTest(unittest.TestCase):
 
         actor = PullProcessPushActor.remote(
             run_id="test-run",
-            processor=process,
+            processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
         )
 
@@ -105,7 +108,7 @@ class PullProcessPushTest(unittest.TestCase):
 
         actor = PullProcessPushActor.remote(
             run_id="test-run",
-            processor=process,
+            processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
         )
 
@@ -129,7 +132,7 @@ class PullProcessPushTest(unittest.TestCase):
 
         actor = PullProcessPushActor.remote(
             run_id="test-run",
-            processor=process,
+            processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
         )
 
