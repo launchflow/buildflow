@@ -248,8 +248,6 @@ class CollectorLocalTest(unittest.TestCase):
         self.assertEqual(got_data[0], 1)
         self.get_async_result(app._drain())
 
-        assert False
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -24,10 +24,7 @@ from buildflow.core.app.runtime.actors.endpoint_pattern.endpoint_pool import (
 )
 from buildflow.core.app.runtime.actors.process_pool import ProcessorGroupSnapshot
 from buildflow.core.options.runtime_options import RuntimeOptions
-from buildflow.core.processor.processor import (
-    ProcessorGroup,
-    ProcessorType,
-)
+from buildflow.core.processor.processor import ProcessorGroup, ProcessorType
 
 
 @dataclasses.dataclass
@@ -166,11 +163,13 @@ class RuntimeActor(Runtime):
             for processor_pool in self._processor_group_pool_refs
         ]
         processor_snapshots = await asyncio.gather(*snapshot_tasks)
-        return RuntimeSnapshot(
+        to_ret = RuntimeSnapshot(
             status=self._status,
             timestamp_millis=utils.timestamp_millis(),
             processors=processor_snapshots,
         )
+        print("DO NOT SUBMIT: ", to_ret.as_dict())
+        return to_ret
 
     async def run_until_complete(self):
         if self._runtime_loop_future is not None:

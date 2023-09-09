@@ -14,6 +14,7 @@ from ray.util.state import list_actors
 from buildflow.core.app.flow import Flow
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.options import ProcessorOptions, RuntimeOptions
+from buildflow.core.processor.patterns.consumer import ConsumerGroup
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
 from buildflow.io.local.testing.pulse_with_backlog import PulseWithBacklog
@@ -85,7 +86,9 @@ class RunTimeTest(unittest.TestCase):
         runtime_options.processor_options["process"].num_cpus = 0.5
         actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
-        actor.run.remote(processors=[process])
+        actor.run.remote(
+            processor_groups=[ConsumerGroup(processors=[process], group_id="process")]
+        )
 
         time.sleep(15)
 
@@ -133,7 +136,13 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
         pending = self.run_for_time(actor.run_until_complete.remote(), 10)
 
@@ -191,9 +200,15 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
-        pending = self.run_for_time(actor.run_until_complete.remote(), 10)
+        pending = self.run_for_time(actor.run_until_complete.remote(), 20)
 
         # Grab snapshot to see how many replicas we have scaled up to.
         snapshot = self.run_with_timeout(actor.snapshot.remote())
@@ -246,7 +261,13 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
         pending = self.run_for_time(actor.run_until_complete.remote(), 10)
 
@@ -297,7 +318,13 @@ class RunTimeTest(unittest.TestCase):
         ].autoscaler_options.autoscale_frequency_secs = 5
         actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
 
         self.run_for_time(actor.run_until_complete.remote(), 15)
 

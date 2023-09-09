@@ -1,4 +1,3 @@
-import dataclasses
 from buildflow.core.processor.processor import (
     ProcessorAPI,
     ProcessorGroup,

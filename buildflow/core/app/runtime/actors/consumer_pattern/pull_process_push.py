@@ -131,7 +131,7 @@ class PullProcessPushActor(Runtime):
 
             self.batch_time_counter[processor_id] = CompositeRateCounterMetric(
                 "batch_time",
-                description="Current batch process time of the actor. Goes up and down.",
+                description="Current batch process time of the actor. Goes up and down.",  # noqa: E501
                 default_tags={
                     "processor_id": processor_id,
                     "JobId": job_id,
@@ -140,7 +140,7 @@ class PullProcessPushActor(Runtime):
             )
             self.total_time_counter[processor_id] = CompositeRateCounterMetric(
                 "total_time",
-                description="Current total process time of the actor. Goes up and down.",
+                description="Current total process time of the actor. Goes up and down.",  # noqa: E501
                 default_tags={
                     "processor_id": processor_id,
                     "JobId": job_id,

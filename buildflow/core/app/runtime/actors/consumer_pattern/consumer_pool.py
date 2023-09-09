@@ -176,7 +176,8 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
                     for replica_snapshot in replica_snapshots
                 ]
             ).average_value_rate()
-            # below metric(s) derived from the `process_batch_time_millis` composite counter
+            # below metric(s) derived from the `process_batch_time_millis` composite
+            # counter
             avg_process_time_millis_per_batch = RateCalculation.merge(
                 [
                     replica_snapshot.processor_metrics[
@@ -185,7 +186,8 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
                     for replica_snapshot in replica_snapshots
                 ]
             ).average_value_rate()
-            # below metric(s) derived from the `pull_to_ack_time_millis` composite counter
+            # below metric(s) derived from the `pull_to_ack_time_millis` composite
+            # counter
             avg_pull_to_ack_time_millis_per_batch = RateCalculation.merge(
                 [
                     replica_snapshot.processor_metrics[

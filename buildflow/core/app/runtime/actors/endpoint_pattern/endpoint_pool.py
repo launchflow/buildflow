@@ -26,7 +26,7 @@ class IndividualProcessorMetrics:
     def as_dict(self) -> dict:
         return {
             "total_events_processed_per_sec": self.total_events_processed_per_sec,  # noqa: E501
-            "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,
+            "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
         }
 
 

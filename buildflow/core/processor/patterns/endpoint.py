@@ -1,5 +1,5 @@
-import dataclasses
 from typing import List
+
 from buildflow.core.processor.processor import (
     GroupID,
     ProcessorAPI,
