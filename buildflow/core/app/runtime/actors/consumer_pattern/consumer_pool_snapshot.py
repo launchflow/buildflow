@@ -1,11 +1,17 @@
 import dataclasses
 from typing import Dict
 
-from buildflow.core.app.runtime.actors.process_pool import ProcessorGroupSnapshot
+from buildflow.core.app.runtime.actors.process_pool import (
+    ProcessorGroupSnapshot,
+    IndividualProcessorSnapshot,
+)
+from buildflow.core.processor.processor import ProcessorID, ProcessorType
 
 
 @dataclasses.dataclass
-class ConsumerProcessorSnapshot:
+class ConsumerProcessorSnapshot(IndividualProcessorSnapshot):
+    processor_id: ProcessorID
+    processor_type: ProcessorType
     source_backlog: float
     total_events_processed_per_sec: float
     eta_secs: float
@@ -19,6 +25,8 @@ class ConsumerProcessorSnapshot:
 
     def as_dict(self) -> dict:
         return {
+            "processor_id": self.processor_id,
+            "processor_type": self.processor_type.name,
             "source_backlog": self.source_backlog,
             "total_events_processed_per_sec": self.total_events_processed_per_sec,
             "eta_secs": self.eta_secs,

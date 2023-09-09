@@ -1,6 +1,7 @@
 from buildflow.core.processor.processor import (
     ProcessorAPI,
     ProcessorGroup,
+    ProcessorGroupType,
     ProcessorID,
     ProcessorType,
 )
@@ -26,4 +27,4 @@ class ConsumerProcessor(ProcessorAPI):
 
 
 class ConsumerGroup(ProcessorGroup[ConsumerProcessor]):
-    group_type: ProcessorType = ProcessorType.CONSUMER
+    group_type: ProcessorGroupType = ProcessorGroupType.CONSUMER

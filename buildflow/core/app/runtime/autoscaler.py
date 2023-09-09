@@ -11,7 +11,7 @@ from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool_snapshot i
 )
 from buildflow.core.app.runtime.actors.process_pool import ProcessorGroupSnapshot
 from buildflow.core.options.runtime_options import AutoscalerOptions
-from buildflow.core.processor.processor import ProcessorType
+from buildflow.core.processor.processor import ProcessorGroupType
 
 
 def _available_replicas(cpu_per_replica: float):
@@ -236,17 +236,15 @@ def calculate_target_num_replicas(
     prev_snapshot: Optional[ProcessorGroupSnapshot],
     config: AutoscalerOptions,
 ):
-    if current_snapshot.group_type == ProcessorType.CONSUMER:
+    if current_snapshot.group_type == ProcessorGroupType.CONSUMER:
         return _calculate_target_num_replicas_for_consumer_v2(
             current_snapshot=current_snapshot,
             prev_snapshot=prev_snapshot,
             config=config,
         )
-    elif current_snapshot.group_type == ProcessorType.COLLECTOR:
+    elif current_snapshot.group_type == ProcessorGroupType.COLLECTOR:
         raise NotImplementedError("Collector autoscaling not implemented yet")
-    elif current_snapshot.group_type == ProcessorType.CONNECTION:
-        raise NotImplementedError("Connection autoscaling not implemented yet")
-    elif current_snapshot.group_type == ProcessorType.ENDPOINT:
+    elif current_snapshot.group_type == ProcessorGroupType.SERVICE:
         raise NotImplementedError("Service autoscaling not implemented yet")
     else:
         raise ValueError(f"Unknown processor type: {current_snapshot.processor_type}")

@@ -11,20 +11,29 @@ from buildflow.core.app.runtime.actors.endpoint_pattern.receive_process_respond 
 from buildflow.core.app.runtime.actors.process_pool import (
     ProcessorGroupReplicaPoolActor,
     ProcessorGroupSnapshot,
+    IndividualProcessorSnapshot,
     ReplicaReference,
 )
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.endpoint import EndpointProcessor
-from buildflow.core.processor.processor import ProcessorGroup
+from buildflow.core.processor.processor import (
+    ProcessorGroup,
+    ProcessorID,
+    ProcessorType,
+)
 
 
 @dataclasses.dataclass
-class IndividualProcessorMetrics:
+class IndividualProcessorMetrics(IndividualProcessorSnapshot):
+    processor_id: ProcessorID
+    processor_type: ProcessorType
     total_events_processed_per_sec: int
     avg_process_time_millis_per_element: float
 
     def as_dict(self) -> dict:
         return {
+            "processor_id": self.processor_id,
+            "processor_type": self.processor_type.name,
             "total_events_processed_per_sec": self.total_events_processed_per_sec,  # noqa: E501
             "avg_process_time_millis_per_element": self.avg_process_time_millis_per_element,  # noqa: E501
         }
@@ -32,15 +41,15 @@ class IndividualProcessorMetrics:
 
 @dataclasses.dataclass
 class EndpointProcessorSnapshot(ProcessorGroupSnapshot):
-    processor_metrics: Dict[str, IndividualProcessorMetrics]
+    processor_snapshots: Dict[str, IndividualProcessorMetrics]
 
     def as_dict(self) -> dict:
         parent_dict = super().as_dict()
-        processor_metrics = {
-            pid: metrics.as_dict() for pid, metrics in self.processor_metrics.items()
+        processor_snapshots = {
+            pid: metrics.as_dict() for pid, metrics in self.processor_snapshots.items()
         }
         endpoint_dict = {
-            "processor_metrics": processor_metrics,
+            "processor_snapshots": processor_snapshots,
         }
         return {**parent_dict, **endpoint_dict}
 
@@ -81,14 +90,17 @@ class EndpointProcessorGroupPoolActor(ProcessorGroupReplicaPoolActor):
     async def snapshot(self) -> ProcessorGroupSnapshot:
         parent_snapshot: ProcessorGroupSnapshot = await super().snapshot()
         num_replicas = 0
-        processor_metrics = {}
+        processor_snapshots = {}
         if len(self.replicas) > 0:
             replica_snapshot = await self.replicas[0].ray_actor_handle.snapshot.remote()
             num_replicas = replica_snapshot.num_replicas
-            for pid, metrics in replica_snapshot.processor_metrics.items():
+            for pid, metrics in replica_snapshot.processor_snapshots.items():
                 total_events_processed_per_sec = metrics.events_processed_per_sec
                 avg_process_time_millis_per_element = metrics.avg_process_time_millis
-                processor_metrics[pid] = IndividualProcessorMetrics(
+                processor_snapshots[pid] = IndividualProcessorMetrics(
+                    pid,
+                    # TODO: should probably get the type from the actual processor
+                    ProcessorType.ENDPOINT,
                     total_events_processed_per_sec,
                     avg_process_time_millis_per_element,
                 )
@@ -100,5 +112,5 @@ class EndpointProcessorGroupPoolActor(ProcessorGroupReplicaPoolActor):
             num_replicas=num_replicas,
             num_concurrency_per_replica=parent_snapshot.num_concurrency_per_replica,
             num_cpu_per_replica=parent_snapshot.num_cpu_per_replica,
-            processor_metrics=processor_metrics,
+            processor_snapshots=processor_snapshots,
         )

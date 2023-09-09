@@ -39,11 +39,11 @@ class ReceiveProcessRespondSnapshot(Snapshot):
     status: RuntimeStatus
     timestamp_millis: int
     num_replicas: int
-    processor_metrics: Dict[str, IndividualProcessorMetrics]
+    processor_snapshots: Dict[str, IndividualProcessorMetrics]
 
     def as_dict(self) -> dict:
-        process_metrics = {
-            pid: metrics.as_dict() for pid, metrics in self.processor_metrics.items()
+        processor_snapshots = {
+            pid: metrics.as_dict() for pid, metrics in self.processor_snapshots.items()
         }
         return {
             "status": self.status.name,
@@ -51,7 +51,7 @@ class ReceiveProcessRespondSnapshot(Snapshot):
             "events_processed_per_sec": self.events_processed_per_sec,  # noqa: E501
             "process_time_millis": self.avg_process_time_millis,
             "num_replicas": self.num_replicas,
-            "processor_metrics": process_metrics,
+            "processor_snapshots": processor_snapshots,
         }
 
 
@@ -185,9 +185,9 @@ class ReceiveProcessRespond(Runtime):
         return self._status
 
     async def snapshot(self) -> Snapshot:
-        processor_metrics = {}
+        processor_snapshots = {}
         for processor_id, fast_api_wrapper in self.processors_map.items():
-            processor_metrics[processor_id] = IndividualProcessorMetrics(
+            processor_snapshots[processor_id] = IndividualProcessorMetrics(
                 events_processed_per_sec=fast_api_wrapper.num_events_processed(),
                 avg_process_time_millis=fast_api_wrapper.process_time_millis(),
             )
@@ -199,6 +199,6 @@ class ReceiveProcessRespond(Runtime):
         return ReceiveProcessRespondSnapshot(
             status=self._status,
             timestamp_millis=utils.timestamp_millis(),
-            processor_metrics=processor_metrics,
+            processor_snapshots=processor_snapshots,
             num_replicas=num_replicas,
         )

@@ -4,6 +4,7 @@ from buildflow.core.processor.processor import (
     GroupID,
     ProcessorAPI,
     ProcessorGroup,
+    ProcessorGroupType,
     ProcessorID,
     ProcessorType,
 )
@@ -29,7 +30,7 @@ class CollectorProcessor(ProcessorAPI):
 
 
 class CollectorGroup(ProcessorGroup[CollectorProcessor]):
-    group_type: ProcessorType = ProcessorType.COLLECTOR
+    group_type: ProcessorGroupType = ProcessorGroupType.COLLECTOR
 
     def __init__(
         self,

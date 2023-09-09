@@ -9,7 +9,7 @@ from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool_snapshot i
     ConsumerProcessorSnapshot,
 )
 from buildflow.core.options.runtime_options import AutoscalerOptions
-from buildflow.core.processor.processor import ProcessorType
+from buildflow.core.processor.processor import ProcessorGroupType, ProcessorType
 
 # Set logging to debug to make test failures easier to groc.
 logging.getLogger().setLevel(logging.DEBUG)
@@ -30,10 +30,12 @@ def create_snapshot(
         status=RuntimeStatus.RUNNING,
         timestamp_millis=timestamp_millis,
         group_id="id",
-        group_type=ProcessorType.CONSUMER,
+        group_type=ProcessorGroupType.CONSUMER,
         num_concurrency_per_replica=1,
         processor_snapshots={
             "id": ConsumerProcessorSnapshot(
+                processor_id="id",
+                processor_type=ProcessorType.CONSUMER,
                 source_backlog=backlog,
                 total_events_processed_per_sec=throughput,
                 avg_cpu_percentage_per_replica=avg_cpu_percent,

@@ -13,7 +13,7 @@ class Service:
     num_cpus: float = 1.0
     autoscale_options: AutoscalerOptions = AutoscalerOptions.default()
     log_level: str = "INFO"
-    service_id: str = dataclasses.field(default_factory=uuid, init=False)
+    service_id: str = dataclasses.field(default_factory=uuid)
     endpoints: List[Endpoint] = dataclasses.field(default_factory=list, init=False)
 
     def endpoint(self, route: Route, method: Method) -> None:

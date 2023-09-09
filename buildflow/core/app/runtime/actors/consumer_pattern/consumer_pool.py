@@ -131,7 +131,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
         # NOTE: we grab the parrent snapshot after we've updated the replica list
         # this ensure we don't include dead replicas
         parent_snapshot: ProcessorGroupSnapshot = await super().snapshot()
-        processor_metrics: Dict[str, ConsumerProcessorSnapshot] = {}
+        processor_snapshots: Dict[str, ConsumerProcessorSnapshot] = {}
         for processor in self.processor_group.processors:
             processor_id = processor.processor_id
             source_backlog = await processor.source().backlog()
@@ -142,7 +142,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             # counter
             total_events_processed_per_sec = RateCalculation.merge(
                 [
-                    replica_snapshot.processor_metrics[
+                    replica_snapshot.processor_snapshots[
                         processor_id
                     ].events_processed_per_sec
                     for replica_snapshot in replica_snapshots
@@ -150,7 +150,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             ).total_value_rate()
             avg_num_elements_per_batch = RateCalculation.merge(
                 [
-                    replica_snapshot.processor_metrics[
+                    replica_snapshot.processor_snapshots[
                         processor_id
                     ].events_processed_per_sec
                     for replica_snapshot in replica_snapshots
@@ -159,20 +159,22 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             # below metric(s) derived from the `pull_percentage` composite counter
             total_pulls_per_sec = RateCalculation.merge(
                 [
-                    replica_snapshot.processor_metrics[processor_id].pull_percentage
+                    replica_snapshot.processor_snapshots[processor_id].pull_percentage
                     for replica_snapshot in replica_snapshots
                 ]
             ).total_count_rate()
             avg_pull_percentage_per_replica = RateCalculation.merge(
                 [
-                    replica_snapshot.processor_metrics[processor_id].pull_percentage
+                    replica_snapshot.processor_snapshots[processor_id].pull_percentage
                     for replica_snapshot in replica_snapshots
                 ]
             ).average_value_rate()
             # below metric(s) derived from the `process_time_millis` composite counter
             avg_process_time_millis_per_element = RateCalculation.merge(
                 [
-                    replica_snapshot.processor_metrics[processor_id].process_time_millis
+                    replica_snapshot.processor_snapshots[
+                        processor_id
+                    ].process_time_millis
                     for replica_snapshot in replica_snapshots
                 ]
             ).average_value_rate()
@@ -180,7 +182,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             # counter
             avg_process_time_millis_per_batch = RateCalculation.merge(
                 [
-                    replica_snapshot.processor_metrics[
+                    replica_snapshot.processor_snapshots[
                         processor_id
                     ].process_batch_time_millis
                     for replica_snapshot in replica_snapshots
@@ -190,7 +192,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             # counter
             avg_pull_to_ack_time_millis_per_batch = RateCalculation.merge(
                 [
-                    replica_snapshot.processor_metrics[
+                    replica_snapshot.processor_snapshots[
                         processor_id
                     ].pull_to_ack_time_millis
                     for replica_snapshot in replica_snapshots
@@ -200,7 +202,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             # below metrics(s) derived from the `cpu_percentage` composite counter
             avg_cpu_percentage = RateCalculation.merge(
                 [
-                    replica_snapshot.processor_metrics[processor_id].cpu_percentage
+                    replica_snapshot.processor_snapshots[processor_id].cpu_percentage
                     for replica_snapshot in replica_snapshots
                 ]
             ).average_value_rate()
@@ -210,8 +212,10 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
                 eta_secs = -1
             else:
                 eta_secs = source_backlog / total_events_processed_per_sec
-            processor_metrics[processor_id] = ConsumerProcessorSnapshot(
+            processor_snapshots[processor_id] = ConsumerProcessorSnapshot(
                 # pipeline-specific snapshot fields
+                processor_id=processor_id,
+                processor_type=processor.processor_type,
                 source_backlog=source_backlog,
                 total_events_processed_per_sec=total_events_processed_per_sec,
                 eta_secs=eta_secs,
@@ -233,5 +237,5 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             num_cpu_per_replica=parent_snapshot.num_cpu_per_replica,
             num_concurrency_per_replica=parent_snapshot.num_concurrency_per_replica,
             # pipeline-specific snapshot fields
-            processor_snapshots=processor_metrics,
+            processor_snapshots=processor_snapshots,
         )
