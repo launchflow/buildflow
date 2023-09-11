@@ -12,7 +12,7 @@ Route = str
 
 
 @dataclasses.dataclass
-class Endpoint:
+class RouteInfo:
     route: Route
     method: Method
 

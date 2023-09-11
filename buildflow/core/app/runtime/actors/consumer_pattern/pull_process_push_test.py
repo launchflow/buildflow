@@ -10,9 +10,10 @@ import pyarrow.csv as pcsv
 import pytest
 
 from buildflow.core.app.flow import Flow
-from buildflow.core.app.runtime.actors.pipeline_pattern.pull_process_push import (
+from buildflow.core.app.runtime.actors.consumer_pattern.pull_process_push import (
     PullProcessPushActor,
 )
+from buildflow.core.processor.patterns.consumer import ConsumerGroup
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
 from buildflow.types.portable import FileFormat
@@ -43,7 +44,7 @@ class PullProcessPushTest(unittest.TestCase):
     def test_end_to_end_with_processor_class(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
@@ -57,7 +58,9 @@ class PullProcessPushTest(unittest.TestCase):
                 return new_payload
 
         actor = PullProcessPushActor.remote(
-            run_id="test-run", processor=MyProcesesor, replica_id="1"
+            run_id="test-run",
+            processor_group=ConsumerGroup(group_id="g", processors=[MyProcesesor]),
+            replica_id="1",
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -72,7 +75,7 @@ class PullProcessPushTest(unittest.TestCase):
     def test_end_to_end_with_processor_decorator(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
@@ -81,7 +84,7 @@ class PullProcessPushTest(unittest.TestCase):
 
         actor = PullProcessPushActor.remote(
             run_id="test-run",
-            processor=process,
+            processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
         )
 
@@ -96,7 +99,7 @@ class PullProcessPushTest(unittest.TestCase):
     def test_end_to_end_with_processor_decorator_async(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
@@ -105,7 +108,7 @@ class PullProcessPushTest(unittest.TestCase):
 
         actor = PullProcessPushActor.remote(
             run_id="test-run",
-            processor=process,
+            processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
         )
 
@@ -120,7 +123,7 @@ class PullProcessPushTest(unittest.TestCase):
     def test_end_to_end_with_processor_decorator_flatten(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
@@ -129,7 +132,7 @@ class PullProcessPushTest(unittest.TestCase):
 
         actor = PullProcessPushActor.remote(
             run_id="test-run",
-            processor=process,
+            processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
         )
 

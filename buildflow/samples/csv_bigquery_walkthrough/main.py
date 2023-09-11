@@ -27,7 +27,6 @@ source = GCSFileChangeStream(
         project_id=gcp_project,
         bucket_name=bucket_name,
     ).options(
-        managed=True,
         force_destroy=True,
         bucket_region="US",
     ),
@@ -37,7 +36,7 @@ source = GCSFileChangeStream(
 sink = BigQueryTable(
     BigQueryDataset(project_id=gcp_project, dataset_name=dataset).options(managed=True),
     table_name=bigquery_table,
-).options(managed=True, destroy_protection=False)
+).options(destroy_protection=False)
 
 
 # Nested dataclasses can be used inside of your schemas.
@@ -47,7 +46,7 @@ class HourAggregate:
     stat: int
 
 
-# Define an output type for our pipeline.
+# Define an output type for our consumer.
 # By using a dataclass we can ensure our python type hints are validated
 # against the BigQuery table's schema.
 @dataclasses.dataclass
@@ -65,10 +64,11 @@ app = buildflow.Flow(
         require_confirmation=False, runtime_log_level="DEBUG"
     )
 )
+app.manage(source, sink)
 
 
 # Define our processor.
-@app.pipeline(source=source, sink=sink)
+@app.consumer(source=source, sink=sink)
 def process(gcs_file_event: GCSFileChangeEvent) -> List[AggregateWikiPageViews]:
     csv_string = gcs_file_event.blob.decode()
     csv_reader = csv.DictReader(io.StringIO(csv_string))

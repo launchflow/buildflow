@@ -42,22 +42,18 @@ class GCSFileChangeStreamTest(unittest.TestCase):
             gcs_bucket=GCSBucket(
                 project_id=want_project,
                 bucket_name=want_bucket,
-            ).options(managed=True),
+            ),
             pubsub_subscription=GCPPubSubSubscription(
                 project_id=want_project,
                 subscription_name="my-subscription",
             ).options(
-                managed=True,
-                topic=GCPPubSubTopic(
-                    topic_name="my-topic", project_id=want_project
-                ).options(managed=True),
+                topic=GCPPubSubTopic(topic_name="my-topic", project_id=want_project),
             ),
             project_id=want_project,
             event_types=[],
         )
 
         resource = provider.pulumi_resource(
-            type_=None,
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )

@@ -1,12 +1,10 @@
-from typing import Optional, Type
-
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.core.types.duckdb_types import DuckDBDatabase, DuckDBTableID
 from buildflow.io.duckdb.strategies.duckdb_strategies import DuckDBSink
-from buildflow.io.provider import PulumiProvider, SinkProvider
+from buildflow.io.provider import SinkProvider
 
 
-class DuckDBProvider(SinkProvider, PulumiProvider):
+class DuckDBProvider(SinkProvider):
     def __init__(
         self,
         *,
@@ -27,12 +25,3 @@ class DuckDBProvider(SinkProvider, PulumiProvider):
             database=self.database,
             table=self.table,
         )
-
-    def pulumi_resource(
-        self,
-        type_: Optional[Type],
-        credeitnals: EmptyCredentials,
-        depends_on: list = [],
-    ):
-        # Local file provider does not have any Pulumi resources
-        return []

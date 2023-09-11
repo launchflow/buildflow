@@ -37,7 +37,7 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             database="database",
             schema="schema",
             flush_time_secs=10,
-            bucket=S3Bucket(bucket_name="bucket").options(managed=True),
+            bucket=S3Bucket(bucket_name="bucket"),
             snow_pipe="snow_pipe",
             snowflake_stage="snowflake_stage",
             database_managed=True,
@@ -47,12 +47,11 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             account="account",
             user="user",
             private_key="private_key",
+            table_schema=SnowflakeTableType,
         )
 
         resource = provider.pulumi_resource(
-            type_=SnowflakeTableType,
-            credentials=self.creds,
-            opts=pulumi.ResourceOptions(),
+            credentials=self.creds, opts=pulumi.ResourceOptions()
         )
 
         child_resource = resource._childResources
@@ -80,12 +79,11 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             account="account",
             user="user",
             private_key="private_key",
+            table_schema=SnowflakeTableType,
         )
 
         resource = provider.pulumi_resource(
-            type_=SnowflakeTableType,
-            credentials=self.creds,
-            opts=pulumi.ResourceOptions(),
+            credentials=self.creds, opts=pulumi.ResourceOptions()
         )
 
         self.assertEqual(len(resource._childResources), 1)
@@ -111,11 +109,12 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             account="account",
             user="user",
             private_key="private_key",
+            table_schema=int,
         )
 
         with self.assertRaises(ValueError):
             provider.pulumi_resource(
-                type_=int, credentials=self.creds, opts=pulumi.ResourceOptions()
+                credentials=self.creds, opts=pulumi.ResourceOptions()
             )
 
     def test_pulumu_resources_non_dataclass_type(self):
@@ -134,11 +133,12 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             account="account",
             user="user",
             private_key="private_key",
+            table_schema=int,
         )
 
         with self.assertRaises(ValueError):
             provider.pulumi_resource(
-                type_=int, credentials=self.creds, opts=pulumi.ResourceOptions()
+                credentials=self.creds, opts=pulumi.ResourceOptions()
             )
 
 

@@ -1,4 +1,4 @@
-from typing import List, Optional, Type, TypeVar
+from typing import List, TypeVar
 
 import pulumi
 
@@ -15,10 +15,8 @@ class ProviderAPI:
 
 
 class PulumiProvider(ProviderAPI):
-    # TODO: Update type_ to use a BuildFlow.Schema type
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: CredentialType,
         opts: pulumi.ResourceOptions,
     ) -> pulumi.ComponentResource:

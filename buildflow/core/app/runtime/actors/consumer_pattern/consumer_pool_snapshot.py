@@ -1,10 +1,17 @@
 import dataclasses
+from typing import Dict
 
-from buildflow.core.app.runtime.actors.process_pool import ProcessorSnapshot
+from buildflow.core.app.runtime.actors.process_pool import (
+    ProcessorGroupSnapshot,
+    IndividualProcessorSnapshot,
+)
+from buildflow.core.processor.processor import ProcessorID, ProcessorType
 
 
 @dataclasses.dataclass
-class PipelineProcessorSnapshot(ProcessorSnapshot):
+class ConsumerProcessorSnapshot(IndividualProcessorSnapshot):
+    processor_id: ProcessorID
+    processor_type: ProcessorType
     source_backlog: float
     total_events_processed_per_sec: float
     eta_secs: float
@@ -17,8 +24,9 @@ class PipelineProcessorSnapshot(ProcessorSnapshot):
     avg_cpu_percentage_per_replica: float
 
     def as_dict(self) -> dict:
-        parent_dict = super().as_dict()
-        pipeline_dict = {
+        return {
+            "processor_id": self.processor_id,
+            "processor_type": self.processor_type.name,
             "source_backlog": self.source_backlog,
             "total_events_processed_per_sec": self.total_events_processed_per_sec,
             "eta_secs": self.eta_secs,
@@ -30,4 +38,18 @@ class PipelineProcessorSnapshot(ProcessorSnapshot):
             "avg_pull_to_ack_time_millis_per_batch": self.avg_pull_to_ack_time_millis_per_batch,  # noqa: E501
             "avg_cpu_percentage_per_replica": self.avg_cpu_percentage_per_replica,
         }
-        return {**parent_dict, **pipeline_dict}
+
+
+@dataclasses.dataclass
+class ConsumerProcessorGroupSnapshot(ProcessorGroupSnapshot):
+    processor_snapshots: Dict[str, ConsumerProcessorSnapshot]
+
+    def as_dict(self) -> dict:
+        parent_dict = super().as_dict()
+        consumer_dict = {
+            "processor_snapshots": {
+                processor_id: processor_snapshot.as_dict()
+                for processor_id, processor_snapshot in self.processor_snapshots.items()
+            }
+        }
+        return {**parent_dict, **consumer_dict}

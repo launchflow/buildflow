@@ -25,7 +25,7 @@ class S3FileChangeStreamProviderTest(unittest.TestCase):
         )
         sqs = SQSQueue(
             queue_name=queue_name, aws_region=region, aws_account_id=None
-        ).options(managed=True)
+        ).enable_managed()
         provider = S3FileChangeStreamProvider(
             s3_bucket=bucket,
             sqs_queue=sqs,
@@ -33,7 +33,6 @@ class S3FileChangeStreamProviderTest(unittest.TestCase):
         )
 
         pulumi_resource = provider.pulumi_resource(
-            type_=None,
             credentials=None,
             opts=pulumi.ResourceOptions(),
         )

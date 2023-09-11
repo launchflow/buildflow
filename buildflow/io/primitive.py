@@ -1,4 +1,3 @@
-import copy
 import enum
 from typing import Generic, Optional, final
 
@@ -31,11 +30,9 @@ class Primitive(Generic[PPT, SOT, SIT, BTT]):
         """Enable managed mode."""
         self._managed = True
 
-    def options(self, managed: bool = False) -> "Primitive":
+    def options(self) -> "Primitive":
         """Return a copy of this primitive with the managed flag set."""
-        to_ret = copy.deepcopy(self)
-        to_ret._managed = managed
-        return to_ret
+        return self
 
     @final
     def pulumi_provider(self) -> Optional[PPT]:
@@ -69,8 +66,6 @@ class Primitive(Generic[PPT, SOT, SIT, BTT]):
 
 class PortablePrimtive(Primitive):
     primitive_type = PrimitiveType.PORTABLE
-    # Portable primitives are always managed.
-    _managed: bool = True
 
     def to_cloud_primitive(
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
@@ -79,20 +74,6 @@ class PortablePrimtive(Primitive):
         raise NotImplementedError(
             "PortablePrimtive.to_cloud_primitive() is not implemented."
         )
-
-    # Override the super class options method since it doesn't make sense to non-manage
-    # a portable primitive.
-    def options(self) -> Primitive:
-        return copy.deepcopy(self)
-
-
-class CompositePrimitive(Primitive):
-    # Composite primitives are always managed.
-    # They defer to their underlying primitives on what should actually be managed.
-    _managed: bool = True
-
-    def options(self) -> "Primitive":
-        return copy.deepcopy(self)
 
 
 class GCPPrimtive(Primitive[PPT, SOT, SIT, BTT]):
@@ -128,8 +109,6 @@ class AzurePrimtive(Primitive[PPT, SOT, SIT, BTT]):
 
 class LocalPrimtive(Primitive[PPT, SOT, SIT, BTT]):
     primitive_type = PrimitiveType.LOCAL
-    # LocalPrimitives are never managed.
-    managed: bool = False
 
     @classmethod
     def from_local_options(cls, local_options: LocalOptions) -> "LocalPrimtive":
@@ -137,8 +116,3 @@ class LocalPrimtive(Primitive[PPT, SOT, SIT, BTT]):
         raise NotImplementedError(
             "LocalPrimtive.from_local_options() is not implemented."
         )
-
-    # Composite primitives are always managed.
-    # They defer to their underlying primitives on what should actually be managed.
-    def options(self) -> "Primitive":
-        return copy.deepcopy(self)

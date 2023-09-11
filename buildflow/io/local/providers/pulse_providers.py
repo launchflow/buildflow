@@ -1,11 +1,11 @@
-from typing import Any, Iterable, Optional, Type
+from typing import Any, Iterable
 
 from buildflow.core.credentials import EmptyCredentials
 from buildflow.io.local.strategies.pulse_strategies import PulseSource
-from buildflow.io.provider import PulumiProvider, SourceProvider
+from buildflow.io.provider import SourceProvider
 
 
-class PulseProvider(SourceProvider, PulumiProvider):
+class PulseProvider(SourceProvider):
     def __init__(
         self,
         *,
@@ -29,7 +29,3 @@ class PulseProvider(SourceProvider, PulumiProvider):
             pulse_interval_seconds=self.pulse_interval_seconds,
             backlog_size=self.backlog_size,
         )
-
-    def pulumi_resource(self, type_: Optional[Type], depends_on: list = []):
-        # Local pulse provider does not have any Pulumi resources
-        return []

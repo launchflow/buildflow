@@ -1,7 +1,7 @@
+import asyncio
 from dataclasses import dataclass
 
 from buildflow import Flow
-from buildflow.io.local import File, Pulse
 
 
 @dataclass
@@ -15,18 +15,41 @@ class OuptutResponse:
 
 
 app = Flow()
+service = app.service()
+
+_model = None
 
 
-@app.endpoint(route="/", method="POST")
-def my_endpoint_processor(input: InputRequest) -> OuptutResponse:
+async def load_model():
+    global _model
+    if _model is None:
+        await asyncio.sleep(5)
+        _model = "model"
+    return _model
+
+
+@service.endpoint(route="/", method="POST")
+async def my_endpoint_processor(input: InputRequest) -> OuptutResponse:
+    print(await load_model())
     return OuptutResponse(val=input.val + 1)
 
 
-@app.collector(route="/two", method="POST", sink=File("output.txt", "csv"))
-def my_collector_processor(input: InputRequest) -> OuptutResponse:
+@service.endpoint(route="/diff", method="POST")
+async def my_difft_processor(input: InputRequest) -> OuptutResponse:
+    print(await load_model())
+    return OuptutResponse(val=input.val + 2)
+
+
+service2 = app.service(base_route="/service2")
+
+
+@service2.endpoint(route="/", method="POST")
+async def my_endpoint_processor2(input: InputRequest) -> OuptutResponse:
+    print(await load_model())
     return OuptutResponse(val=input.val + 1)
 
 
-@app.pipeline(source=Pulse([InputRequest(1)], 1), sink=File("output.txt", "csv"))
-def my_pipeline_processor(input: InputRequest) -> OuptutResponse:
-    return OuptutResponse(val=input.val + 1)
+@service2.endpoint(route="/diff", method="POST")
+async def my_difft_processor2(input: InputRequest) -> OuptutResponse:
+    print(await load_model())
+    return OuptutResponse(val=input.val + 2)

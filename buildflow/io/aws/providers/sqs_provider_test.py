@@ -29,7 +29,6 @@ class SqsProviderTest(unittest.TestCase):
         )
 
         pulumi_resource = provider.pulumi_resource(
-            type_=None,
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )

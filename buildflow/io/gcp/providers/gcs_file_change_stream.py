@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Type
+from typing import Iterable, Optional
 
 import pulumi
 import pulumi_gcp
@@ -22,7 +22,6 @@ class _GCSFileChangeStreamPulumiResource(pulumi.ComponentResource):
         subscription: GCPPubSubSubscription,
         event_types: Iterable[GCSChangeStreamEventType],
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -94,7 +93,6 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ) -> Optional[pulumi.ComponentResource]:
@@ -102,7 +100,6 @@ class GCSFileChangeStreamProvider(SourceProvider, PulumiProvider):
             bucket=self.gcs_bucket,
             subscription=self.pubsub_subscription,
             event_types=self.event_types,
-            type_=type_,
             credentials=credentials,
             opts=opts,
         )

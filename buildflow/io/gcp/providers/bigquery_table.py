@@ -20,7 +20,6 @@ class _BigQueryTablePulumiResource(pulumi.ComponentResource):
         destroy_protection: bool,
         schema: Optional[str],
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -59,6 +58,7 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         batch_size: str,
         # pulumi-only options
         destroy_protection: bool,
+        schema: Optional[Type],
     ):
         self.dataset = dataset
         self.table_name = table_name
@@ -66,6 +66,7 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
         self.batch_size = batch_size
         # pulumi-only options
         self.destroy_protection = destroy_protection
+        self._schema = schema
 
     @property
     def table_id(self) -> BigQueryTableID:
@@ -83,12 +84,17 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
         # TODO: Maybe throw an error if schema is None
         schema = None
+        if self._schema is None:
+            raise ValueError(
+                "Schema is required to create a bigquery table. "
+                "Pass one in with: `BigQueryTable(...).options(schema=MyDataClass)`"
+            )
+        type_ = self._schema
         if hasattr(type_, "__args__"):
             # Using a composite type hint like List or Optional
             type_ = type_.__args__[0]
@@ -100,7 +106,6 @@ class BigQueryTableProvider(SinkProvider, PulumiProvider):
             self.table_name,
             self.destroy_protection,
             schema,
-            type_,
             credentials,
             opts,
         )

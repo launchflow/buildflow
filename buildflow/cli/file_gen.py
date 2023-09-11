@@ -110,7 +110,7 @@ def get_field_default_value(field) -> Tuple[str, str]:
     return default_value, imports
 
 
-def generate_pipeline_template(
+def generate_consumer_template(
     source_class_name: str,
     sink_class_name: str,
     file_name: str = "main",
@@ -184,26 +184,20 @@ class OutputSchema:
     TODO: str
 
 
-app = Flow()
-
-
 source = {source_class_name}(
     {source_fields}
-).options(
-    # TODO: uncomment if you want Pulumi to manage the source's resource(s)
-    # managed=True,
 )
 sink = {sink_class_name}(
     {sink_fields}
-).options(
-    # TODO: uncomment if you want Pulumi to manage the sink's resource(s)
-    # managed=True,
 )
 
+app = Flow()
+# TODO: uncomment if you want pulumi to manage the source and sink resources.
+# app.manage(source, sink)
 
-# Attach a Pipeline to the Flow
-@app.pipeline(source=source, sink=sink)
-def my_pipeline(event: InputSchema) -> OutputSchema:
+# Attach a Consumer to the Flow
+@app.consumer(source=source, sink=sink)
+def my_consumer(event: InputSchema) -> OutputSchema:
     return OutputSchema(event.TODO)
 """
 
@@ -273,7 +267,6 @@ class OutputSchema:
     TODO: str
 
 
-app = Flow()
 
 
 sink = {sink_class_name}(
@@ -282,6 +275,10 @@ sink = {sink_class_name}(
     # TODO: uncomment if you want Pulumi to manage the sink's resource(s)
     # managed=True,
 )
+
+app = Flow()
+# TODO: uncomment if you want pulumi to manage the sink resources.
+# app.manage(sink)
 
 
 # Attach a Collector to the Flow

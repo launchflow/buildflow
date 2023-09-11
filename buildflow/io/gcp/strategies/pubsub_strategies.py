@@ -140,7 +140,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
             if last_timeseries is None:
                 return -1
         except Exception:
-            logging.error(
+            logging.exception(
                 "Failed to get backlog for subscription %s please ensure your "
                 "user has: roles/monitoring.viewer to read the backlog, "
                 "no autoscaling will happen.",

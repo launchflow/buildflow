@@ -4,11 +4,12 @@ from unittest import mock
 
 from buildflow.core.app.runtime import autoscaler
 from buildflow.core.app.runtime._runtime import RuntimeStatus
-from buildflow.core.app.runtime.actors.pipeline_pattern.pipeline_pool_snapshot import (
-    PipelineProcessorSnapshot,
+from buildflow.core.app.runtime.actors.consumer_pattern.consumer_pool_snapshot import (
+    ConsumerProcessorGroupSnapshot,
+    ConsumerProcessorSnapshot,
 )
 from buildflow.core.options.runtime_options import AutoscalerOptions
-from buildflow.core.processor.processor import ProcessorType
+from buildflow.core.processor.processor import ProcessorGroupType, ProcessorType
 
 # Set logging to debug to make test failures easier to groc.
 logging.getLogger().setLevel(logging.DEBUG)
@@ -22,30 +23,36 @@ def create_snapshot(
     num_cpu_per_replica: float = 1,
     avg_cpu_percent: float = 1,
     timestamp_millis: int = 1,
-) -> PipelineProcessorSnapshot:
-    return PipelineProcessorSnapshot(
-        source_backlog=backlog,
-        total_events_processed_per_sec=throughput,
+) -> ConsumerProcessorGroupSnapshot:
+    return ConsumerProcessorGroupSnapshot(
         num_replicas=num_replicas,
-        avg_cpu_percentage_per_replica=avg_cpu_percent,
         num_cpu_per_replica=num_cpu_per_replica,
         status=RuntimeStatus.RUNNING,
         timestamp_millis=timestamp_millis,
-        processor_id="id",
-        processor_type=ProcessorType.PIPELINE,
+        group_id="id",
+        group_type=ProcessorGroupType.CONSUMER,
         num_concurrency_per_replica=1,
-        eta_secs=1,
-        total_pulls_per_sec=1,
-        avg_num_elements_per_batch=1,
-        avg_pull_percentage_per_replica=1,
-        avg_process_time_millis_per_element=1,
-        avg_process_time_millis_per_batch=1,
-        avg_pull_to_ack_time_millis_per_batch=1,
+        processor_snapshots={
+            "id": ConsumerProcessorSnapshot(
+                processor_id="id",
+                processor_type=ProcessorType.CONSUMER,
+                source_backlog=backlog,
+                total_events_processed_per_sec=throughput,
+                avg_cpu_percentage_per_replica=avg_cpu_percent,
+                eta_secs=1,
+                total_pulls_per_sec=1,
+                avg_num_elements_per_batch=1,
+                avg_pull_percentage_per_replica=1,
+                avg_process_time_millis_per_element=1,
+                avg_process_time_millis_per_batch=1,
+                avg_pull_to_ack_time_millis_per_batch=1,
+            )
+        },
     )
 
 
 @mock.patch("ray.available_resources", return_value={"CPU": 32})
-class PipelineAutoScalerTest(unittest.TestCase):
+class ConsumerAutoScalerTest(unittest.TestCase):
     def test_scale_up_to_estimated_replicas(self, resources_mock):
         current_num_replics = 2
         current_throughput = 10

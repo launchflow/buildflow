@@ -217,6 +217,37 @@ class CollectorLocalTest(unittest.TestCase):
         finally:
             shutil.rmtree(output_dir)
 
+    def test_collector_duckdb_end_to_end_unattached(self):
+        app = buildflow.Flow()
+
+        @buildflow.collector(
+            route="/test",
+            method="POST",
+            sink=AnalysisTable(table_name=self.table),
+            num_cpus=0.5,
+        )
+        def my_collector(input: InputRequest) -> OutputResponse:
+            return OutputResponse(input.val + 1)
+
+        app.add_collector(my_collector)
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        response = requests.post(
+            "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
+        )
+        response.raise_for_status()
+
+        database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
+        conn = duckdb.connect(database=database, read_only=True)
+        got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
+
+        self.assertEqual(got_data[0], 1)
+        self.get_async_result(app._drain())
+
 
 if __name__ == "__main__":
     unittest.main()
