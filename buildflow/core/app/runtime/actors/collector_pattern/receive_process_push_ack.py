@@ -86,39 +86,49 @@ class ReceiveProcessPushAck(Runtime):
 
     async def run(self) -> bool:
         app = fastapi.FastAPI()
+
+        @app.on_event("startup")
+        def setup_processor_group():
+            for processor in self.processor_group.processors:
+                if hasattr(app.state, "processor_map"):
+                    app.state.processor_map[processor.processor_id] = processor
+                else:
+                    app.state.processor_map = {processor.processor_id: processor}
+                processor.setup()
+
         for processor in self.processor_group.processors:
             input_type, output_type = process_types(processor)
             push_converter = processor.sink().push_converter(output_type)
 
             class CollectorFastAPIWrapper:
-                def __init__(self, processor, run_id, push_converter):
+                def __init__(self, processor_id, run_id, push_converter):
+                    self.processor_id = processor_id
                     self.job_id = ray.get_runtime_context().get_job_id()
                     self.run_id = run_id
-                    self.processor = processor
                     self.push_converter = push_converter
                     self.num_events_processed_counter = num_events_processed(
-                        processor_id=self.processor.processor_id,
+                        processor_id=processor_id,
                         job_id=self.job_id,
                         run_id=run_id,
                     )
                     self.process_time_counter = process_time_counter(
-                        processor_id=self.processor.processor_id,
+                        processor_id=processor_id,
                         job_id=self.job_id,
                         run_id=run_id,
                     )
-                    self.processor.setup()
 
                 async def root(self, request: input_type) -> None:
-                    sink = self.processor.sink()
+                    processor = app.state.processor_map[self.processor_id]
+                    sink = processor.sink()
                     self.num_events_processed_counter.inc(
                         tags={
-                            "processor_id": self.processor.processor_id,
+                            "processor_id": self.processor_id,
                             "JobId": self.job_id,
                             "RunId": self.run_id,
                         }
                     )
                     start_time = time.monotonic()
-                    output = await self.processor.process(request)
+                    output = await processor.process(request)
                     if output is None:
                         # Exclude none results
                         return
@@ -130,7 +140,7 @@ class ReceiveProcessPushAck(Runtime):
                     self.process_time_counter.inc(
                         (time.monotonic() - start_time) * 1000,
                         tags={
-                            "processor_id": self.processor.processor_id,
+                            "processor_id": self.processor_id,
                             "JobId": self.job_id,
                             "RunId": self.run_id,
                         },
@@ -147,7 +157,7 @@ class ReceiveProcessPushAck(Runtime):
                     )
 
             collector_wrapper = CollectorFastAPIWrapper(
-                processor, self.run_id, push_converter
+                processor.processor_id, self.run_id, push_converter
             )
             self.processors_map[processor.processor_id] = collector_wrapper
 
