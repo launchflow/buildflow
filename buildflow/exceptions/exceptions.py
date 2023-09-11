@@ -1,3 +1,6 @@
+from starlette.exceptions import HTTPException  # noqa: F401
+
+
 class CannotConvertSourceException(Exception):
     """Raised when a source cannot be converted to the desired type."""
 

@@ -80,57 +80,59 @@ class ReceiveProcessRespond(Runtime):
 
     async def run(self) -> bool:
         app = fastapi.FastAPI()
+
+        @app.on_event("startup")
+        def setup_processor_group():
+            for processor in self.processor_group.processors:
+                if hasattr(app.state, "processor_map"):
+                    app.state.processor_map[processor.processor_id] = processor
+                else:
+                    app.state.processor_map = {processor.processor_id: processor}
+                processor.setup()
+
         for processor in self.processor_group.processors:
             input_type, _ = process_types(processor)
 
             class EndpointFastAPIWrapper:
-                def __init__(self, processor, run_id):
+                def __init__(self, processor_id, run_id):
                     self.job_id = ray.get_runtime_context().get_job_id()
                     self.run_id = run_id
-                    self.processor = processor
                     self.num_events_processed_counter = num_events_processed(
-                        processor_id=self.processor.processor_id,
+                        processor_id=processor_id,
                         job_id=self.job_id,
                         run_id=run_id,
                     )
                     self.process_time_counter = process_time_counter(
-                        processor_id=self.processor.processor_id,
+                        processor_id=processor_id,
                         job_id=self.job_id,
                         run_id=run_id,
                     )
-                    self.processor.setup()
+                    self.processor_id = processor_id
 
                 async def root(self, request: input_type) -> None:
+                    processor = app.state.processor_map[self.processor_id]
                     self.num_events_processed_counter.inc(
                         tags={
-                            "processor_id": self.processor.processor_id,
+                            "processor_id": processor.processor_id,
                             "JobId": self.job_id,
                             "RunId": self.run_id,
                         }
                     )
                     start_time = time.monotonic()
-                    output = await self.processor.process(request)
+                    output = await processor.process(request)
                     self.process_time_counter.inc(
                         (time.monotonic() - start_time) * 1000,
                         tags={
-                            "processor_id": self.processor.processor_id,
+                            "processor_id": processor.processor_id,
                             "JobId": self.job_id,
                             "RunId": self.run_id,
                         },
                     )
                     return output
 
-                def num_events_processed(self):
-                    return (
-                        self.num_events_processed_counter.calculate_rate().total_value_rate()
-                    )
-
-                def process_time_millis(self):
-                    return (
-                        self.process_time_counter.calculate_rate().average_value_rate()
-                    )
-
-            endpoint_wrapper = EndpointFastAPIWrapper(processor, self.run_id)
+            endpoint_wrapper = EndpointFastAPIWrapper(
+                processor.processor_id, self.run_id
+            )
             self.processors_map[processor.processor_id] = endpoint_wrapper
 
             app.add_api_route(
@@ -155,6 +157,7 @@ class ReceiveProcessRespond(Runtime):
 
         self.endpoint_deployment = FastAPIWrapper
         self.endpoint_application = FastAPIWrapper.bind()
+
         tries = 0
         while tries < _MAX_SERVE_START_TRIES:
             try:
@@ -186,10 +189,11 @@ class ReceiveProcessRespond(Runtime):
 
     async def snapshot(self) -> Snapshot:
         processor_snapshots = {}
+        # TODO: need to figure out local metrics
         for processor_id, fast_api_wrapper in self.processors_map.items():
             processor_snapshots[processor_id] = IndividualProcessorMetrics(
-                events_processed_per_sec=fast_api_wrapper.num_events_processed(),
-                avg_process_time_millis=fast_api_wrapper.process_time_millis(),
+                events_processed_per_sec=0,
+                avg_process_time_millis=0,
             )
         if self.endpoint_deployment is not None:
             num_replicas = self.endpoint_deployment.num_replicas
