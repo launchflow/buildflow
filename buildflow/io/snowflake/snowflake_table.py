@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional, Union
+from typing import Optional, Type, Union
 
 from buildflow.core.utils import uuid
 from buildflow.io.aws.s3 import S3Bucket
@@ -68,6 +68,7 @@ class SnowflakeTable(
         default=_DEFAULT_SNOW_PIPE_MANAGED, init=False
     )
     stage_managed: bool = dataclasses.field(default=_DEFAULT_STAGE_MANAGED, init=False)
+    table_schema: Optional[Type] = dataclasses.field(default=None, init=False)
 
     def __post_init__(self):
         if isinstance(self.bucket, S3Bucket):
@@ -91,17 +92,17 @@ class SnowflakeTable(
     def options(
         self,
         # Pulumi management options
-        managed: bool = False,
         database_managed: bool = _DEFAULT_DATABASE_MANAGED,
         schema_managed: bool = _DEFAULT_SCHEMA_MANAGED,
+        table_schema: Optional[Type] = None,
         # Sink options
         flush_time_limit_secs: int = _DEFAULT_FLUSH_TIME_LIMIT_SECS,
     ) -> "SnowflakeTable":
-        to_ret = super().options(managed)
-        to_ret.database_managed = database_managed
-        to_ret.schema_managed = schema_managed
-        to_ret.flush_time_limit_secs = flush_time_limit_secs
-        return to_ret
+        self.database_managed = database_managed
+        self.table_schema = table_schema
+        self.schema_managed = schema_managed
+        self.flush_time_limit_secs = flush_time_limit_secs
+        return self
 
     def sink_provider(self) -> SinkProvider:
         return SnowflakeTableProvider(
@@ -113,13 +114,13 @@ class SnowflakeTable(
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,
             schema_managed=self.schema_managed,
-            bucket_managed=self.bucket._managed,
             snow_pipe_managed=self.snow_pipe_managed,
             stage_managed=self.stage_managed,
             account=self.account,
             user=self.user,
             private_key=self.private_key,
             flush_time_secs=self.flush_time_limit_secs,
+            table_schema=self.table_schema,
         )
 
     def _pulumi_provider(self) -> PulumiProvider:
@@ -132,13 +133,13 @@ class SnowflakeTable(
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,
             schema_managed=self.schema_managed,
-            bucket_managed=self.bucket._managed,
             snow_pipe_managed=self.snow_pipe_managed,
             stage_managed=self.stage_managed,
             account=self.account,
             user=self.user,
             private_key=self.private_key,
             flush_time_secs=self.flush_time_limit_secs,
+            table_schema=self.table_schema,
         )
 
     def background_task_provider(self) -> BackgroundTaskProvider:
@@ -151,11 +152,11 @@ class SnowflakeTable(
             snowflake_stage=self.snowflake_stage,
             database_managed=self.database_managed,
             schema_managed=self.schema_managed,
-            bucket_managed=self.bucket._managed,
             snow_pipe_managed=self.snow_pipe_managed,
             stage_managed=self.stage_managed,
             account=self.account,
             user=self.user,
             private_key=self.private_key,
             flush_time_secs=self.flush_time_limit_secs,
+            table_schema=self.table_schema,
         )

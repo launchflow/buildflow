@@ -1,10 +1,11 @@
-from typing import Iterable, Optional, Type
+from typing import Iterable
 
 import pulumi
 import pulumi_aws
 
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.io.aws.providers.pulumi_providers import aws_provider
+from buildflow.io.aws.providers.sqs_provider import SQSQueueResource
 from buildflow.io.aws.s3 import S3Bucket
 from buildflow.io.aws.sqs import SQSQueue
 from buildflow.io.aws.strategies.s3_file_change_stream_strategies import (
@@ -21,7 +22,6 @@ class _S3FileChangeStreamResource(pulumi.ComponentResource):
         sqs_queue: SQSQueue,
         event_types: Iterable[S3ChangeStreamEventType],
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -31,16 +31,19 @@ class _S3FileChangeStreamResource(pulumi.ComponentResource):
             None,
             opts,
         )
-        opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(parent=self))
-        self.s3_resource = None
-        s3_pulumi_provider = s3_bucket.pulumi_provider()
-        if s3_pulumi_provider is not None:
-            self.s3_resource = s3_pulumi_provider.pulumi_resource(
-                type_=type_, credentials=credentials, opts=opts
+        sqs_resource = None
+        for resource in opts.depends_on:
+            if (
+                isinstance(resource, SQSQueueResource)
+                and resource.queue_name == sqs_queue.queue_name
+                and resource.aws_region == sqs_queue.aws_region
+                and resource.aws_acocunt_id == sqs_queue.aws_account_id
+            ):
+                sqs_resource = resource.queue_resource
+        if sqs_resource is None:
+            raise ValueError(
+                "S3 file change resource requires SQS queue as a dependency."
             )
-        self.sqs_resource = sqs_queue.pulumi_provider().pulumi_resource(
-            type_=type_, credentials=credentials, opts=opts
-        )
         provider_id = f"{s3_bucket.bucket_name}-" f"{sqs_queue.queue_name}"
         provider = aws_provider(
             provider_id,
@@ -71,11 +74,10 @@ class _S3FileChangeStreamResource(pulumi.ComponentResource):
             opts=pulumi.InvokeOptions(parent=self, provider=provider),
         )
         policy_id = f"{sqs_queue.queue_name}-policy"
-        self.sqs_resource
         self.queue_policy = pulumi_aws.sqs.QueuePolicy(
             resource_name=policy_id,
             opts=pulumi.ResourceOptions(parent=self, provider=provider),
-            queue_url=self.sqs_resource.queue_resource.id,
+            queue_url=sqs_resource.id,
             policy=queue_policy_document.json,
         )
         s3_event_types = [f"s3:{et.value}" for et in event_types]
@@ -88,7 +90,7 @@ class _S3FileChangeStreamResource(pulumi.ComponentResource):
             bucket=s3_bucket.bucket_name,
             queues=[
                 pulumi_aws.s3.BucketNotificationQueueArgs(
-                    queue_arn=self.sqs_resource.queue_resource.arn,
+                    queue_arn=sqs_resource.arn,
                     events=s3_event_types,
                 )
             ],
@@ -127,13 +129,12 @@ class S3FileChangeStreamProvider(SourceProvider, PulumiProvider):
         )
 
     def pulumi_resource(
-        self, type_: Optional[Type], credentials: AWSCredentials, opts
+        self, credentials: AWSCredentials, opts
     ) -> _S3FileChangeStreamResource:
         return _S3FileChangeStreamResource(
             s3_bucket=self.s3_bucket,
             sqs_queue=self.sqs_queue,
             event_types=self.event_types,
-            type_=type_,
             credentials=credentials,
             opts=opts,
         )

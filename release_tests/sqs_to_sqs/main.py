@@ -12,8 +12,10 @@ app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=Fal
 input_queue = os.getenv("INPUT_QUEUE", "input_queue")
 output_queue = os.getenv("OUTPUT_QUEUE", "output_queue")
 
-source = SQSQueue(queue_name=input_queue, aws_region="us-east-1").options(managed=True)
-sink = SQSQueue(queue_name=output_queue, aws_region="us-east-1").options(managed=True)
+source = SQSQueue(queue_name=input_queue, aws_region="us-east-1")
+sink = SQSQueue(queue_name=output_queue, aws_region="us-east-1")
+
+app.manage(source, sink)
 
 
 @dataclass
@@ -26,8 +28,8 @@ class Output:
     output_val: int
 
 
-@app.pipeline(source=source, sink=sink, num_cpus=0.5)
-class InputPipeline:
+@app.consumer(source=source, sink=sink, num_cpus=0.5)
+class InputConsumer:
     def setup(self):
         self.counter = 0
 
@@ -40,8 +42,8 @@ class InputPipeline:
         return Output(output_val=payload.val + 1)
 
 
-@app.pipeline(source=sink, num_cpus=0.5)
-class ValidatePipeline:
+@app.consumer(source=sink, num_cpus=0.5)
+class ValidateConsumer:
     def setup(self):
         self.counter = 0
 

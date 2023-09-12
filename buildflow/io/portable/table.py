@@ -5,7 +5,7 @@ from typing import Optional
 from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
 from buildflow.core.types.portable_types import TableName
 from buildflow.io.duckdb.duckdb import DuckDBTable
-from buildflow.io.gcp.bigquery import BigQueryTable
+from buildflow.io.gcp.bigquery_table import BigQueryTable
 from buildflow.io.primitive import PortablePrimtive, Primitive
 from buildflow.io.strategies._strategy import StategyType
 

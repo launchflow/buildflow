@@ -1,5 +1,6 @@
 # ruff: noqa
-from .bigquery import BigQueryTable
+from .bigquery_dataset import BigQueryDataset
+from .bigquery_table import BigQueryTable
 from .cloud_sql_database import CloudSQLDatabase
 from .cloud_sql_instance import CloudSQLInstance
 from .gcs_file_change_stream import GCSFileChangeStream

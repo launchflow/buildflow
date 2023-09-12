@@ -29,14 +29,13 @@ class _SnowflakeTableSinkResource(pulumi.ComponentResource):
         snowflake_stage: Optional[str],
         database_managed: bool,
         schema_managed: bool,
-        bucket_managed: bool,
         snow_pipe_managed: bool,
         stage_managed: bool,
         account: str,
         user: str,
         private_key: str,
-        # pulumi_resource options (buildflow internal concept)
         type_: Optional[Type],
+        # pulumi_resource options (buildflow internal concept)
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -47,13 +46,6 @@ class _SnowflakeTableSinkResource(pulumi.ComponentResource):
             opts,
         )
 
-        self.bucket_resource = None
-        bucket_provider = bucket.pulumi_provider()
-        opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(parent=self))
-        if bucket_provider is not None:
-            self.bucket_resource = bucket_provider.pulumi_resource(
-                type_=type_, credentials=credentials, opts=opts
-            )
         outputs = {}
 
         table_id = f"{database}.{schema}.{table}"
@@ -177,9 +169,9 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
     # Options for configuring pulumi
     database_managed: bool
     schema_managed: bool
-    bucket_managed: bool
     snow_pipe_managed: bool
     stage_managed: bool
+    table_schema: Optional[Type]
     # Authentication information
     account: str
     user: str
@@ -210,7 +202,6 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: Union[AWSCredentials, GCPCredentials],
         opts: pulumi.ResourceOptions,
     ) -> _SnowflakeTableSinkResource:
@@ -223,13 +214,12 @@ class SnowflakeTableProvider(SinkProvider, PulumiProvider, BackgroundTaskProvide
             snow_pipe=self.snow_pipe,
             database_managed=self.database_managed,
             schema_managed=self.schema_managed,
-            bucket_managed=self.bucket_managed,
             snow_pipe_managed=self.snow_pipe_managed,
             stage_managed=self.stage_managed,
             account=self.account,
             user=self.user,
             private_key=self.private_key,
-            type_=type_,
+            type_=self.table_schema,
             credentials=credentials,
             opts=opts,
         )

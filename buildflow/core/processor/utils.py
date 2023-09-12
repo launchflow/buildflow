@@ -1,10 +1,13 @@
 import inspect
-from typing import Optional, Tuple, Type
+from typing import Iterable, Optional, Tuple, Type
 
 from buildflow.core.processor.processor import ProcessorAPI
+from buildflow.dependencies.base import DependencyWrapper
 
 
-def process_types(processor: ProcessorAPI) -> Tuple[Optional[Type], Optional[Type]]:
+def process_types(
+    processor: ProcessorAPI,
+) -> Tuple[Optional[Type], Optional[Type], Iterable[DependencyWrapper]]:
     """Returns the expected input type and output type of the processor."""
     full_arg_spec = inspect.getfullargspec(processor.process)
     output_type = None

@@ -27,6 +27,7 @@ class FlowOptions(Options):
         require_confirmation: bool = True,
         infra_log_level: str = "INFO",
         # Pulumi options
+        stack: str = "local",
         enable_destroy_protection: bool = False,
         refresh_state: bool = True,
     ) -> None:
@@ -43,6 +44,7 @@ class FlowOptions(Options):
             require_confirmation (bool): Whether or not confirmation should be
                 required before applying changes. Defaults to True.
             infra_log_level (str): The log level for the infra. Defaults to "INFO".
+            stack (str): The stack to use. Defaults to "local".
             enable_destroy_protection (bool): Whether destroy projection should be
                 enabled for pulumi. Defaults to False.
             refresh_state (bool): Whether or not to refresh state before applying
@@ -76,6 +78,7 @@ class FlowOptions(Options):
                 enable_destroy_protection=self.enable_destroy_protection,
                 refresh_state=self.refresh_state,
                 log_level=self.infra_log_level,
+                selected_stack=stack,
             ),
             schema_validation=self.schema_validation,
             require_confirmation=self.require_confirmation,

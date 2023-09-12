@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import pulumi
 import pulumi_aws
@@ -13,17 +13,19 @@ from buildflow.io.strategies.sink import SinkStrategy
 from buildflow.io.strategies.source import SourceStrategy
 
 
-class _SQSQueueResource(pulumi.ComponentResource):
+class SQSQueueResource(pulumi.ComponentResource):
     def __init__(
         self,
         queue_name: SQSQueueName,
         aws_region: Optional[AWSRegion],
         aws_account_id: Optional[AWSAccountID],
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
+        self.queue_name = queue_name
+        self.aws_region = aws_region
+        self.aws_acocunt_id = aws_account_id
         queue_id_components = []
         if aws_region is not None:
             queue_id_components.append(aws_region)
@@ -84,15 +86,13 @@ class SQSQueueProvider(PulumiProvider, SinkProvider, SourceProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: AWSCredentials,
         opts: pulumi.ResourceOptions,
     ):
-        return _SQSQueueResource(
+        return SQSQueueResource(
             queue_name=self.queue_name,
             aws_region=self.aws_region,
             aws_account_id=self.aws_account_id,
-            type_=type_,
             credentials=credentials,
             opts=opts,
         )

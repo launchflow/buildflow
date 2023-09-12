@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import pulumi
 import pulumi_gcp
@@ -19,7 +19,6 @@ class _GCPStoragePulumiResource(pulumi.ComponentResource):
         project_id: GCPProjectID,
         force_destroy: bool,
         # pulumi_resource options (buildflow internal concept)
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -90,7 +89,6 @@ class GCSBucketProvider(SinkProvider, PulumiProvider):
 
     def pulumi_resource(
         self,
-        type_: Optional[Type],
         credentials: GCPCredentials,
         opts: pulumi.ResourceOptions,
     ):
@@ -99,7 +97,6 @@ class GCSBucketProvider(SinkProvider, PulumiProvider):
             bucket_region=self.bucket_region,
             project_id=self.project_id,
             force_destroy=self.force_destroy,
-            type_=type_,
             credentials=credentials,
             opts=opts,
         )

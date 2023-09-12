@@ -37,29 +37,26 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             database="database",
             schema="schema",
             flush_time_secs=10,
-            bucket=S3Bucket(bucket_name="bucket").options(managed=True),
+            bucket=S3Bucket(bucket_name="bucket"),
             snow_pipe="snow_pipe",
             snowflake_stage="snowflake_stage",
             database_managed=True,
             schema_managed=True,
-            bucket_managed=True,
             snow_pipe_managed=True,
             stage_managed=True,
             account="account",
             user="user",
             private_key="private_key",
+            table_schema=SnowflakeTableType,
         )
 
         resource = provider.pulumi_resource(
-            type_=SnowflakeTableType,
-            credentials=self.creds,
-            opts=pulumi.ResourceOptions(),
+            credentials=self.creds, opts=pulumi.ResourceOptions()
         )
 
         child_resource = resource._childResources
-        self.assertEqual(len(child_resource), 6)
+        self.assertEqual(len(child_resource), 5)
 
-        self.assertIsNotNone(resource.bucket_resource)
         self.assertIsInstance(resource.database_resource, pulumi_snowflake.Database)
         self.assertIsInstance(resource.schema_resource, pulumi_snowflake.Schema)
         self.assertIsInstance(resource.table_resource, pulumi_snowflake.Table)
@@ -77,23 +74,20 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             snowflake_stage="snowflake_stage",
             database_managed=False,
             schema_managed=False,
-            bucket_managed=False,
             snow_pipe_managed=False,
             stage_managed=False,
             account="account",
             user="user",
             private_key="private_key",
+            table_schema=SnowflakeTableType,
         )
 
         resource = provider.pulumi_resource(
-            type_=SnowflakeTableType,
-            credentials=self.creds,
-            opts=pulumi.ResourceOptions(),
+            credentials=self.creds, opts=pulumi.ResourceOptions()
         )
 
         self.assertEqual(len(resource._childResources), 1)
         self.assertIsInstance(resource.table_resource, pulumi_snowflake.Table)
-        self.assertIsNone(resource.bucket_resource)
         self.assertIsNone(resource.database_resource)
         self.assertIsNone(resource.schema_resource)
         self.assertIsNone(resource.stage_resource)
@@ -110,17 +104,17 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             snowflake_stage="snowflake_stage",
             database_managed=False,
             schema_managed=False,
-            bucket_managed=False,
             snow_pipe_managed=False,
             stage_managed=False,
             account="account",
             user="user",
             private_key="private_key",
+            table_schema=int,
         )
 
         with self.assertRaises(ValueError):
             provider.pulumi_resource(
-                type_=int, credentials=self.creds, opts=pulumi.ResourceOptions()
+                credentials=self.creds, opts=pulumi.ResourceOptions()
             )
 
     def test_pulumu_resources_non_dataclass_type(self):
@@ -134,17 +128,17 @@ class SnowflakeTableProviderTest(unittest.TestCase):
             snowflake_stage="snowflake_stage",
             database_managed=False,
             schema_managed=False,
-            bucket_managed=False,
             snow_pipe_managed=False,
             stage_managed=False,
             account="account",
             user="user",
             private_key="private_key",
+            table_schema=int,
         )
 
         with self.assertRaises(ValueError):
             provider.pulumi_resource(
-                type_=int, credentials=self.creds, opts=pulumi.ResourceOptions()
+                credentials=self.creds, opts=pulumi.ResourceOptions()
             )
 
 

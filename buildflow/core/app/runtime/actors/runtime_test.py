@@ -14,6 +14,7 @@ from ray.util.state import list_actors
 from buildflow.core.app.flow import Flow
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.options import ProcessorOptions, RuntimeOptions
+from buildflow.core.processor.patterns.consumer import ConsumerGroup
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
 from buildflow.io.local.testing.pulse_with_backlog import PulseWithBacklog
@@ -70,7 +71,7 @@ class RunTimeTest(unittest.TestCase):
     def test_runtime_end_to_end(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
         )
@@ -85,7 +86,9 @@ class RunTimeTest(unittest.TestCase):
         runtime_options.processor_options["process"].num_cpus = 0.5
         actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
-        actor.run.remote(processors=[process])
+        actor.run.remote(
+            processor_groups=[ConsumerGroup(processors=[process], group_id="process")]
+        )
 
         time.sleep(15)
 
@@ -103,11 +106,11 @@ class RunTimeTest(unittest.TestCase):
     def test_runtime_kill_processor_pool(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=PulseWithBacklog(
                 [{"field": 1}, {"field": 2}],
                 pulse_interval_seconds=1,
-                # Set an artificial backlog size to force the pipeline to scale up.
+                # Set an artificial backlog size to force the consumer to scale up.
                 # We set this to a very large value to ensure we scale up to
                 # out max capacity.
                 backlog_size=1000000,
@@ -133,26 +136,32 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
         pending = self.run_for_time(actor.run_until_complete.remote(), 10)
 
         # Grab snapshot to see how many replicas we have scaled up to.
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        num_replicas = snapshot.processors[0].num_replicas
+        num_replicas = snapshot.processor_groups[0].num_replicas
 
         # Kill our process pool actor.
-        # The let the pipeline run for a couple seconds to allow it to be spun
+        # The let the consumer run for a couple seconds to allow it to be spun
         # up again.
         pool_actor = list_actors(
-            filters=[("class_name", "=", "PipelineProcessorReplicaPoolActor")]
+            filters=[("class_name", "=", "ConsumerProcessorReplicaPoolActor")]
         )[0]
         pid = pool_actor["pid"]
         os.kill(pid, signal.SIGKILL)
 
         self.run_for_time(pending, 20)
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        self.assertGreaterEqual(snapshot.processors[0].num_replicas, num_replicas)
+        self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, num_replicas)
 
         self.run_with_timeout(actor.drain.remote())
 
@@ -161,11 +170,11 @@ class RunTimeTest(unittest.TestCase):
     def test_runtime_kill_single_replica(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=PulseWithBacklog(
                 [{"field": 1}, {"field": 2}],
                 pulse_interval_seconds=1,
-                # Set an artificial backlog size to force the pipeline to scale up.
+                # Set an artificial backlog size to force the consumer to scale up.
                 # We set this to a very large value to ensure we scale up to
                 # out max capacity.
                 backlog_size=1000000,
@@ -191,16 +200,22 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
-        pending = self.run_for_time(actor.run_until_complete.remote(), 10)
+        pending = self.run_for_time(actor.run_until_complete.remote(), 20)
 
         # Grab snapshot to see how many replicas we have scaled up to.
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        num_replicas = snapshot.processors[0].num_replicas
+        num_replicas = snapshot.processor_groups[0].num_replicas
 
         # Kill all replica actors.
-        # Then let the pipeline run for a couple seconds to allow them to be spun
+        # Then let the consumer run for a couple seconds to allow them to be spun
         # up again.
         replica = list_actors(filters=[("class_name", "=", "PullProcessPushActor")])[0]
         pid = replica["pid"]
@@ -208,7 +223,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_for_time(pending, 10)
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        self.assertEqual(num_replicas, snapshot.processors[0].num_replicas)
+        self.assertEqual(num_replicas, snapshot.processor_groups[0].num_replicas)
 
         self.run_with_timeout(actor.drain.remote())
         self.assertInStderr("replica actor unexpectedly died. will restart.")
@@ -216,11 +231,11 @@ class RunTimeTest(unittest.TestCase):
     def test_runtime_kill_all_replicas(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=PulseWithBacklog(
                 [{"field": 1}, {"field": 2}],
                 pulse_interval_seconds=1,
-                # Set an artificial backlog size to force the pipeline to scale up.
+                # Set an artificial backlog size to force the consumer to scale up.
                 # We set this to a very large value to ensure we scale up to
                 # out max capacity.
                 backlog_size=1000000,
@@ -246,7 +261,13 @@ class RunTimeTest(unittest.TestCase):
             runtime_options=runtime_options,
         )
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
         # Run for ten seconds to let it scale up.
         pending = self.run_for_time(actor.run_until_complete.remote(), 10)
 
@@ -254,7 +275,7 @@ class RunTimeTest(unittest.TestCase):
         snapshot = self.run_with_timeout(actor.snapshot.remote())
 
         # Kill all replica actors.
-        # Then let the pipeline run for a couple seconds to allow them to be spun
+        # Then let the consumer run for a couple seconds to allow them to be spun
         # up again.
         replica_actors = list_actors(
             filters=[("class_name", "=", "PullProcessPushActor")]
@@ -265,7 +286,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_for_time(pending, 10)
         snapshot = self.run_with_timeout(actor.snapshot.remote())
-        self.assertGreaterEqual(snapshot.processors[0].num_replicas, 1)
+        self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, 1)
 
         self.run_with_timeout(actor.drain.remote())
         self.assertInStderr("replica actor unexpectedly died. will restart.")
@@ -273,11 +294,11 @@ class RunTimeTest(unittest.TestCase):
     def test_runtime_scales_up(self):
         app = Flow()
 
-        @app.pipeline(
+        @app.consumer(
             source=PulseWithBacklog(
                 [{"field": 1}, {"field": 2}],
                 pulse_interval_seconds=1,
-                # Set an artificial backlog size to force the pipeline to scale up.
+                # Set an artificial backlog size to force the consumer to scale up.
                 backlog_size=1000,
             ),
             sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
@@ -297,7 +318,13 @@ class RunTimeTest(unittest.TestCase):
         ].autoscaler_options.autoscale_frequency_secs = 5
         actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
 
-        self.run_with_timeout(actor.run.remote(processors=[process]))
+        self.run_with_timeout(
+            actor.run.remote(
+                processor_groups=[
+                    ConsumerGroup(processors=[process], group_id="process")
+                ]
+            )
+        )
 
         self.run_for_time(actor.run_until_complete.remote(), 15)
 
@@ -305,7 +332,7 @@ class RunTimeTest(unittest.TestCase):
 
         self.run_with_timeout(actor.drain.remote())
 
-        self.assertGreaterEqual(snapshot.processors[0].num_replicas, 2)
+        self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, 2)
 
 
 if __name__ == "__main__":

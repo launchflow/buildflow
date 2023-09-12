@@ -13,11 +13,15 @@ class BuildFlowConfig(Config):
     cloud_provider_config: CloudProviderConfig
 
     @classmethod
-    def default(cls, *, buildflow_config_dir: str) -> "BuildFlowConfig":
+    def default(
+        cls, *, buildflow_config_dir: str, application: str
+    ) -> "BuildFlowConfig":
         pulumi_home_dir = os.path.join(buildflow_config_dir, "_pulumi")
         os.makedirs(pulumi_home_dir, exist_ok=True)
         return cls(
-            pulumi_config=PulumiConfig.default(pulumi_home_dir=pulumi_home_dir),
+            pulumi_config=PulumiConfig.default(
+                pulumi_home_dir=pulumi_home_dir, project_name=application
+            ),
             cloud_provider_config=CloudProviderConfig.default(),
         )
 
@@ -26,7 +30,10 @@ class BuildFlowConfig(Config):
         if os.path.exists(buildflow_config_dir):
             return cls.load(buildflow_config_dir)
         else:
-            config = cls.default(buildflow_config_dir=buildflow_config_dir)
+            config = cls.default(
+                application="buildflow-project",
+                buildflow_config_dir=buildflow_config_dir,
+            )
             config.dump(buildflow_config_dir)
             return config
 

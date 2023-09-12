@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Optional
 
 from buildflow.core.types.gcp_types import CloudSQLInstanceName, GCPProjectID
 from buildflow.io.gcp.providers.cloud_sql_instance_provider import (
@@ -6,8 +7,6 @@ from buildflow.io.gcp.providers.cloud_sql_instance_provider import (
 )
 from buildflow.io.primitive import GCPPrimtive
 from buildflow.types.gcp import CloudSQLPostgresVersion
-
-_DEFAULT_POSTGRES_VERSION = CloudSQLPostgresVersion.POSTGRES_15
 
 
 # TODO: add generic types
@@ -17,20 +16,22 @@ class CloudSQLInstance(GCPPrimtive):
     project_id: GCPProjectID
 
     # Pulumi only options.
-    database_version: CloudSQLPostgresVersion = dataclasses.field(
-        init=False, default=_DEFAULT_POSTGRES_VERSION
+    database_version: Optional[CloudSQLPostgresVersion] = dataclasses.field(
+        init=False, default=None
     )
 
     def options(
         self,
-        managed: bool = False,
-        database_version: CloudSQLPostgresVersion = _DEFAULT_POSTGRES_VERSION,
+        database_version: CloudSQLPostgresVersion,
     ) -> "CloudSQLInstance":
-        to_ret = super().options(managed)
-        to_ret.database_version = database_version
-        return to_ret
+        self.database_version = database_version
+        return self
 
     def _pulumi_provider(self) -> CloudSQLInstancePulumiProvider:
+        if self.database_version is None:
+            raise ValueError(
+                "database_version must be set for managing a cloud SQL instance."
+            )
         return CloudSQLInstancePulumiProvider(
             instance_name=self.instance_name,
             project_id=self.project_id,
