@@ -1,8 +1,9 @@
 import inspect
 from enum import Enum
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import ray
+from starlette.requests import Request
 
 
 class Scope(Enum):
@@ -21,7 +22,9 @@ class DependencyWrapper:
         self.dependency = dependency
 
 
-def dependency_wrappers(fn: Callable) -> Iterable[DependencyWrapper]:
+def dependency_wrappers(
+    fn: Callable,
+) -> Tuple[Iterable[DependencyWrapper], Optional[str]]:
     """Returns the dependencies of the processor."""
     full_arg_spec = inspect.getfullargspec(fn)
     dependencies = []
@@ -31,7 +34,11 @@ def dependency_wrappers(fn: Callable) -> Iterable[DependencyWrapper]:
                 dependencies.append(
                     DependencyWrapper(arg, full_arg_spec.annotations[arg])
                 )
-    return dependencies
+    request_arg = None
+    for key, annotation in full_arg_spec.annotations.items():
+        if annotation == Request:
+            request_arg = key
+    return dependencies, request_arg
 
 
 class Dependency:
@@ -40,22 +47,33 @@ class Dependency:
     def __init__(self, dependency_fn, scope: Scope):
         self.dependency_fn = dependency_fn
         self.scope = scope
+        for attr in dependency_fn.__dict__:
+            if callable(getattr(dependency_fn, attr)):
+                setattr(self, attr, getattr(dependency_fn, attr))
 
     def initialize(self, scopes: Iterable[Scope] = Scope.all()):
         self._initialize_dependencies(scopes)
 
-    def resolve(self):
+    def resolve(self, request: Optional[Request] = None):
         raise NotImplementedError()
 
-    def _resolve_dependencies(self) -> Dict[str, Any]:
-        input_dependencies = dependency_wrappers(self.dependency_fn)
+    def _resolve_dependencies(
+        self, request: Optional[Request] = None
+    ) -> Dict[str, Any]:
+        input_dependencies, request_arg = dependency_wrappers(self.dependency_fn)
         deps = {}
         for dep in input_dependencies:
-            deps[dep.arg_name] = dep.dependency.resolve()
+            deps[dep.arg_name] = dep.dependency.resolve(request)
+        if request_arg is not None:
+            if request is None:
+                raise ValueError(
+                    f"Unable to provide Request to dependency `{request_arg}`"
+                )
+            deps[request_arg] = request
         return deps
 
     def _initialize_dependencies(self, scopes):
-        input_dependencies = dependency_wrappers(self.dependency_fn)
+        input_dependencies, _ = dependency_wrappers(self.dependency_fn)
         for dep in input_dependencies:
             if dep.dependency.scope.value < self.scope.value:
                 raise ValueError(
@@ -69,8 +87,8 @@ class ProcessScoped(Dependency):
     def __init__(self, dependency_fn):
         super().__init__(dependency_fn, Scope.PROCESS)
 
-    def resolve(self):
-        args = self._resolve_dependencies()
+    def resolve(self, request: Optional[Request] = None):
+        args = self._resolve_dependencies(request)
         return self.dependency_fn(**args)
 
 
@@ -88,7 +106,7 @@ class ReplicaScoped(Dependency):
         args = self._resolve_dependencies()
         self._instance = self.dependency_fn(**args)
 
-    def resolve(self):
+    def resolve(self, request: Optional[Request] = None):
         if self._instance is None:
             raise ValueError("Replica scoped dependency not initialized")
         return self._instance
@@ -107,7 +125,7 @@ class GlobalScoped(Dependency):
         args = self._resolve_dependencies()
         self._object_ref = ray.put(self.dependency_fn(**args))
 
-    def resolve(self):
+    def resolve(self, request: Optional[Request] = None):
         if self._object_ref is None:
             raise ValueError("Global scoped dependency not initialized")
         return ray.get(self._object_ref)

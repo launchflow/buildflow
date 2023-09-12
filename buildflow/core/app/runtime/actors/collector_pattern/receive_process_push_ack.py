@@ -97,8 +97,11 @@ class ReceiveProcessPushAck(Runtime):
                 processor.setup()
 
         for processor in self.processor_group.processors:
-            input_type, output_type = process_types(processor)
+            input_types, output_type = process_types(processor)
             push_converter = processor.sink().push_converter(output_type)
+
+            # TODO: update this to work the same as endpoints
+            input_type = input_types[0] if input_types else None
 
             class CollectorFastAPIWrapper:
                 def __init__(self, processor_id, run_id, push_converter):
@@ -117,7 +120,7 @@ class ReceiveProcessPushAck(Runtime):
                         run_id=run_id,
                     )
 
-                async def root(self, request: input_type) -> None:
+                async def root(self, request: input_type.arg_type) -> None:
                     processor = app.state.processor_map[self.processor_id]
                     sink = processor.sink()
                     self.num_events_processed_counter.inc(

@@ -184,10 +184,13 @@ class PullProcessPushActor(Runtime):
         pid = os.getpid()
         proc = psutil.Process(pid)
 
-        input_type, output_type = process_types(processor)
+        input_types, output_type = process_types(processor)
+        if len(input_types) != 1:
+            raise ValueError("At least one input type must be specified for consumers")
+        input_type = input_types[0]
         source = processor.source()
         sink = processor.sink()
-        pull_converter = source.pull_converter(input_type)
+        pull_converter = source.pull_converter(input_type.arg_type)
         push_converter = sink.push_converter(output_type)
         process_fn = processor.process
 

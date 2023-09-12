@@ -383,6 +383,7 @@ def _consumer_processor(
 ):
     setup, teardown = _lifecycle_functions(consumer.original_process_fn_or_class)
     processor_id = consumer.original_process_fn_or_class.__name__
+    dependencies, _ = dependency_wrappers(consumer.original_process_fn_or_class)
 
     def background_tasks():
         return _background_tasks(
@@ -403,6 +404,7 @@ def _consumer_processor(
         "setup": setup,
         "teardown": teardown,
         "background_tasks": lambda self: background_tasks(),
+        "dependencies": lambda self: dependencies,
         "__meta__": {
             "source": consumer.source_primitive,
             "sink": consumer.sink_primitive,
@@ -440,6 +442,7 @@ def _consumer_processor(
 def _collector_processor(collector: Collector, sink_credentials: CredentialType):
     setup, teardown = _lifecycle_functions(collector.original_process_fn_or_class)
     processor_id = collector.original_process_fn_or_class.__name__
+    dependencies, _ = dependency_wrappers(collector.original_process_fn_or_class)
 
     def background_tasks():
         return _background_tasks(collector.sink_primitive, sink_credentials)
@@ -457,6 +460,7 @@ def _collector_processor(collector: Collector, sink_credentials: CredentialType)
         "setup": setup,
         "teardown": teardown,
         "background_tasks": lambda self: background_tasks(),
+        "dependencies": lambda self: dependencies,
         "__meta__": {
             "sink": collector.sink_primitive,
         },
@@ -494,7 +498,7 @@ def _endpoint_processor(endpoint: Endpoint, service_id: str):
     setup, teardown = _lifecycle_functions(endpoint.original_process_fn_or_class)
 
     processor_id = endpoint.original_process_fn_or_class.__name__
-    dependencies = dependency_wrappers(endpoint.original_process_fn_or_class)
+    dependencies, _ = dependency_wrappers(endpoint.original_process_fn_or_class)
 
     # Dynamically define a new class with the same structure as Processor
     class_name = f"EndpointProcessor{utils.uuid(max_len=8)}"

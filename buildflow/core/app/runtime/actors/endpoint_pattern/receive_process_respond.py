@@ -23,6 +23,15 @@ from buildflow.dependencies.base import Scope
 _MAX_SERVE_START_TRIES = 10
 
 
+WRAPPER_TEMPLATE = """\
+def wrapped_handler(
+        self,
+        {arg_name}: {arg_type},
+        raw_request: fastapi.Request) -> None:
+    return handle_request(self, request, raw_request)
+"""
+
+
 @dataclasses.dataclass
 class IndividualProcessorMetrics:
     events_processed_per_sec: int
@@ -91,11 +100,10 @@ class ReceiveProcessRespond(Runtime):
                     app.state.processor_map = {processor.processor_id: processor}
                 processor.setup()
                 for dependency in processor.dependencies():
-                    if dependency.dependency.scope == Scope.REPLICA:
-                        dependency.dependency.initialize()
+                    dependency.dependency.initialize([Scope.REPLICA])
 
         for processor in self.processor_group.processors:
-            input_type, _ = process_types(processor)
+            input_types, output_type = process_types(processor)
 
             class EndpointFastAPIWrapper:
                 def __init__(self, processor_id, run_id):
@@ -113,31 +121,100 @@ class ReceiveProcessRespond(Runtime):
                     )
                     self.processor_id = processor_id
 
-                async def handle_request(self, request: input_type) -> None:
-                    processor = app.state.processor_map[self.processor_id]
-                    self.num_events_processed_counter.inc(
-                        tags={
-                            "processor_id": processor.processor_id,
-                            "JobId": self.job_id,
-                            "RunId": self.run_id,
-                        }
-                    )
-                    start_time = time.monotonic()
-                    dependency_args = {}
-                    for wrapper in processor.dependencies():
-                        dependency_args[
-                            wrapper.arg_name
-                        ] = wrapper.dependency.resolve()  # noqa: E501
-                    output = await processor.process(request, **dependency_args)
-                    self.process_time_counter.inc(
-                        (time.monotonic() - start_time) * 1000,
-                        tags={
-                            "processor_id": processor.processor_id,
-                            "JobId": self.job_id,
-                            "RunId": self.run_id,
-                        },
-                    )
-                    return output
+                # TODO: figure out how to remove this duplicated code
+                if not input_types:
+
+                    async def handle_request(
+                        self, raw_request: fastapi.Request
+                    ) -> None:
+                        processor = app.state.processor_map[self.processor_id]
+                        self.num_events_processed_counter.inc(
+                            tags={
+                                "processor_id": processor.processor_id,
+                                "JobId": self.job_id,
+                                "RunId": self.run_id,
+                            }
+                        )
+                        start_time = time.monotonic()
+                        dependency_args = {}
+                        for wrapper in processor.dependencies():
+                            dependency_args[
+                                wrapper.arg_name
+                            ] = wrapper.dependency.resolve(
+                                raw_request
+                            )  # noqa: E501
+                        output = await processor.process(**dependency_args)
+                        self.process_time_counter.inc(
+                            (time.monotonic() - start_time) * 1000,
+                            tags={
+                                "processor_id": processor.processor_id,
+                                "JobId": self.job_id,
+                                "RunId": self.run_id,
+                            },
+                        )
+                        return output
+
+                else:
+
+                    def sigreplace(f):
+                        from functools import wraps
+                        from inspect import Parameter, signature
+
+                        @wraps(f)
+                        async def wrapper(*args, **kwargs):
+                            return await f(*args, **kwargs)
+
+                        sig = signature(f)
+                        params = sig.parameters
+                        params = list(params.values())
+                        new_params = []
+                        for input_type in input_types:
+                            new_param = Parameter(
+                                name=input_type.arg_name,
+                                kind=Parameter.POSITIONAL_OR_KEYWORD,
+                                annotation=input_type.arg_type,
+                            )
+                            new_params.append(new_param)
+                        final_params = [params[0]] + new_params + [params[1]]
+                        new_sig = sig.replace(
+                            parameters=final_params, return_annotation=output_type
+                        )
+
+                        wrapper.__signature__ = new_sig
+                        return wrapper
+
+                    @sigreplace
+                    async def handle_request(
+                        self, raw_request: fastapi.Request, *args, **kwargs
+                    ) -> output_type:
+                        processor = app.state.processor_map[self.processor_id]
+                        self.num_events_processed_counter.inc(
+                            tags={
+                                "processor_id": processor.processor_id,
+                                "JobId": self.job_id,
+                                "RunId": self.run_id,
+                            }
+                        )
+                        start_time = time.monotonic()
+                        dependency_args = {}
+                        for wrapper in processor.dependencies():
+                            dependency_args[
+                                wrapper.arg_name
+                            ] = wrapper.dependency.resolve(
+                                raw_request
+                            )  # noqa: E501
+                        output = await processor.process(
+                            *args, **kwargs, **dependency_args
+                        )
+                        self.process_time_counter.inc(
+                            (time.monotonic() - start_time) * 1000,
+                            tags={
+                                "processor_id": processor.processor_id,
+                                "JobId": self.job_id,
+                                "RunId": self.run_id,
+                            },
+                        )
+                        return output
 
             endpoint_wrapper = EndpointFastAPIWrapper(
                 processor.processor_id, self.run_id
