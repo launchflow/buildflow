@@ -6,6 +6,7 @@ import pytest
 import requests
 
 import buildflow
+from buildflow.dependencies.base import Scope, dependency
 
 
 @dataclasses.dataclass
@@ -18,7 +19,7 @@ class OutputResponse:
     val: int
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class EndpointLocalTest(unittest.TestCase):
     def get_async_result(self, coro):
@@ -95,6 +96,62 @@ class EndpointLocalTest(unittest.TestCase):
 
         @service.endpoint(route="/test", method="POST")
         def my_endpoint(input: InputRequest) -> OutputResponse:
+            return OutputResponse(input.val + 1)
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        response = requests.post(
+            "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
+        )
+        response.raise_for_status()
+        self.assertEqual(response.json(), {"val": 2})
+
+        self.get_async_result(app._drain())
+
+    def test_endpoint_dependencies(self):
+        @dependency(scope=Scope.NO_SCOPE)
+        class NoScope:
+            def __init__(self):
+                self.val = 1
+
+        @dependency(scope=Scope.GLOBAL)
+        class GlobalScope:
+            def __init__(self, no: NoScope):
+                self.val = 2
+                self.no = no
+
+        @dependency(scope=Scope.REPLICA)
+        class ReplicaScope:
+            def __init__(self, global_: GlobalScope):
+                self.val = 3
+                self.global_ = global_
+
+        @dependency(scope=Scope.PROCESS)
+        class ProcessScope:
+            def __init__(self, replica: ReplicaScope):
+                self.val = 4
+                self.replica = replica
+
+        app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
+
+        @service.endpoint(route="/test", method="POST")
+        def my_endpoint(
+            input: InputRequest,
+            no: NoScope,
+            global_: GlobalScope,
+            replica: ReplicaScope,
+            process: ProcessScope,
+        ) -> OutputResponse:
+            if id(process.replica) != id(replica):
+                raise Exception("Replica scope not the same")
+            if id(replica.global_) != id(global_):
+                raise Exception("Global scope not the same")
+            if id(global_.no) == id(no):
+                raise Exception("No scope was the same")
             return OutputResponse(input.val + 1)
 
         run_coro = app.run(block=False)

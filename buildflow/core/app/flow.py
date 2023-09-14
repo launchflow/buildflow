@@ -90,12 +90,6 @@ def _traverse_primitive_for_pulumi(
     initial_opts: pulumi.ResourceOptions,
     visited_primitives: _PrimitiveCache,
 ) -> pulumi.Resource:
-    pulumi_provider = primitive.pulumi_provider()
-    if pulumi_provider is None:
-        raise ValueError(
-            "_traverse_primitive_for_pulumi should never be called with "
-            "an unmanaged primitive."
-        )
     fields = dataclasses.fields(primitive)
     parent_resources = []
     for field in fields:
@@ -103,7 +97,7 @@ def _traverse_primitive_for_pulumi(
         if (
             field_value is not None
             and isinstance(field_value, Primitive)
-            and field_value.pulumi_provider() is not None
+            and field_value._managed
         ):
             visited_resource = visited_primitives.get(field_value)
             # Visit all managed parent primitives to create the parent resources
@@ -122,21 +116,23 @@ def _traverse_primitive_for_pulumi(
     opts = pulumi.ResourceOptions.merge(
         initial_opts, pulumi.ResourceOptions(depends_on=parent_resources)
     )
-    resource = pulumi_provider.pulumi_resource(credentials=credentials, opts=opts)
+    resource = primitive.pulumi_resource(credentials=credentials, opts=opts)
     visited_primitives.append(_PrimitiveCacheEntry(primitive, resource))
     return resource
 
 
-def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primitive]:
-    primitives_without_parents = primitives.copy()
-    for primitive in primitives:
+def _find_primitives_with_no_parents(
+    managed_primitives: List[Primitive],
+) -> List[Primitive]:
+    primitives_without_parents = managed_primitives.copy()
+    for primitive in managed_primitives:
         fields = dataclasses.fields(primitive)
         for field in fields:
             field_value = getattr(primitive, field.name)
             if (
                 field_value is not None
                 and isinstance(field_value, Primitive)
-                and field_value.pulumi_provider() is not None
+                and field_value._managed
             ):
                 primitives_without_parents.remove(field_value)
     return primitives_without_parents
@@ -368,10 +364,7 @@ def _lifecycle_functions(
 def _background_tasks(
     primitive: Primitive, credentials: CredentialType
 ) -> List[BackgroundTask]:
-    provider = primitive.background_task_provider()
-    if provider is not None:
-        return provider.background_tasks(credentials)
-    return []
+    return primitive.background_tasks(credentials)
 
 
 # NOTE: We do this outside of the Flow class to avoid the flow class
@@ -392,14 +385,12 @@ def _consumer_processor(
 
     # Dynamically define a new class with the same structure as Processor
     class_name = f"ConsumerProcessor{utils.uuid(max_len=8)}"
-    source_provider = consumer.source_primitive.source_provider()
-    sink_provider = consumer.sink_primitive.sink_provider()
     adhoc_methods = {
         # ConsumerProcessor methods.
         # NOTE: We need to instantiate the source and sink strategies
         # in the class to avoid issues passing to ray workers.
-        "source": lambda self: source_provider.source(source_credentials),
-        "sink": lambda self: sink_provider.sink(sink_credentials),
+        "source": lambda self: consumer.source_primitive.source(source_credentials),
+        "sink": lambda self: consumer.sink_primitive.sink(sink_credentials),
         # ProcessorAPI methods. NOTE: process() is attached separately below
         "setup": setup,
         "teardown": teardown,
@@ -449,13 +440,12 @@ def _collector_processor(collector: Collector, sink_credentials: CredentialType)
 
     # Dynamically define a new class with the same structure as Processor
     class_name = f"CollectorProcessor{utils.uuid(max_len=8)}"
-    sink_provider = collector.sink_primitive.sink_provider()
     adhoc_methods = {
         # CollectorProcessor methods.
         "route_info": lambda self: RouteInfo(collector.route, collector.method),
         # NOTE: We need to instantiate the sink strategies
         # in the class to avoid issues passing to ray workers.
-        "sink": lambda self: sink_provider.sink(sink_credentials),
+        "sink": lambda self: collector.sink_primitive.sink(sink_credentials),
         # ProcessorAPI methods. NOTE: process() is attached separately below
         "setup": setup,
         "teardown": teardown,
@@ -627,7 +617,7 @@ class Flow:
             primitive.enable_managed()
         return primitive
 
-    # NOTE: The Flow class is responsible for converting Primitives into a Provider
+    # NOTE: The Flow class is responsible for converting Primitives into a strategy
     def consumer(
         self,
         source: Primitive,

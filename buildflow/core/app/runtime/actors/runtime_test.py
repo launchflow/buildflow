@@ -21,7 +21,7 @@ from buildflow.io.local.testing.pulse_with_backlog import PulseWithBacklog
 from buildflow.types.portable import FileFormat
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class RunTimeTest(unittest.TestCase):
     def setUp(self) -> None:

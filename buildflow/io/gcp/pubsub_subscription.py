@@ -1,12 +1,16 @@
 import dataclasses
 from typing import Optional
 
+import pulumi
+
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubSubscriptionName
 from buildflow.core.types.portable_types import SubscriptionName
-from buildflow.io.gcp.providers.pubsub_subscription import GCPPubSubSubscriptionProvider
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
+from buildflow.io.gcp.pulumi.pubsub_subscription import PubSubSubscriptionPulumiResource
+from buildflow.io.gcp.strategies.pubsub_strategies import GCPPubSubSubscriptionSource
 from buildflow.io.primitive import GCPPrimtive
 
 _DEFAULT_ACK_DEADLINE_SECONDS = 10 * 60
@@ -18,18 +22,7 @@ _DEFAULT_INCLUDE_ATTRIBUTES = False
 # NOTE: A user should use this in the case where they want to connect to an existing
 # topic.
 @dataclasses.dataclass
-class GCPPubSubSubscription(
-    GCPPrimtive[
-        # Pulumi provider type
-        GCPPubSubSubscriptionProvider,
-        # Source provider type
-        GCPPubSubSubscriptionProvider,
-        # Sink provider type
-        None,
-        # Background task provider type
-        None,
-    ]
-):
+class GCPPubSubSubscription(GCPPrimtive):
     project_id: GCPProjectID
     subscription_name: PubSubSubscriptionName
     # required fields
@@ -86,33 +79,30 @@ class GCPPubSubSubscription(
             topic=topic,
         )
 
-    def source_provider(self) -> GCPPubSubSubscriptionProvider:
-        # TODO: Add support to supply the source-only options. Maybe add some kind of
-        # "inject_options" method for the different provider types.
-        # Use a Builder pattern for this.
-        return GCPPubSubSubscriptionProvider(
+    def source(self, credentials: GCPCredentials) -> GCPPubSubSubscriptionSource:
+        return GCPPubSubSubscriptionSource(
+            credentials=credentials,
             project_id=self.project_id,
             subscription_name=self.subscription_name,
-            topic=self.topic,
             batch_size=self.batch_size,
             include_attributes=self.include_attributes,
-            ack_deadline_seconds=self.ack_deadline_seconds,
-            message_retention_duration=self.message_retention_duration,
         )
 
-    def _pulumi_provider(self) -> GCPPubSubSubscriptionProvider:
+    def pulumi_resource(
+        self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
+    ) -> PubSubSubscriptionPulumiResource:
         if self.topic is None:
             raise ValueError(
                 "A topic must be provided to the GCPPubSubSubscription. Please provide "
                 "one via GCPPubSubSubscription(...).options(topic=GCPPubSubTopic(...))"
                 " method."
             )
-        return GCPPubSubSubscriptionProvider(
+        return PubSubSubscriptionPulumiResource(
+            credentials=credentials,
             project_id=self.project_id,
             subscription_name=self.subscription_name,
             topic=self.topic,
-            batch_size=self.batch_size,
-            include_attributes=self.include_attributes,
             ack_deadline_seconds=self.ack_deadline_seconds,
             message_retention_duration=self.message_retention_duration,
+            opts=opts,
         )

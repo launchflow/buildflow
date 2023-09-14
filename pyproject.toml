@@ -102,3 +102,8 @@ omit = [
 
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+markers = [
+    "ray: marks tests as slow because it will spin up ray (deselect with '-m \"not ray\"')",
+]

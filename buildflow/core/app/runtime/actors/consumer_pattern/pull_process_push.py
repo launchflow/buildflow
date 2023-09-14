@@ -20,6 +20,7 @@ from buildflow.core.app.runtime.metrics import (
 from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.core.processor.processor import ProcessorGroup
 from buildflow.core.processor.utils import process_types
+from buildflow.dependencies.base import Scope
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI
@@ -108,6 +109,8 @@ class PullProcessPushActor(Runtime):
         for processor in self.processor_group.processors:
             processor_id = processor.processor_id
             processor.setup()
+            for dependency in processor.dependencies():
+                dependency.dependency.initialize([Scope.REPLICA])
             self.num_events_processed[processor_id] = num_events_processed(
                 processor_id=processor_id,
                 job_id=job_id,
@@ -194,8 +197,8 @@ class PullProcessPushActor(Runtime):
         push_converter = sink.push_converter(output_type)
         process_fn = processor.process
 
-        async def process_element(element):
-            results = await process_fn(pull_converter(element))
+        async def process_element(element, *args, **kwargs):
+            results = await process_fn(pull_converter(element), *args, **kwargs)
             if results is None:
                 # Exclude none results
                 return
@@ -237,7 +240,10 @@ class PullProcessPushActor(Runtime):
             try:
                 coros = []
                 for element in response.payload:
-                    coros.append(process_element(element))
+                    dependency_args = {}
+                    for wrapper in processor.dependencies():
+                        dependency_args[wrapper.arg_name] = wrapper.dependency.resolve()
+                    coros.append(process_element(element, **dependency_args))
                 flattened_results = await asyncio.gather(*coros)
                 batch_results = []
                 for results in flattened_results:

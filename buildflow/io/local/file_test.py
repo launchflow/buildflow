@@ -14,7 +14,7 @@ from buildflow.types.portable import FileFormat
 
 
 @pytest.mark.usefixtures("event_loop_instance")
-class FileProviderTest(unittest.TestCase):
+class FilePrimitiveTest(unittest.TestCase):
     def get_output_file(self) -> str:
         files = os.listdir(self.output_path)
         self.assertEqual(1, len(files))
@@ -34,7 +34,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.CSV,
         )
 
-        file_sink = local_file.sink_provider().sink(mock.MagicMock())
+        file_sink = local_file.sink(mock.MagicMock())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
 
         file_path = self.get_output_file()
@@ -48,7 +48,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.JSON,
         )
 
-        file_sink = local_file.sink_provider().sink(mock.MagicMock())
+        file_sink = local_file.sink(mock.MagicMock())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
 
         file_path = self.get_output_file()
@@ -64,7 +64,7 @@ class FileProviderTest(unittest.TestCase):
             file_format=FileFormat.PARQUET,
         )
 
-        file_sink = local_file.sink_provider().sink(mock.MagicMock())
+        file_sink = local_file.sink(mock.MagicMock())
         self.get_async_result(file_sink.push([{"field": 1}, {"field": 2}]))
         file_path = self.get_output_file()
         table = pq.read_table(file_path)

@@ -1,27 +1,21 @@
 import dataclasses
 from typing import Optional
 
+import pulumi
+
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubTopicID, PubSubTopicName
 from buildflow.core.types.portable_types import TopicName
-from buildflow.io.gcp.providers.pubsub_topic import GCPPubSubTopicProvider
+from buildflow.io.gcp.pulumi.pubsub_topic import GCPPubSubTopicResource
+from buildflow.io.gcp.strategies.pubsub_strategies import GCPPubSubTopicSink
 from buildflow.io.primitive import GCPPrimtive
+from buildflow.io.strategies.sink import SinkStrategy
 
 
 @dataclasses.dataclass
-class GCPPubSubTopic(
-    GCPPrimtive[
-        # Pulumi provider type
-        GCPPubSubTopicProvider,
-        # Source provider type
-        None,
-        # Sink provider type
-        GCPPubSubTopicProvider,
-        # Background task provider type
-        None,
-    ]
-):
+class GCPPubSubTopic(GCPPrimtive):
     project_id: GCPProjectID
     topic_name: PubSubTopicName
 
@@ -42,14 +36,19 @@ class GCPPubSubTopic(
             topic_name=topic_name,
         )
 
-    def sink_provider(self) -> GCPPubSubTopicProvider:
-        return GCPPubSubTopicProvider(
+    def sink(self, credentials: GCPCredentials) -> SinkStrategy:
+        return GCPPubSubTopicSink(
+            credentials=credentials,
             project_id=self.project_id,
             topic_name=self.topic_name,
         )
 
-    def _pulumi_provider(self) -> GCPPubSubTopicProvider:
-        return GCPPubSubTopicProvider(
+    def pulumi_resource(
+        self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
+    ) -> GCPPubSubTopicResource:
+        return GCPPubSubTopicResource(
+            credentials=credentials,
             project_id=self.project_id,
             topic_name=self.topic_name,
+            opts=opts,
         )

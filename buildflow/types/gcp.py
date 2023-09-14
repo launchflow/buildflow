@@ -2,6 +2,9 @@ import dataclasses
 import enum
 
 from google.cloud import storage
+from pulumi_gcp.sql import (  # noqa
+    DatabaseInstanceSettingsArgs as CloudSQLInstanceSettings,
+)
 
 from buildflow.types.portable import FileChangeEvent, PortableFileChangeEventType
 
@@ -37,7 +40,7 @@ class GCSFileChangeEvent(FileChangeEvent):
         return blob.download_as_bytes()
 
 
-class CloudSQLPostgresVersion:
+class CloudSQLDatabaseVersion:
     POSTGRES_9_6 = "POSTGRES_9_6"
     POSTGRES_10 = "POSTGRES_10"
     POSTGRES_11 = "POSTGRES_11"

@@ -15,7 +15,7 @@ from buildflow.io.snowflake.background_tasks.table_load_background_task import (
 from buildflow.io.snowflake.constants import BASE_STAGING_DIR, BASE_UPLOAD_DIR
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class TableLoadBackgroundTaskTest(unittest.TestCase):
     def run_for_time(self, coro, time: int = 5):

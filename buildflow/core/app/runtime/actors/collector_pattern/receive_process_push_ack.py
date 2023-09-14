@@ -22,6 +22,7 @@ from buildflow.core.processor.processor import (
     ProcessorType,
 )
 from buildflow.core.processor.utils import process_types
+from buildflow.dependencies.base import Scope
 
 _MAX_SERVE_START_TRIES = 10
 
@@ -95,13 +96,12 @@ class ReceiveProcessPushAck(Runtime):
                 else:
                     app.state.processor_map = {processor.processor_id: processor}
                 processor.setup()
+                for dependency in processor.dependencies():
+                    dependency.dependency.initialize([Scope.REPLICA])
 
         for processor in self.processor_group.processors:
             input_types, output_type = process_types(processor)
             push_converter = processor.sink().push_converter(output_type)
-
-            # TODO: update this to work the same as endpoints
-            input_type = input_types[0] if input_types else None
 
             class CollectorFastAPIWrapper:
                 def __init__(self, processor_id, run_id, push_converter):
@@ -120,7 +120,14 @@ class ReceiveProcessPushAck(Runtime):
                         run_id=run_id,
                     )
 
-                async def root(self, request: input_type.arg_type) -> None:
+                # NOTE: we have to import this seperately because it gets run
+                # inside of the ray actor
+                from buildflow.core.processor.utils import add_input_types
+
+                @add_input_types(input_types, None)
+                async def handle_request(
+                    self, raw_request: fastapi.Request, *args, **kwargs
+                ) -> None:
                     processor = app.state.processor_map[self.processor_id]
                     sink = processor.sink()
                     self.num_events_processed_counter.inc(
@@ -131,7 +138,12 @@ class ReceiveProcessPushAck(Runtime):
                         }
                     )
                     start_time = time.monotonic()
-                    output = await processor.process(request)
+                    dependency_args = {}
+                    for wrapper in processor.dependencies():
+                        dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
+                            raw_request
+                        )  # noqa: E501
+                    output = await processor.process(*args, **kwargs, **dependency_args)
                     if output is None:
                         # Exclude none results
                         return
@@ -149,16 +161,6 @@ class ReceiveProcessPushAck(Runtime):
                         },
                     )
 
-                def num_events_processed(self):
-                    return (
-                        self.num_events_processed_counter.calculate_rate().total_value_rate()
-                    )
-
-                def process_time_millis(self):
-                    return (
-                        self.process_time_counter.calculate_rate().average_value_rate()
-                    )
-
             collector_wrapper = CollectorFastAPIWrapper(
                 processor.processor_id, self.run_id, push_converter
             )
@@ -166,7 +168,7 @@ class ReceiveProcessPushAck(Runtime):
 
             app.add_api_route(
                 processor.route_info().route,
-                collector_wrapper.root,
+                collector_wrapper.handle_request,
                 methods=[processor.route_info().method.name],
             )
 
@@ -222,8 +224,8 @@ class ReceiveProcessPushAck(Runtime):
                 processor_id=processor_id,
                 # TODO: should probably get this from the actual processor.
                 processor_type=ProcessorType.COLLECTOR,
-                events_processed_per_sec=fast_api_wrapper.num_events_processed(),
-                avg_process_time_millis=fast_api_wrapper.process_time_millis(),
+                events_processed_per_sec=0,
+                avg_process_time_millis=0,
             )
         if self.collector_deployment is not None:
             num_replicas = self.collector_deployment.num_replicas

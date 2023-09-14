@@ -19,7 +19,7 @@ from buildflow.io.local.pulse import Pulse
 from buildflow.types.portable import FileFormat
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class PullProcessPushTest(unittest.TestCase):
     def get_output_file(self) -> str:

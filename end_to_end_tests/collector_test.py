@@ -10,6 +10,8 @@ import pytest
 import requests
 
 import buildflow
+from buildflow.core.options.flow_options import FlowOptions
+from buildflow.dependencies.base import Scope, dependency
 from buildflow.io.local import File
 from buildflow.io.portable.table import AnalysisTable
 from buildflow.types.portable import FileFormat
@@ -25,7 +27,7 @@ class OutputResponse:
     val: int
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class CollectorLocalTest(unittest.TestCase):
     def get_async_result(self, coro):
@@ -247,6 +249,86 @@ class CollectorLocalTest(unittest.TestCase):
 
         self.assertEqual(got_data[0], 1)
         self.get_async_result(app._drain())
+
+    def test_collector_with_dependencies(self):
+        output_dir = tempfile.mkdtemp()
+
+        @dependency(scope=Scope.NO_SCOPE)
+        class NoScope:
+            def __init__(self):
+                self.val = 1
+
+        @dependency(scope=Scope.GLOBAL)
+        class GlobalScope:
+            def __init__(self, no: NoScope):
+                self.val = 2
+                self.no = no
+
+        @dependency(scope=Scope.REPLICA)
+        class ReplicaScope:
+            def __init__(self, global_: GlobalScope):
+                self.val = 3
+                self.global_ = global_
+
+        @dependency(scope=Scope.PROCESS)
+        class ProcessScope:
+            def __init__(self, replica: ReplicaScope):
+                self.val = 4
+                self.replica = replica
+
+        try:
+            app = buildflow.Flow(flow_options=FlowOptions(runtime_log_level="DEBUG"))
+
+            @app.collector(
+                route="/test",
+                method="POST",
+                sink=File(
+                    os.path.join(output_dir, "file.csv"), file_format=FileFormat.CSV
+                ),
+                num_cpus=0.5,
+            )
+            def my_collector(
+                input: InputRequest,
+                no: NoScope,
+                global_: GlobalScope,
+                replica: ReplicaScope,
+                process: ProcessScope,
+            ) -> OutputResponse:
+                if id(process.replica) != id(replica):
+                    raise Exception("Replica scope not the same")
+                if id(replica.global_) != id(global_):
+                    raise Exception("Global scope not the same")
+                if id(global_.no) == id(no):
+                    raise Exception("No scope was the same")
+                return OutputResponse(
+                    input.val + no.val + global_.val + replica.val + process.val
+                )
+
+            run_coro = app.run(block=False)
+
+            # wait for 20 seconds to let it spin up
+            run_coro = self.run_for_time(run_coro, time=20)
+
+            response = requests.post(
+                "http://localhost:8000/test", json={"val": 1}, timeout=10
+            )
+            response.raise_for_status()
+
+            run_coro = self.run_for_time(run_coro, time=20)
+
+            output_files = os.listdir(output_dir)
+            self.assertEqual(len(output_files), 1)
+            output_file = os.path.join(output_dir, output_files[0])
+
+            with open(output_file, "r") as f:
+                lines = f.readlines()
+                self.assertEqual(len(lines), 2)
+                self.assertEqual(lines[0], '"val"\n')
+                self.assertEqual(lines[1], "11\n")
+
+            self.get_async_result(app._drain())
+        finally:
+            shutil.rmtree(output_dir)
 
 
 if __name__ == "__main__":

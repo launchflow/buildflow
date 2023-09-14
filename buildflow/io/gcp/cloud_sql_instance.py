@@ -1,12 +1,12 @@
 import dataclasses
-from typing import Optional
 
-from buildflow.core.types.gcp_types import CloudSQLInstanceName, GCPProjectID
-from buildflow.io.gcp.providers.cloud_sql_instance_provider import (
-    CloudSQLInstancePulumiProvider,
-)
+import pulumi
+
+from buildflow.core.options.credentials_options import GCPCredentialsOptions
+from buildflow.core.types.gcp_types import CloudSQLInstanceName, GCPProjectID, GCPRegion
+from buildflow.io.gcp.pulumi.cloud_sql_instance import CloudSQLInstanceResource
 from buildflow.io.primitive import GCPPrimtive
-from buildflow.types.gcp import CloudSQLPostgresVersion
+from buildflow.types.gcp import CloudSQLDatabaseVersion, CloudSQLInstanceSettings
 
 
 # TODO: add generic types
@@ -14,26 +14,19 @@ from buildflow.types.gcp import CloudSQLPostgresVersion
 class CloudSQLInstance(GCPPrimtive):
     instance_name: CloudSQLInstanceName
     project_id: GCPProjectID
+    database_version: CloudSQLDatabaseVersion
+    settings: CloudSQLInstanceSettings
+    region: GCPRegion
 
-    # Pulumi only options.
-    database_version: Optional[CloudSQLPostgresVersion] = dataclasses.field(
-        init=False, default=None
-    )
-
-    def options(
-        self,
-        database_version: CloudSQLPostgresVersion,
-    ) -> "CloudSQLInstance":
-        self.database_version = database_version
-        return self
-
-    def _pulumi_provider(self) -> CloudSQLInstancePulumiProvider:
-        if self.database_version is None:
-            raise ValueError(
-                "database_version must be set for managing a cloud SQL instance."
-            )
-        return CloudSQLInstancePulumiProvider(
-            instance_name=self.instance_name,
+    def pulumi_resource(
+        self, credentials: GCPCredentialsOptions, opts: pulumi.ResourceOptions
+    ) -> CloudSQLInstanceResource:
+        return CloudSQLInstanceResource(
             project_id=self.project_id,
+            instance_name=self.instance_name,
             database_version=self.database_version,
+            settings=self.settings,
+            region=self.region,
+            credentials=credentials,
+            opts=opts,
         )

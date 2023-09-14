@@ -1,3 +1,4 @@
+import dataclasses
 import inspect
 import os
 import shutil
@@ -16,6 +17,11 @@ from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
 from buildflow.types.portable import FileFormat
+
+
+@dataclasses.dataclass
+class MySchema:
+    field: int
 
 
 class MyMocks(pulumi.runtime.Mocks):
@@ -104,7 +110,7 @@ class FlowTest(unittest.TestCase):
         )
         bigquery_table = BigQueryTable(
             bigquery_dataset, table_name="table_name"
-        ).options(schema=Dict[str, str])
+        ).options(schema=MySchema)
         pubsub_topic = GCPPubSubTopic(project_id="project_id", topic_name="topic_name")
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project_id", subscription_name="subscription_name"

@@ -44,7 +44,7 @@ class BigQueryTest(unittest.TestCase):
             bigquery_dataset, table_name="table_name"
         ).options(destroy_protection=False, schema=FakeRow)
 
-        bigquery_dataset_resource = bigquery_dataset._pulumi_provider().pulumi_resource(
+        bigquery_dataset_resource = bigquery_dataset.pulumi_resource(
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )
@@ -63,7 +63,7 @@ class BigQueryTest(unittest.TestCase):
             dataset_resource.urn, dataset_resource.project, dataset_resource.dataset_id
         ).apply(check_dataset)
 
-        bigquery_table_resource = bigquery_table._pulumi_provider().pulumi_resource(
+        bigquery_table_resource = bigquery_table.pulumi_resource(
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )
@@ -96,7 +96,7 @@ class BigQueryTest(unittest.TestCase):
             table_name="table_name",
         ).options(schema=FakeRow, destroy_protection=False)
 
-        bigquery_resource = bigquery_table._pulumi_provider().pulumi_resource(
+        bigquery_resource = bigquery_table.pulumi_resource(
             credentials=EmptyCredentials(None),
             opts=pulumi.ResourceOptions(),
         )
@@ -125,7 +125,7 @@ class BigQueryTest(unittest.TestCase):
             BigQueryDataset(project_id="project_id", dataset_name="dataset_name"),
             table_name="table_name",
         )
-        bigquery_sink = bigquery_table.sink_provider().sink(mock.MagicMock())
+        bigquery_sink = bigquery_table.sink(mock.MagicMock())
 
         rows = [FakeRow(1)] * 20000
         self.get_async_result(bigquery_sink.push(rows))

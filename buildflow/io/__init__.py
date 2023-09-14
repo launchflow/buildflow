@@ -26,8 +26,8 @@ def list_all_io_primitives() -> List[IOPrimitiveOption]:
         # Check each object in the module
         for name, obj in inspect.getmembers(module):
             if inspect.isclass(obj) and issubclass(obj, Primitive) and obj != Primitive:
-                source = obj.source_provider is not Primitive.source_provider
-                sink = obj.sink_provider is not Primitive.sink_provider
+                source = obj.source is not Primitive.source
+                sink = obj.sink is not Primitive.sink
                 primitives.append(
                     IOPrimitiveOption(
                         module_name=module_name,
