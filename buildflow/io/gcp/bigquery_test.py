@@ -45,7 +45,7 @@ class BigQueryTest(unittest.TestCase):
         ).options(destroy_protection=False, schema=FakeRow)
 
         bigquery_dataset_resource = bigquery_dataset.pulumi_resource(
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
 
@@ -64,7 +64,7 @@ class BigQueryTest(unittest.TestCase):
         ).apply(check_dataset)
 
         bigquery_table_resource = bigquery_table.pulumi_resource(
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
         child_resources = list(bigquery_table_resource._childResources)
@@ -97,7 +97,7 @@ class BigQueryTest(unittest.TestCase):
         ).options(schema=FakeRow, destroy_protection=False)
 
         bigquery_resource = bigquery_table.pulumi_resource(
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
         child_resources = list(bigquery_resource._childResources)

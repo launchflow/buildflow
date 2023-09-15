@@ -2,7 +2,7 @@ import asyncio
 import dataclasses
 import logging
 import time
-from typing import Dict
+from typing import Any, Dict, Type
 
 import fastapi
 import ray
@@ -74,6 +74,7 @@ class ReceiveProcessRespond(Runtime):
         *,
         processor_options: ProcessorOptions,
         log_level: str = "INFO",
+        flow_dependencies: Dict[Type, Any],
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -87,6 +88,7 @@ class ReceiveProcessRespond(Runtime):
         self.serve_handle = None
         self.processor_options = processor_options
         self.processors_map = {}
+        self.flow_dependencies = flow_dependencies
 
     async def run(self) -> bool:
         app = fastapi.FastAPI(
@@ -104,13 +106,15 @@ class ReceiveProcessRespond(Runtime):
                     app.state.processor_map = {processor.processor_id: processor}
                 processor.setup()
                 for dependency in processor.dependencies():
-                    dependency.dependency.initialize([Scope.REPLICA])
+                    dependency.dependency.initialize(
+                        self.flow_dependencies, [Scope.REPLICA]
+                    )
 
         for processor in self.processor_group.processors:
             input_types, output_type = process_types(processor)
 
             class EndpointFastAPIWrapper:
-                def __init__(self, processor_id, run_id):
+                def __init__(self, processor_id, run_id, flow_dependencies):
                     self.job_id = ray.get_runtime_context().get_job_id()
                     self.run_id = run_id
                     self.num_events_processed_counter = num_events_processed(
@@ -124,6 +128,7 @@ class ReceiveProcessRespond(Runtime):
                         run_id=run_id,
                     )
                     self.processor_id = processor_id
+                    self.flow_dependencies = flow_dependencies
 
                 # NOTE: we have to import this seperately because it gets run
                 # inside of the ray actor
@@ -145,7 +150,7 @@ class ReceiveProcessRespond(Runtime):
                     dependency_args = {}
                     for wrapper in processor.dependencies():
                         dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
-                            raw_request
+                            self.flow_dependencies, raw_request
                         )  # noqa: E501
                     output = await processor.process(*args, **kwargs, **dependency_args)
                     self.process_time_counter.inc(
@@ -159,7 +164,7 @@ class ReceiveProcessRespond(Runtime):
                     return output
 
             endpoint_wrapper = EndpointFastAPIWrapper(
-                processor.processor_id, self.run_id
+                processor.processor_id, self.run_id, self.flow_dependencies
             )
             self.processors_map[processor.processor_id] = endpoint_wrapper
 

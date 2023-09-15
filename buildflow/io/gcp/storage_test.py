@@ -44,7 +44,7 @@ class GCSTest(unittest.TestCase):
         gcs_bucket.enable_managed()
 
         bucket_resource = gcs_bucket.pulumi_resource(
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
 

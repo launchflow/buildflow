@@ -3,7 +3,7 @@ import dataclasses
 import logging
 import os
 import time
-from typing import Dict
+from typing import Any, Dict, Type
 
 import psutil
 import ray
@@ -80,6 +80,7 @@ class PullProcessPushActor(Runtime):
         processor_group: ProcessorGroup[ConsumerProcessor],
         *,
         replica_id: ReplicaID,
+        flow_dependencies: Dict[Type, Any],
         log_level: str = "INFO",
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
@@ -89,6 +90,7 @@ class PullProcessPushActor(Runtime):
         # setup
         self.run_id = run_id
         self.processor_group = processor_group
+        self.flow_dependencies = flow_dependencies
 
         # validation
         # TODO: Validate that the schemas & types are all compatible
@@ -110,7 +112,9 @@ class PullProcessPushActor(Runtime):
             processor_id = processor.processor_id
             processor.setup()
             for dependency in processor.dependencies():
-                dependency.dependency.initialize([Scope.REPLICA])
+                dependency.dependency.initialize(
+                    self.flow_dependencies, [Scope.REPLICA]
+                )
             self.num_events_processed[processor_id] = num_events_processed(
                 processor_id=processor_id,
                 job_id=job_id,
@@ -242,7 +246,9 @@ class PullProcessPushActor(Runtime):
                 for element in response.payload:
                     dependency_args = {}
                     for wrapper in processor.dependencies():
-                        dependency_args[wrapper.arg_name] = wrapper.dependency.resolve()
+                        dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
+                            self.flow_dependencies
+                        )
                     coros.append(process_element(element, **dependency_args))
                 flattened_results = await asyncio.gather(*coros)
                 batch_results = []

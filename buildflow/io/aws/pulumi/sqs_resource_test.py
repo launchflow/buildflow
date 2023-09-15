@@ -28,7 +28,7 @@ class SQSResourceTest(unittest.TestCase):
             queue_name="test_queue",
             aws_account_id="123456789",
             aws_region="us-east-1",
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
 

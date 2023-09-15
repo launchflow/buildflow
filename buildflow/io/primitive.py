@@ -1,5 +1,5 @@
 import enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Type
 
 import pulumi
 from starlette.requests import Request
@@ -93,7 +93,9 @@ class PrimitiveDependency(NoScoped):
         super().__init__(lambda: primitive)
         self.primitive = primitive
 
-    def resolve(self, request: Optional[Request] = None):
+    def resolve(
+        self, flow_dependencies: Dict[Type, Any], request: Optional[Request] = None
+    ):
         return self.primitive
 
 

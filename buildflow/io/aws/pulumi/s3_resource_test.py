@@ -15,7 +15,7 @@ class S3ResourceTest(unittest.TestCase):
             bucket_name=bucket_name,
             aws_region=region,
             force_destroy=False,
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
 

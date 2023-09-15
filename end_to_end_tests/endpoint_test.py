@@ -1,5 +1,7 @@
 import asyncio
 import dataclasses
+import os
+import tempfile
 import unittest
 
 import pytest
@@ -7,6 +9,9 @@ import requests
 
 import buildflow
 from buildflow.dependencies.base import Scope, dependency
+from buildflow.dependencies.sink import SinkDependencyBuilder
+from buildflow.io.local.file import File
+from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
@@ -135,37 +140,57 @@ class EndpointLocalTest(unittest.TestCase):
                 self.val = 4
                 self.replica = replica
 
-        app = buildflow.Flow()
-        service = app.service(num_cpus=0.5)
+        with tempfile.TemporaryDirectory() as output_dir:
+            sink = File(
+                os.path.join(output_dir, "file.csv"), file_format=FileFormat.CSV
+            )
+            SinkSideOutput = SinkDependencyBuilder(sink)
 
-        @service.endpoint(route="/test", method="POST")
-        def my_endpoint(
-            input: InputRequest,
-            no: NoScope,
-            global_: GlobalScope,
-            replica: ReplicaScope,
-            process: ProcessScope,
-        ) -> OutputResponse:
-            if id(process.replica) != id(replica):
-                raise Exception("Replica scope not the same")
-            if id(replica.global_) != id(global_):
-                raise Exception("Global scope not the same")
-            if id(global_.no) == id(no):
-                raise Exception("No scope was the same")
-            return OutputResponse(input.val + 1)
+            app = buildflow.Flow()
+            service = app.service(num_cpus=0.5)
 
-        run_coro = app.run(block=False)
+            @service.endpoint(route="/test", method="POST")
+            async def my_endpoint(
+                input: InputRequest,
+                no: NoScope,
+                global_: GlobalScope,
+                replica: ReplicaScope,
+                process: ProcessScope,
+                sink: SinkSideOutput,
+            ) -> OutputResponse:
+                if id(process.replica) != id(replica):
+                    raise Exception("Replica scope not the same")
+                if id(replica.global_) != id(global_):
+                    raise Exception("Global scope not the same")
+                if id(global_.no) == id(no):
+                    raise Exception("No scope was the same")
+                to_write = input.val + no.val + global_.val + replica.val + process.val
+                to_return = OutputResponse(to_write)
+                await sink.push(to_return)
+                return OutputResponse(to_write)
 
-        # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = app.run(block=False)
 
-        response = requests.post(
-            "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
-        )
-        response.raise_for_status()
-        self.assertEqual(response.json(), {"val": 2})
+            # wait for 20 seconds to let it spin up
+            run_coro = self.run_for_time(run_coro, time=20)
 
-        self.get_async_result(app._drain())
+            response = requests.post(
+                "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
+            )
+            response.raise_for_status()
+            self.assertEqual(response.json(), {"val": 11})
+
+            output_files = os.listdir(output_dir)
+            self.assertEqual(len(output_files), 1)
+            output_file = os.path.join(output_dir, output_files[0])
+
+            with open(output_file, "r") as f:
+                lines = f.readlines()
+                self.assertEqual(len(lines), 2)
+                self.assertEqual(lines[0], '"val"\n')
+                self.assertEqual(lines[1], "11\n")
+
+            self.get_async_result(app._drain())
 
 
 if __name__ == "__main__":

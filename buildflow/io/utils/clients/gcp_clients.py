@@ -15,7 +15,7 @@ class GCPClients:
     def __init__(
         self,
         *,
-        credentials: GCPCredentials = None,
+        credentials: Optional[GCPCredentials] = None,
         quota_project_id: Optional[str] = None,
     ):
         # TODO: we should probably cache the credentials per quota project id.

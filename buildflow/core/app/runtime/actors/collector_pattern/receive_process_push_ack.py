@@ -2,7 +2,7 @@ import asyncio
 import dataclasses
 import logging
 import time
-from typing import Dict
+from typing import Any, Dict, Type
 
 import fastapi
 import ray
@@ -70,6 +70,7 @@ class ReceiveProcessPushAck(Runtime):
         processor_group: ProcessorGroup[CollectorProcessor],
         *,
         processor_options: ProcessorOptions,
+        flow_dependencies: Dict[Type, Any],
         log_level: str = "INFO",
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
@@ -84,6 +85,7 @@ class ReceiveProcessPushAck(Runtime):
         self.serve_handle = None
         self.processor_options = processor_options
         self.processors_map = {}
+        self.flow_dependencies = flow_dependencies
 
     async def run(self) -> bool:
         app = fastapi.FastAPI()
@@ -97,14 +99,18 @@ class ReceiveProcessPushAck(Runtime):
                     app.state.processor_map = {processor.processor_id: processor}
                 processor.setup()
                 for dependency in processor.dependencies():
-                    dependency.dependency.initialize([Scope.REPLICA])
+                    dependency.dependency.initialize(
+                        self.flow_dependencies, [Scope.REPLICA]
+                    )
 
         for processor in self.processor_group.processors:
             input_types, output_type = process_types(processor)
             push_converter = processor.sink().push_converter(output_type)
 
             class CollectorFastAPIWrapper:
-                def __init__(self, processor_id, run_id, push_converter):
+                def __init__(
+                    self, processor_id, run_id, push_converter, flow_dependencies
+                ):
                     self.processor_id = processor_id
                     self.job_id = ray.get_runtime_context().get_job_id()
                     self.run_id = run_id
@@ -119,6 +125,7 @@ class ReceiveProcessPushAck(Runtime):
                         job_id=self.job_id,
                         run_id=run_id,
                     )
+                    self.flow_dependencies = flow_dependencies
 
                 # NOTE: we have to import this seperately because it gets run
                 # inside of the ray actor
@@ -141,8 +148,8 @@ class ReceiveProcessPushAck(Runtime):
                     dependency_args = {}
                     for wrapper in processor.dependencies():
                         dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
-                            raw_request
-                        )  # noqa: E501
+                            self.flow_dependencies, raw_request
+                        )
                     output = await processor.process(*args, **kwargs, **dependency_args)
                     if output is None:
                         # Exclude none results
@@ -162,7 +169,10 @@ class ReceiveProcessPushAck(Runtime):
                     )
 
             collector_wrapper = CollectorFastAPIWrapper(
-                processor.processor_id, self.run_id, push_converter
+                processor.processor_id,
+                self.run_id,
+                push_converter,
+                self.flow_dependencies,
             )
             self.processors_map[processor.processor_id] = collector_wrapper
 

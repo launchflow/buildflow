@@ -61,6 +61,7 @@ class PullProcessPushTest(unittest.TestCase):
             run_id="test-run",
             processor_group=ConsumerGroup(group_id="g", processors=[MyProcesesor]),
             replica_id="1",
+            flow_dependencies={},
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -86,6 +87,7 @@ class PullProcessPushTest(unittest.TestCase):
             run_id="test-run",
             processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
+            flow_dependencies={},
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -110,6 +112,7 @@ class PullProcessPushTest(unittest.TestCase):
             run_id="test-run",
             processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
+            flow_dependencies={},
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -134,6 +137,7 @@ class PullProcessPushTest(unittest.TestCase):
             run_id="test-run",
             processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
+            flow_dependencies={},
         )
 
         self.run_with_timeout(actor.run.remote())

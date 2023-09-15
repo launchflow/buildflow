@@ -5,7 +5,7 @@ import dataclasses
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Iterable, List
+from typing import Any, Dict, Iterable, List, Type
 
 import ray
 from ray.actor import ActorHandle
@@ -57,6 +57,7 @@ class RuntimeActor(Runtime):
         run_id: RunID,
         *,
         runtime_options: RuntimeOptions,
+        flow_dependencies: Dict[Type, Any],
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -69,6 +70,7 @@ class RuntimeActor(Runtime):
         self._status = RuntimeStatus.IDLE
         self._processor_group_pool_refs: List[ProcessorGroupPoolReference] = []
         self._runtime_loop_future = None
+        self.flow_dependencies = flow_dependencies
 
     def _set_status(self, status: RuntimeStatus):
         self._status = status
@@ -78,27 +80,21 @@ class RuntimeActor(Runtime):
         if group.group_type == ProcessorGroupType.CONSUMER:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=ConsumerProcessorReplicaPoolActor.remote(
-                    self.run_id,
-                    group,
-                    processor_options,
+                    self.run_id, group, processor_options, self.flow_dependencies
                 ),
                 processor_group=group,
             )
         elif group.group_type == ProcessorGroupType.COLLECTOR:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=CollectorProcessorPoolActor.remote(
-                    self.run_id,
-                    group,
-                    processor_options,
+                    self.run_id, group, processor_options, self.flow_dependencies
                 ),
                 processor_group=group,
             )
         elif group.group_type == ProcessorGroupType.SERVICE:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=EndpointProcessorGroupPoolActor.remote(
-                    self.run_id,
-                    group,
-                    processor_options,
+                    self.run_id, group, processor_options, self.flow_dependencies
                 ),
                 processor_group=group,
             )
@@ -113,7 +109,9 @@ class RuntimeActor(Runtime):
         for group in processor_groups:
             for processor in group.processors:
                 for dep in processor.dependencies():
-                    dep.dependency.initialize(scopes=[Scope.GLOBAL])
+                    dep.dependency.initialize(
+                        self.flow_dependencies, scopes=[Scope.GLOBAL]
+                    )
 
     async def run(
         self,

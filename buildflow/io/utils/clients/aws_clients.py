@@ -35,3 +35,17 @@ class AWSClients:
 
     def s3_client(self):
         return self._get_boto_client("s3")
+
+    def s3_resource(self):
+        if self.creds.session_token:
+            return boto3.resource(
+                service_name="s3",
+                region_name=self.region,
+                aws_session_token=self.creds.session_token,
+            )
+        return boto3.resource(
+            service_name="s3",
+            region_name=self.region,
+            aws_access_key_id=self.creds.access_key_id,
+            aws_secret_access_key=self.creds.secret_access_key,
+        )

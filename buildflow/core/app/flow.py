@@ -40,6 +40,7 @@ from buildflow.core.processor.processor import (
     ProcessorType,
 )
 from buildflow.dependencies.base import dependency_wrappers
+from buildflow.dependencies.flow_dependencies import FlowCredentials
 from buildflow.io.endpoint import Method, Route, RouteInfo
 from buildflow.io.local.empty import Empty
 from buildflow.io.primitive import PortablePrimtive, Primitive, PrimitiveType
@@ -556,6 +557,11 @@ class Flow:
         self._infra_actor_ref: Optional[InfraActor] = None
         self._managed_primitives: List[Primitive] = []
         self._services: List[Service] = []
+        self.credentials = FlowCredentials(
+            gcp_credentials=GCPCredentials(self.options.credentials_options),
+            aws_credentials=AWSCredentials(self.options.credentials_options),
+        )
+        self.flow_dependencies = {FlowCredentials: self.credentials}
 
     def _pulumi_program(self) -> List[pulumi.Resource]:
         visited_primitives = _PrimitiveCache()
@@ -595,15 +601,16 @@ class Flow:
             self._runtime_actor_ref = RuntimeActor.remote(
                 run_id=run_id,
                 runtime_options=self.options.runtime_options,
+                flow_dependencies=self.flow_dependencies,
             )
         return self._runtime_actor_ref
 
     def _get_credentials(self, primitive_type: PrimitiveType):
         if primitive_type == PrimitiveType.GCP:
-            return GCPCredentials(self.options.credentials_options)
+            return self.credentials.gcp_credentials
         elif primitive_type == PrimitiveType.AWS:
-            return AWSCredentials(self.options.credentials_options)
-        return EmptyCredentials(self.options.credentials_options)
+            return self.credentials.aws_credentials
+        return EmptyCredentials()
 
     def _portable_primitive_to_cloud_primitive(
         self, primitive: Primitive, strategy_type: StategyType
@@ -741,6 +748,7 @@ class Flow:
         self,
         base_route: str = "/",
         *,
+        service_id: str = utils.uuid(),
         num_cpus: float = 1.0,
         autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
         log_level: str = "INFO",
@@ -751,6 +759,7 @@ class Flow:
             num_cpus=num_cpus,
             autoscale_options=autoscale_options,
             log_level=log_level,
+            service_id=service_id,
         )
         self._services.append(service)
         return service

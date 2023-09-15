@@ -44,7 +44,7 @@ class TableLoadBackgroundTaskTest(unittest.TestCase):
         os.mkdir(self.upload_dir)
         self.background_task = SnowflakeUploadBackgroundTask(
             # We use empty credentials so we use the local file system
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             bucket_name=self.temp_dir,
             account="account",
             user="user",

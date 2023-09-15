@@ -50,7 +50,7 @@ class GCSFileChangeStreamTest(unittest.TestCase):
                 topic=GCPPubSubTopic(topic_name="my-topic", project_id=want_project),
             ),
             event_types=[],
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
 
