@@ -88,7 +88,11 @@ class ReceiveProcessPushAck(Runtime):
         self.flow_dependencies = flow_dependencies
 
     async def run(self) -> bool:
-        app = fastapi.FastAPI()
+        app = fastapi.FastAPI(
+            title=self.processor_group.group_id,
+            version="0.0.1",
+            docs_url="/buildflow/docs",
+        )
 
         @app.on_event("startup")
         def setup_processor_group():
