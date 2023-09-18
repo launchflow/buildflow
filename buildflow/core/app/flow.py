@@ -15,13 +15,16 @@ from buildflow.core.app.collector import Collector
 from buildflow.core.app.consumer import Consumer
 from buildflow.core.app.endpoint import Endpoint
 from buildflow.core.app.flow_state import (
+    CollectorGroupState,
     CollectorState,
+    ConsumerGroupState,
     ConsumerState,
     EndpointState,
     FlowState,
     PrimitiveState,
     ProcessorGroupState,
     ProcessorState,
+    ServiceGroupState,
 )
 from buildflow.core.app.infra.actors.infra import InfraActor
 from buildflow.core.app.runtime._runtime import RunID
@@ -41,7 +44,11 @@ from buildflow.core.processor.patterns.collector import (
 )
 from buildflow.core.processor.patterns.consumer import ConsumerGroup, ConsumerProcessor
 from buildflow.core.processor.patterns.endpoint import EndpointGroup, EndpointProcessor
-from buildflow.core.processor.processor import ProcessorGroup, ProcessorType
+from buildflow.core.processor.processor import (
+    ProcessorGroup,
+    ProcessorGroupType,
+    ProcessorType,
+)
 from buildflow.dependencies.base import DependencyWrapper, dependency_wrappers
 from buildflow.dependencies.flow_dependencies import FlowCredentials
 from buildflow.exceptions.exceptions import PathNotFoundException
@@ -842,11 +849,19 @@ class Flow:
                     primitive_dependencies=primitive_dependencies,
                 )
                 processor_states.append(processor_state)
+            group_info = None
+            if group.group_type == ProcessorGroupType.CONSUMER:
+                group_info = ConsumerGroupState()
+            elif group.group_type == ProcessorGroupType.COLLECTOR:
+                group_info = CollectorGroupState(base_route=group.base_route)
+            elif group.group_type == ProcessorGroupType.SERVICE:
+                group_info = ServiceGroupState(base_route=group.base_route)
             processor_group_states.append(
                 ProcessorGroupState(
                     processor_group_id=group.group_id,
                     processor_states=processor_states,
                     processor_group_type=group.group_type,
+                    group_info=group_info,
                 )
             )
 

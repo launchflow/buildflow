@@ -39,10 +39,31 @@ class ProcessorState:
 
 
 @dataclasses.dataclass
+class ServiceState:
+    base_route: str
+
+
+@dataclasses.dataclass
+class ConsumerGroupState:
+    pass
+
+
+@dataclasses.dataclass
+class CollectorGroupState:
+    base_route: str
+
+
+@dataclasses.dataclass
+class ServiceGroupState:
+    base_route: str
+
+
+@dataclasses.dataclass
 class ProcessorGroupState:
     processor_group_id: str
     processor_group_type: ProcessorGroupType
     processor_states: List[ProcessorState]
+    group_info: Union[ConsumerGroupState, CollectorGroupState, ServiceState]
 
 
 @dataclasses.dataclass
