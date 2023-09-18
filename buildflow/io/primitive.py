@@ -13,6 +13,7 @@ from buildflow.config.cloud_provider_config import (
 )
 from buildflow.core.background_tasks.background_task import BackgroundTask
 from buildflow.core.credentials import CredentialType
+from buildflow.core.utils import uuid
 from buildflow.dependencies.base import NoScoped
 from buildflow.io.strategies._strategy import StategyType
 from buildflow.io.strategies.sink import SinkStrategy
@@ -32,6 +33,13 @@ class PrimitiveType(enum.Enum):
 class Primitive:
     primitive_type: PrimitiveType
     _managed: bool = False
+    _primitive_id: Optional[str] = None
+
+    @property
+    def primitive_id(self):
+        if self._primitive_id is None:
+            self._primitive_id = uuid()
+        return self._primitive_id
 
     def enable_managed(self):
         self._managed = True

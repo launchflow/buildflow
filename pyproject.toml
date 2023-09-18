@@ -50,6 +50,7 @@ dependencies = [
     "typer",
     "redis",
     "watchdog",
+    "watchfiles",
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",

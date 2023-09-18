@@ -130,8 +130,11 @@ class RuntimeActor(Runtime):
 
         self._runtime_loop_future = self._runtime_checkin_loop()
 
-    async def drain(self) -> bool:
-        if self._status == RuntimeStatus.DRAINING:
+    async def drain(self, as_reload: bool = False) -> bool:
+        if (
+            self._status == RuntimeStatus.DRAINING
+            or self._status == RuntimeStatus.RELOADING
+        ):
             logging.warning("Received drain single twice. Killing remaining actors.")
             [
                 ray.kill(processor_pool.actor_handle)
@@ -140,16 +143,23 @@ class RuntimeActor(Runtime):
             # Kill the runtime actor to stop the even loop.
             ray.actor.exit_actor()
         else:
-            logging.warning("Draining Runtime...")
-            logging.warning("-- Attempting to drain again will force stop the runtime.")
-            self._set_status(RuntimeStatus.DRAINING)
+            if as_reload:
+                logging.warning("Draining Runtime for reload...")
+                self._set_status(RuntimeStatus.RELOADING)
+            else:
+                logging.warning("Draining Runtime...")
+                logging.warning(
+                    "-- Attempting to drain again will force stop the runtime."
+                )
+                self._set_status(RuntimeStatus.DRAINING)
             drain_tasks = [
                 processor_pool.actor_handle.drain.remote()
                 for processor_pool in self._processor_group_pool_refs
             ]
             await asyncio.gather(*drain_tasks)
             self._set_status(RuntimeStatus.IDLE)
-            logging.info("Drain Runtime complete.")
+            if not as_reload:
+                logging.info("Drain Runtime complete.")
         return True
 
     async def status(self):

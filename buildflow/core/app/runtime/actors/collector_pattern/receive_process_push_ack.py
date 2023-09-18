@@ -221,7 +221,6 @@ class ReceiveProcessPushAck(Runtime):
 
     async def drain(self) -> bool:
         self._status = RuntimeStatus.DRAINING
-        serve.delete(self.processor_group.group_id)
         return True
 
     async def status(self) -> RuntimeStatus:

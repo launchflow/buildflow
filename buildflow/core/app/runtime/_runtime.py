@@ -7,6 +7,8 @@ class RuntimeStatus(enum.Enum):
     IDLE = enum.auto()
     RUNNING = enum.auto()
     DRAINING = enum.auto()
+    # Used for local reloading
+    RELOADING = enum.auto()
 
 
 class Snapshot:

@@ -133,6 +133,77 @@ class FlowTest(unittest.TestCase):
         # those should have their own tests.
         self.assertEqual(len(pulumi_resources), 3)
 
+    def test_flowstate_consumer(self):
+        app = Flow()
+
+        bigquery_dataset = BigQueryDataset(
+            project_id="project_id", dataset_name="dataset_name"
+        )
+        bigquery_table = BigQueryTable(
+            bigquery_dataset, table_name="table_name"
+        ).options(schema=MySchema)
+        pubsub_topic = GCPPubSubTopic(project_id="project_id", topic_name="topic_name")
+        pubsub_subscription = GCPPubSubSubscription(
+            project_id="project_id", subscription_name="subscription_name"
+        ).options(topic=pubsub_topic)
+
+        PST = pubsub_topic.dependency()
+
+        app.manage(bigquery_dataset, bigquery_table, pubsub_subscription)
+
+        @app.consumer(source=pubsub_subscription, sink=bigquery_table)
+        def process(payload: Dict[str, int], pst: PST) -> Dict[str, int]:
+            return payload
+
+        flowstate = app.flowstate()
+
+        self.assertEqual(flowstate.flow_id, app.flow_id)
+        self.assertEqual(len(flowstate.processor_group_states), 1)
+        self.assertEqual(len(flowstate.primitive_states), 4)
+
+    def test_flowstate_collector(self):
+        app = Flow()
+
+        bigquery_dataset = BigQueryDataset(
+            project_id="project_id", dataset_name="dataset_name"
+        )
+        bigquery_table = BigQueryTable(
+            bigquery_dataset, table_name="table_name"
+        ).options(schema=MySchema)
+        pubsub_topic = GCPPubSubTopic(project_id="project_id", topic_name="topic_name")
+
+        PST = pubsub_topic.dependency()
+
+        app.manage(bigquery_dataset, bigquery_table)
+
+        @app.collector(route="/", method="POST", sink=bigquery_table)
+        def process(payload: Dict[str, int], pst: PST) -> Dict[str, int]:
+            return payload
+
+        flowstate = app.flowstate()
+
+        self.assertEqual(flowstate.flow_id, app.flow_id)
+        self.assertEqual(len(flowstate.processor_group_states), 1)
+        self.assertEqual(len(flowstate.primitive_states), 3)
+
+    def test_flowstate_endpoint(self):
+        app = Flow()
+        service = app.service()
+
+        pubsub_topic = GCPPubSubTopic(project_id="project_id", topic_name="topic_name")
+
+        PST = pubsub_topic.dependency()
+
+        @service.endpoint(route="/", method="POST")
+        def process(payload: Dict[str, int], pst: PST) -> Dict[str, int]:
+            return payload
+
+        flowstate = app.flowstate()
+
+        self.assertEqual(flowstate.flow_id, app.flow_id)
+        self.assertEqual(len(flowstate.processor_group_states), 1)
+        self.assertEqual(len(flowstate.primitive_states), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
