@@ -1,5 +1,4 @@
 import asyncio
-import dataclasses
 import json
 import logging
 import os
@@ -24,6 +23,7 @@ from buildflow.cli import file_gen, utils
 from buildflow.cli.watcher import RunTimeWatcher
 from buildflow.config.buildflow_config import BUILDFLOW_CONFIG_FILE, BuildFlowConfig
 from buildflow.core.app.flow_state import FlowState
+from buildflow.core.utils import uuid
 from buildflow.io import IOPrimitiveOption, list_all_io_primitives
 
 warnings.simplefilter("ignore", UserWarning)
@@ -100,9 +100,13 @@ def run(
     from_build: str = typer.Option(
         "", help="The build to run from, only one of app and --from-build can be used."
     ),
+    build_output_dir: str = typer.Option(
+        "",
+        help="The location the build will be decompressed to. Only relevent if setting --from-build, defaults to a temporary directory",  # noqa
+    ),
 ):
-    buildflow_config = BuildFlowConfig.load()
     if not from_build:
+        buildflow_config = BuildFlowConfig.load()
         sys.path.insert(0, "")
         imported = utils.import_from_string(buildflow_config.entry_point)
         run_flow(
@@ -121,29 +125,30 @@ def run(
         if not os.path.exists(from_build):
             typer.echo(f"Build at {from_build} does not exist.")
             raise typer.Exit(1)
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            with zipfile.ZipFile(from_build, "r") as zip_ref:
-                zip_ref.extractall(tmpdirname)
-            flowstate_path = os.path.jaoin(tmpdirname, "flowstate.yaml")
-            if not os.path.exists(flowstate_path):
-                typer.echo(f"Build at {from_build} does not contain a flowstate.yaml.")
-                raise typer.Exit(1)
-            with open(flowstate_path, "r") as flowstate_file:
-                flow_state_yaml = yaml.safe_load(flowstate_file)
-            flow_state = FlowState(**flow_state_yaml)
-            sys.path.insert(0, tmpdirname)
-            imported = utils.import_from_string(app)
-            buildflow_config = BuildFlowConfig.load(tmpdirname)
-            run_flow(
-                imported,
-                buildflow_config,
-                reload,
-                run_id,
-                start_runtime_server,
-                runtime_server_host,
-                runtime_server_port,
-                flow_state=flow_state,
-            )
+        if not build_output_dir:
+            build_output_dir = os.path.join(tempfile.gettempdir(), "buildflow", uuid())
+        with zipfile.ZipFile(from_build, "r") as zip_ref:
+            zip_ref.extractall(build_output_dir)
+        flowstate_path = os.path.join(build_output_dir, "flowstate.yaml")
+        if not os.path.exists(flowstate_path):
+            typer.echo(f"Build at {from_build} does not contain a flowstate.yaml.")
+            raise typer.Exit(1)
+        with open(flowstate_path, "r") as flowstate_file:
+            flow_state_yaml = yaml.safe_load(flowstate_file)
+        flow_state = FlowState(**flow_state_yaml)
+        buildflow_config = BuildFlowConfig.load(build_output_dir)
+        sys.path.insert(0, build_output_dir)
+        imported = utils.import_from_string(buildflow_config.entry_point)
+        run_flow(
+            imported,
+            buildflow_config,
+            reload,
+            run_id,
+            start_runtime_server,
+            runtime_server_host,
+            runtime_server_port,
+            flow_state=flow_state,
+        )
 
 
 def zipdir(path: str, ziph: zipfile.ZipFile, excludes: List[str]):
@@ -189,10 +194,10 @@ def build(
     final_excludes = _BASE_EXCLUDE + exclude_dirs
     print(f"Generating buildflow build at:\n  {build_path}")
     if isinstance(imported, (buildflow.Flow)):
-        flowstate = imported.flowstate(app)
+        flowstate = imported.flowstate()
         with zipfile.ZipFile(build_path, "w", zipfile.ZIP_DEFLATED) as zipf:
             zipdir(os.getcwd(), zipf, excludes=final_excludes)
-            yaml_str = yaml.dump(dataclasses.asdict(flowstate))
+            yaml_str = yaml.dump(flowstate.to_dict())
             zipf.writestr("flowstate.yaml", yaml_str)
     else:
         typer.echo("build must be run on a flow")

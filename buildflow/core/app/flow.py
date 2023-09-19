@@ -24,7 +24,7 @@ from buildflow.core.app.flow_state import (
     PrimitiveState,
     ProcessorGroupState,
     ProcessorState,
-    ServiceGroupState,
+    ServiceState,
 )
 from buildflow.core.app.infra.actors.infra import InfraActor
 from buildflow.core.app.runtime._runtime import RunID
@@ -855,7 +855,7 @@ class Flow:
             elif group.group_type == ProcessorGroupType.COLLECTOR:
                 group_info = CollectorGroupState(base_route=group.base_route)
             elif group.group_type == ProcessorGroupType.SERVICE:
-                group_info = ServiceGroupState(base_route=group.base_route)
+                group_info = ServiceState(base_route=group.base_route)
             processor_group_states.append(
                 ProcessorGroupState(
                     processor_group_id=group.group_id,
