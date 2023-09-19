@@ -1,8 +1,33 @@
 import dataclasses
-from typing import List, Optional, Union
+from typing import List, Optional, Set, Union
 
 from buildflow.core.processor.processor import ProcessorGroupType, ProcessorType
 from buildflow.io.endpoint import Method, Route
+from buildflow.io.primitive import Primitive
+
+
+def _find_parent_primitives(
+    primitive: Primitive,
+    primitive_state: "PrimitiveState",
+    managed_primitives: Set[str],
+    visited_primitives: Set[str],
+) -> List["PrimitiveState"]:
+    fields = dataclasses.fields(primitive)
+    parent_primitives = []
+    for field in fields:
+        field_value = getattr(primitive, field.name)
+        if field_value is not None and isinstance(field_value, Primitive):
+            primitive_state.primitive_dependencies.append(field_value.primitive_id)
+            if field_value.primitive_id not in visited_primitives:
+                visited_primitives.add(field_value.primitive_id)
+                parent_primitives.extend(
+                    PrimitiveState.from_primitive(
+                        primitive=field_value,
+                        managed_primitives=managed_primitives,
+                        visited_primitives=visited_primitives,
+                    )
+                )
+    return parent_primitives
 
 
 @dataclasses.dataclass
@@ -10,6 +35,7 @@ class PrimitiveState:
     primitive_id: str
     primitive_name: str
     managed: bool
+    primitive_dependencies: List[str] = dataclasses.field(default_factory=list)
     resource_url: Optional[str] = None
 
     def to_dict(self):
@@ -18,7 +44,27 @@ class PrimitiveState:
             "primitive_name": self.primitive_name,
             "managed": self.managed,
             "resource_url": self.resource_url,
+            "primitive_dependencies": self.primitive_dependencies,
         }
+
+    @classmethod
+    def from_primitive(
+        cls,
+        primitive: Primitive,
+        managed_primitives: Set[str],
+        visited_primitives: Set[str],
+    ) -> List["PrimitiveState"]:
+        ps = PrimitiveState(
+            primitive_id=primitive.primitive_id,
+            primitive_name=type(primitive).__name__,
+            managed=primitive.primitive_id in managed_primitives,
+            resource_url=primitive.cloud_console_url(),
+        )
+        additional = _find_parent_primitives(
+            primitive, ps, managed_primitives, visited_primitives
+        )
+        additional.append(ps)
+        return additional
 
 
 @dataclasses.dataclass

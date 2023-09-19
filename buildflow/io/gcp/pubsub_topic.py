@@ -52,3 +52,6 @@ class GCPPubSubTopic(GCPPrimtive):
             topic_name=self.topic_name,
             opts=opts,
         )
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/cloudpubsub/topic/detail/{self.topic_name}?project={self.project_id}"

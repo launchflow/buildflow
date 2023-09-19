@@ -22,3 +22,6 @@ class BigQueryDataset(GCPPrimtive):
             credentials=credentials,
             opts=opts,
         )
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/bigquery?ws=!1m4!1m3!3m2!1s{self.project_id}!2s{self.dataset_name}&project={self.project_id}"  # noqa

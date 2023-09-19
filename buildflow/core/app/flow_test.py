@@ -174,7 +174,7 @@ class FlowTest(unittest.TestCase):
 
         PST = pubsub_topic.dependency()
 
-        app.manage(bigquery_dataset, bigquery_table)
+        app.manage(bigquery_table)
 
         @app.collector(route="/", method="POST", sink=bigquery_table)
         def process(payload: Dict[str, int], pst: PST) -> Dict[str, int]:

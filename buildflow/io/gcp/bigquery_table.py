@@ -107,3 +107,6 @@ class BigQueryTable(GCPPrimtive):
             credentials=credentials,
             opts=opts,
         )
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/bigquery?ws=!1m5!1m4!4m3!1s{self.dataset.project_id}!2s{self.dataset.dataset_name}!3s{self.table_name}"

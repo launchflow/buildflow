@@ -107,3 +107,6 @@ class GCSBucket(GCPPrimtive):
             force_destroy=self.force_destroy,
             opts=opts,
         )
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/storage/browser/{self.bucket_name}?project={self.project_id}"

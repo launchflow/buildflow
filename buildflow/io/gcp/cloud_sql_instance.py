@@ -30,3 +30,6 @@ class CloudSQLInstance(GCPPrimtive):
             credentials=credentials,
             opts=opts,
         )
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/sql/instances/{self.instance_name}?project={self.project_id}"

@@ -106,3 +106,6 @@ class GCPPubSubSubscription(GCPPrimtive):
             message_retention_duration=self.message_retention_duration,
             opts=opts,
         )
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/cloudpubsub/subscription/detail/{self.subscription_name}?project={self.project_id}"

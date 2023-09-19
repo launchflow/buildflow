@@ -90,6 +90,21 @@ class _PrimitiveCache:
         self.cache.clear()
 
 
+def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primitive]:
+    primitives_without_parents = primitives.copy()
+    for primitive in primitives:
+        fields = dataclasses.fields(primitive)
+        for field in fields:
+            field_value = getattr(primitive, field.name)
+            if (
+                field_value is not None
+                and isinstance(field_value, Primitive)
+                and field_value._managed
+            ):
+                primitives_without_parents.remove(field_value)
+    return primitives_without_parents
+
+
 def _get_directory_path_of_caller():
     # NOTE: This function is used to get the file path of the caller of the
     # Flow(). This is used to determine the directory to look for a BuildFlow
@@ -137,23 +152,6 @@ def _traverse_primitive_for_pulumi(
     resource = primitive.pulumi_resource(credentials=credentials, opts=opts)
     visited_primitives.append(_PrimitiveCacheEntry(primitive, resource))
     return resource
-
-
-def _find_primitives_with_no_parents(
-    managed_primitives: List[Primitive],
-) -> List[Primitive]:
-    primitives_without_parents = managed_primitives.copy()
-    for primitive in managed_primitives:
-        fields = dataclasses.fields(primitive)
-        for field in fields:
-            field_value = getattr(primitive, field.name)
-            if (
-                field_value is not None
-                and isinstance(field_value, Primitive)
-                and field_value._managed
-            ):
-                primitives_without_parents.remove(field_value)
-    return primitives_without_parents
 
 
 def _lifecycle_functions(
@@ -790,17 +788,16 @@ class Flow:
         return self._flowstate()
 
     def _flowstate(self) -> FlowState:
-        primitive_ids = set()
-        primitive_states = []
+        primitive_states = {}
+        managed_primitives = set()
         for managed_resource in self._managed_primitives:
-            primitive_ids.add(managed_resource.primitive_id)
-            primitive_states.append(
-                PrimitiveState(
-                    primitive_id=managed_resource.primitive_id,
-                    primitive_name=type(managed_resource).__name__,
-                    managed=True,
-                )
+            managed_primitives.add(managed_resource.primitive_id)
+            states = PrimitiveState.from_primitive(
+                managed_resource,
+                managed_primitives=managed_primitives,
+                visited_primitives=set(),
             )
+            primitive_states.update({ps.primitive_id: ps for ps in states})
 
         processor_group_states = []
         for group in self._processor_groups:
@@ -809,15 +806,43 @@ class Flow:
                 if processor.processor_type == ProcessorType.CONSUMER:
                     sink_id = None
                     if "sink" in processor.__meta__:
-                        sink_id = processor.__meta__["sink"].primitive_id
+                        sink = processor.__meta__["sink"]
+                        sink_id = sink.primitive_id
+                        if sink_id not in primitive_states:
+                            states = PrimitiveState.from_primitive(
+                                sink,
+                                managed_primitives=managed_primitives,
+                                visited_primitives=set(primitive_states.keys()),
+                            )
+                            primitive_states.update(
+                                {ps.primitive_id: ps for ps in states}
+                            )
+                    source = processor.__meta__["source"]
+                    if source.primitive_id not in primitive_states:
+                        states = PrimitiveState.from_primitive(
+                            sink,
+                            managed_primitives=managed_primitives,
+                            visited_primitives=set(primitive_states.keys()),
+                        )
+                        primitive_states.update({ps.primitive_id: ps for ps in states})
                     processor_info = ConsumerState(
-                        source_id=processor.__meta__["source"].primitive_id,
+                        source_id=source.primitive_id,
                         sink_id=sink_id,
                     )
                 elif processor.processor_type == ProcessorType.COLLECTOR:
                     sink_id = None
                     if "sink" in processor.__meta__:
-                        sink_id = processor.__meta__["sink"].primitive_id
+                        sink = processor.__meta__["sink"]
+                        sink_id = sink.primitive_id
+                        if sink_id not in primitive_states:
+                            states = PrimitiveState.from_primitive(
+                                sink,
+                                managed_primitives=managed_primitives,
+                                visited_primitives=set(primitive_states.keys()),
+                            )
+                            primitive_states.update(
+                                {ps.primitive_id: ps for ps in states}
+                            )
                     processor_info = CollectorState(sink_id=sink_id)
                 elif processor.processor_type == ProcessorType.ENDPOINT:
                     end_route = processor.route_info().route
@@ -834,14 +859,13 @@ class Flow:
                 primitive_dependencies = []
                 for prim in dependencies:
                     primitive_dependencies.append(prim.primitive_id)
-                    if prim.primitive_id not in primitive_ids:
-                        primitive_states.append(
-                            PrimitiveState(
-                                primitive_id=prim.primitive_id,
-                                primitive_name=type(prim).__name__,
-                                managed=True,
-                            )
+                    if prim.primitive_id not in primitive_states:
+                        states = PrimitiveState.from_primitive(
+                            prim,
+                            managed_primitives=managed_primitives,
+                            visited_primitives=set(primitive_states.keys()),
                         )
+                        primitive_states.update({ps.primitive_id: ps for ps in states})
 
                 processor_state = ProcessorState(
                     processor_id=processor.processor_id,
@@ -868,7 +892,7 @@ class Flow:
         sys.version
         return FlowState(
             flow_id=self.flow_id,
-            primitive_states=primitive_states,
+            primitive_states=list(primitive_states.values()),
             processor_group_states=processor_group_states,
             python_version=f"python{sys.version_info.major}.{sys.version_info.minor}",
             ray_version=ray.__version__,

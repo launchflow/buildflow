@@ -93,6 +93,10 @@ class Primitive:
         """
         return PrimitiveDependency(self)
 
+    def cloud_console_url(self) -> Optional[str]:
+        """Returns a URL to the cloud console for this primitive."""
+        return None
+
 
 # Dependency that wraps the primitive that allows the primitive to be injected as a
 # dependency.
