@@ -4,6 +4,7 @@ import inspect as type_inspect
 import logging
 import os
 import signal
+import sys
 from typing import Callable, List, Optional, Tuple
 
 import pulumi
@@ -864,11 +865,13 @@ class Flow:
                     group_info=group_info,
                 )
             )
-
+        sys.version
         return FlowState(
             flow_id=self.flow_id,
             primitive_states=primitive_states,
             processor_group_states=processor_group_states,
+            python_version=f"python{sys.version_info.major}.{sys.version_info.minor}",
+            ray_version=ray.__version__,
         )
 
     def inspect(self):
