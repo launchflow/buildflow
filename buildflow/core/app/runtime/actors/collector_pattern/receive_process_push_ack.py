@@ -1,5 +1,6 @@
 import asyncio
 import dataclasses
+import inspect
 import logging
 import time
 from typing import Any, Dict, Type
@@ -15,12 +16,8 @@ from buildflow.core.app.runtime.metrics import (
     process_time_counter,
 )
 from buildflow.core.options.runtime_options import ProcessorOptions
-from buildflow.core.processor.patterns.collector import CollectorProcessor
-from buildflow.core.processor.processor import (
-    ProcessorGroup,
-    ProcessorID,
-    ProcessorType,
-)
+from buildflow.core.processor.patterns.collector import CollectorGroup
+from buildflow.core.processor.processor import ProcessorID, ProcessorType
 from buildflow.core.processor.utils import process_types
 from buildflow.dependencies.base import Scope
 
@@ -67,7 +64,7 @@ class ReceiveProcessPushAck(Runtime):
     def __init__(
         self,
         run_id: RunID,
-        processor_group: ProcessorGroup[CollectorProcessor],
+        processor_group: CollectorGroup,
         *,
         processor_options: ProcessorOptions,
         flow_dependencies: Dict[Type, Any],
@@ -92,6 +89,7 @@ class ReceiveProcessPushAck(Runtime):
             title=self.processor_group.group_id,
             version="0.0.1",
             docs_url="/buildflow/docs",
+            middleware=self.processor_group.middleware,
         )
 
         @app.on_event("startup")
@@ -130,6 +128,13 @@ class ReceiveProcessPushAck(Runtime):
                         run_id=run_id,
                     )
                     self.flow_dependencies = flow_dependencies
+                    argspec = inspect.getfullargspec(processor.process)
+                    for arg in argspec.args:
+                        if (
+                            arg in argspec.annotations
+                            and argspec.annotations[arg] == fastapi.Request
+                        ):
+                            self.request_arg = arg
 
                 # NOTE: we have to import this seperately because it gets run
                 # inside of the ray actor
@@ -154,6 +159,8 @@ class ReceiveProcessPushAck(Runtime):
                         dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
                             self.flow_dependencies, raw_request
                         )
+                    if self.request_arg is not None:
+                        kwargs[self.request_arg] = raw_request
                     output = await processor.process(*args, **kwargs, **dependency_args)
                     if output is None:
                         # Exclude none results

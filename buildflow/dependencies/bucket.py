@@ -15,7 +15,7 @@ def BucketDependencyBuilder(
 ):
     PrimDep = bucket_primitive.dependency()
 
-    @dependency(scope=Scope.REPLICA)
+    @dependency(scope=Scope.NO_SCOPE)
     class BucketDependency:
         def __init__(self, bucket: PrimDep, flow_credentials: FlowCredentials) -> None:
             if isinstance(bucket, GCSBucket):

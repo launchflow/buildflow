@@ -1,5 +1,6 @@
 import asyncio
 import dataclasses
+import inspect
 import logging
 import time
 from typing import Any, Dict, Type
@@ -15,8 +16,7 @@ from buildflow.core.app.runtime.metrics import (
     process_time_counter,
 )
 from buildflow.core.options.runtime_options import ProcessorOptions
-from buildflow.core.processor.patterns.endpoint import EndpointProcessor
-from buildflow.core.processor.processor import ProcessorGroup
+from buildflow.core.processor.patterns.endpoint import EndpointGroup
 from buildflow.core.processor.utils import process_types
 from buildflow.dependencies.base import Scope
 
@@ -70,7 +70,7 @@ class ReceiveProcessRespond(Runtime):
     def __init__(
         self,
         run_id: RunID,
-        processor_group: ProcessorGroup[EndpointProcessor],
+        processor_group: EndpointGroup,
         *,
         processor_options: ProcessorOptions,
         log_level: str = "INFO",
@@ -95,7 +95,11 @@ class ReceiveProcessRespond(Runtime):
             title=self.processor_group.group_id,
             version="0.0.1",
             docs_url="/buildflow/docs",
+            middleware=self.processor_group.middleware,
         )
+
+        for middleware in self.processor_group.middleware:
+            app.add_middleware(middleware[0], **middleware[1])
 
         @app.on_event("startup")
         def setup_processor_group():
@@ -129,6 +133,14 @@ class ReceiveProcessRespond(Runtime):
                     )
                     self.processor_id = processor_id
                     self.flow_dependencies = flow_dependencies
+                    self.request_arg = None
+                    argspec = inspect.getfullargspec(processor.process)
+                    for arg in argspec.args:
+                        if (
+                            arg in argspec.annotations
+                            and argspec.annotations[arg] == fastapi.Request
+                        ):
+                            self.request_arg = arg
 
                 # NOTE: we have to import this seperately because it gets run
                 # inside of the ray actor
@@ -151,7 +163,10 @@ class ReceiveProcessRespond(Runtime):
                     for wrapper in processor.dependencies():
                         dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
                             self.flow_dependencies, raw_request
-                        )  # noqa: E501
+                        )
+                    if self.request_arg is not None:
+                        kwargs[self.request_arg] = raw_request
+
                     output = await processor.process(*args, **kwargs, **dependency_args)
                     self.process_time_counter.inc(
                         (time.monotonic() - start_time) * 1000,
