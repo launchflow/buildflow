@@ -16,6 +16,7 @@ dependencies = [
     "black",
     # TODO: split up AWS and GCP dependencies.
     "boto3",
+    "cloud-sql-python-connector",
     "dacite",
     "duckdb",
     "gcsfs",
@@ -26,6 +27,7 @@ dependencies = [
     "google-cloud-pubsub",
     "google-cloud-storage",
     "grpcio>=1.56.0",
+    "itsdangerous",
     "fastparquet",
     "opentelemetry-api",
     "opentelemetry-sdk",
@@ -34,6 +36,7 @@ dependencies = [
     # Duckdb doesn't work with this version.
     # We can remove this once duckdb has released version 0.8.2
     "pandas!=2.1.0",
+    "pg8000",
     "pulumi==3.35.3",
     "pulumi_aws",
     "pulumi_gcp",
@@ -44,6 +47,7 @@ dependencies = [
     #   https://github.com/yaml/pyyaml/issues/724
     "pyyaml!=5.4.1,!=5.4.0,!=6.0.0",
     "s3fs",
+    "sqlalchemy",
     "snowflake-ingest",
     "ray[default]>=2.4.0",
     "ray[serve]>=2.4.0",
