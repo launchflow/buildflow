@@ -897,7 +897,7 @@ class Flow:
             flow_id=self.flow_id,
             primitive_states=list(primitive_states.values()),
             processor_group_states=processor_group_states,
-            python_version=f"python{sys.version_info.major}.{sys.version_info.minor}",
+            python_version=f"{sys.version_info.major}.{sys.version_info.minor}",
             ray_version=ray.__version__,
         )
 

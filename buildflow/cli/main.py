@@ -14,6 +14,7 @@ from importlib.metadata import version
 from pprint import pprint
 from typing import Any, Dict, List, Optional
 
+import pathspec
 import ray
 import typer
 import yaml
@@ -154,27 +155,22 @@ def run(
 def zipdir(path: str, ziph: zipfile.ZipFile, excludes: List[str]):
     # ziph is zipfile handle
     file_names = []
+    matcher = pathspec.PathSpec.from_lines("gitwildmatch", excludes)
     for root, dirs, files in os.walk(path):
-        path = pathlib.PurePath(root)
-        split_root = path.parts
-        exclude_path = False
-        for exclude in excludes:
-            if exclude in split_root:
-                exclude_path = True
-                break
-        if exclude_path:
-            continue
         for file in files:
-            file_names.append(os.path.join(root, file))
+            base_path = os.path.join(root, file)
+            if matcher.match_file(base_path):
+                continue
+            file_names.append(base_path)
 
     for file in file_names:
         ziph.write(
             file,
-            os.path.relpath(file, os.path.join(path, "..")),
+            os.path.relpath(file, path),
         )
 
 
-_BASE_EXCLUDE = [".buildflow", "__pycache__", "build"]
+_BASE_EXCLUDE = [".buildflow", "__pycache__", "build", ".git", ".gitignore"]
 _BUILD_PATH_HELP = "Output director to store the build in, defaults to ./.buildflow/build/build.flow"  # noqa
 
 
