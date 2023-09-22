@@ -1,14 +1,23 @@
+from typing import Optional
+
+from google.auth.credentials import Credentials
 from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from buildflow.dependencies import Scope, dependency
+from buildflow.dependencies.flow_dependencies import FlowCredentials
 from buildflow.io.gcp.cloud_sql_database import CloudSQLDatabase
 
 
-def engine(db: CloudSQLDatabase, db_user: str, db_password: str):
+def engine(
+    db: CloudSQLDatabase,
+    db_user: str,
+    db_password: str,
+    credentials: Optional[Credentials] = None,
+):
     def getconn() -> Connector:
-        with Connector() as connector:
+        with Connector(credentials=credentials) as connector:
             conn = connector.connect(
                 instance_connection_string=f"{db.instance.project_id}:{db.instance.region}:{db.instance.instance_name}",
                 driver="pg8000",
@@ -27,11 +36,12 @@ def SessionDep(db_primitive: CloudSQLDatabase, db_user: str, db_password: str):
 
     @dependency(scope=Scope.REPLICA)
     class _SessionMakerDeb:
-        def __init__(self, db: DBDependency) -> None:
+        def __init__(self, db: DBDependency, flow_credentials: FlowCredentials) -> None:
+            creds = flow_credentials.gcp_credentials.get_creds()
             self.SessionLocal = sessionmaker(
                 autocommit=False,
                 autoflush=False,
-                bind=engine(db, db_user, db_password),
+                bind=engine(db, db_user, db_password, creds),
             )
 
     @dependency(scope=Scope.PROCESS)
