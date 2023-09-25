@@ -1,25 +1,17 @@
 import asyncio
 import dataclasses
-import inspect
 import logging
-import time
 from typing import Any, Dict, Type
 
-import fastapi
 import ray
 from ray import serve
 
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, Snapshot
-from buildflow.core.app.runtime.metrics import (
-    num_events_processed,
-    process_time_counter,
-)
+from buildflow.core.app.runtime.fastapi import create_app
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.collector import CollectorGroup
 from buildflow.core.processor.processor import ProcessorID, ProcessorType
-from buildflow.core.processor.utils import process_types
-from buildflow.dependencies.base import Scope
 
 _MAX_SERVE_START_TRIES = 10
 
@@ -85,113 +77,25 @@ class ReceiveProcessPushAck(Runtime):
         self.flow_dependencies = flow_dependencies
 
     async def run(self) -> bool:
-        app = fastapi.FastAPI(
-            title=self.processor_group.group_id,
-            version="0.0.1",
-            docs_url="/buildflow/docs",
-            middleware=self.processor_group.middleware,
+        async def process_fn(processor, *args, **kwargs):
+            output = await processor.process(*args, **kwargs)
+            if output is None:
+                # Exclude none results
+                return
+            sink = processor.sink()
+            push_converter = sink.push_converter(type(output))
+            if isinstance(output, (list, tuple)):
+                to_send = [push_converter(result) for result in output]
+            else:
+                to_send = [push_converter(output)]
+                await sink.push(to_send)
+
+        app = create_app(
+            processor_group=self.processor_group,
+            flow_dependencies=self.flow_dependencies,
+            run_id=self.run_id,
+            process_fn=process_fn,
         )
-
-        @app.on_event("startup")
-        def setup_processor_group():
-            for processor in self.processor_group.processors:
-                if hasattr(app.state, "processor_map"):
-                    app.state.processor_map[processor.processor_id] = processor
-                else:
-                    app.state.processor_map = {processor.processor_id: processor}
-                processor.setup()
-                for dependency in processor.dependencies():
-                    dependency.dependency.initialize(
-                        self.flow_dependencies, [Scope.REPLICA]
-                    )
-
-        for processor in self.processor_group.processors:
-            input_types, output_type = process_types(processor)
-            push_converter = processor.sink().push_converter(output_type)
-
-            class CollectorFastAPIWrapper:
-                def __init__(
-                    self, processor_id, run_id, push_converter, flow_dependencies
-                ):
-                    self.processor_id = processor_id
-                    self.job_id = ray.get_runtime_context().get_job_id()
-                    self.run_id = run_id
-                    self.push_converter = push_converter
-                    self.num_events_processed_counter = num_events_processed(
-                        processor_id=processor_id,
-                        job_id=self.job_id,
-                        run_id=run_id,
-                    )
-                    self.process_time_counter = process_time_counter(
-                        processor_id=processor_id,
-                        job_id=self.job_id,
-                        run_id=run_id,
-                    )
-                    self.flow_dependencies = flow_dependencies
-                    argspec = inspect.getfullargspec(processor.process)
-                    for arg in argspec.args:
-                        if (
-                            arg in argspec.annotations
-                            and argspec.annotations[arg] == fastapi.Request
-                        ):
-                            self.request_arg = arg
-
-                # NOTE: we have to import this seperately because it gets run
-                # inside of the ray actor
-                from buildflow.core.processor.utils import add_input_types
-
-                @add_input_types(input_types, None)
-                async def handle_request(
-                    self, raw_request: fastapi.Request, *args, **kwargs
-                ) -> None:
-                    processor = app.state.processor_map[self.processor_id]
-                    sink = processor.sink()
-                    self.num_events_processed_counter.inc(
-                        tags={
-                            "processor_id": self.processor_id,
-                            "JobId": self.job_id,
-                            "RunId": self.run_id,
-                        }
-                    )
-                    start_time = time.monotonic()
-                    dependency_args = {}
-                    for wrapper in processor.dependencies():
-                        dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
-                            self.flow_dependencies, raw_request
-                        )
-                    if self.request_arg is not None:
-                        kwargs[self.request_arg] = raw_request
-                    output = await processor.process(*args, **kwargs, **dependency_args)
-                    if output is None:
-                        # Exclude none results
-                        return
-                    elif isinstance(output, (list, tuple)):
-                        to_send = [push_converter(result) for result in output]
-                    else:
-                        to_send = [push_converter(output)]
-                    await sink.push(to_send)
-                    self.process_time_counter.inc(
-                        (time.monotonic() - start_time) * 1000,
-                        tags={
-                            "processor_id": self.processor_id,
-                            "JobId": self.job_id,
-                            "RunId": self.run_id,
-                        },
-                    )
-
-            collector_wrapper = CollectorFastAPIWrapper(
-                processor.processor_id,
-                self.run_id,
-                push_converter,
-                self.flow_dependencies,
-            )
-            self.processors_map[processor.processor_id] = collector_wrapper
-
-            app.add_api_route(
-                processor.route_info().route,
-                collector_wrapper.handle_request,
-                methods=[processor.route_info().method.name],
-            )
 
         @serve.deployment(
             route_prefix=self.processor_group.base_route,

@@ -87,14 +87,20 @@ class RuntimeActor(Runtime):
         elif group.group_type == ProcessorGroupType.COLLECTOR:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=CollectorProcessorPoolActor.remote(
-                    self.run_id, group, processor_options, self.flow_dependencies
+                    self.run_id,
+                    group,
+                    processor_options,
+                    self.flow_dependencies,
                 ),
                 processor_group=group,
             )
         elif group.group_type == ProcessorGroupType.SERVICE:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=EndpointProcessorGroupPoolActor.remote(
-                    self.run_id, group, processor_options, self.flow_dependencies
+                    self.run_id,
+                    group,
+                    processor_options,
+                    self.flow_dependencies,
                 ),
                 processor_group=group,
             )
