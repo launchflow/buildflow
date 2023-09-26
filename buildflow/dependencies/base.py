@@ -79,6 +79,9 @@ class Dependency:
             if annotation == Request:
                 self.request_arg = key
 
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return self.dependency_fn(*args, **kwds)
+
     def initialize(
         self, flow_dependencies: Dict[Type, Any], scopes: Iterable[Scope] = Scope.all()
     ):
