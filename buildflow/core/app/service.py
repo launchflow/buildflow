@@ -25,6 +25,7 @@ class Service:
                 original_process_fn_or_class=original_fn_or_class,
             )
             self.endpoints.append(endpoint)
+            return original_fn_or_class
 
         return decorator_function
 
