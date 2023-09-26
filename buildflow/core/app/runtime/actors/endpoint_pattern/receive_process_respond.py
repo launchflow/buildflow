@@ -132,8 +132,8 @@ class ReceiveProcessRespond(Runtime):
     async def snapshot(self) -> Snapshot:
         processor_snapshots = {}
         # TODO: need to figure out local metrics
-        for processor_id in self.processor_group.processors:
-            processor_snapshots[processor_id] = IndividualProcessorMetrics(
+        for processor in self.processor_group.processors:
+            processor_snapshots[processor.processor_id] = IndividualProcessorMetrics(
                 events_processed_per_sec=0,
                 avg_process_time_millis=0,
             )

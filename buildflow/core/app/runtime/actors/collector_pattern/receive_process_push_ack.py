@@ -11,15 +11,13 @@ from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, S
 from buildflow.core.app.runtime.fastapi import create_app
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.collector import CollectorGroup
-from buildflow.core.processor.processor import ProcessorID, ProcessorType
+from buildflow.core.processor.processor import ProcessorType
 
 _MAX_SERVE_START_TRIES = 10
 
 
 @dataclasses.dataclass
 class IndividualProcessorMetrics:
-    processor_id: ProcessorID
-    processor_type: ProcessorType
     events_processed_per_sec: int
     avg_process_time_millis: float
 
@@ -143,9 +141,9 @@ class ReceiveProcessPushAck(Runtime):
 
     async def snapshot(self) -> Snapshot:
         processor_snapshots = {}
-        for processor_id, fast_api_wrapper in self.processors_map.items():
-            processor_snapshots[processor_id] = IndividualProcessorMetrics(
-                processor_id=processor_id,
+        for processor in self.processor_group.processors:
+            processor_snapshots[processor.processor_id] = IndividualProcessorMetrics(
+                processor_id=processor.processor_id,
                 # TODO: should probably get this from the actual processor.
                 processor_type=ProcessorType.COLLECTOR,
                 events_processed_per_sec=0,

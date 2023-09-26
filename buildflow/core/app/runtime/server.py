@@ -108,7 +108,7 @@ class RuntimeServer(uvicorn.Server):
 
     async def runtime_snapshot(self):
         snapshot: RuntimeSnapshot = await self.runtime_actor.snapshot.remote()
-        return snapshot.as_dict()
+        return JSONResponse(snapshot.as_dict())
 
     async def runtime_stop(self):
         kill(self.runtime_actor)
