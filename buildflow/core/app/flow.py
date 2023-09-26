@@ -605,7 +605,6 @@ class Flow:
         base_route: str = "/",
         *,
         service_id: str = utils.uuid(),
-        middleware: List = [],
         num_cpus: float = 1.0,
         autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
         log_level: str = "INFO",
@@ -617,7 +616,6 @@ class Flow:
             autoscale_options=autoscale_options,
             log_level=log_level,
             service_id=service_id,
-            middleware=middleware,
         )
         self._services.append(service)
         return service

@@ -10,6 +10,7 @@ from fastapi.openapi.docs import (
 )
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
+from starlette.requests import Request
 
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.metrics.common import (
@@ -42,9 +43,11 @@ def create_app(
     )
 
     @app.get("/docs", include_in_schema=False)
-    async def custom_swagger_ui_html():
+    async def custom_swagger_ui_html(req: Request):
+        root_path = req.scope.get("root_path", "").rstrip("/")
+        openapi_url = root_path + app.openapi_url
         return get_swagger_ui_html(
-            openapi_url=app.openapi_url,
+            openapi_url=openapi_url,
             title=app.title,
             oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
             swagger_js_url="/static/swagger-ui-bundle.js",
