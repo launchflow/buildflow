@@ -1,5 +1,4 @@
 import contextlib
-import dataclasses
 import logging
 import threading
 import time
@@ -7,7 +6,7 @@ from typing import Optional
 
 import uvicorn
 from fastapi import APIRouter, FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from ray import kill
 
 from buildflow.core.app.flow_state import FlowState
@@ -63,7 +62,7 @@ class RuntimeServer(uvicorn.Server):
         super().__init__(
             uvicorn.Config(app, host=host, port=port, log_level=log_level.lower())
         )
-        self.flow_state = dataclasses.asdict(flow_state)
+        self.flow_state = flow_state.to_dict()
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(log_level)
@@ -122,4 +121,4 @@ class RuntimeServer(uvicorn.Server):
         return "Not implemented yet."
 
     async def flowstate(self):
-        return self.flow_state
+        return JSONResponse(self.flow_state)

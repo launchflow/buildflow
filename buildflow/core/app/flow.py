@@ -511,14 +511,20 @@ class Flow:
         )
 
     def add_consumer(self, consumer: Consumer):
-        sink = self._portable_primitive_to_cloud_primitive(
+        if consumer.sink_primitive is not None and not dataclasses.is_dataclass(
+            consumer.sink_primitive
+        ):
+            raise ValueError(
+                f"sink must be a dataclass. Received: {type(consumer.sink_primitive).__name__}"  # noqa
+            )
+        elif consumer.sink_primitive is None:
+            consumer.sink_primitive = Empty()
+        consumer.sink_primitive = self._portable_primitive_to_cloud_primitive(
             consumer.sink_primitive, StategyType.SINK
         )
-        consumer.sink_primitive = sink
-        source = self._portable_primitive_to_cloud_primitive(
+        consumer.source_primitive = self._portable_primitive_to_cloud_primitive(
             consumer.source_primitive, StategyType.SOURCE
         )
-        consumer.source_primitive = source
         # Set up credentials
         source_credentials = self._get_credentials(
             consumer.source_primitive.primitive_type
@@ -536,10 +542,17 @@ class Flow:
         self._add_processor_group(group, consumer.processor_options)
 
     def add_collector(self, collector: Collector):
-        sink = self._portable_primitive_to_cloud_primitive(
+        if collector.sink_primitive is not None and not dataclasses.is_dataclass(
+            collector.sink_primitive
+        ):
+            raise ValueError(
+                f"sink must be a dataclass. Received: {type(collector.sink_primitive).__name__}"  # noqa
+            )
+        elif collector.sink_primitive is None:
+            collector.sink_primitive = Empty()
+        collector.sink_primitive = self._portable_primitive_to_cloud_primitive(
             collector.sink_primitive, StategyType.SINK
         )
-        collector.sink_primitive = sink
         # Set up credentials
         sink_credentials = self._get_credentials(
             collector.sink_primitive.primitive_type
