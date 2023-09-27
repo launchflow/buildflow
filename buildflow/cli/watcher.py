@@ -3,6 +3,7 @@ import os
 import signal
 import sys
 from multiprocessing import get_context
+from typing import List
 
 from watchfiles import awatch
 
@@ -39,12 +40,14 @@ class RunTimeWatcher:
         run_id: str,
         runtime_server_host: str,
         runtime_server_port: int,
+        runtime_server_allowed_google_ids: List[str],
     ) -> None:
         self.app = app
         self.start_runtime_server = start_runtime_server
         self.run_id = run_id
         self.runtime_server_host = runtime_server_host
         self.runtime_server_port = runtime_server_port
+        self.runtime_server_allowed_google_ids = runtime_server_allowed_google_ids
 
     async def run(self):
         self.process = self.start_process()
@@ -69,6 +72,7 @@ class RunTimeWatcher:
                 "run_id": self.run_id,
                 "runtime_server_host": self.runtime_server_host,
                 "runtime_server_port": self.runtime_server_port,
+                "runtime_server_allowed_google_ids": self.runtime_server_allowed_google_ids,  # noqa
             },
         )
         process.start()

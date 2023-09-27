@@ -35,6 +35,7 @@ class CloudSQLInstanceResource(pulumi.ComponentResource):
             database_version=database_version,
             settings=settings,
             region=region,
+            deletion_protection=False,
         )
 
         outputs["gcp.sql.instance"] = self.instance_resource.id

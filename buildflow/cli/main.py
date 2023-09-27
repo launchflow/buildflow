@@ -58,6 +58,7 @@ def run_flow(
     start_runtime_server: bool,
     runtime_server_host: str,
     runtime_server_port: int,
+    runtime_server_allowed_google_ids: List[str] = (),
     flow_state: Optional[FlowState] = None,
 ):
     if isinstance(flow, buildflow.Flow):
@@ -69,6 +70,7 @@ def run_flow(
                 run_id=run_id,
                 runtime_server_host=runtime_server_host,
                 runtime_server_port=runtime_server_port,
+                runtime_server_allowed_google_ids=runtime_server_allowed_google_ids,
             )
             asyncio.run(watcher.run())
 
@@ -79,6 +81,7 @@ def run_flow(
                 runtime_server_port=runtime_server_port,
                 run_id=run_id,
                 flow_state=flow_state,
+                runtime_server_allowed_google_ids=runtime_server_allowed_google_ids,
             )
     else:
         typer.echo(f"{app} is not a buildflow flow.")
@@ -95,6 +98,9 @@ def run(
     ),
     runtime_server_port: int = typer.Option(
         9653, help="The port to use for the flow server."
+    ),
+    runtime_server_allowed_google_ids: List[str] = typer.Option(
+        default_factory=list, hidden=True
     ),
     run_id: Optional[str] = typer.Option(None, help="The run id to use for this run."),
     reload: bool = typer.Option(False, help="Whether to reload the app on change."),
@@ -118,6 +124,7 @@ def run(
             start_runtime_server,
             runtime_server_host,
             runtime_server_port,
+            runtime_server_allowed_google_ids,
         )
     else:
         if reload:
@@ -149,6 +156,7 @@ def run(
             runtime_server_host,
             runtime_server_port,
             flow_state=flow_state,
+            runtime_server_allowed_google_ids=runtime_server_allowed_google_ids,
         )
 
 

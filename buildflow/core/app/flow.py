@@ -671,6 +671,7 @@ class Flow:
         start_runtime_server: bool = False,
         runtime_server_host: str = "127.0.0.1",
         runtime_server_port: int = 9653,
+        runtime_server_allowed_google_ids: List[str] = (),
         # Options for testing
         block: bool = True,
     ):
@@ -702,6 +703,7 @@ class Flow:
                 host=runtime_server_host,
                 port=runtime_server_port,
                 flow_state=flow_state,
+                allowed_google_ids=runtime_server_allowed_google_ids,
             )
             with runtime_server.run_in_thread():
                 server_log_message = (
@@ -822,7 +824,10 @@ class Flow:
                     if "sink" in processor.__meta__:
                         sink = processor.__meta__["sink"]
                         sink_id = sink.primitive_id
-                        if sink_id not in primitive_states:
+                        if (
+                            not isinstance(sink, Empty)
+                            and sink_id not in primitive_states
+                        ):
                             states = PrimitiveState.from_primitive(
                                 sink,
                                 managed_primitives=managed_primitives,
@@ -848,7 +853,10 @@ class Flow:
                     if "sink" in processor.__meta__:
                         sink = processor.__meta__["sink"]
                         sink_id = sink.primitive_id
-                        if sink_id not in primitive_states:
+                        if (
+                            not isinstance(sink, Empty)
+                            and sink_id not in primitive_states
+                        ):
                             states = PrimitiveState.from_primitive(
                                 sink,
                                 managed_primitives=managed_primitives,

@@ -16,6 +16,7 @@ from buildflow.exceptions import HTTPException
 class GoogleUser:
     google_account_id: str
     email: str
+    email_verified: bool = False
     name: Optional[str] = None
 
 
@@ -43,10 +44,13 @@ def AuthenticatedGoogleUserDepBuilder(
                 return
             try:
                 id_info = id_token.verify_oauth2_token(token, requests.Request())
+                if not id_info["email_verified"] and raise_on_unauthenticated:
+                    raise HTTPException(403, "email is not verified")
                 self.google_user = GoogleUser(
                     google_account_id=id_info["sub"],
                     email=id_info["email"],
                     name=id_info.get("name"),
+                    email_verified=id_info["email_verified"],
                 )
             except HttpError as e:
                 logging.exception("Failed to verify token")
