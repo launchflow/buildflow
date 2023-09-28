@@ -40,6 +40,8 @@ def create_app(
         docs_url=None,
         redoc_url=None,
     )
+    for middleware in processor_group.middleware:
+        app.add_middleware(middleware[0], **middleware[1])
     app.mount(
         "/static",
         StaticFiles(packages=[("buildflow", "static")]),
