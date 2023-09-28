@@ -20,7 +20,11 @@ from buildflow.core.app.runtime.metrics import (
 from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.core.processor.processor import ProcessorGroup
 from buildflow.core.processor.utils import process_types
-from buildflow.dependencies.base import Scope
+from buildflow.dependencies.base import (
+    Scope,
+    initialize_dependencies,
+    resolve_dependencies,
+)
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI
@@ -111,10 +115,10 @@ class PullProcessPushActor(Runtime):
         for processor in self.processor_group.processors:
             processor_id = processor.processor_id
             processor.setup()
-            for dependency in processor.dependencies():
-                dependency.dependency.initialize(
-                    self.flow_dependencies, [Scope.REPLICA]
-                )
+            initialize_dependencies(
+                processor.dependencies(), flow_dependencies, [Scope.REPLICA]
+            )
+
             self.num_events_processed[processor_id] = num_events_processed(
                 processor_id=processor_id,
                 job_id=job_id,
@@ -244,11 +248,9 @@ class PullProcessPushActor(Runtime):
             try:
                 coros = []
                 for element in response.payload:
-                    dependency_args = {}
-                    for wrapper in processor.dependencies():
-                        dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
-                            self.flow_dependencies
-                        )
+                    dependency_args = dependency_args = resolve_dependencies(
+                        processor.dependencies(), self.flow_dependencies
+                    )
                     coros.append(process_element(element, **dependency_args))
                 flattened_results = await asyncio.gather(*coros)
                 batch_results = []

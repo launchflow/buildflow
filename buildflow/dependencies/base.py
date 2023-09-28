@@ -57,6 +57,32 @@ def dependency_wrappers(
     return dependencies, request_arg
 
 
+def resolve_dependencies(
+    dependencies: List[DependencyWrapper],
+    flow_dependencies: Dict[Type, Any],
+    request: Optional[Request] = None,
+) -> Dict[str, Any]:
+    dependency_args = {}
+    visited_dependencies: Dict[Callable, Any] = {}
+    for wrapper in dependencies:
+        dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
+            flow_dependencies,
+            visited_dependencies,
+            request,
+        )
+    return dependency_args
+
+
+def initialize_dependencies(
+    dependencies: List[DependencyWrapper],
+    flow_dependencies: Dict[Type, Any],
+    scopes: Iterable[Scope] = Scope.all(),
+):
+    visited_dependencies: Dict[Callable, Any] = {}
+    for wrapper in dependencies:
+        wrapper.dependency.initialize(flow_dependencies, visited_dependencies, scopes)
+
+
 class Dependency:
     _instance: Any
 
@@ -66,7 +92,7 @@ class Dependency:
         for attr in dependency_fn.__dict__:
             if callable(getattr(dependency_fn, attr)):
                 setattr(self, attr, getattr(dependency_fn, attr))
-        self.sub_dependencies = []
+        self.sub_dependencies: List[DependencyWrapper] = []
         full_arg_spec = inspect.getfullargspec(dependency_fn)
         for arg in full_arg_spec.args:
             if arg in full_arg_spec.annotations:
@@ -83,21 +109,32 @@ class Dependency:
         return self.dependency_fn(*args, **kwds)
 
     def initialize(
-        self, flow_dependencies: Dict[Type, Any], scopes: Iterable[Scope] = Scope.all()
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        scopes: Iterable[Scope] = Scope.all(),
     ):
-        self._initialize_dependencies(flow_dependencies, scopes)
+        self._initialize_dependencies(flow_dependencies, visited_dependencies, scopes)
 
     def resolve(
-        self, flow_dependencies: Dict[Type, Any], request: Optional[Request] = None
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        request: Optional[Request] = None,
     ):
         raise NotImplementedError()
 
     def _resolve_dependencies(
-        self, flow_dependencies: Dict[Type, Any], request: Optional[Request] = None
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        request: Optional[Request] = None,
     ) -> Dict[str, Any]:
         deps = {}
         for dep in self.sub_dependencies:
-            deps[dep.arg_name] = dep.dependency.resolve(flow_dependencies, request)
+            deps[dep.arg_name] = dep.dependency.resolve(
+                flow_dependencies, visited_dependencies, request
+            )
         if self.request_arg is not None:
             if request is None:
                 raise ValueError(
@@ -112,14 +149,17 @@ class Dependency:
         return deps
 
     def _initialize_dependencies(
-        self, flow_dependencies: Dict[Type, Any], scopes: List[Scope]
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        scopes: List[Scope],
     ):
         for dep in self.sub_dependencies:
             if dep.dependency.scope.value < self.scope.value:
                 raise InvalidDependencyHierarchyOrder(
                     dep.arg_name, dep.dependency.scope.name, self.scope.name
                 )
-            dep.dependency.initialize(flow_dependencies, scopes)
+            dep.dependency.initialize(flow_dependencies, visited_dependencies, scopes)
 
 
 class ProcessScoped(Dependency):
@@ -127,10 +167,20 @@ class ProcessScoped(Dependency):
         super().__init__(dependency_fn, Scope.PROCESS)
 
     def resolve(
-        self, flow_dependencies: Dict[Type, Any], request: Optional[Request] = None
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        request: Optional[Request] = None,
     ):
-        args = self._resolve_dependencies(flow_dependencies, request)
-        return self.dependency_fn(**args)
+        args = self._resolve_dependencies(
+            flow_dependencies, visited_dependencies, request
+        )
+        if self.dependency_fn in visited_dependencies:
+            return visited_dependencies[self.dependency_fn]
+        else:
+            to_return = self.dependency_fn(**args)
+            visited_dependencies[self.dependency_fn] = to_return
+            return to_return
 
 
 class ReplicaScoped(Dependency):
@@ -142,15 +192,25 @@ class ReplicaScoped(Dependency):
     def initialize(
         self,
         flow_dependencies: List[Any],
+        visited_dependencies: Dict[Callable, Any],
         scopes: Iterable[Scope] = [Scope.REPLICA, Scope.GLOBAL],
     ):
-        super().initialize(flow_dependencies, scopes)
+        super().initialize(flow_dependencies, visited_dependencies, scopes)
         if self._instance is not None or self.scope not in scopes:
             return
-        args = self._resolve_dependencies(flow_dependencies)
-        self._instance = self.dependency_fn(**args)
+        args = self._resolve_dependencies(flow_dependencies, visited_dependencies)
+        if self.dependency_fn in visited_dependencies:
+            self._instance = visited_dependencies[self.dependency_fn]
+        else:
+            self._instance = self.dependency_fn(**args)
+            visited_dependencies[self.dependency_fn] = self._instance
 
-    def resolve(self, flow_dependencies: List[Any], request: Optional[Request] = None):
+    def resolve(
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        request: Optional[Request] = None,
+    ):
         if self._instance is None:
             raise ValueError("Replica scoped dependency not initialized")
         return self._instance
@@ -163,16 +223,28 @@ class GlobalScoped(Dependency):
         self.global_scoped_id = uuid()
 
     def initialize(
-        self, flow_dependencies: List[Any], scopes: Iterable[Scope] = [Scope.GLOBAL]
+        self,
+        flow_dependencies: List[Any],
+        visited_dependencies: Dict[Callable, Any],
+        scopes: Iterable[Scope] = [Scope.GLOBAL],
     ):
-        super().initialize(flow_dependencies, scopes)
+        super().initialize(flow_dependencies, visited_dependencies, scopes)
         if self._object_ref is not None or self.scope not in scopes:
             return
-        args = self._resolve_dependencies(flow_dependencies)
-        self._instance = self.dependency_fn(**args)
+        args = self._resolve_dependencies(flow_dependencies, visited_dependencies)
+        if self.dependency_fn in visited_dependencies:
+            self._instance = visited_dependencies[self.dependency_fn]
+        else:
+            self._instance = self.dependency_fn(**args)
+            visited_dependencies[self.dependency_fn] = self._instance
         self._object_ref = ray.put(self._instance)
 
-    def resolve(self, flow_dependencies: List[Any], request: Optional[Request] = None):
+    def resolve(
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        request: Optional[Request] = None,
+    ):
         if self._instance is not None:
             return self._instance
         if self._object_ref is None:
@@ -184,8 +256,15 @@ class NoScoped(Dependency):
     def __init__(self, dependency_fn):
         super().__init__(dependency_fn, Scope.NO_SCOPE)
 
-    def resolve(self, flow_dependencies: List[Any], request: Optional[Request] = None):
-        args = self._resolve_dependencies(flow_dependencies, request)
+    def resolve(
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        request: Optional[Request] = None,
+    ):
+        args = self._resolve_dependencies(
+            flow_dependencies, visited_dependencies, request
+        )
         return self.dependency_fn(**args)
 
 

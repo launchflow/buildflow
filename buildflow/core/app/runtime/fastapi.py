@@ -20,7 +20,11 @@ from buildflow.core.app.runtime.metrics.common import (
 from buildflow.core.processor.patterns.collector import CollectorGroup
 from buildflow.core.processor.patterns.endpoint import EndpointGroup
 from buildflow.core.processor.utils import process_types
-from buildflow.dependencies.base import Scope
+from buildflow.dependencies.base import (
+    Scope,
+    initialize_dependencies,
+    resolve_dependencies,
+)
 from buildflow.dependencies.headers import security_dependencies
 
 
@@ -68,8 +72,9 @@ def create_app(
             else:
                 app.state.processor_map = {processor.processor_id: processor}
             processor.setup()
-            for dependency in processor.dependencies():
-                dependency.dependency.initialize(flow_dependencies, [Scope.REPLICA])
+            initialize_dependencies(
+                processor.dependencies(), flow_dependencies, [Scope.REPLICA]
+            )
 
     for processor in processor_group.processors:
         input_types, output_type = process_types(processor)
@@ -116,11 +121,9 @@ def create_app(
                     }
                 )
                 start_time = time.monotonic()
-                dependency_args = {}
-                for wrapper in processor.dependencies():
-                    dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
-                        self.flow_dependencies, raw_request
-                    )
+                dependency_args = resolve_dependencies(
+                    processor.dependencies(), self.flow_dependencies, raw_request
+                )
                 if self.request_arg is not None:
                     kwargs[self.request_arg] = raw_request
 

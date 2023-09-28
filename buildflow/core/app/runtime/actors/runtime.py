@@ -25,7 +25,7 @@ from buildflow.core.app.runtime.actors.endpoint_pattern.endpoint_pool import (
 from buildflow.core.app.runtime.actors.process_pool import ProcessorGroupSnapshot
 from buildflow.core.options.runtime_options import RuntimeOptions
 from buildflow.core.processor.processor import ProcessorGroup, ProcessorGroupType
-from buildflow.dependencies.base import Scope
+from buildflow.dependencies.base import Scope, initialize_dependencies
 
 
 @dataclasses.dataclass
@@ -113,11 +113,10 @@ class RuntimeActor(Runtime):
         self, processor_groups: Iterable[ProcessorGroup]
     ):
         for group in processor_groups:
+            deps = []
             for processor in group.processors:
-                for dep in processor.dependencies():
-                    dep.dependency.initialize(
-                        self.flow_dependencies, scopes=[Scope.GLOBAL]
-                    )
+                deps.extend(processor.dependencies())
+            initialize_dependencies(deps, self.flow_dependencies, [Scope.GLOBAL])
 
     async def run(
         self,
