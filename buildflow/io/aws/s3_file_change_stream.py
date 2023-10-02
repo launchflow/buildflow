@@ -1,30 +1,26 @@
 import dataclasses
 from typing import Iterable
 
+import pulumi
+
 from buildflow.config.cloud_provider_config import AWSOptions
+from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.types.aws_types import S3BucketName
-from buildflow.io.aws.providers.s3_file_change_stream_provider import (
-    S3FileChangeStreamProvider,
+from buildflow.io.aws.pulumi.s3_file_change_stream_resource import (
+    S3FileChangeStreamResource,
 )
 from buildflow.io.aws.s3 import S3Bucket
 from buildflow.io.aws.sqs import SQSQueue
+from buildflow.io.aws.strategies.s3_file_change_stream_strategies import (
+    S3FileChangeStreamSource,
+)
 from buildflow.io.primitive import AWSPrimtive
+from buildflow.io.strategies.source import SourceStrategy
 from buildflow.types.aws import S3ChangeStreamEventType
 
 
 @dataclasses.dataclass
-class S3FileChangeStream(
-    AWSPrimtive[
-        # Pulumi provider type
-        S3FileChangeStreamProvider,
-        # Source provider type
-        S3FileChangeStreamProvider,
-        # Sink provider type
-        None,
-        # Background task provider type
-        None,
-    ],
-):
+class S3FileChangeStream(AWSPrimtive):
     s3_bucket: S3Bucket
     event_types: Iterable[S3ChangeStreamEventType] = (
         S3ChangeStreamEventType.OBJECT_CREATED_ALL,
@@ -49,16 +45,16 @@ class S3FileChangeStream(
         bucket.enable_managed()
         return cls(bucket)
 
-    def source_provider(self) -> S3FileChangeStreamProvider:
-        return S3FileChangeStreamProvider(
-            s3_bucket=self.s3_bucket,
-            sqs_queue=self.sqs_queue,
-            event_types=self.event_types,
+    def source(self, credentials: AWSCredentials) -> SourceStrategy:
+        return S3FileChangeStreamSource(
+            credentials=credentials,
+            sqs_source=self.sqs_queue.source(credentials),
+            aws_region=self.s3_bucket.aws_region,
         )
 
-    def _pulumi_provider(self) -> S3FileChangeStreamProvider:
-        return S3FileChangeStreamProvider(
-            s3_bucket=self.s3_bucket,
-            sqs_queue=self.sqs_queue,
-            event_types=self.event_types,
+    def pulumi_resource(
+        self, credentials: AWSCredentials, opts: pulumi.ResourceOptions
+    ):
+        return S3FileChangeStreamResource(
+            self.s3_bucket, self.sqs_queue, self.event_types, credentials, opts
         )

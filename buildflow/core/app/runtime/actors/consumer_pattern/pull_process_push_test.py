@@ -19,7 +19,7 @@ from buildflow.io.local.pulse import Pulse
 from buildflow.types.portable import FileFormat
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class PullProcessPushTest(unittest.TestCase):
     def get_output_file(self) -> str:
@@ -61,6 +61,7 @@ class PullProcessPushTest(unittest.TestCase):
             run_id="test-run",
             processor_group=ConsumerGroup(group_id="g", processors=[MyProcesesor]),
             replica_id="1",
+            flow_dependencies={},
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -86,6 +87,7 @@ class PullProcessPushTest(unittest.TestCase):
             run_id="test-run",
             processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
+            flow_dependencies={},
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -110,6 +112,7 @@ class PullProcessPushTest(unittest.TestCase):
             run_id="test-run",
             processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
+            flow_dependencies={},
         )
 
         self.run_with_timeout(actor.run.remote())
@@ -134,6 +137,7 @@ class PullProcessPushTest(unittest.TestCase):
             run_id="test-run",
             processor_group=ConsumerGroup(group_id="g", processors=[process]),
             replica_id="1",
+            flow_dependencies={},
         )
 
         self.run_with_timeout(actor.run.remote())

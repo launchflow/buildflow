@@ -1,8 +1,12 @@
+import asyncio
 import json
 import logging
 import os
+import pathlib
 import sys
+import tempfile
 import warnings
+import zipfile
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -10,12 +14,17 @@ from importlib.metadata import version
 from pprint import pprint
 from typing import Any, Dict, List, Optional
 
+import pathspec
+import ray
 import typer
+import yaml
 
 import buildflow
 from buildflow.cli import file_gen, utils
-from buildflow.config.buildflow_config import BuildFlowConfig
-from buildflow.config.cloud_provider_config import CloudProvider, CloudProviderConfig
+from buildflow.cli.watcher import RunTimeWatcher
+from buildflow.config.buildflow_config import BUILDFLOW_CONFIG_FILE, BuildFlowConfig
+from buildflow.core.app.flow_state import FlowState
+from buildflow.core.utils import uuid
 from buildflow.io import IOPrimitiveOption, list_all_io_primitives
 
 warnings.simplefilter("ignore", UserWarning)
@@ -36,14 +45,51 @@ APP_DIR_OPTION = typer.Option(
     "",
     help=(
         "The directory to look for the app in, by adding this to `sys.path` "
-        "we default to looking in the directory."
+        "we default to looking in the working directory."
     ),
 )
 
 
+def run_flow(
+    flow: Any,
+    buildflow_config: BuildFlowConfig,
+    reload: bool,
+    run_id: str,
+    start_runtime_server: bool,
+    runtime_server_host: str,
+    runtime_server_port: int,
+    runtime_server_allowed_google_ids: List[str] = (),
+    flow_state: Optional[FlowState] = None,
+):
+    if isinstance(flow, buildflow.Flow):
+        if reload:
+            ray.init()
+            watcher = RunTimeWatcher(
+                app=buildflow_config.entry_point,
+                start_runtime_server=start_runtime_server,
+                run_id=run_id,
+                runtime_server_host=runtime_server_host,
+                runtime_server_port=runtime_server_port,
+                runtime_server_allowed_google_ids=runtime_server_allowed_google_ids,
+            )
+            asyncio.run(watcher.run())
+
+        else:
+            flow.run(
+                start_runtime_server=start_runtime_server,
+                runtime_server_host=runtime_server_host,
+                runtime_server_port=runtime_server_port,
+                run_id=run_id,
+                flow_state=flow_state,
+                runtime_server_allowed_google_ids=runtime_server_allowed_google_ids,
+            )
+    else:
+        typer.echo(f"{app} is not a buildflow flow.")
+        raise typer.Exit(1)
+
+
 @app.command(help="Run a buildflow flow.")
 def run(
-    app: str = typer.Argument(..., help="The flow app to run"),
     start_runtime_server: bool = typer.Option(
         False, help="Whether to start the server for the running flow."
     ),
@@ -53,30 +99,120 @@ def run(
     runtime_server_port: int = typer.Option(
         9653, help="The port to use for the flow server."
     ),
+    runtime_server_allowed_google_ids: List[str] = typer.Option(
+        default_factory=list, hidden=True
+    ),
     run_id: Optional[str] = typer.Option(None, help="The run id to use for this run."),
-    app_dir: str = APP_DIR_OPTION,
+    reload: bool = typer.Option(False, help="Whether to reload the app on change."),
+    from_build: str = typer.Option(
+        "", help="The build to run from, only one of app and --from-build can be used."
+    ),
+    build_output_dir: str = typer.Option(
+        "",
+        help="The location the build will be decompressed to. Only relevent if setting --from-build, defaults to a temporary directory",  # noqa
+    ),
 ):
-    sys.path.insert(0, app_dir)
-    imported = utils.import_from_string(app)
-    if isinstance(imported, buildflow.Flow):
-        imported.run(
-            start_runtime_server=start_runtime_server,
-            runtime_server_host=runtime_server_host,
-            runtime_server_port=runtime_server_port,
-            run_id=run_id,
+    if not from_build:
+        buildflow_config = BuildFlowConfig.load()
+        sys.path.insert(0, "")
+        imported = utils.import_from_string(buildflow_config.entry_point)
+        run_flow(
+            imported,
+            buildflow_config,
+            reload,
+            run_id,
+            start_runtime_server,
+            runtime_server_host,
+            runtime_server_port,
+            runtime_server_allowed_google_ids,
         )
     else:
-        typer.echo(f"{app} is not a buildflow flow.")
-        raise typer.Exit(1)
+        if reload:
+            typer.echo("reload cannot be used with --from-build")
+            raise typer.Exit(1)
+        if not os.path.exists(from_build):
+            typer.echo(f"Build at {from_build} does not exist.")
+            raise typer.Exit(1)
+        if not build_output_dir:
+            build_output_dir = os.path.join(tempfile.gettempdir(), "buildflow", uuid())
+        with zipfile.ZipFile(from_build, "r") as zip_ref:
+            zip_ref.extractall(build_output_dir)
+        flowstate_path = os.path.join(build_output_dir, "flowstate.yaml")
+        if not os.path.exists(flowstate_path):
+            typer.echo(f"Build at {from_build} does not contain a flowstate.yaml.")
+            raise typer.Exit(1)
+        with open(flowstate_path, "r") as flowstate_file:
+            flow_state_yaml = yaml.safe_load(flowstate_file)
+        flow_state = FlowState(**flow_state_yaml)
+        buildflow_config = BuildFlowConfig.load(build_output_dir)
+        sys.path.insert(0, build_output_dir)
+        imported = utils.import_from_string(buildflow_config.entry_point)
+        run_flow(
+            imported,
+            buildflow_config,
+            reload,
+            run_id,
+            start_runtime_server,
+            runtime_server_host,
+            runtime_server_port,
+            flow_state=flow_state,
+            runtime_server_allowed_google_ids=runtime_server_allowed_google_ids,
+        )
+
+
+def zipdir(path: str, ziph: zipfile.ZipFile, excludes: List[str]):
+    # ziph is zipfile handle
+    file_names = []
+    matcher = pathspec.PathSpec.from_lines("gitwildmatch", excludes)
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            base_path = os.path.join(root, file)
+            if matcher.match_file(base_path):
+                continue
+            file_names.append(base_path)
+
+    for file in file_names:
+        ziph.write(
+            file,
+            os.path.relpath(file, path),
+        )
+
+
+_BASE_EXCLUDE = [".buildflow", "__pycache__", "build", ".git", ".gitignore"]
+_BUILD_PATH_HELP = "Output director to store the build in, defaults to ./.buildflow/build/build.flow"  # noqa
+
+
+@app.command(help="Build a buildflow flow.")
+def build(
+    build_path: str = typer.Option("", help=_BUILD_PATH_HELP),
+    exclude_dirs: List[str] = typer.Option([], help="Paths to exclude from the build"),
+):
+    buildflow_config = BuildFlowConfig.load()
+    sys.path.insert(0, "")
+    imported = utils.import_from_string(buildflow_config.entry_point)
+    if not build_path:
+        build_path = os.path.join(os.getcwd(), ".buildflow", "build", "build.flow")
+    build_path = os.path.abspath(build_path)
+    path = pathlib.Path(build_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    final_excludes = _BASE_EXCLUDE + exclude_dirs
+    print(f"Generating buildflow build at:\n  {build_path}")
+    if isinstance(imported, (buildflow.Flow)):
+        flowstate = imported.flowstate()
+        with zipfile.ZipFile(build_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            zipdir(os.getcwd(), zipf, excludes=final_excludes)
+            yaml_str = yaml.dump(flowstate.to_dict())
+            zipf.writestr("flowstate.yaml", yaml_str)
+    else:
+        typer.echo("build must be run on a flow")
+        typer.Exit(1)
 
 
 @app.command(help="Refresh all resources used by a buildflow flow or grid")
-def refresh(
-    app: str = typer.Argument(..., help="The app to refresh"),
-    app_dir: str = APP_DIR_OPTION,
-):
-    sys.path.insert(0, app_dir)
-    imported = utils.import_from_string(app)
+def refresh():
+    buildflow_config = BuildFlowConfig.load()
+    sys.path.insert(0, "")
+    imported = utils.import_from_string(buildflow_config.entry_point)
     if isinstance(imported, (buildflow.Flow)):
         imported.refresh()
 
@@ -86,12 +222,10 @@ def refresh(
 
 
 @app.command(help="Output all resources used by a buildflow flow or grid")
-def plan(
-    app: str = typer.Argument(..., help="The app to plan"),
-    app_dir: str = APP_DIR_OPTION,
-):
-    sys.path.insert(0, app_dir)
-    imported = utils.import_from_string(app)
+def plan():
+    buildflow_config = BuildFlowConfig.load()
+    sys.path.insert(0, "")
+    imported = utils.import_from_string(buildflow_config.entry_point)
     if isinstance(imported, (buildflow.Flow)):
         imported.plan()
 
@@ -101,12 +235,10 @@ def plan(
 
 
 @app.command(help="Apply all resources used by a buildflow flow or grid")
-def apply(
-    app: str = typer.Argument(..., help="The app to plan"),
-    app_dir: str = APP_DIR_OPTION,
-):
-    sys.path.insert(0, app_dir)
-    imported = utils.import_from_string(app)
+def apply():
+    buildflow_config = BuildFlowConfig.load()
+    sys.path.insert(0, "")
+    imported = utils.import_from_string(buildflow_config.entry_point)
     if isinstance(imported, (buildflow.Flow)):
         imported.apply()
 
@@ -116,12 +248,10 @@ def apply(
 
 
 @app.command(help="Destroy all resources used by a buildflow flow or grid")
-def destroy(
-    app: str = typer.Argument(..., help="The app to plan"),
-    app_dir: str = APP_DIR_OPTION,
-):
-    sys.path.insert(0, app_dir)
-    imported = utils.import_from_string(app)
+def destroy():
+    buildflow_config = BuildFlowConfig.load()
+    sys.path.insert(0, "")
+    imported = utils.import_from_string(buildflow_config.entry_point)
     if isinstance(imported, (buildflow.Flow)):
         imported.destroy()
 
@@ -142,12 +272,11 @@ class InspectJSON:
 
 @app.command(help="Inspect the Pulumi Stack state of a buildflow flow")
 def inspect(
-    app: str = typer.Argument(..., help="The app to inspect."),
-    app_dir: str = APP_DIR_OPTION,
     as_json: bool = typer.Option(False, help="Whether to print the output as json"),
 ):
-    sys.path.insert(0, app_dir)
-    imported = utils.import_from_string(app)
+    buildflow_config = BuildFlowConfig.load()
+    sys.path.insert(0, "")
+    imported = utils.import_from_string(buildflow_config.entry_point)
     # TODO: Add support for deployment grids
     runtime = datetime.utcnow().isoformat()
     if isinstance(imported, (buildflow.Flow)):
@@ -175,17 +304,8 @@ buildflow
 
 @app.command(help="Initialize a new buildflow app")
 def init(
+    project: str = typer.Option("", help=("The name of the project")),
     directory: str = typer.Option(default=".", help="The directory to initialize"),
-    application: str = typer.Option(
-        default="",
-        help=(
-            "The name of the application. Will default to the directory name if not set"
-        ),
-    ),
-    default_cloud_provider: Optional[CloudProvider] = typer.Option(
-        None,
-        help="The default cloud provider to use",
-    ),
     processor: Optional[str] = typer.Option(
         None, help="The type of Processor to create", hidden=True
     ),
@@ -195,50 +315,19 @@ def init(
     sink: Optional[str] = typer.Option(
         None, help="The IO primitive (class name) to use as a Sink", hidden=True
     ),
-    default_gcp_project: Optional[str] = typer.Option(
-        None, help="The default GCP project to use", hidden=True
-    ),
     skip_requirements_file: bool = typer.Option(
         default=False, help="Skip requirements file creation", hidden=True
     ),
 ):
-    if application == "":
-        abspath = os.path.abspath(directory)
-        application = os.path.basename(abspath)
-    buildflow_config_dir = os.path.join(directory, ".buildflow")
+    buildflow_config_dir = os.path.join(directory, BUILDFLOW_CONFIG_FILE)
     if os.path.exists(buildflow_config_dir):
         typer.echo(
             f"buildflow config already exists at {buildflow_config_dir}, skipping."
         )
         raise typer.Exit(1)
-    buildflow_config = BuildFlowConfig.default(
-        application=application, buildflow_config_dir=buildflow_config_dir
-    )
-
-    cloud_provider_config = CloudProviderConfig.default()
-    if default_cloud_provider is not None:
-        cloud_provider_config.default_cloud_provider = default_cloud_provider
-    else:
-        options = [option.value for option in CloudProvider]
-        user_input = input(f"What is your default cloud provider? {options}: ")
-        while user_input not in options:
-            user_input = input(f"invalid option, try again {options}: ")
-
-        cloud_provider_config.default_cloud_provider = CloudProvider(user_input)
-
-    if default_gcp_project is not None:
-        cloud_provider_config.gcp_options.default_project_id = default_gcp_project
-    else:
-        try:
-            from google.auth import default
-
-            _, project_id = default()
-            if project_id:
-                cloud_provider_config.gcp_options.default_project_id = project_id
-        except:  # noqa: E722
-            pass
-
-    buildflow_config.cloud_provider_config = cloud_provider_config
+    if not project:
+        project = input("Please enter a project name: ")
+    buildflow_config = BuildFlowConfig.default(project=project, directory=directory)
 
     if not skip_requirements_file:
         requirements_txt_path = os.path.join(directory, "requirements.txt")
@@ -250,8 +339,10 @@ def init(
             with open(requirements_txt_path, "w") as requirements_txt_file:
                 requirements_txt_file.write(_DEFAULT_REQUIREMENTS_TXT)
 
-    buildflow_config.dump(buildflow_config_dir)
+    buildflow_config.dump(directory)
 
+    file_name = "main"
+    file_path = os.path.join(directory, f"{file_name}.py")
     if source is not None and sink is not None:
         file_name = "main"
         file_path = os.path.join(directory, f"{file_name}.py")
@@ -264,17 +355,13 @@ def init(
             file_template = file_gen.generate_collector_template(sink, file_name)
         elif processor == "endpoint":
             file_template = file_gen.generate_endpoint_template(file_name)
-
-        if os.path.exists(file_path):
-            typer.echo(f"{file_path} already exists, skipping.")
-        else:
-            with open(file_path, "w") as file:
-                file.write(file_template)
     else:
-        typer.echo(
-            "NOTE: You can generate a main.py file by running `buildflow init --source "
-            "<source_class_name> --sink <sink_class_name>`"
-        )
+        file_template = file_gen.empty_template()
+    if os.path.exists(file_path):
+        typer.echo(f"{file_path} already exists, skipping.")
+    else:
+        with open(file_path, "w") as file:
+            file.write(file_template)
 
 
 @dataclass

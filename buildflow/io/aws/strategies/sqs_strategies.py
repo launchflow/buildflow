@@ -19,7 +19,7 @@ class _MessageInfo:
     receipt_handle: str
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class _SQSAckInfo(AckInfo):
     message_infos: Iterable[_MessageInfo]
 

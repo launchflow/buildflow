@@ -2,23 +2,13 @@ import dataclasses
 from typing import Any, Iterable
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.io.local.providers.pulse_providers import PulseProvider
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
+from buildflow.io.local.strategies.pulse_strategies import PulseSource
 from buildflow.io.primitive import LocalPrimtive
 
 
 @dataclasses.dataclass
-class Pulse(
-    LocalPrimtive[
-        # Pulumi provider type
-        None,
-        # Source provider type
-        PulseProvider,
-        # Sink provider type
-        None,
-        # Background task provider type
-        None,
-    ]
-):
+class Pulse(LocalPrimtive):
     items: Iterable[Any]
     pulse_interval_seconds: float
 
@@ -35,8 +25,9 @@ class Pulse(
             pulse_interval_seconds=pulse_interval_seconds,
         )
 
-    def source_provider(self) -> PulseProvider:
-        return PulseProvider(
+    def source(self, credentials: EmptyCredentials) -> PulseSource:
+        return PulseSource(
             items=self.items,
             pulse_interval_seconds=self.pulse_interval_seconds,
+            credentials=credentials,
         )

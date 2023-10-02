@@ -1,0 +1,2 @@
+include buildflow/static/*.css
+include buildflow/static/*.js

@@ -1,7 +1,7 @@
 import asyncio
 import dataclasses
 import logging
-from typing import Dict, List
+from typing import Any, Dict, List, Type
 
 import ray
 from ray.actor import ActorHandle
@@ -80,6 +80,7 @@ class ProcessorGroupReplicaPoolActor(Runtime):
         run_id: RunID,
         processor_group: ProcessorGroup,
         processor_options: ProcessorOptions,
+        flow_dependencies: Dict[Type, Any],
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -90,6 +91,7 @@ class ProcessorGroupReplicaPoolActor(Runtime):
         self.run_id = run_id
         self.processor_group = processor_group
         self.options = processor_options
+        self.flow_dependencies = flow_dependencies
         # initial runtime state
         self.replicas: List[ReplicaReference] = []
         self.background_tasks: List[BackgroundTask] = []

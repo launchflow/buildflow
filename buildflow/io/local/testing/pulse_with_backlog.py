@@ -2,7 +2,8 @@ import dataclasses
 from typing import Any, Iterable
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.io.local.providers.pulse_providers import PulseProvider
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
+from buildflow.io.local.strategies.pulse_strategies import PulseSource
 from buildflow.io.primitive import LocalPrimtive
 
 
@@ -27,16 +28,10 @@ class PulseWithBacklog(LocalPrimtive):
             backlog_size=backlog_size,
         )
 
-    def source_provider(self) -> PulseProvider:
-        return PulseProvider(
+    def source(self, credentials: EmptyCredentials) -> PulseSource:
+        return PulseSource(
             items=self.items,
             pulse_interval_seconds=self.pulse_interval_seconds,
             backlog_size=self.backlog_size,
-        )
-
-    def _pulumi_provider(self) -> PulseProvider:
-        return PulseProvider(
-            items=self.items,
-            pulse_interval_seconds=self.pulse_interval_seconds,
-            backlog_size=self.backlog_size,
+            credentials=credentials,
         )

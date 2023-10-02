@@ -5,7 +5,7 @@ import dataclasses
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Iterable, List
+from typing import Any, Dict, Iterable, List, Type
 
 import ray
 from ray.actor import ActorHandle
@@ -24,10 +24,8 @@ from buildflow.core.app.runtime.actors.endpoint_pattern.endpoint_pool import (
 )
 from buildflow.core.app.runtime.actors.process_pool import ProcessorGroupSnapshot
 from buildflow.core.options.runtime_options import RuntimeOptions
-from buildflow.core.processor.processor import (
-    ProcessorGroup,
-    ProcessorGroupType,
-)
+from buildflow.core.processor.processor import ProcessorGroup, ProcessorGroupType
+from buildflow.dependencies.base import Scope, initialize_dependencies
 
 
 @dataclasses.dataclass
@@ -59,6 +57,7 @@ class RuntimeActor(Runtime):
         run_id: RunID,
         *,
         runtime_options: RuntimeOptions,
+        flow_dependencies: Dict[Type, Any],
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -71,6 +70,7 @@ class RuntimeActor(Runtime):
         self._status = RuntimeStatus.IDLE
         self._processor_group_pool_refs: List[ProcessorGroupPoolReference] = []
         self._runtime_loop_future = None
+        self.flow_dependencies = flow_dependencies
 
     def _set_status(self, status: RuntimeStatus):
         self._status = status
@@ -80,9 +80,7 @@ class RuntimeActor(Runtime):
         if group.group_type == ProcessorGroupType.CONSUMER:
             processor_pool_group_ref = ProcessorGroupPoolReference(
                 actor_handle=ConsumerProcessorReplicaPoolActor.remote(
-                    self.run_id,
-                    group,
-                    processor_options,
+                    self.run_id, group, processor_options, self.flow_dependencies
                 ),
                 processor_group=group,
             )
@@ -92,6 +90,7 @@ class RuntimeActor(Runtime):
                     self.run_id,
                     group,
                     processor_options,
+                    self.flow_dependencies,
                 ),
                 processor_group=group,
             )
@@ -101,6 +100,7 @@ class RuntimeActor(Runtime):
                     self.run_id,
                     group,
                     processor_options,
+                    self.flow_dependencies,
                 ),
                 processor_group=group,
             )
@@ -108,6 +108,15 @@ class RuntimeActor(Runtime):
             raise ValueError(f"Unknown group type: {group.group_type}")
         processor_pool_group_ref.actor_handle.run.remote()
         return processor_pool_group_ref
+
+    def initialize_global_dependencies(
+        self, processor_groups: Iterable[ProcessorGroup]
+    ):
+        for group in processor_groups:
+            deps = []
+            for processor in group.processors:
+                deps.extend(processor.dependencies())
+            initialize_dependencies(deps, self.flow_dependencies, [Scope.GLOBAL])
 
     async def run(
         self,
@@ -119,14 +128,18 @@ class RuntimeActor(Runtime):
             raise RuntimeError("Can only start an Idle Runtime.")
         self._set_status(RuntimeStatus.RUNNING)
         self._processor_group_pool_refs = []
+        self.initialize_global_dependencies(processor_groups)
         for processor_group in processor_groups:
             process_group_pool_ref = self._start_processor_group(processor_group)
             self._processor_group_pool_refs.append(process_group_pool_ref)
 
         self._runtime_loop_future = self._runtime_checkin_loop()
 
-    async def drain(self) -> bool:
-        if self._status == RuntimeStatus.DRAINING:
+    async def drain(self, as_reload: bool = False) -> bool:
+        if (
+            self._status == RuntimeStatus.DRAINING
+            or self._status == RuntimeStatus.RELOADING
+        ):
             logging.warning("Received drain single twice. Killing remaining actors.")
             [
                 ray.kill(processor_pool.actor_handle)
@@ -135,16 +148,23 @@ class RuntimeActor(Runtime):
             # Kill the runtime actor to stop the even loop.
             ray.actor.exit_actor()
         else:
-            logging.warning("Draining Runtime...")
-            logging.warning("-- Attempting to drain again will force stop the runtime.")
-            self._set_status(RuntimeStatus.DRAINING)
+            if as_reload:
+                logging.warning("Draining Runtime for reload...")
+                self._set_status(RuntimeStatus.RELOADING)
+            else:
+                logging.warning("Draining Runtime...")
+                logging.warning(
+                    "-- Attempting to drain again will force stop the runtime."
+                )
+                self._set_status(RuntimeStatus.DRAINING)
             drain_tasks = [
                 processor_pool.actor_handle.drain.remote()
                 for processor_pool in self._processor_group_pool_refs
             ]
             await asyncio.gather(*drain_tasks)
             self._set_status(RuntimeStatus.IDLE)
-            logging.info("Drain Runtime complete.")
+            if not as_reload:
+                logging.info("Drain Runtime complete.")
         return True
 
     async def status(self):

@@ -15,7 +15,7 @@ from buildflow.io.snowflake.background_tasks.table_load_background_task import (
 from buildflow.io.snowflake.constants import BASE_STAGING_DIR, BASE_UPLOAD_DIR
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class TableLoadBackgroundTaskTest(unittest.TestCase):
     def run_for_time(self, coro, time: int = 5):
@@ -44,7 +44,7 @@ class TableLoadBackgroundTaskTest(unittest.TestCase):
         os.mkdir(self.upload_dir)
         self.background_task = SnowflakeUploadBackgroundTask(
             # We use empty credentials so we use the local file system
-            credentials=EmptyCredentials(None),
+            credentials=EmptyCredentials(),
             bucket_name=self.temp_dir,
             account="account",
             user="user",

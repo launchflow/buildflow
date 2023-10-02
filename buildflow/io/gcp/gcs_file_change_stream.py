@@ -1,31 +1,26 @@
 import dataclasses
 from typing import Iterable
 
+import pulumi
+
 from buildflow.config.cloud_provider_config import GCPOptions
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.portable_types import BucketName
-from buildflow.io.gcp.providers.gcs_file_change_stream import (
-    GCSFileChangeStreamProvider,
-)
 from buildflow.io.gcp.pubsub_subscription import GCPPubSubSubscription
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
+from buildflow.io.gcp.pulumi.gcs_file_change_stream import (
+    GCSFileChangeStreamPulumiResource,
+)
 from buildflow.io.gcp.storage import GCSBucket
-from buildflow.io.primitive import GCPPrimtive
+from buildflow.io.gcp.strategies.gcs_file_change_stream_strategies import (
+    GCSFileChangeStreamSource,
+)
+from buildflow.io.strategies.source import SourceStrategy
 from buildflow.types.gcp import GCSChangeStreamEventType
 
 
 @dataclasses.dataclass
-class GCSFileChangeStream(
-    GCPPrimtive[
-        # Pulumi provider type
-        GCSFileChangeStreamProvider,
-        # Source provider type
-        GCSFileChangeStreamProvider,
-        # Sink provider type
-        None,
-        # Background task provider type
-        None,
-    ],
-):
+class GCSFileChangeStream:
     gcs_bucket: GCSBucket
     event_types: Iterable[GCSChangeStreamEventType] = (
         GCSChangeStreamEventType.OBJECT_FINALIZE,
@@ -59,18 +54,20 @@ class GCSFileChangeStream(
         gcs_bucket.enable_managed()
         return cls(gcs_bucket=gcs_bucket, event_types=event_types)
 
-    def source_provider(self) -> GCSFileChangeStreamProvider:
-        return GCSFileChangeStreamProvider(
-            gcs_bucket=None,
-            pubsub_subscription=self.pubsub_subscription,
+    def source(self, credentials: GCPCredentials) -> SourceStrategy:
+        return GCSFileChangeStreamSource(
+            credentials=credentials,
             project_id=self.gcs_bucket.project_id,
-            event_types=self.event_types,
+            pubsub_source=self.pubsub_subscription.source(credentials=credentials),
         )
 
-    def _pulumi_provider(self) -> GCSFileChangeStreamProvider:
-        return GCSFileChangeStreamProvider(
-            gcs_bucket=self.gcs_bucket,
-            pubsub_subscription=self.pubsub_subscription,
-            project_id=self.gcs_bucket.project_id,
+    def pulumi_resource(
+        self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
+    ) -> GCSFileChangeStreamPulumiResource:
+        return GCSFileChangeStreamPulumiResource(
+            bucket=self.gcs_bucket,
+            subscription=self.pubsub_subscription,
             event_types=self.event_types,
+            credentials=credentials,
+            opts=opts,
         )

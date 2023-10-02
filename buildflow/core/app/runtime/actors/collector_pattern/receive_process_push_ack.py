@@ -1,35 +1,23 @@
 import asyncio
 import dataclasses
 import logging
-import time
-from typing import Dict
+from typing import Any, Dict, Type
 
-import fastapi
 import ray
 from ray import serve
 
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, Snapshot
-from buildflow.core.app.runtime.metrics import (
-    num_events_processed,
-    process_time_counter,
-)
+from buildflow.core.app.runtime.fastapi import create_app
 from buildflow.core.options.runtime_options import ProcessorOptions
-from buildflow.core.processor.patterns.collector import CollectorProcessor
-from buildflow.core.processor.processor import (
-    ProcessorGroup,
-    ProcessorID,
-    ProcessorType,
-)
-from buildflow.core.processor.utils import process_types
+from buildflow.core.processor.patterns.collector import CollectorGroup
+from buildflow.core.processor.processor import ProcessorType
 
 _MAX_SERVE_START_TRIES = 10
 
 
 @dataclasses.dataclass
 class IndividualProcessorMetrics:
-    processor_id: ProcessorID
-    processor_type: ProcessorType
     events_processed_per_sec: int
     avg_process_time_millis: float
 
@@ -66,9 +54,10 @@ class ReceiveProcessPushAck(Runtime):
     def __init__(
         self,
         run_id: RunID,
-        processor_group: ProcessorGroup[CollectorProcessor],
+        processor_group: CollectorGroup,
         *,
         processor_options: ProcessorOptions,
+        flow_dependencies: Dict[Type, Any],
         log_level: str = "INFO",
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
@@ -83,89 +72,28 @@ class ReceiveProcessPushAck(Runtime):
         self.serve_handle = None
         self.processor_options = processor_options
         self.processors_map = {}
+        self.flow_dependencies = flow_dependencies
 
     async def run(self) -> bool:
-        app = fastapi.FastAPI()
+        async def process_fn(processor, *args, **kwargs):
+            output = await processor.process(*args, **kwargs)
+            if output is None:
+                # Exclude none results
+                return
+            sink = processor.sink()
+            push_converter = sink.push_converter(type(output))
+            if isinstance(output, (list, tuple)):
+                to_send = [push_converter(result) for result in output]
+            else:
+                to_send = [push_converter(output)]
+                await sink.push(to_send)
 
-        @app.on_event("startup")
-        def setup_processor_group():
-            for processor in self.processor_group.processors:
-                if hasattr(app.state, "processor_map"):
-                    app.state.processor_map[processor.processor_id] = processor
-                else:
-                    app.state.processor_map = {processor.processor_id: processor}
-                processor.setup()
-
-        for processor in self.processor_group.processors:
-            input_type, output_type = process_types(processor)
-            push_converter = processor.sink().push_converter(output_type)
-
-            class CollectorFastAPIWrapper:
-                def __init__(self, processor_id, run_id, push_converter):
-                    self.processor_id = processor_id
-                    self.job_id = ray.get_runtime_context().get_job_id()
-                    self.run_id = run_id
-                    self.push_converter = push_converter
-                    self.num_events_processed_counter = num_events_processed(
-                        processor_id=processor_id,
-                        job_id=self.job_id,
-                        run_id=run_id,
-                    )
-                    self.process_time_counter = process_time_counter(
-                        processor_id=processor_id,
-                        job_id=self.job_id,
-                        run_id=run_id,
-                    )
-
-                async def root(self, request: input_type) -> None:
-                    processor = app.state.processor_map[self.processor_id]
-                    sink = processor.sink()
-                    self.num_events_processed_counter.inc(
-                        tags={
-                            "processor_id": self.processor_id,
-                            "JobId": self.job_id,
-                            "RunId": self.run_id,
-                        }
-                    )
-                    start_time = time.monotonic()
-                    output = await processor.process(request)
-                    if output is None:
-                        # Exclude none results
-                        return
-                    elif isinstance(output, (list, tuple)):
-                        to_send = [push_converter(result) for result in output]
-                    else:
-                        to_send = [push_converter(output)]
-                    await sink.push(to_send)
-                    self.process_time_counter.inc(
-                        (time.monotonic() - start_time) * 1000,
-                        tags={
-                            "processor_id": self.processor_id,
-                            "JobId": self.job_id,
-                            "RunId": self.run_id,
-                        },
-                    )
-
-                def num_events_processed(self):
-                    return (
-                        self.num_events_processed_counter.calculate_rate().total_value_rate()
-                    )
-
-                def process_time_millis(self):
-                    return (
-                        self.process_time_counter.calculate_rate().average_value_rate()
-                    )
-
-            collector_wrapper = CollectorFastAPIWrapper(
-                processor.processor_id, self.run_id, push_converter
-            )
-            self.processors_map[processor.processor_id] = collector_wrapper
-
-            app.add_api_route(
-                processor.route_info().route,
-                collector_wrapper.root,
-                methods=[processor.route_info().method.name],
-            )
+        app = create_app(
+            processor_group=self.processor_group,
+            flow_dependencies=self.flow_dependencies,
+            run_id=self.run_id,
+            process_fn=process_fn,
+        )
 
         @serve.deployment(
             route_prefix=self.processor_group.base_route,
@@ -206,7 +134,6 @@ class ReceiveProcessPushAck(Runtime):
 
     async def drain(self) -> bool:
         self._status = RuntimeStatus.DRAINING
-        serve.delete(self.processor_group.group_id)
         return True
 
     async def status(self) -> RuntimeStatus:
@@ -214,13 +141,13 @@ class ReceiveProcessPushAck(Runtime):
 
     async def snapshot(self) -> Snapshot:
         processor_snapshots = {}
-        for processor_id, fast_api_wrapper in self.processors_map.items():
-            processor_snapshots[processor_id] = IndividualProcessorMetrics(
-                processor_id=processor_id,
+        for processor in self.processor_group.processors:
+            processor_snapshots[processor.processor_id] = IndividualProcessorMetrics(
+                processor_id=processor.processor_id,
                 # TODO: should probably get this from the actual processor.
                 processor_type=ProcessorType.COLLECTOR,
-                events_processed_per_sec=fast_api_wrapper.num_events_processed(),
-                avg_process_time_millis=fast_api_wrapper.process_time_millis(),
+                events_processed_per_sec=0,
+                avg_process_time_millis=0,
             )
         if self.collector_deployment is not None:
             num_replicas = self.collector_deployment.num_replicas

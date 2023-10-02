@@ -1,31 +1,25 @@
 import dataclasses
 from typing import Optional
 
+import pulumi
+
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 from buildflow.core.types.portable_types import BucketName
 from buildflow.core.types.shared_types import FilePath
-from buildflow.io.gcp.providers.storage import GCSBucketProvider
+from buildflow.io.gcp.pulumi.storage import GCPStoragePulumiResource
+from buildflow.io.gcp.strategies.storage_strategies import GCSBucketSink
 from buildflow.io.primitive import GCPPrimtive
+from buildflow.io.strategies.sink import SinkStrategy
 from buildflow.types.portable import FileFormat
 
 _DEFAULT_BUCKET_LOCATION = "US"
 
 
 @dataclasses.dataclass
-class GCSBucket(
-    GCPPrimtive[
-        # Pulumi provider type
-        GCSBucketProvider,
-        # Source provider type
-        None,
-        # Sink provider type
-        GCSBucketProvider,
-        # Background task provider type
-        None,
-    ]
-):
+class GCSBucket(GCPPrimtive):
     project_id: GCPProjectID
     bucket_name: GCSBucketName
 
@@ -93,22 +87,26 @@ class GCSBucket(
         self.bucket_region = bucket_region
         return self
 
-    def sink_provider(self):
-        return GCSBucketProvider(
+    def sink(self, credentials: GCPCredentials) -> SinkStrategy:
+        return GCSBucketSink(
+            credentials=credentials,
             project_id=self.project_id,
             bucket_name=self.bucket_name,
-            bucket_region=self.bucket_region,
-            force_destroy=self.force_destroy,
             file_path=self.file_path,
             file_format=self.file_format,
         )
 
-    def _pulumi_provider(self):
-        return GCSBucketProvider(
+    def pulumi_resource(
+        self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
+    ) -> GCPStoragePulumiResource:
+        return GCPStoragePulumiResource(
+            credentials=credentials,
             project_id=self.project_id,
             bucket_name=self.bucket_name,
             bucket_region=self.bucket_region,
             force_destroy=self.force_destroy,
-            file_path=self.file_path,
-            file_format=self.file_format,
+            opts=opts,
         )
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/storage/browser/{self.bucket_name}?project={self.project_id}"

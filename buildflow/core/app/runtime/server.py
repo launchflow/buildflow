@@ -2,17 +2,22 @@ import contextlib
 import logging
 import threading
 import time
-from typing import Optional
+from typing import List, Optional
 
 import uvicorn
-from fastapi import APIRouter, FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from ray import kill
 
+from buildflow.core.app.flow_state import FlowState
 from buildflow.core.app.infra.actors.infra import InfraActor
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor, RuntimeSnapshot
 
-app = FastAPI()
+app = FastAPI(
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 
 
 index_html = """
@@ -36,7 +41,7 @@ index_html = """
         }
     </script>
     <body>
-        <h1>Node Server UI</h1>
+        <h1>RuntimeServer Server UI</h1>
         <button onclick="drain()">Drain</button>
         <button onclick="snapshot()">Snapshot</button>
         <div>
@@ -53,13 +58,16 @@ class RuntimeServer(uvicorn.Server):
         runtime_actor: RuntimeActor,
         host: str,
         port: int,
+        flow_state: FlowState,
         infra_actor: Optional[InfraActor] = None,
+        allowed_google_ids: List[str] = (),
         *,
         log_level: str = "WARNING",
     ) -> None:
         super().__init__(
             uvicorn.Config(app, host=host, port=port, log_level=log_level.lower())
         )
+        self.flow_state = flow_state.to_dict()
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(log_level)
@@ -80,6 +88,8 @@ class RuntimeServer(uvicorn.Server):
             "/runtime/status", self.runtime_status, methods=["GET"]
         )
         self.router.add_api_route("/infra/status", self.runtime_status, methods=["GET"])
+        self.router.add_api_route("/flowstate", self.flowstate, methods=["GET"])
+        self.allowed_google_ids = allowed_google_ids
         app.include_router(self.router)
 
     @contextlib.contextmanager
@@ -94,24 +104,50 @@ class RuntimeServer(uvicorn.Server):
             self.should_exit = True
             thread.join()
 
-    async def index(self):
+    def _auth_request(self, request: Request):
+        if self.allowed_google_ids:
+            from google.auth.transport import requests
+            from google.oauth2 import id_token
+
+            auth_header = request.headers.get("Authorization")
+            if auth_header is None:
+                raise HTTPException(401)
+            _, _, token = auth_header.partition(" ")
+            id_info = id_token.verify_token(id_token, request=requests.Request())
+            if (
+                not id_info["email_verified"]
+                or id_info["sub"] not in self.allowed_google_ids
+            ):
+                raise HTTPException(403)
+
+    async def index(self, request: Request):
+        self._auth_request(request)
         return HTMLResponse(index_html)
 
-    async def runtime_drain(self):
+    async def runtime_drain(self, request: Request):
+        self._auth_request(request)
         # we dont want to block the request, so we dont await the drain
         self.runtime_actor.drain.remote()
         return "Drain request sent."
 
-    async def runtime_snapshot(self):
+    async def runtime_snapshot(self, request: Request):
+        self._auth_request(request)
         snapshot: RuntimeSnapshot = await self.runtime_actor.snapshot.remote()
-        return snapshot.as_dict()
+        return JSONResponse(snapshot.as_dict())
 
-    async def runtime_stop(self):
+    async def runtime_stop(self, request: Request):
+        self._auth_request(request)
         kill(self.runtime_actor)
 
-    async def runtime_status(self):
+    async def runtime_status(self, request: Request):
+        self._auth_request(request)
         status = await self.runtime_actor.status.remote()
         return {"status": status.name}
 
-    async def infra_snapshot(self):
+    async def infra_snapshot(self, request: Request):
+        self._auth_request(request)
         return "Not implemented yet."
+
+    async def flowstate(self, request: Request):
+        self._auth_request(request)
+        return JSONResponse(self.flow_state)

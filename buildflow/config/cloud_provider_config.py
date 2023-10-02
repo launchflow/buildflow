@@ -2,8 +2,8 @@ import dataclasses
 import enum
 from typing import Optional
 
-from buildflow.config._config import Config
-from buildflow.core import utils
+import dacite
+
 from buildflow.core.options._options import Options
 from buildflow.core.types import gcp_types
 
@@ -57,7 +57,7 @@ class CloudProvider(enum.Enum):
 
 
 @dataclasses.dataclass
-class CloudProviderConfig(Config):
+class CloudProviderConfig:
     default_cloud_provider: CloudProvider
     # Options for each resource provider
     aws_options: AWSOptions
@@ -75,23 +75,21 @@ class CloudProviderConfig(Config):
             local_options=LocalOptions.default(),
         )
 
-    @classmethod
-    def load(cls, cloud_provider_config_path: str) -> "CloudProviderConfig":
-        config_dict = utils.read_yaml_file(cloud_provider_config_path)
-        return cls(
-            default_cloud_provider=CloudProvider(config_dict["default_cloud_provider"]),
-            aws_options=AWSOptions(**config_dict["aws"]),
-            azure_options=AzureOptions(**config_dict["azure"]),
-            gcp_options=GCPOptions(**config_dict["gcp"]),
-            local_options=LocalOptions(**config_dict["local"]),
-        )
-
-    def dump(self, cloud_provider_config_path: str):
-        config_dict = {
+    def asdict(self):
+        return {
             "default_cloud_provider": self.default_cloud_provider.value,
             "aws": dataclasses.asdict(self.aws_options),
             "azure": dataclasses.asdict(self.azure_options),
             "gcp": dataclasses.asdict(self.gcp_options),
             "local": dataclasses.asdict(self.local_options),
         }
-        utils.write_yaml_file(cloud_provider_config_path, config_dict)
+
+    @classmethod
+    def fromdict(self, input_dict):
+        return CloudProviderConfig(
+            default_cloud_provider=CloudProvider(input_dict["default_cloud_provider"]),
+            aws_options=dacite.from_dict(AWSOptions, input_dict["aws_options"]),
+            azure_options=dacite.from_dict(AWSOptions, input_dict["azure_options"]),
+            gcp_options=dacite.from_dict(AWSOptions, input_dict["gcp_options"]),
+            local_options=dacite.from_dict(AWSOptions, input_dict["local_options"]),
+        )

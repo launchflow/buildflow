@@ -2,11 +2,9 @@ import dataclasses
 import os
 from typing import List, Mapping
 
-import dacite
 from pulumi import automation as auto
 
 from buildflow.config._config import Config
-from buildflow.core import utils
 
 
 @dataclasses.dataclass
@@ -16,9 +14,11 @@ class PulumiStack(Config):
 
     @classmethod
     def default(cls, *, pulumi_home_dir: str) -> Config:
+        pulumi_local_stack_dir = os.path.join(pulumi_home_dir, "local")
+        os.makedirs(pulumi_local_stack_dir, exist_ok=True)
         return cls(
             name="local",
-            backend_url=f"file://{pulumi_home_dir}/local",
+            backend_url=f"file://{pulumi_local_stack_dir}",
         )
 
     @property
@@ -31,7 +31,7 @@ class PulumiStack(Config):
 
 
 @dataclasses.dataclass
-class PulumiConfig(Config):
+class PulumiConfig:
     project_name: str
     stacks: List[PulumiStack]
     pulumi_home: str
@@ -47,28 +47,22 @@ class PulumiConfig(Config):
         self._stacks = {s.name: s for s in self.stacks}
 
     @classmethod
-    def default(cls, *, pulumi_home_dir: str, project_name: str) -> "PulumiConfig":
+    def default(cls, *, directory: str, project_name: str) -> "PulumiConfig":
+        pulumi_home_dir = os.path.join(directory, ".buildflow", "_pulumi")
+        os.makedirs(pulumi_home_dir, exist_ok=True)
         return cls(
             project_name=project_name,
             stacks=[PulumiStack.default(pulumi_home_dir=pulumi_home_dir)],
-            passphrase="buildflow-is-awesome",
+            passphrase=project_name,
             pulumi_home=pulumi_home_dir,
         )
 
-    @classmethod
-    def load(cls, pulumi_config_path: str) -> "PulumiConfig":
-        utils.assert_path_exists(pulumi_config_path)
-        config_dict = utils.read_yaml_file(pulumi_config_path)
-        return dacite.from_dict(cls, config_dict)
-
-    def dump(self, pulumi_config_path: str):
-        config_dict = {
-            "project_name": self.project_name,
+    def asdict(self):
+        return {
             "stacks": [dataclasses.asdict(s) for s in self.stacks],
             "passphrase": self.passphrase,
             "pulumi_home": self.pulumi_home,
         }
-        utils.write_yaml_file(pulumi_config_path, config_dict)
 
     def get_stack(self, stack: str) -> PulumiStack:
         return self._stacks[stack]

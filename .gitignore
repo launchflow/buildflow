@@ -1,6 +1,8 @@
 # BuildFlow
 .buildflow
 !end_to_end_tests/.buildflow
+buildflow.yaml
+!end_to_end_tests/buildflow.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
