@@ -27,7 +27,7 @@ Primitives to create:
 │   └── testing-gcp-project/deployment-action-subscription2
 │   └── testing-gcp-project/gcp-infra-creation-subscription2
 └── CloudSQLDatabase
-    └── testing-gcp-project-launchflow-cloud-sql-launchflow-db
+    └── testing-gcp-project:launchflow-cloud-sql.launchflow-db
 
 
 Primitives to destroy:
