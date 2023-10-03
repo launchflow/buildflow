@@ -44,15 +44,14 @@ class BigQueryTest(unittest.TestCase):
             bigquery_dataset, table_name="table_name"
         ).options(destroy_protection=False, schema=FakeRow)
 
-        bigquery_dataset_resource = bigquery_dataset.pulumi_resource(
+        bigquery_dataset_resources = bigquery_dataset.pulumi_resources(
             credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
 
-        child_resources = list(bigquery_dataset_resource._childResources)
-        self.assertEqual(len(child_resources), 1)
+        self.assertEqual(len(bigquery_dataset_resources), 1)
 
-        dataset_resource = child_resources[0]
+        dataset_resource = bigquery_dataset_resources[0]
 
         def check_dataset(args):
             _, project, dataset_id = args
@@ -63,14 +62,13 @@ class BigQueryTest(unittest.TestCase):
             dataset_resource.urn, dataset_resource.project, dataset_resource.dataset_id
         ).apply(check_dataset)
 
-        bigquery_table_resource = bigquery_table.pulumi_resource(
+        bigquery_table_resource = bigquery_table.pulumi_resources(
             credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
-        child_resources = list(bigquery_table_resource._childResources)
-        self.assertEqual(len(child_resources), 1)
+        self.assertEqual(len(bigquery_table_resource), 1)
 
-        table_resource = child_resources[0]
+        table_resource = bigquery_table_resource[0]
 
         def check_table(args):
             _, project, dataset_id, schema, delete_protect = args
@@ -96,14 +94,13 @@ class BigQueryTest(unittest.TestCase):
             table_name="table_name",
         ).options(schema=FakeRow, destroy_protection=False)
 
-        bigquery_resource = bigquery_table.pulumi_resource(
+        bigquery_resources = bigquery_table.pulumi_resources(
             credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
-        child_resources = list(bigquery_resource._childResources)
-        self.assertEqual(len(child_resources), 1)
+        self.assertEqual(len(bigquery_resources), 1)
 
-        table_resource = child_resources[0]
+        table_resource = bigquery_resources[0]
 
         def check_table(args):
             _, delete_protect = args

@@ -35,7 +35,6 @@ class PulumiConfig:
     project_name: str
     stacks: List[PulumiStack]
     pulumi_home: str
-    passphrase: str
 
     @property
     def full_pulumi_home(self) -> str:
@@ -53,14 +52,12 @@ class PulumiConfig:
         return cls(
             project_name=project_name,
             stacks=[PulumiStack.default(pulumi_home_dir=pulumi_home_dir)],
-            passphrase=project_name,
             pulumi_home=pulumi_home_dir,
         )
 
     def asdict(self):
         return {
             "stacks": [dataclasses.asdict(s) for s in self.stacks],
-            "passphrase": self.passphrase,
             "pulumi_home": self.pulumi_home,
         }
 
@@ -71,11 +68,6 @@ class PulumiConfig:
         if stack not in self._stacks:
             raise ValueError(f"Stack {stack} is not defined in the PulumiConfig")
         return f"{self.project_name}:{stack}"
-
-    def env_vars(self) -> Mapping[str, str]:
-        return {
-            "PULUMI_CONFIG_PASSPHRASE": self.passphrase,
-        }
 
     def stack_settings(self) -> auto.StackSettings:
         return auto.StackSettings(
@@ -101,13 +93,16 @@ class PulumiConfig:
 
     def workspace_options(self, stack: str) -> auto.LocalWorkspaceOptions:
         selected_stack = self.get_stack(stack)
+        pulumi_passphrase = os.getenv("BUIDFLOW_PULUMI_PASSPHRASE", "buildflow")
         return auto.LocalWorkspaceOptions(
             work_dir=self.full_pulumi_home,
             pulumi_home=self.full_pulumi_home,
             # NOTE: we set the program as None here because we will be using an inline
             # `pulumi_program` function to dynamically create the program at runtime.
             program=None,
-            env_vars=self.env_vars(),
+            env_vars={
+                "PULUMI_CONFIG_PASSPHRASE": pulumi_passphrase,
+            },
             # TODO: add support for `secrets_provider`
             secrets_provider=None,
             project_settings=self.project_settings(selected_stack),

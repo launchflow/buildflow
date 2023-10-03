@@ -5,6 +5,7 @@ from typing import Iterable
 from buildflow.config.cloud_provider_config import LocalOptions
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.types.shared_types import FilePath
+from buildflow.core.utils import uuid
 from buildflow.io.local.strategies.file_change_stream_strategies import (
     LocalFileChangeStreamSource,
 )
@@ -18,6 +19,9 @@ class LocalFileChangeStream(LocalPrimtive):
     event_types: Iterable[FileChangeStreamEventType] = (
         FileChangeStreamEventType.CREATED,
     )
+
+    def primitive_id(self):
+        return uuid()
 
     def __post_init__(self):
         if not self.file_path.startswith("/"):

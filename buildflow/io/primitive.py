@@ -13,7 +13,6 @@ from buildflow.config.cloud_provider_config import (
 )
 from buildflow.core.background_tasks.background_task import BackgroundTask
 from buildflow.core.credentials import CredentialType
-from buildflow.core.utils import uuid
 from buildflow.dependencies.base import NoScoped
 from buildflow.io.strategies._strategy import StategyType
 from buildflow.io.strategies.sink import SinkStrategy
@@ -33,13 +32,11 @@ class PrimitiveType(enum.Enum):
 class Primitive:
     primitive_type: PrimitiveType
     _managed: bool = False
-    _primitive_id: Optional[str] = None
 
-    @property
     def primitive_id(self):
-        if self._primitive_id is None:
-            self._primitive_id = uuid()
-        return self._primitive_id
+        raise NotImplementedError(
+            f"Primitive.primitive_id() is not implemented for type: {type(self)}."
+        )
 
     def enable_managed(self):
         self._managed = True
@@ -47,22 +44,22 @@ class Primitive:
     def options(self) -> "Primitive":
         return self
 
-    def pulumi_resource_if_managed(
+    def pulumi_resources_if_managed(
         self,
         credentials: CredentialType,
         opts: pulumi.ResourceOptions,
     ):
         if not self._managed:
             return None
-        return self.pulumi_resource(credentials, opts)
+        return self.pulumi_resources(credentials, opts)
 
-    def pulumi_resource(
+    def pulumi_resources(
         self,
         credentials: CredentialType,
         opts: pulumi.ResourceOptions,
-    ) -> pulumi.ComponentResource:
+    ) -> List[pulumi.Resource]:
         raise NotImplementedError(
-            f"Primitive.pulumi_resource() is not implemented for type: {type(self)}."
+            f"Primitive.pulumi_resources() is not implemented for type: {type(self)}."
         )
 
     def source(self, credentials: CredentialType) -> SourceStrategy:

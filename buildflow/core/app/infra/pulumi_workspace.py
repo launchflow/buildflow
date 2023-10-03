@@ -1,8 +1,11 @@
 import dataclasses
 import datetime
 import enum
+import json
 import logging
+import os
 import re
+import tempfile
 from typing import Any, Callable, Dict, Iterable, Optional
 
 from pulumi import automation as auto
@@ -75,6 +78,7 @@ class WrappedRefreshResult:
 @dataclasses.dataclass
 class WrappedPreviewResult:
     preview_result: auto.PreviewResult
+    plan_result: Dict[str, Any]
 
     def __post_init__(self):
         self.preview_result.stderr = _clean_stderr(self.preview_result.stderr)
@@ -183,12 +187,12 @@ class WrappedStackState:
         else:
             return datetime.datetime.now()
 
-    def resources(self) -> Iterable[ResourceState]:
+    def resources(self) -> Dict[str, ResourceState]:
         if self._deployment is None:
             return []
         else:
-            return [
-                ResourceState(
+            return {
+                resource["urn"]: ResourceState(
                     resource_urn=resource["urn"],
                     resource_type=resource["type"],
                     resource_id=resource.get("id"),
@@ -200,7 +204,7 @@ class WrappedStackState:
                     dependencies=resource.get("dependencies", []),
                 )
                 for resource in self._deployment.deployment.get("resources", [])
-            ]
+            }
 
     # NOTE: We only wrap this so we can have an interface between the Pulumi type
     # (in case they change their API)
@@ -288,7 +292,17 @@ class PulumiWorkspace:
     async def preview(self, *, pulumi_program: Callable) -> WrappedPreviewResult:
         logging.debug(f"Pulumi Preview: {self.workspace_id}")
         stack = self._create_or_select_stack(pulumi_program)
-        return WrappedPreviewResult(preview_result=stack.preview())
+
+        plan_path = os.path.join(tempfile.gettempdir(), "buildflow-pulumi-plan.json")
+        preview_result = stack.preview(plan=plan_path)
+
+        with open(plan_path, "r") as plan_file:
+            plan_result = json.load(plan_file)
+
+        return WrappedPreviewResult(
+            preview_result=preview_result,
+            plan_result=plan_result,
+        )
 
     async def up(self, *, pulumi_program: Callable) -> WrappedUpResult:
         logging.debug(f"Pulumi Up: {self.workspace_id}")

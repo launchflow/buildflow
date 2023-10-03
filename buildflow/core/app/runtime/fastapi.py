@@ -33,6 +33,7 @@ def create_app(
     flow_dependencies: Dict[Type, Any],
     run_id: RunID,
     process_fn: Callable,
+    include_output_type: bool = True,
 ):
     app = fastapi.FastAPI(
         title=processor_group.group_id,
@@ -80,6 +81,8 @@ def create_app(
 
     for processor in processor_group.processors:
         input_types, output_type = process_types(processor)
+        if not include_output_type:
+            output_type = None
 
         class EndpointFastAPIWrapper:
             def __init__(self, processor_id, run_id, flow_dependencies):

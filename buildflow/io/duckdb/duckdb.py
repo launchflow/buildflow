@@ -14,9 +14,11 @@ class DuckDBTable(LocalPrimtive):
     table: DuckDBTableID
 
     def __post_init__(self):
-        # TODO: need to update this to work with motherduck not just local db
         if not self.database.startswith("/"):
             self.database = os.path.join(os.getcwd(), self.database)
+
+    def primitive_id(self):
+        return f"{self.database}::{self.table}"
 
     @classmethod
     def from_local_options(

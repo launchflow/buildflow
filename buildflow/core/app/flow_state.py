@@ -17,9 +17,9 @@ def _find_parent_primitives(
     for field in fields:
         field_value = getattr(primitive, field.name)
         if field_value is not None and isinstance(field_value, Primitive):
-            primitive_state.primitive_dependencies.append(field_value.primitive_id)
-            if field_value.primitive_id not in visited_primitives:
-                visited_primitives.add(field_value.primitive_id)
+            primitive_state.primitive_dependencies.append(field_value.primitive_id())
+            if field_value.primitive_id() not in visited_primitives:
+                visited_primitives.add(field_value.primitive_id())
                 parent_primitives.extend(
                     PrimitiveState.from_primitive(
                         primitive=field_value,
@@ -55,9 +55,9 @@ class PrimitiveState:
         visited_primitives: Set[str],
     ) -> List["PrimitiveState"]:
         ps = PrimitiveState(
-            primitive_id=primitive.primitive_id,
+            primitive_id=primitive.primitive_id(),
             primitive_name=type(primitive).__name__,
-            managed=primitive.primitive_id in managed_primitives,
+            managed=primitive.primitive_id() in managed_primitives,
             resource_url=primitive.cloud_console_url(),
         )
         additional = _find_parent_primitives(

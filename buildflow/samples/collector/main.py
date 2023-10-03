@@ -1,18 +1,8 @@
-from dataclasses import dataclass
+from schemas import InputRequest, OuptutResponse
 
 from buildflow import Flow
 from buildflow.dependencies import Scope, dependency
 from buildflow.io.gcp import BigQueryDataset, BigQueryTable
-
-
-@dataclass
-class InputRequest:
-    val: int
-
-
-@dataclass
-class OuptutResponse:
-    val: int
 
 
 @dependency(scope=Scope.NO_SCOPE)
@@ -71,7 +61,7 @@ def process(
         raise Exception("Global scope not the same")
     if id(global_.no) == id(no):
         raise Exception("No scope was the same")
-    return OuptutResponse(val=input.val + 1)
+    return [OuptutResponse(val=input.val + 1), OuptutResponse(val=input.val + 1)]
 
 
 @app.collector(route="/diff", method="POST", sink=sink2)
