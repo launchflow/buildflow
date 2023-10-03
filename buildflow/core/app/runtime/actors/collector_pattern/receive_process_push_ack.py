@@ -79,7 +79,7 @@ class ReceiveProcessPushAck(Runtime):
             output = await processor.process(*args, **kwargs)
             if output is None:
                 # Exclude none results
-                return
+                return {"success": True}
             sink = processor.sink()
             push_converter = sink.push_converter(type(output))
             if isinstance(output, (list, tuple)):
