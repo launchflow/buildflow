@@ -81,12 +81,15 @@ class ReceiveProcessPushAck(Runtime):
                 # Exclude none results
                 return {"success": True}
             sink = processor.sink()
-            push_converter = sink.push_converter(type(output))
             if isinstance(output, (list, tuple)):
+                if not output:
+                    return {"success": True}
+                push_converter = sink.push_converter(type(output[0]))
                 to_send = [push_converter(result) for result in output]
             else:
+                push_converter = sink.push_converter(type(output))
                 to_send = [push_converter(output)]
-                await sink.push(to_send)
+            await sink.push(to_send)
             return {"success": True}
 
         app = create_app(

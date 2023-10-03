@@ -675,7 +675,6 @@ class Flow:
         start_runtime_server: bool = False,
         runtime_server_host: str = "127.0.0.1",
         runtime_server_port: int = 9653,
-        runtime_server_allowed_google_ids: List[str] = (),
         # Options for testing
         block: bool = True,
     ):
@@ -707,7 +706,6 @@ class Flow:
                 host=runtime_server_host,
                 port=runtime_server_port,
                 flow_state=flow_state,
-                allowed_google_ids=runtime_server_allowed_google_ids,
             )
             with runtime_server.run_in_thread():
                 server_log_message = (

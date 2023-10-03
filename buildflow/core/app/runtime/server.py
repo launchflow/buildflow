@@ -2,10 +2,10 @@ import contextlib
 import logging
 import threading
 import time
-from typing import List, Optional
+from typing import Optional
 
 import uvicorn
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from ray import kill
 
@@ -60,7 +60,6 @@ class RuntimeServer(uvicorn.Server):
         port: int,
         flow_state: FlowState,
         infra_actor: Optional[InfraActor] = None,
-        allowed_google_ids: List[str] = (),
         *,
         log_level: str = "WARNING",
     ) -> None:
@@ -89,7 +88,6 @@ class RuntimeServer(uvicorn.Server):
         )
         self.router.add_api_route("/infra/status", self.runtime_status, methods=["GET"])
         self.router.add_api_route("/flowstate", self.flowstate, methods=["GET"])
-        self.allowed_google_ids = allowed_google_ids
         app.include_router(self.router)
 
     @contextlib.contextmanager
@@ -104,50 +102,27 @@ class RuntimeServer(uvicorn.Server):
             self.should_exit = True
             thread.join()
 
-    def _auth_request(self, request: Request):
-        if self.allowed_google_ids:
-            from google.auth.transport import requests
-            from google.oauth2 import id_token
-
-            auth_header = request.headers.get("Authorization")
-            if auth_header is None:
-                raise HTTPException(401)
-            _, _, token = auth_header.partition(" ")
-            id_info = id_token.verify_token(id_token, request=requests.Request())
-            if (
-                not id_info["email_verified"]
-                or id_info["sub"] not in self.allowed_google_ids
-            ):
-                raise HTTPException(403)
-
-    async def index(self, request: Request):
-        self._auth_request(request)
+    async def index(self):
         return HTMLResponse(index_html)
 
-    async def runtime_drain(self, request: Request):
-        self._auth_request(request)
+    async def runtime_drain(self):
         # we dont want to block the request, so we dont await the drain
         self.runtime_actor.drain.remote()
         return "Drain request sent."
 
-    async def runtime_snapshot(self, request: Request):
-        self._auth_request(request)
+    async def runtime_snapshot(self):
         snapshot: RuntimeSnapshot = await self.runtime_actor.snapshot.remote()
         return JSONResponse(snapshot.as_dict())
 
-    async def runtime_stop(self, request: Request):
-        self._auth_request(request)
+    async def runtime_stop(self):
         kill(self.runtime_actor)
 
-    async def runtime_status(self, request: Request):
-        self._auth_request(request)
+    async def runtime_status(self):
         status = await self.runtime_actor.status.remote()
         return {"status": status.name}
 
-    async def infra_snapshot(self, request: Request):
-        self._auth_request(request)
+    async def infra_snapshot(self):
         return "Not implemented yet."
 
-    async def flowstate(self, request: Request):
-        self._auth_request(request)
+    async def flowstate(self):
         return JSONResponse(self.flow_state)

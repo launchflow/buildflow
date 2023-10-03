@@ -61,7 +61,7 @@ def process(
         raise Exception("Global scope not the same")
     if id(global_.no) == id(no):
         raise Exception("No scope was the same")
-    return OuptutResponse(val=input.val + 1)
+    return [OuptutResponse(val=input.val + 1), OuptutResponse(val=input.val + 1)]
 
 
 @app.collector(route="/diff", method="POST", sink=sink2)
