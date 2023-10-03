@@ -11,14 +11,14 @@ main_sub = os.environ["MAIN_SUB"]
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
 
+incoming_topic = GCPPubSubTopic(project_id=gcp_project, topic_name=incoming_topic)
 source = GCPPubSubSubscription(
-    project_id=gcp_project,
-    subscription_name=main_sub,
-).options(topic=GCPPubSubTopic(project_id=gcp_project, topic_name=incoming_topic))
+    project_id=gcp_project, subscription_name=main_sub
+).options(topic=incoming_topic)
 sink = GCPPubSubTopic(project_id=gcp_project, topic_name=outgoing_topic)
 
 
-app.manage(source, sink)
+app.manage(source, sink, incoming_topic)
 
 
 @dataclass

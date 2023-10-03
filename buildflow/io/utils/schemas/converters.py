@@ -15,11 +15,26 @@ Cause there's really a couple cases every converter needs to provide:
 
 import datetime
 import json
-from dataclasses import is_dataclass
-from typing import Any, Callable, Dict, Optional, Type
+from dataclasses import _FIELDS, is_dataclass
+from typing import Any, Callable, Dict, MutableMapping, Optional, Type, get_type_hints
 
-import dacite
 import pandas as pd
+from dacite import Config
+from dacite.cache import cache
+from dacite.core import _build_value
+from dacite.dataclasses import (
+    DefaultValueNotFoundError,
+    get_default_value_for_field,
+    is_frozen,
+)
+from dacite.exceptions import (
+    DaciteFieldError,
+    ForwardReferenceError,
+    MissingValueError,
+    UnexpectedDataError,
+    WrongTypeError,
+)
+from dacite.types import is_instance
 
 from buildflow import exceptions
 
@@ -41,18 +56,21 @@ def str_to_dict() -> Callable[[str], Dict[str, Any]]:
 
 
 def bytes_to_dataclass(type_: Type) -> Callable[[bytes], Any]:
-    return lambda bytes_: dacite.from_dict(
-        type_,
-        json.loads(bytes_.decode()),
-        config=dacite.Config(type_hooks={datetime.datetime: str_to_datetime}),
-    )
+    def _converter(bytes_: bytes) -> Any:
+        return _dataclass_from_dict(
+            type_,
+            json.loads(bytes_.decode()),
+            config=Config(type_hooks={datetime.datetime: str_to_datetime}),
+        )
+
+    return _converter
 
 
 def str_to_dataclass(type_: Type) -> Callable[[str], Any]:
-    return lambda s: dacite.from_dict(
+    return lambda s: _dataclass_from_dict(
         type_,
         json.loads(s),
-        config=dacite.Config(type_hooks={datetime.datetime: str_to_datetime}),
+        config=Config(type_hooks={datetime.datetime: str_to_datetime}),
     )
 
 
@@ -172,3 +190,60 @@ def str_pull_converter(type_: Optional[Type]) -> Callable[[str], Any]:
             raise exceptions.CannotConvertSourceException(
                 f"Cannot convert from str to type: `{type_}`"
             )
+
+
+def _dataclass_fields(data_class: Type):
+    fields = getattr(data_class, _FIELDS)
+    return [f for f in fields.values()]
+
+
+def _dataclass_from_dict(
+    data_class: Type, data: Dict[str, Any], config: Optional[Config] = None
+):
+    """This is a custom implimentation of dacite.from_dict.
+
+    We have to do this because when dataclasses are pickled they lose some info making
+    dataclasses.fields not work.
+    """
+    init_values: MutableMapping[str, Any] = {}
+    post_init_values: MutableMapping[str, Any] = {}
+    config = config or Config()
+    try:
+        data_class_hints = cache(get_type_hints)(
+            data_class, localns=config.hashable_forward_references
+        )
+    except NameError as error:
+        raise ForwardReferenceError(str(error))
+    data_class_fields = cache(_dataclass_fields)(data_class)
+    if config.strict:
+        extra_fields = set(data.keys()) - {f.name for f in data_class_fields}
+        if extra_fields:
+            raise UnexpectedDataError(keys=extra_fields)
+    for field in data_class_fields:
+        field_type = data_class_hints[field.name]
+        if field.name in data:
+            try:
+                field_data = data[field.name]
+                value = _build_value(type_=field_type, data=field_data, config=config)
+            except DaciteFieldError as error:
+                error.update_path(field.name)
+                raise
+            if config.check_types and not is_instance(value, field_type):
+                raise WrongTypeError(
+                    field_path=field.name, field_type=field_type, value=value
+                )
+        else:
+            try:
+                value = get_default_value_for_field(field, field_type)
+            except DefaultValueNotFoundError:
+                if not field.init:
+                    continue
+                raise MissingValueError(field.name)
+        if field.init:
+            init_values[field.name] = value
+        elif not is_frozen(data_class):
+            post_init_values[field.name] = value
+    instance = data_class(**init_values)
+    for key, value in post_init_values.items():
+        setattr(instance, key, value)
+    return instance

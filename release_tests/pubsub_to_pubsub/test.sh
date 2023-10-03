@@ -10,16 +10,16 @@ cd release_tests/pubsub_to_pubsub
 ray start --head --num-cpus=2
 
 final_output=1
-buildflow init --directory=. --default-cloud-provider=gcp --default-gcp-project=$GCP_PROJECT
-buildflow plan pubsub_main:app || {
+buildflow init --directory=. --project=pubsub-to-pubsub
+buildflow plan || {
     echo 'plan failed'
     exit 1
 }
-buildflow apply pubsub_main:app || {
+buildflow apply || {
     echo 'apply failed'
     exit 1
 }
-buildflow run pubsub_main:app &
+buildflow run &
 main_pid=$!
 
 python pubsub_publish.py
@@ -29,7 +29,7 @@ final_output=$?
 
 kill -s 2 $main_pid
 wait $main_pid
-buildflow destroy pubsub_main:app || {
+buildflow destroy || {
     echo 'destroy failed'
     exit 1
 }

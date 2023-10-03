@@ -12,12 +12,11 @@ bucket = os.environ["BUCKET"]
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
 
+topic = topic = GCPPubSubTopic(project_id=gcp_project, topic_name=incoming_topic)
 source = GCPPubSubSubscription(
     project_id=gcp_project,
     subscription_name=main_sub,
-).options(
-    topic=GCPPubSubTopic(project_id=gcp_project, topic_name=incoming_topic),
-)
+).options(topic=topic)
 sink = GCSBucket(
     project_id=gcp_project,
     bucket_name=bucket,
@@ -28,7 +27,7 @@ sink = GCSBucket(
     bucket_region="US",
 )
 
-app.manage(source, sink)
+app.manage(source, sink, topic)
 
 
 @dataclass
