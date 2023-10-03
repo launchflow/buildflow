@@ -94,6 +94,7 @@ class ReceiveProcessPushAck(Runtime):
             flow_dependencies=self.flow_dependencies,
             run_id=self.run_id,
             process_fn=process_fn,
+            include_output_type=False,
         )
 
         @serve.deployment(
