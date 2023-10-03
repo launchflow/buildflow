@@ -4,7 +4,6 @@ pulumi_config:
   stacks:
     - name: local
       backend_url: file://.buildflow/_pulumi/local
-  passphrase: buildflow-is-awesome
 entry_point: main:app
 cloud_provider_config:
   default_cloud_provider: local
