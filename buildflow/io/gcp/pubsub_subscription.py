@@ -1,7 +1,8 @@
 import dataclasses
-from typing import Optional
+from typing import List, Optional
 
 import pulumi
+import pulumi_gcp
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
@@ -9,7 +10,6 @@ from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubSubscriptionName
 from buildflow.core.types.portable_types import SubscriptionName
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
-from buildflow.io.gcp.pulumi.pubsub_subscription import PubSubSubscriptionPulumiResource
 from buildflow.io.gcp.strategies.pubsub_strategies import GCPPubSubSubscriptionSource
 from buildflow.io.primitive import GCPPrimtive
 
@@ -56,6 +56,9 @@ class GCPPubSubSubscription(GCPPrimtive):
         self.include_attributes = include_attributes
         return self
 
+    def primitive_id(self):
+        return f"{self.project_id}/{self.subscription_name}"
+
     @classmethod
     def from_gcp_options(
         cls,
@@ -88,24 +91,26 @@ class GCPPubSubSubscription(GCPPrimtive):
             include_attributes=self.include_attributes,
         )
 
-    def pulumi_resource(
+    def pulumi_resources(
         self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
-    ) -> PubSubSubscriptionPulumiResource:
+    ) -> List[pulumi.Resource]:
         if self.topic is None:
             raise ValueError(
                 "A topic must be provided to the GCPPubSubSubscription. Please provide "
                 "one via GCPPubSubSubscription(...).options(topic=GCPPubSubTopic(...))"
                 " method."
             )
-        return PubSubSubscriptionPulumiResource(
-            credentials=credentials,
-            project_id=self.project_id,
-            subscription_name=self.subscription_name,
-            topic=self.topic,
-            ack_deadline_seconds=self.ack_deadline_seconds,
-            message_retention_duration=self.message_retention_duration,
-            opts=opts,
-        )
+        return [
+            pulumi_gcp.pubsub.Subscription(
+                resource_name=f"{self.project_id}-{self.subscription_name}",
+                opts=opts,
+                name=self.subscription_name,
+                topic=self.topic.topic_id,
+                project=self.project_id,
+                ack_deadline_seconds=self.ack_deadline_seconds,
+                message_retention_duration=self.message_retention_duration,
+            )
+        ]
 
     def cloud_console_url(self) -> str:
         return f"https://console.cloud.google.com/cloudpubsub/subscription/detail/{self.subscription_name}?project={self.project_id}"

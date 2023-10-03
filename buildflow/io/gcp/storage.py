@@ -1,7 +1,8 @@
 import dataclasses
-from typing import Optional
+from typing import List, Optional
 
 import pulumi
+import pulumi_gcp
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
@@ -9,7 +10,6 @@ from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 from buildflow.core.types.portable_types import BucketName
 from buildflow.core.types.shared_types import FilePath
-from buildflow.io.gcp.pulumi.storage import GCPStoragePulumiResource
 from buildflow.io.gcp.strategies.storage_strategies import GCSBucketSink
 from buildflow.io.primitive import GCPPrimtive
 from buildflow.io.strategies.sink import SinkStrategy
@@ -96,17 +96,26 @@ class GCSBucket(GCPPrimtive):
             file_format=self.file_format,
         )
 
-    def pulumi_resource(
+    def primitive_id(self):
+        return self.bucket_url
+
+    def pulumi_resources(
         self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
-    ) -> GCPStoragePulumiResource:
-        return GCPStoragePulumiResource(
-            credentials=credentials,
-            project_id=self.project_id,
-            bucket_name=self.bucket_name,
-            bucket_region=self.bucket_region,
-            force_destroy=self.force_destroy,
-            opts=opts,
+    ) -> List[pulumi.Resource]:
+        opts = pulumi.ResourceOptions.merge(
+            opts,
+            pulumi.ResourceOptions(custom_timeouts=pulumi.CustomTimeouts(create="3m")),
         )
+        return [
+            pulumi_gcp.storage.Bucket(
+                resource_name=self.bucket_name,
+                name=self.bucket_name,
+                location=self.bucket_region,
+                project=self.project_id,
+                force_destroy=self.force_destroy,
+                opts=opts,
+            )
+        ]
 
     def cloud_console_url(self) -> str:
         return f"https://console.cloud.google.com/storage/browser/{self.bucket_name}?project={self.project_id}"

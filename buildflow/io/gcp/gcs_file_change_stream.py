@@ -1,16 +1,14 @@
 import dataclasses
-from typing import Iterable
+from typing import Iterable, List
 
 import pulumi
+import pulumi_gcp
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.portable_types import BucketName
 from buildflow.io.gcp.pubsub_subscription import GCPPubSubSubscription
 from buildflow.io.gcp.pubsub_topic import GCPPubSubTopic
-from buildflow.io.gcp.pulumi.gcs_file_change_stream import (
-    GCSFileChangeStreamPulumiResource,
-)
 from buildflow.io.gcp.storage import GCSBucket
 from buildflow.io.gcp.strategies.gcs_file_change_stream_strategies import (
     GCSFileChangeStreamSource,
@@ -61,13 +59,33 @@ class GCSFileChangeStream:
             pubsub_source=self.pubsub_subscription.source(credentials=credentials),
         )
 
-    def pulumi_resource(
-        self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
-    ) -> GCSFileChangeStreamPulumiResource:
-        return GCSFileChangeStreamPulumiResource(
-            bucket=self.gcs_bucket,
-            subscription=self.pubsub_subscription,
-            event_types=self.event_types,
-            credentials=credentials,
-            opts=opts,
+    def primitive_id(self):
+        return (
+            f"{self.gcs_bucket.bucket_name}-{self.pubsub_subscription.topic.topic_name}"
         )
+
+    def pulumi_resources(
+        self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
+    ) -> List[pulumi.Resource]:
+        gcs_account = pulumi_gcp.storage.get_project_service_account(
+            project=self.gcs_bucket.project_id,
+            user_project=self.gcs_bucket.project_id,
+        )
+        binding = pulumi_gcp.pubsub.TopicIAMBinding(
+            f"{self.primitive_id()}_binding",
+            opts=opts,
+            topic=self.pubsub_subscription.topic.topic_name,
+            role="roles/pubsub.publisher",
+            project=self.pubsub_subscription.topic.project_id,
+            members=[f"serviceAccount:{gcs_account.email_address}"],
+        )
+
+        notification = pulumi_gcp.storage.Notification(
+            f"{self.primitive_id()}_notification",
+            opts=opts,
+            bucket=self.gcs_bucket.bucket_name,
+            topic=self.pubsub_subscription.topic.topic_id,
+            payload_format="JSON_API_V1",
+            event_types=[et.name for et in self.event_types],
+        )
+        return [binding, notification]

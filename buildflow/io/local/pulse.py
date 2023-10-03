@@ -3,6 +3,7 @@ from typing import Any, Iterable
 
 from buildflow.config.cloud_provider_config import LocalOptions
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
+from buildflow.core.utils import uuid
 from buildflow.io.local.strategies.pulse_strategies import PulseSource
 from buildflow.io.primitive import LocalPrimtive
 
@@ -11,6 +12,9 @@ from buildflow.io.primitive import LocalPrimtive
 class Pulse(LocalPrimtive):
     items: Iterable[Any]
     pulse_interval_seconds: float
+
+    def primitive_id(self):
+        return uuid()
 
     @classmethod
     def from_local_options(

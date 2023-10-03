@@ -1,7 +1,8 @@
 import dataclasses
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import pulumi
+import pulumi_gcp
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
@@ -9,7 +10,6 @@ from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.gcp_types import BigQueryTableID, BigQueryTableName
 from buildflow.core.types.portable_types import TableName
 from buildflow.io.gcp.bigquery_dataset import BigQueryDataset
-from buildflow.io.gcp.pulumi.bigquery_table import BigQueryTablePulumiResource
 from buildflow.io.gcp.strategies.bigquery_strategies import StreamingBigQueryTableSink
 from buildflow.io.primitive import GCPPrimtive, Primitive
 from buildflow.io.strategies.sink import SinkStrategy
@@ -34,6 +34,9 @@ class BigQueryTable(GCPPrimtive):
         return (
             f"{self.dataset.project_id}.{self.dataset.dataset_name}.{self.table_name}"
         )
+
+    def primitive_id(self):
+        return self.table_id
 
     def options(
         self,
@@ -79,9 +82,9 @@ class BigQueryTable(GCPPrimtive):
             batch_size=self.batch_size,
         )
 
-    def pulumi_resource(
+    def pulumi_resources(
         self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
-    ) -> BigQueryTablePulumiResource:
+    ) -> List[pulumi.Resource]:
         schema = None
         if self.schema is None:
             raise ValueError(
@@ -99,14 +102,17 @@ class BigQueryTable(GCPPrimtive):
                 "Could not determine schema for BigQuery table. "
                 "Was the schema you passed in a dataclass?"
             )
-        return BigQueryTablePulumiResource(
-            dataset=self.dataset,
-            table_name=self.table_name,
-            destroy_protection=self.destroy_protection,
-            schema=schema,
-            credentials=credentials,
-            opts=opts,
-        )
+        return [
+            pulumi_gcp.bigquery.Table(
+                f"buildflow-{self.table_name}",
+                project=self.dataset.project_id,
+                dataset_id=self.dataset.dataset_name,
+                table_id=self.table_name,
+                schema=schema,
+                deletion_protection=self.destroy_protection,
+                opts=opts,
+            )
+        ]
 
     def cloud_console_url(self) -> str:
         return f"https://console.cloud.google.com/bigquery?ws=!1m5!1m4!4m3!1s{self.dataset.project_id}!2s{self.dataset.dataset_name}!3s{self.table_name}"

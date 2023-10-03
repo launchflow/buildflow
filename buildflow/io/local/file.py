@@ -4,6 +4,7 @@ import os
 from buildflow.config.cloud_provider_config import LocalOptions
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.types.shared_types import FilePath
+from buildflow.core.utils import uuid
 from buildflow.io.local.strategies.file_strategies import FileSink
 from buildflow.io.primitive import LocalPrimtive
 from buildflow.io.strategies.sink import SinkStrategy
@@ -14,6 +15,9 @@ from buildflow.types.portable import FileFormat
 class File(LocalPrimtive):
     file_path: FilePath
     file_format: FileFormat
+
+    def primitive_id(self):
+        return uuid()
 
     def __post_init__(self):
         if not self.file_path.startswith("/"):

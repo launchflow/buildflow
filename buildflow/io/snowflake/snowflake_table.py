@@ -120,29 +120,34 @@ class SnowflakeTable(Primitive):
             )
         ]
 
-    def pulumi_resource(
+    def primitive_id(self) -> str:
+        return f"{self.database}.{self.schema}.{self.table}"
+
+    def pulumi_resources(
         self,
         credentials: Union[AWSCredentials, GCPCredentials],
         opts: pulumi.ResourceOptions,
-    ) -> SnowflakeTableSinkResource:
-        return SnowflakeTableSinkResource(
-            table=self.table,
-            database=self.database,
-            schema=self.schema,
-            bucket=self.bucket,
-            snowflake_stage=self.snowflake_stage,
-            snow_pipe=self.snow_pipe,
-            database_managed=self.database_managed,
-            schema_managed=self.schema_managed,
-            snow_pipe_managed=self.snow_pipe_managed,
-            stage_managed=self.stage_managed,
-            account=self.account,
-            user=self.user,
-            private_key=self.private_key,
-            table_schema=self.table_schema,
-            credentials=credentials,
-            opts=opts,
-        )
+    ) -> List[pulumi.Resource]:
+        return [
+            SnowflakeTableSinkResource(
+                table=self.table,
+                database=self.database,
+                schema=self.schema,
+                bucket=self.bucket,
+                snowflake_stage=self.snowflake_stage,
+                snow_pipe=self.snow_pipe,
+                database_managed=self.database_managed,
+                schema_managed=self.schema_managed,
+                snow_pipe_managed=self.snow_pipe_managed,
+                stage_managed=self.stage_managed,
+                account=self.account,
+                user=self.user,
+                private_key=self.private_key,
+                table_schema=self.table_schema,
+                credentials=credentials,
+                opts=opts,
+            )
+        ]
 
     def sink(
         self, credentials: Union[AWSCredentials, GCPCredentials]

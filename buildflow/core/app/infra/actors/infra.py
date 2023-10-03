@@ -6,7 +6,6 @@ from buildflow.core.app.infra._infra import Infra, InfraStatus
 from buildflow.core.app.infra.pulumi_workspace import (
     PulumiWorkspace,
     WrappedDestroyResult,
-    WrappedOutputMap,
     WrappedPreviewResult,
     WrappedRefreshResult,
     WrappedUpResult,
@@ -82,27 +81,6 @@ class InfraActor(Infra):
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only destroy Infra while Idle.")
         self._set_status(InfraStatus.DESTROYING)
-
-        # Planning phase (no remote state changes)
-        output_map: WrappedOutputMap = await self._pulumi_workspace.outputs(
-            pulumi_program=pulumi_program,
-        )
-        if self.options.require_confirmation:
-            print("Would you like to delete this infra?")
-            output_map.print_summary()
-            response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
-            while True:
-                if response.lower() in ["n", "no"]:
-                    print("User rejected Infra changes. Aborting.")
-                    return
-                elif response.lower() in ["y", "yes"]:
-                    print("User confirmed Infra changes. Destroying.")
-                    break
-                else:
-                    response = input(
-                        'Invalid response. Enter "y (yes)" to '
-                        'confirm, "n (no) to reject": '
-                    )
 
         # Execution phase (potentially remote state changes)
         destroy_result: WrappedDestroyResult = await self._pulumi_workspace.destroy(

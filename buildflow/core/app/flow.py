@@ -37,6 +37,7 @@ from buildflow.core.credentials._credentials import CredentialType
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.credentials.gcp_credentials import GCPCredentials
+from buildflow.core.infra.buildflow_resource import BuildFlowResource
 from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import AutoscalerOptions, ProcessorOptions
 from buildflow.core.processor.patterns.collector import (
@@ -67,7 +68,7 @@ from buildflow.io.strategies._strategy import StategyType
 @dataclasses.dataclass
 class _PrimitiveCacheEntry:
     primitive: Primitive
-    pulumi_resource: pulumi.Resource
+    buildflow_resource: BuildFlowResource
 
 
 @dataclasses.dataclass
@@ -83,7 +84,7 @@ class _PrimitiveCache:
     def get(self, primitive: Primitive):
         for entry in self.cache:
             if entry.primitive == primitive:
-                return entry.pulumi_resource
+                return entry.buildflow_resource
         return None
 
     def clear(self):
@@ -149,7 +150,8 @@ def _traverse_primitive_for_pulumi(
     opts = pulumi.ResourceOptions.merge(
         initial_opts, pulumi.ResourceOptions(depends_on=parent_resources)
     )
-    resource = primitive.pulumi_resource(credentials=credentials, opts=opts)
+
+    resource = BuildFlowResource(primitive, credentials, opts)
     visited_primitives.append(_PrimitiveCacheEntry(primitive, resource))
     return resource
 
@@ -412,7 +414,7 @@ class Flow:
                 initial_opts=pulumi.ResourceOptions(),
                 visited_primitives=visited_primitives,
             )
-        return [c.pulumi_resource for c in visited_primitives.cache]
+        return [c.buildflow_resource for c in visited_primitives.cache]
 
     def manage(self, *args: Primitive):
         for primitive in args:
@@ -794,6 +796,26 @@ class Flow:
 
     async def _destroy(self):
         logging.debug(f"Tearing down infrastructure for Flow({self.flow_id})...")
+        if self.options.infra_options.require_confirmation:
+
+            def empty():
+                pass
+
+            await self._get_infra_actor().plan(pulumi_program=empty)
+            print("Would you like to apply these changes?")
+            response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
+            while True:
+                if response.lower() in ["n", "no"]:
+                    print("User rejected changes. Aborting.")
+                    return
+                elif response.lower() in ["y", "yes"]:
+                    print("User confirmed changes. Destroying.")
+                    break
+                else:
+                    response = input(
+                        'Invalid response. Enter "y (yes)" to '
+                        'confirm, "n (no) to reject": '
+                    )
         await self._get_infra_actor().destroy(pulumi_program=self._pulumi_program)
         logging.debug(
             f"...Finished tearing down infrastructure for Flow({self.flow_id})"
@@ -807,7 +829,7 @@ class Flow:
         primitive_states = {}
         managed_primitives = set()
         for managed_resource in self._managed_primitives:
-            managed_primitives.add(managed_resource.primitive_id)
+            managed_primitives.add(managed_resource.primitive_id())
             states = PrimitiveState.from_primitive(
                 managed_resource,
                 managed_primitives=managed_primitives,
@@ -823,7 +845,7 @@ class Flow:
                     sink_id = None
                     if "sink" in processor.__meta__:
                         sink = processor.__meta__["sink"]
-                        sink_id = sink.primitive_id
+                        sink_id = sink.primitive_id()
                         if (
                             not isinstance(sink, Empty)
                             and sink_id not in primitive_states
@@ -837,7 +859,7 @@ class Flow:
                                 {ps.primitive_id: ps for ps in states}
                             )
                     source = processor.__meta__["source"]
-                    if source.primitive_id not in primitive_states:
+                    if source.primitive_id() not in primitive_states:
                         states = PrimitiveState.from_primitive(
                             sink,
                             managed_primitives=managed_primitives,
@@ -845,14 +867,14 @@ class Flow:
                         )
                         primitive_states.update({ps.primitive_id: ps for ps in states})
                     processor_info = ConsumerState(
-                        source_id=source.primitive_id,
+                        source_id=source.primitive_id(),
                         sink_id=sink_id,
                     )
                 elif processor.processor_type == ProcessorType.COLLECTOR:
                     sink_id = None
                     if "sink" in processor.__meta__:
                         sink = processor.__meta__["sink"]
-                        sink_id = sink.primitive_id
+                        sink_id = sink.primitive_id()
                         if (
                             not isinstance(sink, Empty)
                             and sink_id not in primitive_states
@@ -880,8 +902,8 @@ class Flow:
                 dependencies = _find_primitive_deps(processor.dependencies())
                 primitive_dependencies = []
                 for prim in dependencies:
-                    primitive_dependencies.append(prim.primitive_id)
-                    if prim.primitive_id not in primitive_states:
+                    primitive_dependencies.append(prim.primitive_id())
+                    if prim.primitive_id() not in primitive_states:
                         states = PrimitiveState.from_primitive(
                             prim,
                             managed_primitives=managed_primitives,
@@ -919,28 +941,6 @@ class Flow:
             python_version=f"{sys.version_info.major}.{sys.version_info.minor}",
             ray_version=ray.__version__,
         )
-
-    def inspect(self):
-        # Setup services
-        self._add_service_groups()
-        if self.config is None:
-            raise RuntimeError(
-                "Unable to inspect Flow. "
-                "No BuildFlow config found. Did you run `buildflow init`?"
-            )
-        # pulumi_workspace = PulumiWorkspace(
-        #     pulumi_options=self.options.infra_options.pulumi_options,
-        #     pulumi_config=self.config.pulumi_config,
-        # )
-        # pulumi_stack_state = pulumi_workspace.get_stack_state()
-        # TODO: update this to work with processor groups
-        # return FlowStateDeprecated.parse_resource_states(
-        #     flow_id=self.flow_id,
-        #     processor_refs=[],
-        #     resource_states=pulumi_stack_state.resources(),
-        #     last_updated=pulumi_stack_state.last_updated,
-        #     pulumi_stack_name=pulumi_stack_state.stack_name,
-        # )
 
     def _lifecycle_functions(
         self, original_process_fn_or_class: Callable

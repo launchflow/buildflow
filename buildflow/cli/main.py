@@ -261,10 +261,10 @@ def destroy():
 
 
 @dataclass
-class InspectJSON:
+class InspectFlowState:
     success: bool
     timestamp: str
-    inspect_info: Dict[str, Any]
+    flowstate: Dict[str, Any]
 
     def print_json(self):
         print(json.dumps(asdict(self)))
@@ -280,20 +280,22 @@ def inspect(
     # TODO: Add support for deployment grids
     runtime = datetime.utcnow().isoformat()
     if isinstance(imported, (buildflow.Flow)):
-        flow_state = imported.inspect()
+        flow_state = imported.flowstate()
         if not as_json:
             typer.echo(f"Fetching stack state for Flow(id={imported.flow_id})...")
 
             pprint(flow_state.as_json_dict())
         else:
-            InspectJSON(
-                success=True, timestamp=runtime, inspect_info=flow_state.as_json_dict()
+            InspectFlowState(
+                success=True, timestamp=runtime, flowstate=flow_state.as_json_dict()
             ).print_json()
     else:
         if not as_json:
             typer.echo("inspect-stack must be run on a flow")
         else:
-            InspectJSON(success=False, timestamp=runtime, inspect_info={}).print_json()
+            InspectFlowState(
+                success=False, timestamp=runtime, inspect_info={}
+            ).print_json()
         typer.Exit(1)
 
 

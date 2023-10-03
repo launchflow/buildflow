@@ -4,7 +4,7 @@ import pulumi
 import pulumi_aws
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
-from buildflow.io.aws.pulumi import sqs_resource
+from buildflow.io.aws.sqs import SQSQueue
 
 
 class MyMocks(pulumi.runtime.Mocks):
@@ -24,18 +24,16 @@ pulumi.runtime.set_mocks(
 class SQSResourceTest(unittest.TestCase):
     @pulumi.runtime.test
     def test_pulumi_resources(self):
-        pulumi_resource = sqs_resource.SQSQueueResource(
+        prim = SQSQueue(
             queue_name="test_queue",
             aws_account_id="123456789",
             aws_region="us-east-1",
-            credentials=EmptyCredentials(),
-            opts=pulumi.ResourceOptions(),
         )
 
-        child_resources = list(pulumi_resource._childResources)
-        self.assertEqual(len(child_resources), 1)
+        resources = prim.pulumi_resources(EmptyCredentials(), pulumi.ResourceOptions())
+        self.assertEqual(len(resources), 1)
 
-        queue_resource = child_resources[0]
+        queue_resource = resources[0]
 
         self.assertIsInstance(queue_resource, pulumi_aws.sqs.Queue)
 
