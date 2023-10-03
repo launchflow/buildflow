@@ -39,7 +39,7 @@ Use the `deploy` command to deploy your entire grid.
 
 Use the `plan` command to see what resources will be used by your flows and grids.
 """
-app = typer.Typer(help=BUILDFLOW_HELP)
+app = typer.Typer(help=BUILDFLOW_HELP, pretty_exceptions_enable=False)
 
 APP_DIR_OPTION = typer.Option(
     "",

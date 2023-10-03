@@ -5,7 +5,7 @@ import logging
 import os
 import signal
 import sys
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import pulumi
 import ray
@@ -390,7 +390,7 @@ class Flow:
         self._runtime_actor_ref: Optional[RuntimeActor] = None
         # Infra configuration
         self._infra_actor_ref: Optional[InfraActor] = None
-        self._managed_primitives: List[Primitive] = []
+        self._managed_primitives: Dict[str, Primitive] = {}
         self._services: List[Service] = []
         self.credentials = FlowCredentials(
             gcp_credentials=GCPCredentials(self.options.credentials_options),
@@ -400,7 +400,9 @@ class Flow:
 
     def _pulumi_program(self) -> List[pulumi.Resource]:
         visited_primitives = _PrimitiveCache()
-        start_primitives = _find_primitives_with_no_parents(self._managed_primitives)
+        start_primitives = _find_primitives_with_no_parents(
+            list(self._managed_primitives.values())
+        )
         if not start_primitives:
             raise ValueError(
                 "Unable to build pulumi dependency tree. "
@@ -419,7 +421,7 @@ class Flow:
     def manage(self, *args: Primitive):
         for primitive in args:
             primitive.enable_managed()
-        self._managed_primitives.extend(args)
+            self._managed_primitives[primitive.primitive_id()] = primitive
 
     def _get_infra_actor(self) -> InfraActor:
         if self.config is None:
@@ -764,7 +766,10 @@ class Flow:
 
     async def _plan(self):
         logging.debug(f"Planning Infra for Flow({self.flow_id})...")
-        await self._get_infra_actor().plan(pulumi_program=self._pulumi_program)
+        await self._get_infra_actor().preview(
+            pulumi_program=self._pulumi_program,
+            managed_primitives=self._managed_primitives,
+        )
         logging.debug(f"...Finished planning Infra for Flow({self.flow_id})")
 
     def apply(self):
@@ -773,7 +778,7 @@ class Flow:
     async def _apply(self):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
         if self.options.infra_options.require_confirmation:
-            await self._get_infra_actor().plan(pulumi_program=self._pulumi_program)
+            await self._plan()
             print("Would you like to apply these changes?")
             response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
             while True:
@@ -781,27 +786,28 @@ class Flow:
                     print("User rejected Infra changes. Aborting.")
                     return
                 elif response.lower() in ["y", "yes"]:
-                    print("User confirmed Infra changes. Applying.")
+                    print("User confirmed Infra changes. Applying changes...")
                     break
                 else:
                     response = input(
                         'Invalid response. Enter "y (yes)" to '
                         'confirm, "n (no) to reject": '
                     )
+        else:
+            print("Confirmation disabled. Applying changes...")
         await self._get_infra_actor().apply(pulumi_program=self._pulumi_program)
-        logging.debug(f"...Finished setting up Infra for Flow({self.flow_id})")
+        print("...changes applied.")
 
     def destroy(self):
         return asyncio.get_event_loop().run_until_complete(self._destroy())
 
     async def _destroy(self):
-        logging.debug(f"Tearing down infrastructure for Flow({self.flow_id})...")
+        logging.debug(f"Destroying infrastructure for Flow({self.flow_id})...")
         if self.options.infra_options.require_confirmation:
-
-            def empty():
-                pass
-
-            await self._get_infra_actor().plan(pulumi_program=empty)
+            # We pass in no managed primitives, to simulate deleting all infrastructure.
+            await self._get_infra_actor().preview(
+                pulumi_program=self._pulumi_program, managed_primitives={}
+            )
             print("Would you like to apply these changes?")
             response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
             while True:
@@ -809,17 +815,17 @@ class Flow:
                     print("User rejected changes. Aborting.")
                     return
                 elif response.lower() in ["y", "yes"]:
-                    print("User confirmed changes. Destroying.")
+                    print("User confirmed changes. Destroying resources...")
                     break
                 else:
                     response = input(
                         'Invalid response. Enter "y (yes)" to '
                         'confirm, "n (no) to reject": '
                     )
+        else:
+            print("Confirmation disabled. Destrying resources...")
         await self._get_infra_actor().destroy(pulumi_program=self._pulumi_program)
-        logging.debug(
-            f"...Finished tearing down infrastructure for Flow({self.flow_id})"
-        )
+        print("...resources destroyed.")
 
     def flowstate(self) -> FlowState:
         self._add_service_groups()
@@ -828,7 +834,7 @@ class Flow:
     def _flowstate(self) -> FlowState:
         primitive_states = {}
         managed_primitives = set()
-        for managed_resource in self._managed_primitives:
+        for managed_resource in self._managed_primitives.values():
             managed_primitives.add(managed_resource.primitive_id())
             states = PrimitiveState.from_primitive(
                 managed_resource,

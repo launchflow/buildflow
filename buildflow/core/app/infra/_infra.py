@@ -18,7 +18,7 @@ class Infra:
         """Refreshes the infrastructure state."""
         raise NotImplementedError("refresh not implemented")
 
-    async def plan(self):
+    async def preview(self):
         """Returns a plan for the infrastructure."""
         raise NotImplementedError("plan not implemented")
 

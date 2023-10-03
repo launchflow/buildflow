@@ -25,5 +25,6 @@ class BuildFlowResource(pulumi.ComponentResource):
         self.register_outputs(
             {
                 "primitive_id": primitive.primitive_id(),
+                "primitive_type": type(primitive).__name__,
             }
         )

@@ -20,7 +20,7 @@ class CloudSQLInstance(GCPPrimtive):
     region: GCPRegion
 
     def primitive_id(self):
-        return f"{self.project_id}-{self.instance_name}"
+        return f"{self.project_id}:{self.instance_name}"
 
     def pulumi_resources(
         self, credentials: GCPCredentialsOptions, opts: pulumi.ResourceOptions
@@ -28,7 +28,7 @@ class CloudSQLInstance(GCPPrimtive):
         return [
             pulumi_gcp.sql.DatabaseInstance(
                 resource_name=self.primitive_id(),
-                opts=pulumi.ResourceOptions(parent=self),
+                opts=opts,
                 name=self.instance_name,
                 project=self.project_id,
                 database_version=self.database_version,

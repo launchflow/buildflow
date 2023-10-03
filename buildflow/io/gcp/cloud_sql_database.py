@@ -17,8 +17,8 @@ class CloudSQLDatabase(GCPPrimtive):
 
     def primitive_id(self):
         return (
-            f"{self.instance.project_id}-{self.instance.instance_name}"
-            f"-{self.database_name}"
+            f"{self.instance.project_id}:{self.instance.instance_name}"
+            f".{self.database_name}"
         )
 
     def pulumi_resources(
