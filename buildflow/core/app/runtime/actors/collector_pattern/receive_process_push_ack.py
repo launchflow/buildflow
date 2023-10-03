@@ -87,6 +87,7 @@ class ReceiveProcessPushAck(Runtime):
             else:
                 to_send = [push_converter(output)]
                 await sink.push(to_send)
+            return {"success": True}
 
         app = create_app(
             processor_group=self.processor_group,
