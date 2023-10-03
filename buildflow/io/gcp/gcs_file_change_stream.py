@@ -13,12 +13,13 @@ from buildflow.io.gcp.storage import GCSBucket
 from buildflow.io.gcp.strategies.gcs_file_change_stream_strategies import (
     GCSFileChangeStreamSource,
 )
+from buildflow.io.primitive import GCPPrimtive
 from buildflow.io.strategies.source import SourceStrategy
 from buildflow.types.gcp import GCSChangeStreamEventType
 
 
 @dataclasses.dataclass
-class GCSFileChangeStream:
+class GCSFileChangeStream(GCPPrimtive):
     gcs_bucket: GCSBucket
     event_types: Iterable[GCSChangeStreamEventType] = (
         GCSChangeStreamEventType.OBJECT_FINALIZE,
@@ -26,18 +27,18 @@ class GCSFileChangeStream:
 
     # Only needed for setting up resources.
     pubsub_subscription: GCPPubSubSubscription = dataclasses.field(init=False)
+    pubsub_subscription: GCPPubSubTopic = dataclasses.field(init=False)
 
     def __post_init__(self):
+        self.pubsub_topic = GCPPubSubTopic(
+            self.gcs_bucket.project_id,
+            topic_name=f"{self.gcs_bucket.bucket_name}_topic",
+        )
+        self.pubsub_topic.enable_managed()
         self.pubsub_subscription = GCPPubSubSubscription(
             project_id=self.gcs_bucket.project_id,
             subscription_name=f"{self.gcs_bucket.bucket_name}_subscription",
-        ).options(
-            topic=GCPPubSubTopic(
-                self.gcs_bucket.project_id,
-                topic_name=f"{self.gcs_bucket.bucket_name}_topic",
-            ),
-            include_attributes=True,
-        )
+        ).options(topic=self.pubsub_topic, include_attributes=True)
         self.pubsub_subscription.enable_managed()
 
     @classmethod
@@ -61,7 +62,7 @@ class GCSFileChangeStream:
 
     def primitive_id(self):
         return (
-            f"{self.gcs_bucket.bucket_name}-{self.pubsub_subscription.topic.topic_name}"
+            f"{self.gcs_bucket.bucket_name}.{self.pubsub_subscription.topic.topic_name}"
         )
 
     def pulumi_resources(

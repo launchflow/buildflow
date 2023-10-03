@@ -106,6 +106,21 @@ def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primit
     return primitives_without_parents
 
 
+def _find_all_managed_parent_primitives(primitive: Primitive) -> Dict[str, Primitive]:
+    fields = dataclasses.fields(primitive)
+    managed_parents = {}
+    for field in fields:
+        field_value = getattr(primitive, field.name)
+        if (
+            field_value is not None
+            and isinstance(field_value, Primitive)
+            and field_value._managed
+        ):
+            managed_parents[field_value.primitive_id()] = field_value
+            managed_parents.update(_find_all_managed_parent_primitives(field_value))
+    return managed_parents
+
+
 def _get_directory_path_of_caller():
     # NOTE: This function is used to get the file path of the caller of the
     # Flow(). This is used to determine the directory to look for a BuildFlow
@@ -422,6 +437,10 @@ class Flow:
         for primitive in args:
             primitive.enable_managed()
             self._managed_primitives[primitive.primitive_id()] = primitive
+
+            self._managed_primitives.update(
+                _find_all_managed_parent_primitives(primitive)
+            )
 
     def _get_infra_actor(self) -> InfraActor:
         if self.config is None:

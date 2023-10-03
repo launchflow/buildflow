@@ -19,25 +19,6 @@ bucket_name = os.environ["BUCKET_NAME"]
 bigquery_table = os.environ.get("BIGQUERY_TABLE", "wiki-page-views")
 dataset = os.environ.get("DATASET", "buildflow_walkthrough")
 
-# Set up a subscriber for the source.
-# The source will setup a Pub/Sub topic and subscription to listen to new files
-# uploaded to the GCS bucket.
-source = GCSFileChangeStream(
-    gcs_bucket=GCSBucket(
-        project_id=gcp_project,
-        bucket_name=bucket_name,
-    ).options(
-        force_destroy=True,
-        bucket_region="US",
-    ),
-)
-# Set up a BigQuery table for the sink.
-# If this table does not exist yet BuildFlow will create it.
-sink = BigQueryTable(
-    BigQueryDataset(project_id=gcp_project, dataset_name=dataset).options(managed=True),
-    table_name=bigquery_table,
-).options(destroy_protection=False)
-
 
 # Nested dataclasses can be used inside of your schemas.
 @dataclasses.dataclass
@@ -59,12 +40,32 @@ class AggregateWikiPageViews:
     min_page_views_per_hour: HourAggregate
 
 
+# Set up a subscriber for the source.
+# The source will setup a Pub/Sub topic and subscription to listen to new files
+# uploaded to the GCS bucket.
+bucket = GCSBucket(
+    project_id=gcp_project,
+    bucket_name=bucket_name,
+).options(
+    force_destroy=True,
+    bucket_region="US",
+)
+source = GCSFileChangeStream(gcs_bucket=bucket)
+# Set up a BigQuery table for the sink.
+# If this table does not exist yet BuildFlow will create it.
+dataset = BigQueryDataset(project_id=gcp_project, dataset_name=dataset)
+sink = BigQueryTable(
+    dataset=dataset,
+    table_name=bigquery_table,
+).options(destroy_protection=False, schema=AggregateWikiPageViews)
+
+
 app = buildflow.Flow(
     flow_options=buildflow.FlowOptions(
         require_confirmation=False, runtime_log_level="DEBUG"
     )
 )
-app.manage(source, sink)
+app.manage(source, sink, dataset, bucket)
 
 
 # Define our processor.
