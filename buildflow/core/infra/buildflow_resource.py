@@ -20,7 +20,8 @@ class BuildFlowResource(pulumi.ComponentResource):
 
         opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(parent=self))
 
-        primitive.pulumi_resources(credentials, opts=opts)
+        self.primitive = primitive
+        self.child_resources = primitive.pulumi_resources(credentials, opts=opts)
 
         self.register_outputs(
             {

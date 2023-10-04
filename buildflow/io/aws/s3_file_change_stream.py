@@ -1,12 +1,13 @@
 import dataclasses
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 import pulumi
 import pulumi_aws
 
 from buildflow.config.cloud_provider_config import AWSOptions
 from buildflow.core.credentials.aws_credentials import AWSCredentials
-from buildflow.core.types.aws_types import AWSAccountID, S3BucketName, SQSQueueName
+from buildflow.core.infra.buildflow_resource import BuildFlowResource
+from buildflow.core.types.aws_types import S3BucketName
 from buildflow.io.aws.pulumi.providers import aws_provider
 from buildflow.io.aws.s3 import S3Bucket
 from buildflow.io.aws.sqs import SQSQueue
@@ -15,27 +16,7 @@ from buildflow.io.aws.strategies.s3_file_change_stream_strategies import (
 )
 from buildflow.io.primitive import AWSPrimtive
 from buildflow.io.strategies.source import SourceStrategy
-from buildflow.io.utils.clients.aws_clients import AWSClients
 from buildflow.types.aws import S3ChangeStreamEventType
-
-
-def _get_queue_url(
-    aws_conn, queue_name: SQSQueueName, aws_account_id: Optional[AWSAccountID]
-):
-    if aws_account_id is None:
-        response = aws_conn.get_queue_url(QueueName=queue_name)
-    else:
-        response = aws_conn.get_queue_url(
-            QueueName=queue_name, QueueOwnerAWSAccountId=aws_account_id
-        )
-    return response["QueueUrl"]
-
-
-def _get_queue_arn(aws_conn, queue_url: str):
-    queue_attrs = aws_conn.get_queue_attributes(
-        QueueUrl=queue_url, AttributeNames=["QueueArn"]
-    )
-    return queue_attrs["Attributes"]["QueueArn"]
 
 
 @dataclasses.dataclass
@@ -57,7 +38,7 @@ class S3FileChangeStream(AWSPrimtive):
         self.sqs_queue.enable_managed()
 
     def primitive_id(self):
-        return f"{self.s3_bucket.bucket_name}::{self.sqs_queue.queue_name}"
+        return f"{self.s3_bucket.bucket_name}:{self.sqs_queue.queue_name}"
 
     @classmethod
     def from_aws_options(
@@ -74,17 +55,18 @@ class S3FileChangeStream(AWSPrimtive):
             aws_region=self.s3_bucket.aws_region,
         )
 
-    def pulumi_resource(
+    def pulumi_resources(
         self, credentials: AWSCredentials, opts: pulumi.ResourceOptions
     ) -> List[pulumi.Resource]:
-        aws_clients = AWSClients(
-            credentials=credentials, region=self.sqs_queue.aws_account_id
-        )
-        sqs_client = aws_clients.sqs_client()
-        queue_url = _get_queue_url(
-            sqs_client, self.sqs_queue.queue_name, self.sqs_queue.aws_account_id
-        )
-        queue_arn = _get_queue_arn(sqs_client, queue_url)
+        queue_resource: pulumi_aws.sqs.Queue = None
+        for depends in opts.depends_on:
+            if (
+                isinstance(depends, BuildFlowResource)
+                and depends.primitive == self.sqs_queue
+            ):
+                queue_resource = depends.child_resources[0]
+        if queue_resource is None:
+            raise ValueError("Unable to find queue for S3FileChangeStream")
         provider_id = f"{self.s3_bucket.bucket_name}-" f"{self.sqs_queue.queue_name}"
         provider = aws_provider(
             provider_id,
@@ -121,7 +103,7 @@ class S3FileChangeStream(AWSPrimtive):
         queue_policy = pulumi_aws.sqs.QueuePolicy(
             resource_name=policy_id,
             opts=opts,
-            queue_url=queue_url,
+            queue_url=queue_resource.id,
             policy=queue_policy_document.json,
         )
         s3_event_types = [f"s3:{et.value}" for et in self.event_types]
@@ -134,7 +116,7 @@ class S3FileChangeStream(AWSPrimtive):
             bucket=self.s3_bucket.bucket_name,
             queues=[
                 pulumi_aws.s3.BucketNotificationQueueArgs(
-                    queue_arn=queue_arn,
+                    queue_arn=queue_resource.arn,
                     events=s3_event_types,
                 )
             ],
