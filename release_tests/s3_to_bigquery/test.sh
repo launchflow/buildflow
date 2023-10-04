@@ -21,7 +21,7 @@ buildflow run &
 main_pid=$!
 
 sleep 30
-gsutil cp ./wiki_page_views.csv gs://$BUCKET_NAME
+aws s3 cp ./wiki_page_views.csv s3://$BUCKET_NAME
 sleep 60
 
 query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.$DATASET.$BIGQUERY_TABLE\`"

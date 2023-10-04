@@ -18,7 +18,7 @@ class DuckDBTable(LocalPrimtive):
             self.database = os.path.join(os.getcwd(), self.database)
 
     def primitive_id(self):
-        return f"{self.database}::{self.table}"
+        return f"{self.database}:{self.table}"
 
     @classmethod
     def from_local_options(
