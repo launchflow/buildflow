@@ -4,7 +4,7 @@ export BIGQUERY_TABLE=wiki-page-$RANDOM
 export DATASET=buildflow_walkthrough_$RANDOM
 export BUCKET_NAME=buildflow-walkthrough-csv-ingestion-$RANDOM
 
-cd buildflow/samples/csv_bigquery_walkthrough
+cd release_tests/s3_to_bigquery
 ray start --head --num-cpus=2
 
 buildflow init --directory=. --project=gcs-to-bigquery
