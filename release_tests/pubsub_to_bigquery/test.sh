@@ -19,6 +19,7 @@ main_pid=$!
 sleep 45
 query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.buildflow_pubsub_to_bigquery_test.$BIGQUERY_TABLE\`"
 echo "Running query: $query"
+bq query --location=US --nouse_legacy_sql $query
 num_rows=$(bq query --location=US --nouse_legacy_sql $query | awk 'NR==4 {print $2}')
 
 kill -s 2 $main_pid
