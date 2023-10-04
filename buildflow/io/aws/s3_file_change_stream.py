@@ -74,7 +74,7 @@ class S3FileChangeStream(AWSPrimtive):
             aws_region=self.s3_bucket.aws_region,
         )
 
-    def pulumi_resource(
+    def pulumi_resources(
         self, credentials: AWSCredentials, opts: pulumi.ResourceOptions
     ) -> List[pulumi.Resource]:
         aws_clients = AWSClients(
