@@ -81,6 +81,10 @@ class GCSFileChangeStream(GCPPrimtive):
             members=[f"serviceAccount:{gcs_account.email_address}"],
         )
 
+        opts = pulumi.ResourceOptions.merge(
+            opts, pulumi.ResourceOptions(depends_on=[binding])
+        )
+
         notification = pulumi_gcp.storage.Notification(
             f"{self.primitive_id()}_notification",
             opts=opts,
