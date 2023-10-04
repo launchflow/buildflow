@@ -44,7 +44,6 @@ class AggregateWikiPageViews:
 # uploaded to the GCS bucket.
 bucket = S3Bucket(bucket_name=bucket_name, aws_region="us-east-1").options(
     force_destroy=True,
-    bucket_region="US",
 )
 source = S3FileChangeStream(s3_bucket=bucket)
 # Set up a BigQuery table for the sink.
