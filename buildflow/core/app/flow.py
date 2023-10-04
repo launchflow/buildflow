@@ -498,9 +498,24 @@ class Flow:
         *,
         num_cpus: float = 1.0,
         num_concurrency: int = 1,
-        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+        enable_autoscaler: bool = True,
+        num_replicas: int = 1,
+        min_replicas: int = 1,
+        max_replicas: int = 1000,
+        autoscale_frequency_secs: int = 60,
+        consumer_backlog_burn_threshold: int = 60,
+        consumer_cpu_percent_target: int = 25,
         log_level: str = "INFO",
     ):
+        autoscale_options = AutoscalerOptions(
+            enable_autoscaler=enable_autoscaler,
+            num_replicas=num_replicas,
+            min_replicas=min_replicas,
+            max_replicas=max_replicas,
+            autoscale_frequency_secs=autoscale_frequency_secs,
+            consumer_backlog_burn_threshold=consumer_backlog_burn_threshold,
+            consumer_cpu_percent_target=consumer_cpu_percent_target,
+        )
         if not dataclasses.is_dataclass(source):
             raise ValueError(
                 f"source must be a dataclass. Received: {type(source).__name__}"
@@ -597,9 +612,20 @@ class Flow:
         sink: Optional[Primitive] = None,
         *,
         num_cpus: float = 1.0,
-        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+        enable_autoscaler: bool = True,
+        num_replicas: int = 1,
+        min_replicas: int = 1,
+        max_replicas: int = 1000,
+        target_num_ongoing_requests_per_replica: int = 80,
         log_level: str = "INFO",
     ):
+        autoscale_options = AutoscalerOptions(
+            enable_autoscaler=enable_autoscaler,
+            num_replicas=num_replicas,
+            min_replicas=min_replicas,
+            max_replicas=max_replicas,
+            target_num_ongoing_requests_per_replica=target_num_ongoing_requests_per_replica,
+        )
         if sink is None:
             sink = Empty()
 
@@ -629,14 +655,21 @@ class Flow:
         *,
         service_id: str = utils.uuid(),
         num_cpus: float = 1.0,
-        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+        enable_autoscaler: bool = True,
+        num_replicas: int = 1,
+        min_replicas: int = 1,
+        max_replicas: int = 1000,
+        target_num_ongoing_requests_per_replica: int = 80,
         log_level: str = "INFO",
     ):
-        # TODO: add pass in options
         service = Service(
             base_route=base_route,
             num_cpus=num_cpus,
-            autoscale_options=autoscale_options,
+            enable_autoscaler=enable_autoscaler,
+            num_replicas=num_replicas,
+            min_replics=min_replicas,
+            max_replicas=max_replicas,
+            target_num_ongoing_requests_per_replica=target_num_ongoing_requests_per_replica,
             log_level=log_level,
             service_id=service_id,
         )

@@ -11,11 +11,25 @@ from buildflow.io.endpoint import Method, Route
 class Service:
     base_route: str = "/"
     num_cpus: float = 1.0
-    autoscale_options: AutoscalerOptions = AutoscalerOptions.default()
+    enable_autoscaler: bool = True
+    num_replicas: int = 1
+    min_replics: int = 1
+    max_replicas: int = 1000
+    target_num_ongoing_requests_per_replica: int = 80
     log_level: str = "INFO"
     service_id: str = dataclasses.field(default_factory=uuid)
     endpoints: List[Endpoint] = dataclasses.field(default_factory=list, init=False)
     middleware: List = dataclasses.field(init=False, default_factory=list)
+    autoscale_options: AutoscalerOptions = dataclasses.field(default=None, init=False)
+
+    def __post_init__(self):
+        self.autoscale_options = AutoscalerOptions(
+            enable_autoscaler=self.enable_autoscaler,
+            min_replicas=self.min_replics,
+            num_replicas=self.num_replicas,
+            max_replicas=self.max_replicas,
+            target_num_ongoing_requests_per_replica=self.target_num_ongoing_requests_per_replica,
+        )
 
     def endpoint(self, route: Route, method: Method) -> None:
         def decorator_function(original_fn_or_class):

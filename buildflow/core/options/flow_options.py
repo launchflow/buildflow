@@ -15,7 +15,6 @@ class FlowOptions(Options):
         self,
         *,
         # Runtime options
-        num_replicas: int = 1,
         runtime_log_level: str = "INFO",
         # Credential Options
         gcp_service_account_info: Optional[str] = None,
@@ -34,7 +33,6 @@ class FlowOptions(Options):
         """Options for configuring a Flow.
 
         Args:
-            num_replicas (int): The number of replicas to start with. Defaults to 1.
             runtime_log_level (str): The log level for the runtime. Defaults to "INFO".
             gcp_service_account_info: JSON string containing the service account info.
                 Can either be a service account key, or JSON config for workflow
@@ -51,7 +49,6 @@ class FlowOptions(Options):
                 changes. Defaults to True.
         """
         super().__init__()
-        self.num_replicas = num_replicas
         self.runtime_log_level = runtime_log_level
         self.schema_validation = schema_validation
         self.require_confirmation = require_confirmation
@@ -60,7 +57,6 @@ class FlowOptions(Options):
         self.refresh_state = refresh_state
         self.runtime_options = RuntimeOptions(
             processor_options={},
-            num_replicas=self.num_replicas,
             log_level=self.runtime_log_level,
         )
         self.credentials_options = CredentialsOptions(
