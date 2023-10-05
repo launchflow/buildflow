@@ -6,11 +6,10 @@ export VALIDATION_SUB=validation-$RANDOM
 export MAIN_SUB=main-$RANDOM
 
 cd release_tests/pubsub_to_pubsub
-
+mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
 
 final_output=1
-buildflow init --directory=. --project=pubsub-to-pubsub
 buildflow plan || {
     echo 'plan failed'
     exit 1

@@ -31,7 +31,7 @@ class AutoscalerOptions(Options):
     consumer_backlog_burn_threshold: int = 60
     consumer_cpu_percent_target: int = 25
     # Options for configuring scaling for collectors
-    target_num_ongoing_requests_per_replica: int = 10
+    target_num_ongoing_requests_per_replica: int = 80
 
     @classmethod
     def default(cls) -> "AutoscalerOptions":
@@ -73,8 +73,6 @@ class ProcessorOptions(Options):
 class RuntimeOptions(Options):
     # the configuration of each processor
     processor_options: Dict[ProcessorID, ProcessorOptions]
-    # the number of replicas to start with (will scale up/down if autoscale is enabled)
-    num_replicas: int
     # misc
     log_level: str
     checkin_frequency_loop_secs: int = 5
@@ -83,6 +81,5 @@ class RuntimeOptions(Options):
     def default(cls) -> "RuntimeOptions":
         return cls(
             processor_options={},
-            num_replicas=1,
             log_level="INFO",
         )

@@ -3,8 +3,8 @@
 export BIGQUERY_TABLE=taxi-test-$RANDOM
 
 cd buildflow/samples/pubsub_walkthrough
+mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
-buildflow init --directory=. --project=pubsub-to-bigquery
 buildflow plan || {
   echo 'plan failed'
   exit 1

@@ -5,9 +5,9 @@ export DATASET=buildflow_walkthrough_$RANDOM
 export BUCKET_NAME=buildflow-walkthrough-csv-ingestion-$RANDOM
 
 cd buildflow/samples/csv_bigquery_walkthrough
+mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
 
-buildflow init --directory=. --project=gcs-to-bigquery
 buildflow plan || {
   echo 'plan failed'
   exit 1

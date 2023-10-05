@@ -1,10 +1,9 @@
 import dataclasses
+from typing import Any, Callable, Optional
+
 from buildflow.core.options.runtime_options import AutoscalerOptions, ProcessorOptions
 from buildflow.io.endpoint import Method, Route
-
 from buildflow.io.primitive import Primitive
-
-from typing import Optional, Callable, Any
 
 
 @dataclasses.dataclass
@@ -25,9 +24,21 @@ def collector(
     sink: Optional[Primitive] = None,
     *,
     num_cpus: float = 1.0,
-    autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+    enable_autoscaler: bool = True,
+    num_replicas: int = 1,
+    min_replicas: int = 1,
+    max_replicas: int = 1000,
+    target_num_ongoing_requests_per_replica: int = 80,
     log_level: str = "INFO",
 ):
+    autoscale_options = AutoscalerOptions(
+        enable_autoscaler=enable_autoscaler,
+        num_replicas=num_replicas,
+        min_replicas=min_replicas,
+        max_replicas=max_replicas,
+        target_num_ongoing_requests_per_replica=target_num_ongoing_requests_per_replica,
+    )
+
     def decorator_function(original_fn_or_class):
         return Collector(
             route=route,
