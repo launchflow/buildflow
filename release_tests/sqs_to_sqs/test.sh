@@ -4,10 +4,9 @@ export INPUT_QUEUE=input-$RANDOM
 export OUTPUT_QUEUE=output-$RANDOM
 
 cd release_tests/sqs_to_sqs
-
+mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
 
-buildflow init --directory=. --project=sqs-to-sqs
 buildflow plan || {
     echo 'plan failed'
     exit 1

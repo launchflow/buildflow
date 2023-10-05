@@ -302,6 +302,19 @@ buildflow
 def init(
     project: str = typer.Option("", help=("The name of the project")),
     directory: str = typer.Option(default=".", help="The directory to initialize"),
+    processor: Optional[str] = typer.Option(
+        None, help="The type of Processor to create", hidden=True
+    ),
+    source: Optional[str] = typer.Option(
+        None,
+        help="The IO primitive (class name) to use as a Source (only needed for consumers)",  # noqa
+        hidden=True,
+    ),
+    sink: Optional[str] = typer.Option(
+        None,
+        help="The IO primitive (class name) to use as a Sink (only needed for consumers and collectors)",  # noqa
+        hidden=True,
+    ),
 ):
     buildflow_config_dir = os.path.join(directory, BUILDFLOW_CONFIG_FILE)
     if os.path.exists(buildflow_config_dir):
@@ -314,6 +327,24 @@ def init(
     if not re.fullmatch(_PROJECT_NAME_PATTERN, project):
         typer.echo("project must contain only lowercase letters and hyphens")
         raise typer.Exit(1)
+    if not processor:
+        processor = input(
+            "Please enter a processor type (endpoint, consumer, collector): "
+        )
+        while processor not in ["endpoint", "consumer", "collector"]:
+            processor = input(
+                "invalid processor must be one of: [endpoint, consumer, collector]: "
+            )
+    if processor == "consumer":
+        if not source:
+            source = input(
+                "Please enter a source (e.g. Pulse, GCPPubsubSubscription, SQSQueue): "
+            )
+    if processor in ["consumer", "collector"]:
+        if not sink:
+            sink = input(
+                "Please enter a sink (e.g. DuckDBTable, S3Bucket, BigQueryTable): "
+            )
     buildflow_config = BuildFlowConfig.default(project=project, directory=directory)
 
     requirements_txt_path = os.path.join(directory, "requirements.txt")
@@ -333,20 +364,6 @@ def init(
     os.mkdir(project_lib_dir)
     open(os.path.join(project_lib_dir, "__init__.py"), "w").close()
 
-    # Create the main file
-    file_name = "main"
-    file_path = os.path.join(directory, f"{file_name}.py")
-    file_template = file_gen.empty_template(project_folder)
-    if os.path.exists(file_path):
-        typer.echo(f"{file_path} already exists, skipping.")
-    else:
-        with open(file_path, "w") as file:
-            file.write(file_template)
-
-    # Create the readme file
-    with open(os.path.join(directory, "README.md"), "w") as f:
-        f.write(file_gen.hello_world_readme_template(project, project_folder))
-
     # Create the base resources folder
     resources_folder = os.path.join(project_lib_dir, "resources")
     os.mkdir(resources_folder)
@@ -357,11 +374,51 @@ def init(
     os.mkdir(processors_folder)
     open(os.path.join(processors_folder, "__init__.py"), "w").close()
 
-    with open(os.path.join(processors_folder, "service.py"), "w") as f:
-        f.write(file_gen.hello_world_service_template(project_folder))
+    file_name = "main"
+    file_path = os.path.join(directory, f"{file_name}.py")
 
-    with open(os.path.join(processors_folder, "hello_world.py"), "w") as f:
-        f.write(file_gen.hello_world_endpoint_template())
+    if processor == "consumer":
+        (
+            main_file_template,
+            resource_file_template,
+            resource_processor_template,
+        ) = file_gen.generate_consumer_template(project_folder, source, sink, file_name)
+        with open(os.path.join(resources_folder, "consumer_resources.py"), "w") as f:
+            f.write(resource_file_template)
+
+        with open(os.path.join(processors_folder, "consumer.py"), "w") as f:
+            f.write(resource_processor_template)
+    elif processor == "collector":
+        (
+            main_file_template,
+            resource_file_template,
+            resource_processor_template,
+        ) = file_gen.generate_collector_template(project_folder, sink, file_name)
+        with open(os.path.join(resources_folder, "collector_resources.py"), "w") as f:
+            f.write(resource_file_template)
+
+        with open(os.path.join(processors_folder, "collector.py"), "w") as f:
+            f.write(resource_processor_template)
+    else:
+        main_file_template = file_gen.empty_template(project_folder)
+        with open(os.path.join(processors_folder, "service.py"), "w") as f:
+            f.write(file_gen.hello_world_service_template(project_folder))
+
+        with open(os.path.join(processors_folder, "hello_world.py"), "w") as f:
+            f.write(file_gen.hello_world_endpoint_template())
+
+    # Create the main file
+    file_name = "main"
+    file_path = os.path.join(directory, f"{file_name}.py")
+    if os.path.exists(file_path):
+        typer.echo(f"{file_path} already exists, skipping.")
+    else:
+        with open(file_path, "w") as file:
+            file.write(main_file_template)
+
+    # Create the readme file
+    with open(os.path.join(directory, "README.md"), "w") as f:
+        f.write(file_gen.hello_world_readme_template(project, project_folder))
 
 
 @dataclass
