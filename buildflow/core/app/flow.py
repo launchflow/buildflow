@@ -811,16 +811,16 @@ class Flow:
         await self._get_infra_actor().refresh(pulumi_program=self._pulumi_program)
         logging.debug(f"...Finished refreshing Infra for Flow({self.flow_id})")
 
-    def plan(self):
-        return asyncio.get_event_loop().run_until_complete(self._plan())
+    def preview(self):
+        return asyncio.get_event_loop().run_until_complete(self._preview())
 
-    async def _plan(self):
-        logging.debug(f"Planning Infra for Flow({self.flow_id})...")
+    async def _preview(self):
+        logging.debug(f"Previewing Infra for Flow({self.flow_id})...")
         await self._get_infra_actor().preview(
             pulumi_program=self._pulumi_program,
             managed_primitives=self._managed_primitives,
         )
-        logging.debug(f"...Finished planning Infra for Flow({self.flow_id})")
+        logging.debug(f"...Finished previewing Infra for Flow({self.flow_id})")
 
     def apply(self):
         return asyncio.get_event_loop().run_until_complete(self._apply())
@@ -828,7 +828,7 @@ class Flow:
     async def _apply(self):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
         if self.options.infra_options.require_confirmation:
-            await self._plan()
+            await self._preview()
             print("Would you like to apply these changes?")
             response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
             while True:

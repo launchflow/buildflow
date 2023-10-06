@@ -73,7 +73,7 @@ class InfraActor(Infra):
         logging.debug("Planning Infra...")
         if self._status != InfraStatus.IDLE:
             raise RuntimeError("Can only plan Infra while Idle.")
-        self._set_status(InfraStatus.PLANNING)
+        self._set_status(InfraStatus.PREVIEWING)
 
         preview_result: WrappedPreviewResult = await self._pulumi_workspace.preview(
             pulumi_program=pulumi_program,
