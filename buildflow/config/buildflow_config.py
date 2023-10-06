@@ -56,6 +56,7 @@ class BuildFlowConfig(Config):
         pulumi_config = dacite.from_dict(
             data=pulumi_config_dict, data_class=PulumiConfig
         )
+        pulumi_config.load()
         cloud_provider_config = None
         if "cloud_provider_config" in config_dict:
             cloud_provider_config = CloudProviderConfig.fromdict(

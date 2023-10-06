@@ -31,12 +31,6 @@ logging.basicConfig(level=logging.ERROR)
 _PROJECT_NAME_PATTERN = r"^[a-z-]{1,63}$"
 BUILDFLOW_HELP = """\
 Welcome to the buildflow CLI!
-
-Use the `run` command to run your flows.
-
-Use the `deploy` command to deploy your entire grid.
-
-Use the `plan` command to see what resources will be used by your flows and grids.
 """
 app = typer.Typer(help=BUILDFLOW_HELP, pretty_exceptions_enable=False)
 
@@ -199,7 +193,7 @@ def build(
         typer.Exit(1)
 
 
-@app.command(help="Refresh all resources used by a buildflow flow or grid")
+@app.command(help="Refresh all resources used by a buildflow flow")
 def refresh():
     buildflow_config = BuildFlowConfig.load()
     sys.path.insert(0, "")
@@ -208,24 +202,24 @@ def refresh():
         imported.refresh()
 
     else:
-        typer.echo("plan must be run on a flow, or deployment grid")
+        typer.echo("refresh must be run on a flow")
         typer.Exit(1)
 
 
-@app.command(help="Output all resources used by a buildflow flow or grid")
-def plan():
+@app.command(help="Output all resources used by a buildflow flow")
+def preview():
     buildflow_config = BuildFlowConfig.load()
     sys.path.insert(0, "")
     imported = utils.import_from_string(buildflow_config.entry_point)
     if isinstance(imported, (buildflow.Flow)):
-        imported.plan()
+        imported.preview()
 
     else:
-        typer.echo("plan must be run on a flow, or deployment grid")
+        typer.echo("preview must be run on a flow")
         typer.Exit(1)
 
 
-@app.command(help="Apply all resources used by a buildflow flow or grid")
+@app.command(help="Apply all resources used by a buildflow flow")
 def apply():
     buildflow_config = BuildFlowConfig.load()
     sys.path.insert(0, "")
@@ -234,11 +228,11 @@ def apply():
         imported.apply()
 
     else:
-        typer.echo("plan must be run on a flow, or deployment grid")
+        typer.echo("preview must be run on a flow")
         typer.Exit(1)
 
 
-@app.command(help="Destroy all resources used by a buildflow flow or grid")
+@app.command(help="Destroy all resources used by a buildflow flow ")
 def destroy():
     buildflow_config = BuildFlowConfig.load()
     sys.path.insert(0, "")
@@ -247,7 +241,7 @@ def destroy():
         imported.destroy()
 
     else:
-        typer.echo("plan must be run on a flow, or deployment grid")
+        typer.echo("Destroy must be run on a flow")
         typer.Exit(1)
 
 
@@ -268,7 +262,7 @@ def inspect(
     buildflow_config = BuildFlowConfig.load()
     sys.path.insert(0, "")
     imported = utils.import_from_string(buildflow_config.entry_point)
-    # TODO: Add support for deployment grids
+    # TODO: Add support for deployment s
     runtime = datetime.utcnow().isoformat()
     if isinstance(imported, (buildflow.Flow)):
         flow_state = imported.flowstate()

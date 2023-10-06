@@ -45,6 +45,16 @@ class PulumiConfig:
     def __post_init__(self):
         self._stacks = {s.name: s for s in self.stacks}
 
+    def load(self):
+        if not os.path.exists(self.full_pulumi_home):
+            os.makedirs(self.full_pulumi_home, exist_ok=True)
+        for stack in self.stacks:
+            if stack.backend_url.startswith("file://"):
+                base_path = stack.backend_url.removeprefix("file://")
+                abspath = os.path.abspath(base_path)
+                if not os.path.exists(abspath):
+                    os.makedirs(abspath, exist_ok=True)
+
     @classmethod
     def default(cls, *, directory: str, project_name: str) -> "PulumiConfig":
         pulumi_home_dir = os.path.join(directory, ".buildflow", "_pulumi")
