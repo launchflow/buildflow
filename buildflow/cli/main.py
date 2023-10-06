@@ -8,10 +8,8 @@ import sys
 import tempfile
 import warnings
 import zipfile
-from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from importlib.metadata import version
 from pprint import pprint
 from typing import Any, Dict, List, Optional
 
@@ -26,7 +24,6 @@ from buildflow.cli.watcher import RunTimeWatcher
 from buildflow.config.buildflow_config import BUILDFLOW_CONFIG_FILE, BuildFlowConfig
 from buildflow.core.app.flow_state import FlowState
 from buildflow.core.utils import uuid
-from buildflow.io import IOPrimitiveOption, list_all_io_primitives
 
 warnings.simplefilter("ignore", UserWarning)
 logging.basicConfig(level=logging.ERROR)
@@ -302,19 +299,6 @@ buildflow
 def init(
     project: str = typer.Option("", help=("The name of the project")),
     directory: str = typer.Option(default=".", help="The directory to initialize"),
-    processor: Optional[str] = typer.Option(
-        None, help="The type of Processor to create", hidden=True
-    ),
-    source: Optional[str] = typer.Option(
-        None,
-        help="The IO primitive (class name) to use as a Source (only needed for consumers)",  # noqa
-        hidden=True,
-    ),
-    sink: Optional[str] = typer.Option(
-        None,
-        help="The IO primitive (class name) to use as a Sink (only needed for consumers and collectors)",  # noqa
-        hidden=True,
-    ),
 ):
     buildflow_config_dir = os.path.join(directory, BUILDFLOW_CONFIG_FILE)
     if os.path.exists(buildflow_config_dir):
@@ -327,24 +311,6 @@ def init(
     if not re.fullmatch(_PROJECT_NAME_PATTERN, project):
         typer.echo("project must contain only lowercase letters and hyphens")
         raise typer.Exit(1)
-    if not processor:
-        processor = input(
-            "Please enter a processor type (endpoint, consumer, collector): "
-        )
-        while processor not in ["endpoint", "consumer", "collector"]:
-            processor = input(
-                "invalid processor must be one of: [endpoint, consumer, collector]: "
-            )
-    if processor == "consumer":
-        if not source:
-            source = input(
-                "Please enter a source (e.g. Pulse, GCPPubsubSubscription, SQSQueue): "
-            )
-    if processor in ["consumer", "collector"]:
-        if not sink:
-            sink = input(
-                "Please enter a sink (e.g. DuckDBTable, S3Bucket, BigQueryTable): "
-            )
     buildflow_config = BuildFlowConfig.default(project=project, directory=directory)
 
     requirements_txt_path = os.path.join(directory, "requirements.txt")
@@ -377,35 +343,12 @@ def init(
     file_name = "main"
     file_path = os.path.join(directory, f"{file_name}.py")
 
-    if processor == "consumer":
-        (
-            main_file_template,
-            resource_file_template,
-            resource_processor_template,
-        ) = file_gen.generate_consumer_template(project_folder, source, sink, file_name)
-        with open(os.path.join(resources_folder, "consumer_resources.py"), "w") as f:
-            f.write(resource_file_template)
+    main_file_template = file_gen.hello_world_main_template(project_folder)
+    with open(os.path.join(processors_folder, "service.py"), "w") as f:
+        f.write(file_gen.hello_world_service_template(project_folder))
 
-        with open(os.path.join(processors_folder, "consumer.py"), "w") as f:
-            f.write(resource_processor_template)
-    elif processor == "collector":
-        (
-            main_file_template,
-            resource_file_template,
-            resource_processor_template,
-        ) = file_gen.generate_collector_template(project_folder, sink, file_name)
-        with open(os.path.join(resources_folder, "collector_resources.py"), "w") as f:
-            f.write(resource_file_template)
-
-        with open(os.path.join(processors_folder, "collector.py"), "w") as f:
-            f.write(resource_processor_template)
-    else:
-        main_file_template = file_gen.empty_template(project_folder)
-        with open(os.path.join(processors_folder, "service.py"), "w") as f:
-            f.write(file_gen.hello_world_service_template(project_folder))
-
-        with open(os.path.join(processors_folder, "hello_world.py"), "w") as f:
-            f.write(file_gen.hello_world_endpoint_template())
+    with open(os.path.join(processors_folder, "hello_world.py"), "w") as f:
+        f.write(file_gen.hello_world_endpoint_template())
 
     # Create the main file
     file_name = "main"
@@ -419,71 +362,6 @@ def init(
     # Create the readme file
     with open(os.path.join(directory, "README.md"), "w") as f:
         f.write(file_gen.hello_world_readme_template(project, project_folder))
-
-
-@dataclass
-class BuildFlowInfo:
-    version: str
-    # module name -> [class name, ...]  i.e. gcp -> [GCSBucket, ...]
-    sources: Dict[str, List[str]]
-    sinks: Dict[str, List[str]]
-    python_version: str
-    ray_version: str
-    pulumi_version: str
-
-    @classmethod
-    def from_primitives(cls, primitives: List[IOPrimitiveOption]) -> "BuildFlowInfo":
-        sources: Dict[str, List[str]] = defaultdict(list)
-        sinks: Dict[str, List[str]] = defaultdict(list)
-        for primitive in primitives:
-            if primitive.source:
-                sources[primitive.module_name].append(primitive.class_name)
-            if primitive.sink:
-                sinks[primitive.module_name].append(primitive.class_name)
-        return cls(
-            version=version("buildflow"),
-            sources=sources,
-            sinks=sinks,
-            python_version=sys.version.split()[0],
-            ray_version=version("ray"),
-            pulumi_version=version("pulumi"),
-        )
-
-    def print_json(self):
-        print(
-            json.dumps(
-                {
-                    "version": self.version,
-                    "sources": self.sources,
-                    "sinks": self.sinks,
-                    "python_version": self.python_version,
-                    "ray_version": self.ray_version,
-                    "pulumi_version": self.pulumi_version,
-                }
-            )
-        )
-
-
-@app.command(help="Output information about the current buildflow version")
-def info(
-    as_json: bool = typer.Option(False, help="Whether to print the output as json"),
-):
-    result = list_all_io_primitives()
-    buildflow_info = BuildFlowInfo.from_primitives(result)
-    if as_json:
-        buildflow_info.print_json()
-    else:
-        typer.echo(f"buildflow version: {version('buildflow')}")
-        typer.echo("sources:")
-        for module_name, class_names in buildflow_info.sources.items():
-            typer.echo(f"  {module_name}:")
-            for class_name in class_names:
-                typer.echo(f"    {class_name}")
-        typer.echo("sinks:")
-        for module_name, class_names in buildflow_info.sinks.items():
-            typer.echo(f"  {module_name}:")
-            for class_name in class_names:
-                typer.echo(f"    {class_name}")
 
 
 def main():
