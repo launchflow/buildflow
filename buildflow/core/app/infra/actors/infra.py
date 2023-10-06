@@ -137,10 +137,13 @@ class InfraActor(Infra):
                 elif resource.parent:
                     resource = stack_resources[resource.parent]
                 else:
-                    raise ValueError(
-                        "Could not find a primitive_id in the stack state."
-                        " This is an invalid state."
+                    logging.info(
+                        "Failed to find primitive ID for: %s of type: %s. This maybe "
+                        "expected if the resource is not managed by Buildflow.",
+                        resource.resource_id,
+                        resource.resource_type,
                     )
+                    break
         if primitives_to_create:
             print("Primitives to create:")
             print("---------------------")
