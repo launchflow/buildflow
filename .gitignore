@@ -7,6 +7,7 @@ buildflow.yaml
 !buildflow/samples/csv_bigquery_walkthrough/buildflow.yaml
 !release_tests/pubsub_to_pubsub/buildflow.yaml
 !release_tests/sqs_to_sqs/buildflow.yaml
+!release_tests/s3_to_bigquery/buildflow.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
