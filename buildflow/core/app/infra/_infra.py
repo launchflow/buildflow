@@ -6,7 +6,7 @@ from buildflow.core.options.infra_options import InfraOptions
 class InfraStatus(enum.Enum):
     IDLE = enum.auto()
     REFRESHING = enum.auto()
-    PLANNING = enum.auto()
+    PREVIEWING = enum.auto()
     APPLYING = enum.auto()
     DESTROYING = enum.auto()
 
@@ -19,8 +19,8 @@ class Infra:
         raise NotImplementedError("refresh not implemented")
 
     async def preview(self):
-        """Returns a plan for the infrastructure."""
-        raise NotImplementedError("plan not implemented")
+        """Returns a preview for the infrastructure."""
+        raise NotImplementedError("preview not implemented")
 
     async def apply(self):
         """Applies the plan to the infrastructure."""
