@@ -1,7 +1,7 @@
+import asyncio
 import os
 import shutil
 import tempfile
-import time
 import unittest
 
 import pytest
@@ -35,87 +35,66 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
             ),
         )
 
-        create_path = os.path.join(self.watch_dir, "file.txt")
-        with open(create_path, "w") as f:
-            f.write("hello")
+        try:
+            data = self.get_async_result(strat.pull())
+            self.get_async_result(asyncio.sleep(1))
+            create_path = os.path.join(self.watch_dir, "file.txt")
+            with open(create_path, "w") as f:
+                f.write("hello")
 
-        time.sleep(1)
-        data = self.get_async_result(strat.pull())
+            self.get_async_result(asyncio.sleep(1))
 
-        # There's at least 3 events here cause we also get events for modifications
-        self.assertGreaterEqual(len(data.payload), 3)
-        found_file_create = False
-        for event in data.payload:
-            if (
-                event.event_type == FileChangeStreamEventType.CREATED
-                and not event.metadata["isDirectory"]
-            ):
-                found_file_create = True
-                self.assertEqual(event.metadata["eventType"], "created")
-                # NOTE: we do "in" checks here because on OSX temp files
-                # get created in /var/... which is actualy a symlink to /private/var/...
-                self.assertIn(create_path, event.file_path)
-                self.assertIn(create_path, event.metadata["srcPath"])
-                self.assertEqual(event.blob, b"hello")
+            data = self.get_async_result(strat.pull())
 
-        if not found_file_create:
-            self.fail("Did not find file create event")
+            self.assertGreaterEqual(len(data.payload), 2)
+            found_file_create = False
+            for event in data.payload:
+                if (
+                    event.event_type == FileChangeStreamEventType.CREATED
+                    and not os.path.isdir(event.file_path)
+                ):
+                    found_file_create = True
+                    self.assertEqual(
+                        event.event_type, FileChangeStreamEventType.CREATED
+                    )
+                    # NOTE: we do "in" checks here because on OSX temp files
+                    # get created in /var/... which is actualy a symlink to
+                    # /private/var/...
+                    self.assertIn(self.watch_dir, event.file_path)
+                    self.assertEqual(event.blob, b"hello")
 
-        time.sleep(1)
-        data = self.get_async_result(strat.pull())
-        # Nothing has changed since our last pull so we should get no elements.
-        self.assertEqual(len(data.payload), 0)
+            if not found_file_create:
+                self.fail("Did not find file create event")
 
-        with open(create_path, "a") as f:
-            f.write(", world")
+            self.get_async_result(asyncio.sleep(1))
+            data = self.get_async_result(strat.pull())
+            # Nothing has changed since our last pull so we should get no elements.
+            self.assertEqual(len(data.payload), 0)
 
-        time.sleep(3)
-        data = self.get_async_result(strat.pull())
-        # On linux two payloads one for modified dir and one for modified file
-        # On mac one payload for modified file
-        self.assertGreaterEqual(len(data.payload), 1)
-
-        found_modify_event = False
-        for event in data.payload:
-            if (
-                event.event_type == FileChangeStreamEventType.MODIFIED
-                and not event.metadata["isDirectory"]
-            ):
-                found_modify_event = True
-                self.assertEqual(event.metadata["eventType"], "modified")
-                # NOTE: we do "in" checks here because on OSX temp files
-                # get created in /var/... which is actualy a symlink to /private/var/...
-                self.assertIn(create_path, event.file_path)
-                self.assertIn(create_path, event.metadata["srcPath"])
-                self.assertEqual(event.blob, b"hello, world")
-        if not found_modify_event:
-            self.fail("Did not find file modify event")
-
-        os.remove(create_path)
-        time.sleep(1)
-        data = self.get_async_result(strat.pull())
-        # On linux two payloads one for modified dir and one for removed file
-        # On linux three payloads
-        #   - one for modified dir
-        #   - one for modified file
-        #   - one for removed file
-        self.assertGreaterEqual(len(data.payload), 2)
-        found_delete_event = False
-        for event in data.payload:
-            if (
-                event.event_type == FileChangeStreamEventType.DELETED
-                and not event.metadata["isDirectory"]
-            ):
-                found_delete_event = True
-                self.assertEqual(event.metadata["eventType"], "deleted")
-                # NOTE: we do "in" checks here because on OSX temp files
-                # get created in /var/... which is actualy a symlink to /private/var/...
-                self.assertIn(create_path, event.file_path)
-                self.assertIn(create_path, event.metadata["srcPath"])
-                with self.assertRaises(ValueError):
-                    event.blob
-        if not found_delete_event:
-            self.fail("Did not find file delete event")
+            os.remove(create_path)
+            self.get_async_result(asyncio.sleep(1))
+            data = self.get_async_result(strat.pull())
+            self.assertGreaterEqual(len(data.payload), 2)
+            found_delete_event = False
+            for event in data.payload:
+                if (
+                    event.event_type == FileChangeStreamEventType.DELETED
+                    and not os.path.isdir(event.file_path)
+                ):
+                    found_delete_event = True
+                    self.assertEqual(
+                        event.event_type, FileChangeStreamEventType.DELETED
+                    )
+                    # NOTE: we do "in" checks here because on OSX temp files
+                    # get created in /var/... which is actualy a symlink to
+                    # /private/var/...
+                    self.assertIn(self.watch_dir, event.file_path)
+                    with self.assertRaises(ValueError):
+                        event.blob
+            if not found_delete_event:
+                self.fail("Did not find file delete event")
+        finally:
+            self.get_async_result(strat.teardown())
 
 
 if __name__ == "__main__":

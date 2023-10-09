@@ -45,16 +45,11 @@ class LocalFileChangeStreamSource(SourceStrategy):
 
     async def setup(self):
         # TODO: we have to do this to ensure the observer isn't setup twice.
-        self._setup_called = True
         self.event_queue = []
         async for change in awatch(self.file_path):
             for event, file_path in change:
                 if event.name in self.event_types:
                     metadata = {"event_type": event, "src_path": file_path}
-                    if event.name == "added" or event.name == "modified":
-                        # add a sleep to ensure that the file is fully written
-                        print("DO NOT SUBMIT: waiting")
-                        await asyncio.sleep(5)
                     with self.lock:
                         self.event_queue.append(
                             LocalFileChangeEvent(
@@ -63,6 +58,14 @@ class LocalFileChangeStreamSource(SourceStrategy):
                                 metadata=metadata,
                             )
                         )
+
+    async def teardown(self):
+        if self._setup_task is not None:
+            self._setup_task.cancel()
+            try:
+                await self._setup_task
+            except asyncio.CancelledError:
+                pass
 
     async def pull(self) -> PullResponse:
         if self._setup_task is None:
