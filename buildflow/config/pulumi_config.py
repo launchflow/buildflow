@@ -7,6 +7,12 @@ from pulumi import automation as auto
 from buildflow.config._config import Config
 
 
+def removeprefix(text: str, prefix: str) -> str:
+    if text.startswith(prefix):
+        return text[len(prefix) :]
+    return text
+
+
 @dataclasses.dataclass
 class PulumiStack(Config):
     name: str
@@ -24,7 +30,7 @@ class PulumiStack(Config):
     @property
     def full_backend_url(self) -> str:
         if self.backend_url.startswith("file://"):
-            base_path = self.backend_url.removeprefix("file://")
+            base_path = removeprefix(self.backend_url, "file://")
             abspath = os.path.abspath(base_path)
             return f"file://{abspath}"
         return self.backend_url
@@ -50,7 +56,7 @@ class PulumiConfig:
             os.makedirs(self.full_pulumi_home, exist_ok=True)
         for stack in self.stacks:
             if stack.backend_url.startswith("file://"):
-                base_path = stack.backend_url.removeprefix("file://")
+                base_path = removeprefix(self.backend_url, "file://")
                 abspath = os.path.abspath(base_path)
                 if not os.path.exists(abspath):
                     os.makedirs(abspath, exist_ok=True)
