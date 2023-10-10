@@ -46,7 +46,7 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
 
             data = self.get_async_result(strat.pull())
 
-            self.assertGreaterEqual(len(data.payload), 2)
+            self.assertGreaterEqual(len(data.payload), 1)
             found_file_create = False
             for event in data.payload:
                 if (

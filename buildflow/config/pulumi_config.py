@@ -56,7 +56,7 @@ class PulumiConfig:
             os.makedirs(self.full_pulumi_home, exist_ok=True)
         for stack in self.stacks:
             if stack.backend_url.startswith("file://"):
-                base_path = removeprefix(self.backend_url, "file://")
+                base_path = removeprefix(stack.backend_url, "file://")
                 abspath = os.path.abspath(base_path)
                 if not os.path.exists(abspath):
                     os.makedirs(abspath, exist_ok=True)

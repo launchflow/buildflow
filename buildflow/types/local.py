@@ -12,6 +12,8 @@ class FileChangeStreamEventType(enum.Enum):
     @classmethod
     def from_portable_type(cls, portable_type: PortableFileChangeEventType):
         try:
+            if portable_type == PortableFileChangeEventType.CREATED:
+                return cls.CREATED
             return cls(portable_type.value)
         except ValueError:
             raise ValueError(
