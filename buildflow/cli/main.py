@@ -324,10 +324,8 @@ def init(
     os.mkdir(project_lib_dir)
     open(os.path.join(project_lib_dir, "__init__.py"), "w").close()
 
-    # Create the base resources folder
-    resources_folder = os.path.join(project_lib_dir, "resources")
-    os.mkdir(resources_folder)
-    open(os.path.join(resources_folder, "__init__.py"), "w").close()
+    # Create the primitives module
+    open(os.path.join(project_folder, "primitives.py"), "w").close()
 
     # Create the base processors folder
     processors_folder = os.path.join(project_lib_dir, "processors")
