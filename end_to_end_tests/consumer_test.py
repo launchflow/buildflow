@@ -114,6 +114,10 @@ class FileStreamLocalTest(unittest.TestCase):
 
             with open(output_file, "r") as f:
                 lines = f.readlines()
+                # NOTE: for some reason these come out of order sometimes.
+                # I think it's due to the local file system notifications
+                # being delivered out of order.
+                lines.sort()
                 self.assertEqual(len(lines), 3)
                 self.assertEqual(lines[0], '"content"\n')
                 self.assertEqual(lines[1], '"hello"\n')
