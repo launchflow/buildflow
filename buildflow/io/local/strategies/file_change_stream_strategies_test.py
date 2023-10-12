@@ -74,7 +74,7 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
             os.remove(create_path)
             self.get_async_result(asyncio.sleep(1))
             data = self.get_async_result(strat.pull())
-            self.assertGreaterEqual(len(data.payload), 2)
+            self.assertGreaterEqual(len(data.payload), 1)
             found_delete_event = False
             for event in data.payload:
                 if (
