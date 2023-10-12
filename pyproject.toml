@@ -55,7 +55,6 @@ dependencies = [
     "ray[serve]>=2.4.0",
     "typer",
     "redis",
-    "watchdog",
     "watchfiles",
 ]
 classifiers = [

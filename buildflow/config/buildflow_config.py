@@ -1,6 +1,6 @@
 import dataclasses
 import os
-from typing import Optional
+from typing import List, Optional
 
 import dacite
 
@@ -18,6 +18,7 @@ class BuildFlowConfig(Config):
     pulumi_config: PulumiConfig
     entry_point: str
     cloud_provider_config: Optional[CloudProviderConfig]
+    build_ignores: List[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def default(cls, *, directory: str, project: str) -> "BuildFlowConfig":
@@ -67,6 +68,7 @@ class BuildFlowConfig(Config):
             pulumi_config=pulumi_config,
             cloud_provider_config=cloud_provider_config,
             entry_point=config_dict["entry_point"],
+            build_ignores=config_dict.get("build_ignores", []),
         )
 
     def dump(self, directory: str):
@@ -76,6 +78,7 @@ class BuildFlowConfig(Config):
             "project": self.project,
             "pulumi_config": pulumi_dict,
             "entry_point": self.entry_point,
+            "build_ignores": self.build_ignores,
         }
         if self.cloud_provider_config is not None:
             cloud_provider_dict = self.cloud_provider_config.asdict()

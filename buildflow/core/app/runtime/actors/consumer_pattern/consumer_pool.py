@@ -136,6 +136,9 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
         processor_snapshots: Dict[str, ConsumerProcessorSnapshot] = {}
         for processor in self.processor_group.processors:
             processor_id = processor.processor_id
+            # TODO: this causes the source to get instantiated which we probably
+            # don't want. Ideally we would have some abstraction for
+            # fetching the backlog.
             source_backlog = await processor.source().backlog()
             self.current_backlog_gauge.set(
                 source_backlog, tags={"processor_id": processor_id}
