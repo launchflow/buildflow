@@ -10,8 +10,8 @@ mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
 
 final_output=1
-buildflow plan || {
-    echo 'plan failed'
+buildflow preview || {
+    echo 'preview failed'
     exit 1
 }
 buildflow apply || {
