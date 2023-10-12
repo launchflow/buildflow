@@ -24,7 +24,7 @@ def BucketDependencyBuilder(
                     quota_project_id=gcp_quota_project_id,
                 )
                 storage_client = clients.get_storage_client(gcp_quota_project_id)
-                self.bucket = storage_client.get_bucket(bucket.bucket_name)
+                self.bucket = storage_client.bucket(bucket.bucket_name)
 
             elif isinstance(bucket, S3Bucket):
                 clients = AWSClients(flow_credentials.aws_credentials, aws_region)
