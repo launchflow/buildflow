@@ -170,7 +170,10 @@ _BUILD_PATH_HELP = "Output director to store the build in, defaults to ./.buildf
 @app.command(help="Build a buildflow flow.")
 def build(
     build_path: str = typer.Option("", help=_BUILD_PATH_HELP),
-    exclude_dirs: List[str] = typer.Option([], help="Paths to exclude from the build"),
+    ignores: List[str] = typer.Option(
+        [],
+        help="Files to ignore when building, these can be the same syntax as .gitignore",  # noqa
+    ),  # noqa
 ):
     buildflow_config = BuildFlowConfig.load()
     sys.path.insert(0, "")
@@ -180,7 +183,7 @@ def build(
     build_path = os.path.abspath(build_path)
     path = pathlib.Path(build_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    final_excludes = _BASE_EXCLUDE + exclude_dirs
+    final_excludes = _BASE_EXCLUDE + ignores + buildflow_config.build_ignores
     print(f"Generating buildflow build at:\n  {build_path}")
     if isinstance(imported, (buildflow.Flow)):
         flowstate = imported.flowstate()
@@ -324,10 +327,8 @@ def init(
     os.mkdir(project_lib_dir)
     open(os.path.join(project_lib_dir, "__init__.py"), "w").close()
 
-    # Create the base resources folder
-    resources_folder = os.path.join(project_lib_dir, "resources")
-    os.mkdir(resources_folder)
-    open(os.path.join(resources_folder, "__init__.py"), "w").close()
+    # Create the primitives module
+    open(os.path.join(project_folder, "primitives.py"), "w").close()
 
     # Create the base processors folder
     processors_folder = os.path.join(project_lib_dir, "processors")

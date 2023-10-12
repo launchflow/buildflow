@@ -62,10 +62,10 @@ Below the root level we have:
 
 **{project_dir}**
 
-This is the directory where your project code lives. You can put any files you want in here and they will be available to your project. We create a couple directories for you:
+This is the directory where your project code lives. You can put any files you want in here and they will be available to your project. We create a couple directories and files for you:
 
 - **processors**: This is where you can put any custom processors you want to use in your project. In here you will see we have defined a *service.py* for a service in your project and a *hello_world.py* file for a custom endpoint processor.
-- **resources**: This is where you can define any custom primitive resources that your project will need. Note it is empty right now since your initial project is so simple.
+- **primitives.py**: This is where you can define any custom primitive resources that your project will need. Note it is empty right now since your initial project is so simple.
 
 **.buildflow**
 

@@ -31,8 +31,8 @@ class GCPCredentials(Credentials):
                 return creds
             except exceptions.DefaultCredentialsError:
                 # if we failed to fetch the credentials fall back to anonymous
-                # credentials. This shouldn't normally happen, but can happen if
-                # user is running on a machine with now default creds.
+                # credentials. This can happen if a
+                # user is running in an environment with now default creds.
                 logging.warning(
                     "no default credentials found, using anonymous credentials"
                 )

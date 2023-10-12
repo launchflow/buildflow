@@ -4,7 +4,7 @@ import unittest
 
 import boto3
 import pytest
-from moto import mock_sqs
+from moto import mock_sqs, mock_sts
 
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.options.credentials_options import CredentialsOptions
@@ -31,6 +31,7 @@ class SqsStrategiesTest(unittest.TestCase):
         self.creds = AWSCredentials(CredentialsOptions.default())
 
     @mock_sqs
+    @mock_sts
     def test_sqs_sink_push(self):
         self.queue_url = self._create_queue(self.queue_name, self.region)
         sink = SQSSink(
@@ -56,6 +57,7 @@ class SqsStrategiesTest(unittest.TestCase):
         self.assertEqual(len(messages), 12)
 
     @mock_sqs
+    @mock_sts
     def test_sqs_source_pull(self):
         self.queue_url = self._create_queue(self.queue_name, self.region)
         sink = SQSSink(

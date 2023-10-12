@@ -20,7 +20,7 @@ def aws_provider(
     # but pulumi doesn't like it when a provider is created in a different
     # scope then used.
     return pulumi_aws.Provider(
-        provider_id,
+        resource_name=provider_id,
         region=aws_region,
         allowed_account_ids=allowed_account_ids,
     )
