@@ -7,8 +7,8 @@ cd release_tests/sqs_to_sqs
 mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
 
-buildflow plan || {
-    echo 'plan failed'
+buildflow preview || {
+    echo 'preview failed'
     exit 1
 }
 
