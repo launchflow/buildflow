@@ -616,7 +616,7 @@ class Flow:
         num_replicas: int = 1,
         min_replicas: int = 1,
         max_replicas: int = 1000,
-        target_num_ongoing_requests_per_replica: int = 80,
+        target_num_ongoing_requests_per_replica: int = 1,
         log_level: str = "INFO",
     ):
         autoscale_options = AutoscalerOptions(
@@ -655,17 +655,21 @@ class Flow:
         *,
         service_id: str = utils.uuid(),
         num_cpus: float = 1.0,
+        num_gpus: float = 0.0,
+        max_concurrent_queries: int = 100,
         enable_autoscaler: bool = True,
         num_replicas: int = 1,
         min_replicas: int = 1,
         max_replicas: int = 1000,
-        target_num_ongoing_requests_per_replica: int = 80,
+        target_num_ongoing_requests_per_replica: int = 1,
         log_level: str = "INFO",
     ):
         service = Service(
             base_route=base_route,
             num_cpus=num_cpus,
+            num_gpus=num_gpus,
             enable_autoscaler=enable_autoscaler,
+            max_concurrent_queries=max_concurrent_queries,
             num_replicas=num_replicas,
             min_replics=min_replicas,
             max_replicas=max_replicas,
@@ -696,6 +700,8 @@ class Flow:
                 ),
                 options=ProcessorOptions(
                     num_cpus=service.num_cpus,
+                    num_gpus=service.num_gpus,
+                    max_concurrent_queries=service.max_concurrent_queries,
                     num_concurrency=1,
                     log_level=service.log_level,
                     autoscaler_options=service.autoscale_options,

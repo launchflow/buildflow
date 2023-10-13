@@ -85,13 +85,17 @@ class ReceiveProcessRespond(Runtime):
 
         @serve.deployment(
             route_prefix=self.processor_group.base_route,
-            ray_actor_options={"num_cpus": self.processor_options.num_cpus},
+            ray_actor_options={
+                "num_cpus": self.processor_options.num_cpus,
+                "num_gpus": self.processor_options.num_gpus,
+            },
             autoscaling_config={
                 "min_replicas": self.processor_options.autoscaler_options.min_replicas,
                 "initial_replicas": self.processor_options.autoscaler_options.num_replicas,  # noqa: E501
                 "max_replicas": self.processor_options.autoscaler_options.max_replicas,
                 "target_num_ongoing_requests_per_replica": self.processor_options.autoscaler_options.target_num_ongoing_requests_per_replica,  # noqa: E501
             },
+            max_concurrent_queries=self.processor_options.max_concurrent_queries,
         )
         @serve.ingress(app)
         class FastAPIWrapper:
