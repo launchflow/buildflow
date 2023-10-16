@@ -134,3 +134,6 @@ dmypy.json
 
 # local vscode config
 .vscode/
+
+# local pycharm config
+.idea/

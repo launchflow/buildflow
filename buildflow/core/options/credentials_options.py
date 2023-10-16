@@ -34,13 +34,30 @@ class AWSCredentialsOptions(Options):
 
 
 @dataclasses.dataclass
+class ClickhouseCredentialsOptions(Options):
+    host: Optional[str]
+    username: Optional[str]
+    password: Optional[str]
+
+    @classmethod
+    def default(cls) -> "ClickhouseCredentialsOptions":
+        return cls(
+            host="localhost",
+            username="username",
+            password="password",
+        )
+
+
+@dataclasses.dataclass
 class CredentialsOptions(Options):
     gcp_credentials_options: GCPCredentialsOptions
     aws_credentials_options: AWSCredentialsOptions
+    clickhouse_credentials_options: ClickhouseCredentialsOptions
 
     @classmethod
     def default(cls) -> "CredentialsOptions":
         return cls(
             gcp_credentials_options=GCPCredentialsOptions.default(),
             aws_credentials_options=AWSCredentialsOptions.default(),
+            clickhouse_credentials_options=ClickhouseCredentialsOptions.default(),
         )
