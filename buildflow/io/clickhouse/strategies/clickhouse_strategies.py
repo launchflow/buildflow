@@ -21,7 +21,7 @@ class ClickhouseSink(SinkStrategy):
         database: ClickhouseDatabase,
         table: ClickhouseTableID,
     ):
-        super().__init__(credentials=credentials, strategy_id="local-clickhouse-sink")
+        super().__init__(credentials=credentials, strategy_id="clickhouse-sink")
         self.client = None
         self.database = database
         self.table = table
@@ -36,6 +36,10 @@ class ClickhouseSink(SinkStrategy):
                     username=credentials.username,
                     password=credentials.password,
                 )
+                self.client.command(
+                    f"CREATE DATABASE IF NOT EXISTS {self.database} ENGINE = Memory"
+                )
+                self.client.command(f'USE "{self.database}"')
                 break
             except clickhouse_connect.driver.exceptions.Error:
                 logging.exception("failed to connect to clickhouse database")

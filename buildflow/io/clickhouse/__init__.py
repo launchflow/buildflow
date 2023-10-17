@@ -1,2 +1,2 @@
 # ruff: noqa
-from .clickhouse import clickhouse
+from .clickhouse import ClickhouseTable

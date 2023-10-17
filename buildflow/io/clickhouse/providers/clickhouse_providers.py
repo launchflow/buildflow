@@ -1,5 +1,5 @@
 from buildflow.core.credentials import ClickhouseCredentials
-from buildflow.core.types.clickhouse_types import ClickhouseDatabase, ClickhouseTable
+from buildflow.core.types.clickhouse_types import ClickhouseDatabase, ClickhouseTableID
 from buildflow.io.clickhouse.strategies.clickhouse_strategies import ClickhouseSink
 from buildflow.io.provider import SinkProvider
 
@@ -9,7 +9,7 @@ class ClickhouseProvider(SinkProvider):
         self,
         *,
         database: ClickhouseDatabase,
-        table: ClickhouseTable,
+        table: ClickhouseTableID,
         # source-only options
         # sink-only options
         # pulumi-only options
