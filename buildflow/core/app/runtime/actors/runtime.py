@@ -143,7 +143,7 @@ class RuntimeActor(Runtime):
             )
             self._processor_group_pool_refs.append(process_group_pool_ref)
 
-        self._runtime_loop_future = self._runtime_checkin_loop()
+        self._runtime_loop_future = self._runtime_checkin_loop(serve_host, serve_port)
 
     async def drain(self, as_reload: bool = False) -> bool:
         if (
@@ -208,7 +208,7 @@ class RuntimeActor(Runtime):
     def is_active(self):
         return self._status != RuntimeStatus.IDLE
 
-    async def _runtime_checkin_loop(self):
+    async def _runtime_checkin_loop(self, serve_host: str, serve_port: int):
         logging.info("Runtime checkin loop started...")
         last_autoscale_event = time.monotonic()
         # We keep running the loop while the job is running or draining to ensure
@@ -231,7 +231,9 @@ class RuntimeActor(Runtime):
                     if self._status == RuntimeStatus.RUNNING:
                         # Only restart if we are running, otherwise we are draining
                         new_processor_ref = self._start_processor_group(
-                            processor_pool.processor_group
+                            processor_pool.processor_group,
+                            serve_host=serve_host,
+                            serve_port=serve_port,
                         )
                         processor_pool.actor_handle = new_processor_ref.actor_handle
                 processor_options = self.options.processor_options[
