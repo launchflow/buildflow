@@ -62,6 +62,8 @@ class CollectorProcessorPoolActor(ProcessorGroupReplicaPoolActor):
         processor_group: ProcessorGroup[CollectorProcessor],
         processor_options: ProcessorOptions,
         flow_dependencies: Dict[Type, Any],
+        serve_host: str,
+        serve_port: int,
     ) -> None:
         super().__init__(run_id, processor_group, processor_options, flow_dependencies)
         # We only want one replica in the pool, we will start the ray serve
@@ -69,6 +71,8 @@ class CollectorProcessorPoolActor(ProcessorGroupReplicaPoolActor):
         self.initial_replicas = 1
         self.processor_group = processor_group
         self.replica_actor_handle = None
+        self.serve_host = serve_host
+        self.serve_port = serve_port
 
     async def scale(self):
         # Collector processors are automatically scaled by ray server.
@@ -82,6 +86,8 @@ class CollectorProcessorPoolActor(ProcessorGroupReplicaPoolActor):
             processor_options=self.options,
             log_level=self.options.log_level,
             flow_dependencies=self.flow_dependencies,
+            serve_host=self.serve_host,
+            serve_port=self.serve_port,
         )
 
         return ReplicaReference(
@@ -100,8 +106,8 @@ class CollectorProcessorPoolActor(ProcessorGroupReplicaPoolActor):
                 total_events_processed_per_sec = metrics.events_processed_per_sec
                 avg_process_time_millis_per_element = metrics.avg_process_time_millis
                 processor_snapshots[pid] = CollectorProcessorMetrics(
-                    metrics.processor_id,
-                    metrics.processor_type,
+                    pid,
+                    ProcessorType.COLLECTOR,
                     total_events_processed_per_sec,
                     avg_process_time_millis_per_element,
                 )

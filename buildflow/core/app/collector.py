@@ -28,7 +28,8 @@ def collector(
     num_replicas: int = 1,
     min_replicas: int = 1,
     max_replicas: int = 1000,
-    target_num_ongoing_requests_per_replica: int = 80,
+    target_num_ongoing_requests_per_replica: int = 1,
+    max_concurrent_queries: int = 100,
     log_level: str = "INFO",
 ):
     autoscale_options = AutoscalerOptions(
@@ -37,6 +38,7 @@ def collector(
         min_replicas=min_replicas,
         max_replicas=max_replicas,
         target_num_ongoing_requests_per_replica=target_num_ongoing_requests_per_replica,
+        max_concurrent_queries=max_concurrent_queries,
     )
 
     def decorator_function(original_fn_or_class):
