@@ -36,7 +36,9 @@ class EndpointGroup(ProcessorGroup[EndpointProcessor]):
         group_id: GroupID,
         processors: List[EndpointProcessor],
         base_route: Route = "/",
+        middleware: List = [],
     ):
         super().__init__(group_id, processors)
         self.base_route = base_route
         self._processor_map = {p.processor_id: p for p in processors}
+        self.middleware = middleware

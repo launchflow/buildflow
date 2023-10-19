@@ -43,16 +43,13 @@ class GCSTest(unittest.TestCase):
         ).options(bucket_region="US")
         gcs_bucket.enable_managed()
 
-        bucket_resource = gcs_bucket.pulumi_provider().pulumi_resource(
-            credentials=EmptyCredentials(None),
+        bucket_resources = gcs_bucket.pulumi_resources(
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
 
-        self.assertIsNotNone(bucket_resource)
-
-        child_resources = bucket_resource._childResources
-        self.assertEqual(len(child_resources), 1)
-        self.assertIsInstance(list(child_resources)[0], pulumi_gcp.storage.Bucket)
+        self.assertEqual(len(bucket_resources), 1)
+        self.assertIsInstance(bucket_resources[0], pulumi_gcp.storage.Bucket)
 
 
 if __name__ == "__main__":

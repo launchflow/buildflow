@@ -3,7 +3,7 @@ import dataclasses
 import logging
 import os
 import time
-from typing import Dict
+from typing import Any, Dict, Type
 
 import psutil
 import ray
@@ -20,6 +20,11 @@ from buildflow.core.app.runtime.metrics import (
 from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.core.processor.processor import ProcessorGroup
 from buildflow.core.processor.utils import process_types
+from buildflow.dependencies.base import (
+    Scope,
+    initialize_dependencies,
+    resolve_dependencies,
+)
 
 # TODO: Explore the idea of letting this class autoscale the number of threads
 # it runs dynamically. Related: What if every implementation of RuntimeAPI
@@ -79,6 +84,7 @@ class PullProcessPushActor(Runtime):
         processor_group: ProcessorGroup[ConsumerProcessor],
         *,
         replica_id: ReplicaID,
+        flow_dependencies: Dict[Type, Any],
         log_level: str = "INFO",
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
@@ -88,6 +94,7 @@ class PullProcessPushActor(Runtime):
         # setup
         self.run_id = run_id
         self.processor_group = processor_group
+        self.flow_dependencies = flow_dependencies
 
         # validation
         # TODO: Validate that the schemas & types are all compatible
@@ -108,6 +115,10 @@ class PullProcessPushActor(Runtime):
         for processor in self.processor_group.processors:
             processor_id = processor.processor_id
             processor.setup()
+            initialize_dependencies(
+                processor.dependencies(), flow_dependencies, [Scope.REPLICA]
+            )
+
             self.num_events_processed[processor_id] = num_events_processed(
                 processor_id=processor_id,
                 job_id=job_id,
@@ -184,15 +195,18 @@ class PullProcessPushActor(Runtime):
         pid = os.getpid()
         proc = psutil.Process(pid)
 
-        input_type, output_type = process_types(processor)
+        input_types, output_type = process_types(processor)
+        if len(input_types) != 1:
+            raise ValueError("At least one input type must be specified for consumers")
+        input_type = input_types[0]
         source = processor.source()
         sink = processor.sink()
-        pull_converter = source.pull_converter(input_type)
+        pull_converter = source.pull_converter(input_type.arg_type)
         push_converter = sink.push_converter(output_type)
         process_fn = processor.process
 
-        async def process_element(element):
-            results = await process_fn(pull_converter(element))
+        async def process_element(element, *args, **kwargs):
+            results = await process_fn(pull_converter(element), *args, **kwargs)
             if results is None:
                 # Exclude none results
                 return
@@ -234,7 +248,10 @@ class PullProcessPushActor(Runtime):
             try:
                 coros = []
                 for element in response.payload:
-                    coros.append(process_element(element))
+                    dependency_args = dependency_args = resolve_dependencies(
+                        processor.dependencies(), self.flow_dependencies
+                    )
+                    coros.append(process_element(element, **dependency_args))
                 flattened_results = await asyncio.gather(*coros)
                 batch_results = []
                 for results in flattened_results:

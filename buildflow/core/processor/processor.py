@@ -2,6 +2,7 @@ import enum
 from typing import Generic, List, TypeVar
 
 from buildflow.core.background_tasks.background_task import BackgroundTask
+from buildflow.dependencies.base import DependencyWrapper
 
 
 class ProcessorType(enum.Enum):
@@ -30,6 +31,9 @@ class ProcessorAPI:
 
     async def teardown(self):
         raise NotImplementedError("teardown not implemented for Processor")
+
+    def dependencies(self) -> List[DependencyWrapper]:
+        raise NotImplementedError("dependencies not implemented for Processor")
 
 
 T = TypeVar("T", bound=ProcessorAPI)

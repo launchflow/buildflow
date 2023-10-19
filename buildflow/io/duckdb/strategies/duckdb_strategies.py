@@ -21,7 +21,7 @@ class DuckDBSink(SinkStrategy):
         database: DuckDBDatabase,
         table: DuckDBTableID,
     ):
-        super().__init__(credentials=credentials, strategy_id="local-duckdb-sink")
+        super().__init__(credentials=credentials, strategy_id="duckdb-sink")
         self.database = database
         self.table = table
 

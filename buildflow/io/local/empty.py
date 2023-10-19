@@ -1,23 +1,17 @@
 import dataclasses
 
 from buildflow.config.cloud_provider_config import LocalOptions
-from buildflow.io.local.providers.empty_provider import EmptyProvider
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
+from buildflow.core.utils import uuid
+from buildflow.io.local.strategies.empty_strategies import EmptySink
 from buildflow.io.primitive import LocalPrimtive
 
 
 @dataclasses.dataclass
-class Empty(
-    LocalPrimtive[
-        # Pulumi provider type
-        None,
-        # Source provider type
-        None,
-        # Sink provider type
-        EmptyProvider,
-        # Background task provider type
-        None,
-    ]
-):
+class Empty(LocalPrimtive):
+    def primitive_id(self):
+        return uuid()
+
     @classmethod
     def from_local_options(
         cls,
@@ -25,5 +19,5 @@ class Empty(
     ) -> "Empty":
         return cls()
 
-    def sink_provider(self) -> EmptyProvider:
-        return EmptyProvider()
+    def sink(self, credentials: EmptyCredentials) -> EmptySink:
+        return EmptySink(credentials)

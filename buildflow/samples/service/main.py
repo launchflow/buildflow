@@ -1,7 +1,8 @@
-import asyncio
+import time
 from dataclasses import dataclass
 
 from buildflow import Flow
+from buildflow.dependencies import global_scoped, process_scoped, replica_scoped
 
 
 @dataclass
@@ -17,39 +18,29 @@ class OuptutResponse:
 app = Flow()
 service = app.service()
 
-_model = None
+
+@global_scoped
+class GlobalScoped:
+    def __init__(self):
+        self.global_scoped = "global scoped"
 
 
-async def load_model():
-    global _model
-    if _model is None:
-        await asyncio.sleep(5)
-        _model = "model"
-    return _model
+@replica_scoped
+class Model:
+    def __init__(self, global_scoped: GlobalScoped):
+        self.model = "model"
+
+
+@process_scoped
+class RandomString:
+    def __init__(self, model: Model):
+        self.random_string = str(time.time()) + " " + model.model
 
 
 @service.endpoint(route="/", method="POST")
-async def my_endpoint_processor(input: InputRequest) -> OuptutResponse:
-    print(await load_model())
+async def my_endpoint_processor(
+    input: InputRequest,
+    model: Model,
+    random_string: RandomString,
+) -> OuptutResponse:
     return OuptutResponse(val=input.val + 1)
-
-
-@service.endpoint(route="/diff", method="POST")
-async def my_difft_processor(input: InputRequest) -> OuptutResponse:
-    print(await load_model())
-    return OuptutResponse(val=input.val + 2)
-
-
-service2 = app.service(base_route="/service2")
-
-
-@service2.endpoint(route="/", method="POST")
-async def my_endpoint_processor2(input: InputRequest) -> OuptutResponse:
-    print(await load_model())
-    return OuptutResponse(val=input.val + 1)
-
-
-@service2.endpoint(route="/diff", method="POST")
-async def my_difft_processor2(input: InputRequest) -> OuptutResponse:
-    print(await load_model())
-    return OuptutResponse(val=input.val + 2)

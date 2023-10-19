@@ -1,27 +1,21 @@
 import dataclasses
-from typing import Optional
+from typing import List, Optional
+
+import pulumi
+import pulumi_gcp
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.gcp_types import GCPProjectID, PubSubTopicID, PubSubTopicName
 from buildflow.core.types.portable_types import TopicName
-from buildflow.io.gcp.providers.pubsub_topic import GCPPubSubTopicProvider
+from buildflow.io.gcp.strategies.pubsub_strategies import GCPPubSubTopicSink
 from buildflow.io.primitive import GCPPrimtive
+from buildflow.io.strategies.sink import SinkStrategy
 
 
 @dataclasses.dataclass
-class GCPPubSubTopic(
-    GCPPrimtive[
-        # Pulumi provider type
-        GCPPubSubTopicProvider,
-        # Source provider type
-        None,
-        # Sink provider type
-        GCPPubSubTopicProvider,
-        # Background task provider type
-        None,
-    ]
-):
+class GCPPubSubTopic(GCPPrimtive):
     project_id: GCPProjectID
     topic_name: PubSubTopicName
 
@@ -42,14 +36,27 @@ class GCPPubSubTopic(
             topic_name=topic_name,
         )
 
-    def sink_provider(self) -> GCPPubSubTopicProvider:
-        return GCPPubSubTopicProvider(
+    def sink(self, credentials: GCPCredentials) -> SinkStrategy:
+        return GCPPubSubTopicSink(
+            credentials=credentials,
             project_id=self.project_id,
             topic_name=self.topic_name,
         )
 
-    def _pulumi_provider(self) -> GCPPubSubTopicProvider:
-        return GCPPubSubTopicProvider(
-            project_id=self.project_id,
-            topic_name=self.topic_name,
-        )
+    def primitive_id(self):
+        return f"{self.project_id}/{self.topic_name}"
+
+    def pulumi_resources(
+        self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
+    ) -> List[pulumi.Resource]:
+        return [
+            pulumi_gcp.pubsub.Topic(
+                resource_name=f"{self.project_id}-{self.topic_name}",
+                opts=opts,
+                name=self.topic_name,
+                project=self.project_id,
+            )
+        ]
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/cloudpubsub/topic/detail/{self.topic_name}?project={self.project_id}"

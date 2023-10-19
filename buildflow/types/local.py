@@ -5,14 +5,15 @@ from buildflow.types.portable import FileChangeEvent, PortableFileChangeEventTyp
 
 
 class FileChangeStreamEventType(enum.Enum):
-    CREATED = "created"
+    CREATED = "added"
     DELETED = "deleted"
     MODIFIED = "modified"
-    MOVED = "moved"
 
     @classmethod
     def from_portable_type(cls, portable_type: PortableFileChangeEventType):
         try:
+            if portable_type == PortableFileChangeEventType.CREATED:
+                return cls.CREATED
             return cls(portable_type.value)
         except ValueError:
             raise ValueError(

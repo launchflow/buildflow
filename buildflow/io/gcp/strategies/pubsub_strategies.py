@@ -28,7 +28,7 @@ class _PubsubAckInfo(AckInfo):
     ack_ids: Iterable[str]
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class PubsubMessage:
     data: bytes
     attributes: Dict[str, Any]

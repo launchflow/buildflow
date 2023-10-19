@@ -9,8 +9,7 @@ class AckInfo:
     pass
 
 
-# TODO: Move the dataclass implementation to the provider(s)
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class PullResponse:
     payload: Iterable[Any]
     ack_info: AckInfo

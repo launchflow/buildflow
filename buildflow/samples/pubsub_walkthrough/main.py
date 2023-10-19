@@ -11,6 +11,23 @@ from buildflow.io.gcp import (
     GCPPubSubTopic,
 )
 
+
+# Define an output type for our consumer.
+# By using a dataclass we can ensure our python type hints are validated
+# against the BigQuery table's schema.
+@dataclasses.dataclass
+class TaxiOutput:
+    ride_id: str
+    point_idx: int
+    latitude: float
+    longitude: float
+    timestamp: datetime
+    meter_reading: float
+    meter_increment: float
+    ride_status: str
+    passenger_count: int
+
+
 bigquery_table = os.getenv("BIGQUERY_TABLE", "taxi_rides")
 gcp_project = os.getenv("GCP_PROJECT", "buildflow-internal")
 
@@ -29,23 +46,7 @@ output_table = BigQueryTable(
         project_id=gcp_project, dataset_name="buildflow_pubsub_to_bigquery_test"
     ),
     table_name=bigquery_table,
-).options(destroy_protection=False)
-
-
-# Define an output type for our consumer.
-# By using a dataclass we can ensure our python type hints are validated
-# against the BigQuery table's schema.
-@dataclasses.dataclass
-class TaxiOutput:
-    ride_id: str
-    point_idx: int
-    latitude: float
-    longitude: float
-    timestamp: datetime
-    meter_reading: float
-    meter_increment: float
-    ride_status: str
-    passenger_count: int
+).options(destroy_protection=False, schema=TaxiOutput)
 
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))

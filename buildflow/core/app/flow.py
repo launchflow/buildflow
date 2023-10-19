@@ -1,21 +1,33 @@
 import asyncio
 import dataclasses
-import datetime
 import inspect as type_inspect
 import logging
 import os
 import signal
-from typing import Callable, Dict, List, Optional, Set, Tuple
+import sys
+from typing import Callable, Dict, List, Optional, Tuple
 
 import pulumi
+import ray
 
 from buildflow.config.buildflow_config import BuildFlowConfig
 from buildflow.core import utils
 from buildflow.core.app.collector import Collector
 from buildflow.core.app.consumer import Consumer
 from buildflow.core.app.endpoint import Endpoint
+from buildflow.core.app.flow_state import (
+    CollectorGroupState,
+    CollectorState,
+    ConsumerGroupState,
+    ConsumerState,
+    EndpointState,
+    FlowState,
+    PrimitiveState,
+    ProcessorGroupState,
+    ProcessorState,
+    ServiceState,
+)
 from buildflow.core.app.infra.actors.infra import InfraActor
-from buildflow.core.app.infra.pulumi_workspace import PulumiWorkspace, ResourceState
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor
 from buildflow.core.app.runtime.server import RuntimeServer
@@ -25,6 +37,7 @@ from buildflow.core.credentials._credentials import CredentialType
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.credentials.gcp_credentials import GCPCredentials
+from buildflow.core.infra.buildflow_resource import BuildFlowResource
 from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.options.runtime_options import AutoscalerOptions, ProcessorOptions
 from buildflow.core.processor.patterns.collector import (
@@ -34,21 +47,28 @@ from buildflow.core.processor.patterns.collector import (
 from buildflow.core.processor.patterns.consumer import ConsumerGroup, ConsumerProcessor
 from buildflow.core.processor.patterns.endpoint import EndpointGroup, EndpointProcessor
 from buildflow.core.processor.processor import (
-    ProcessorAPI,
     ProcessorGroup,
-    ProcessorID,
+    ProcessorGroupType,
     ProcessorType,
 )
+from buildflow.dependencies.base import DependencyWrapper, dependency_wrappers
+from buildflow.dependencies.flow_dependencies import FlowCredentials
+from buildflow.exceptions.exceptions import PathNotFoundException
 from buildflow.io.endpoint import Method, Route, RouteInfo
 from buildflow.io.local.empty import Empty
-from buildflow.io.primitive import PortablePrimtive, Primitive, PrimitiveType
+from buildflow.io.primitive import (
+    PortablePrimtive,
+    Primitive,
+    PrimitiveDependency,
+    PrimitiveType,
+)
 from buildflow.io.strategies._strategy import StategyType
 
 
 @dataclasses.dataclass
 class _PrimitiveCacheEntry:
     primitive: Primitive
-    pulumi_resource: pulumi.Resource
+    buildflow_resource: BuildFlowResource
 
 
 @dataclasses.dataclass
@@ -64,11 +84,41 @@ class _PrimitiveCache:
     def get(self, primitive: Primitive):
         for entry in self.cache:
             if entry.primitive == primitive:
-                return entry.pulumi_resource
+                return entry.buildflow_resource
         return None
 
     def clear(self):
         self.cache.clear()
+
+
+def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primitive]:
+    primitives_without_parents = primitives.copy()
+    for primitive in primitives:
+        fields = dataclasses.fields(primitive)
+        for field in fields:
+            field_value = getattr(primitive, field.name)
+            if (
+                field_value is not None
+                and isinstance(field_value, Primitive)
+                and field_value._managed
+            ):
+                primitives_without_parents.remove(field_value)
+    return primitives_without_parents
+
+
+def _find_all_managed_parent_primitives(primitive: Primitive) -> Dict[str, Primitive]:
+    fields = dataclasses.fields(primitive)
+    managed_parents = {}
+    for field in fields:
+        field_value = getattr(primitive, field.name)
+        if (
+            field_value is not None
+            and isinstance(field_value, Primitive)
+            and field_value._managed
+        ):
+            managed_parents[field_value.primitive_id()] = field_value
+            managed_parents.update(_find_all_managed_parent_primitives(field_value))
+    return managed_parents
 
 
 def _get_directory_path_of_caller():
@@ -89,12 +139,6 @@ def _traverse_primitive_for_pulumi(
     initial_opts: pulumi.ResourceOptions,
     visited_primitives: _PrimitiveCache,
 ) -> pulumi.Resource:
-    pulumi_provider = primitive.pulumi_provider()
-    if pulumi_provider is None:
-        raise ValueError(
-            "_traverse_primitive_for_pulumi should never be called with "
-            "an unmanaged primitive."
-        )
     fields = dataclasses.fields(primitive)
     parent_resources = []
     for field in fields:
@@ -102,7 +146,7 @@ def _traverse_primitive_for_pulumi(
         if (
             field_value is not None
             and isinstance(field_value, Primitive)
-            and field_value.pulumi_provider() is not None
+            and field_value._managed
         ):
             visited_resource = visited_primitives.get(field_value)
             # Visit all managed parent primitives to create the parent resources
@@ -121,216 +165,10 @@ def _traverse_primitive_for_pulumi(
     opts = pulumi.ResourceOptions.merge(
         initial_opts, pulumi.ResourceOptions(depends_on=parent_resources)
     )
-    resource = pulumi_provider.pulumi_resource(credentials=credentials, opts=opts)
+
+    resource = BuildFlowResource(primitive, credentials, opts)
     visited_primitives.append(_PrimitiveCacheEntry(primitive, resource))
     return resource
-
-
-def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primitive]:
-    primitives_without_parents = primitives.copy()
-    for primitive in primitives:
-        fields = dataclasses.fields(primitive)
-        for field in fields:
-            field_value = getattr(primitive, field.name)
-            if (
-                field_value is not None
-                and isinstance(field_value, Primitive)
-                and field_value.pulumi_provider() is not None
-            ):
-                primitives_without_parents.remove(field_value)
-    return primitives_without_parents
-
-
-@dataclasses.dataclass
-class PrimitiveState:
-    primitive_class: str
-    resources: List[ResourceState]
-
-    def as_json_dict(self):
-        return {
-            "primitive_class": self.primitive_class,
-            "resources": [r.as_json_dict() for r in self.resources],
-        }
-
-
-@dataclasses.dataclass
-class ProcessorState:
-    processor_id: ProcessorID
-    processor_type: ProcessorType
-    source: Optional[PrimitiveState]
-    sink: Optional[PrimitiveState]
-
-    def as_json_dict(self):
-        return {
-            "processor_id": self.processor_id,
-            "processor_type": self.processor_type,
-            "source": self.source.as_json_dict() if self.source else None,
-            "sink": self.sink.as_json_dict() if self.sink else None,
-        }
-
-
-@dataclasses.dataclass
-class FlowState:
-    flow_id: FlowID
-    processors: List[ProcessorState]
-    untracked_resources: List[ResourceState]
-    last_updated: datetime.datetime
-    num_pulumi_resources: int
-    pulumi_stack_name: str
-
-    @classmethod
-    def parse_resource_states(
-        cls,
-        flow_id: FlowID,
-        processor_refs: List[ProcessorAPI],
-        resource_states: List[ResourceState],
-        last_updated: datetime.datetime,
-        pulumi_stack_name: str,
-    ):
-        def find_attached_resources(
-            parent_resource: ResourceState,
-        ) -> Dict[str, ResourceState]:
-            """Find all attached resources for a given URN."""
-            resources = {}
-            dependencies = []
-            for resource in resource_states:
-                if resource.parent == parent_resource.resource_urn:
-                    if (
-                        resource.cloud_console_url is None
-                        and parent_resource.cloud_console_url is not None
-                    ):
-                        resource.cloud_console_url = parent_resource.cloud_console_url
-                    resources[resource.resource_urn] = resource
-                if resource.resource_urn in parent_resource.dependencies:
-                    dependencies.append(resource)
-
-            for dependency in dependencies:
-                for resource in resource_states:
-                    if dependency.parent == resource.resource_urn:
-                        resources.update(find_attached_resources(resource))
-
-            return resources
-
-        def find_processor_resource(processor_id: str) -> Optional[ResourceState]:
-            """Find the resource for a given processor_id."""
-            # TODO: need to find a different way to do this
-            for resource in resource_states:
-                if (
-                    resource.resource_type == "buildflow:processor:Consumer"
-                    or resource.resource_type == "buildflow:processor:Collector"
-                    or resource.resource_type == "buildflow:processor:Endpoint"
-                ):
-                    if resource.resource_outputs.get("processor_id") == processor_id:
-                        return resource
-            return None
-
-        processors: List[ProcessorState] = []
-        tracked_resources: Set[str] = set()
-        num_pulumi_resources = 0
-
-        # Store the resources in a dict keyed by URN for quick lookup
-        resource_dict = {
-            resource.resource_urn: resource for resource in resource_states
-        }
-
-        for processor_ref in processor_refs:
-            # Get the processor_id and processor_type
-            processor_id = processor_ref.processor_id
-            processor_type = processor_ref.processor_type.value
-            # Look up the source and sink class names
-            source_class = ""
-            source_primitive = processor_ref.__meta__.get("source")
-            if source_primitive:
-                source_class = source_primitive.__class__.__name__
-            sink_class = ""
-            sink_primitive = processor_ref.__meta__.get("sink")
-            if sink_primitive:
-                sink_class = sink_primitive.__class__.__name__
-
-            source_child_resources = []
-            sink_child_resources = []
-            # Look for a resource for this processor_id
-            processor_resource = find_processor_resource(processor_id)
-            if processor_resource is not None:
-                tracked_resources.add(processor_resource.resource_urn)
-
-                source_urn = processor_resource.resource_outputs.get("source_urn", "")
-                source_resource = resource_dict.get(source_urn)
-
-                if source_resource:
-                    source_child_resources = list(
-                        find_attached_resources(source_resource).values()
-                    )
-                    tracked_resources.add(source_urn)
-                    tracked_resources.update(
-                        [res.resource_urn for res in source_child_resources]
-                    )
-                    num_pulumi_resources += len(source_child_resources)
-
-                sink_urn = processor_resource.resource_outputs.get("sink_urn", "")
-                sink_resource = resource_dict.get(sink_urn)
-
-                if sink_resource:
-                    sink_child_resources = list(
-                        find_attached_resources(sink_resource).values()
-                    )
-                    tracked_resources.add(sink_urn)
-                    tracked_resources.update(
-                        [res.resource_urn for res in sink_child_resources]
-                    )
-                    num_pulumi_resources += len(sink_child_resources)
-
-            source = None
-            if source_class:
-                source = PrimitiveState(
-                    primitive_class=source_class,
-                    resources=source_child_resources,
-                )
-
-            sink = None
-            if sink_class:
-                sink = PrimitiveState(
-                    primitive_class=sink_class,
-                    resources=sink_child_resources,
-                )
-
-            processor = ProcessorState(
-                processor_id=processor_id,
-                processor_type=processor_type,
-                source=source,
-                sink=sink,
-            )
-            processors.append(processor)
-
-        untracked_resources = [
-            res for res in resource_states if res.resource_urn not in tracked_resources
-        ]
-        # filter out any resources that are pulumi:providers or pulumi:stack
-        untracked_resources = [
-            res
-            for res in untracked_resources
-            if not res.resource_type.startswith("pulumi:")
-        ]
-        num_pulumi_resources += len(untracked_resources)
-
-        return cls(
-            flow_id=flow_id,
-            processors=processors,
-            untracked_resources=untracked_resources,
-            last_updated=last_updated,
-            num_pulumi_resources=num_pulumi_resources,
-            pulumi_stack_name=pulumi_stack_name,
-        )
-
-    def as_json_dict(self):
-        return {
-            "flow_id": self.flow_id,
-            "last_updated": self.last_updated.isoformat(),
-            "num_pulumi_resources": self.num_pulumi_resources,
-            "pulumi_stack_name": self.pulumi_stack_name,
-            "processors": {p.processor_id: p.as_json_dict() for p in self.processors},
-            "untracked_resources": [r.as_json_dict() for r in self.untracked_resources],
-        }
 
 
 def _lifecycle_functions(
@@ -367,10 +205,7 @@ def _lifecycle_functions(
 def _background_tasks(
     primitive: Primitive, credentials: CredentialType
 ) -> List[BackgroundTask]:
-    provider = primitive.background_task_provider()
-    if provider is not None:
-        return provider.background_tasks(credentials)
-    return []
+    return primitive.background_tasks(credentials)
 
 
 # NOTE: We do this outside of the Flow class to avoid the flow class
@@ -382,6 +217,7 @@ def _consumer_processor(
 ):
     setup, teardown = _lifecycle_functions(consumer.original_process_fn_or_class)
     processor_id = consumer.original_process_fn_or_class.__name__
+    dependencies, _ = dependency_wrappers(consumer.original_process_fn_or_class)
 
     def background_tasks():
         return _background_tasks(
@@ -390,18 +226,17 @@ def _consumer_processor(
 
     # Dynamically define a new class with the same structure as Processor
     class_name = f"ConsumerProcessor{utils.uuid(max_len=8)}"
-    source_provider = consumer.source_primitive.source_provider()
-    sink_provider = consumer.sink_primitive.sink_provider()
     adhoc_methods = {
         # ConsumerProcessor methods.
         # NOTE: We need to instantiate the source and sink strategies
         # in the class to avoid issues passing to ray workers.
-        "source": lambda self: source_provider.source(source_credentials),
-        "sink": lambda self: sink_provider.sink(sink_credentials),
+        "source": lambda self: consumer.source_primitive.source(source_credentials),
+        "sink": lambda self: consumer.sink_primitive.sink(sink_credentials),
         # ProcessorAPI methods. NOTE: process() is attached separately below
         "setup": setup,
         "teardown": teardown,
         "background_tasks": lambda self: background_tasks(),
+        "dependencies": lambda self: dependencies,
         "__meta__": {
             "source": consumer.source_primitive,
             "sink": consumer.sink_primitive,
@@ -439,23 +274,24 @@ def _consumer_processor(
 def _collector_processor(collector: Collector, sink_credentials: CredentialType):
     setup, teardown = _lifecycle_functions(collector.original_process_fn_or_class)
     processor_id = collector.original_process_fn_or_class.__name__
+    dependencies, _ = dependency_wrappers(collector.original_process_fn_or_class)
 
     def background_tasks():
         return _background_tasks(collector.sink_primitive, sink_credentials)
 
     # Dynamically define a new class with the same structure as Processor
     class_name = f"CollectorProcessor{utils.uuid(max_len=8)}"
-    sink_provider = collector.sink_primitive.sink_provider()
     adhoc_methods = {
         # CollectorProcessor methods.
         "route_info": lambda self: RouteInfo(collector.route, collector.method),
         # NOTE: We need to instantiate the sink strategies
         # in the class to avoid issues passing to ray workers.
-        "sink": lambda self: sink_provider.sink(sink_credentials),
+        "sink": lambda self: collector.sink_primitive.sink(sink_credentials),
         # ProcessorAPI methods. NOTE: process() is attached separately below
         "setup": setup,
         "teardown": teardown,
         "background_tasks": lambda self: background_tasks(),
+        "dependencies": lambda self: dependencies,
         "__meta__": {
             "sink": collector.sink_primitive,
         },
@@ -493,6 +329,7 @@ def _endpoint_processor(endpoint: Endpoint, service_id: str):
     setup, teardown = _lifecycle_functions(endpoint.original_process_fn_or_class)
 
     processor_id = endpoint.original_process_fn_or_class.__name__
+    dependencies, _ = dependency_wrappers(endpoint.original_process_fn_or_class)
 
     # Dynamically define a new class with the same structure as Processor
     class_name = f"EndpointProcessor{utils.uuid(max_len=8)}"
@@ -506,6 +343,7 @@ def _endpoint_processor(endpoint: Endpoint, service_id: str):
         "setup": setup,
         "teardown": teardown,
         "background_tasks": lambda self: [],
+        "dependencies": lambda self: dependencies,
         "__meta__": {},
         "__call__": endpoint.original_process_fn_or_class,
     }
@@ -537,17 +375,27 @@ def _endpoint_processor(endpoint: Endpoint, service_id: str):
     return AdHocCollectorProcessorClass(processor_id=processor_id)
 
 
+def _find_primitive_deps(deps: List[DependencyWrapper]) -> List[Primitive]:
+    primitive_deps = []
+    for dep in deps:
+        if isinstance(dep.dependency, PrimitiveDependency):
+            primitive_deps.append(dep.dependency.primitive)
+        for sub_dep in dep.dependency.sub_dependencies:
+            primitive_deps.extend(_find_primitive_deps([sub_dep]))
+    return primitive_deps
+
+
 class Flow:
     def __init__(
         self,
         flow_id: FlowID = "buildflow-app",
         flow_options: Optional[FlowOptions] = None,
     ) -> None:
-        # Load the BuildFlow Config to get the default options
-        buildflow_config_dir = os.path.join(
-            _get_directory_path_of_caller(), ".buildflow"
-        )
-        self.config = BuildFlowConfig.create_or_load(buildflow_config_dir)
+        try:
+            self.config = BuildFlowConfig.load(_get_directory_path_of_caller())
+        except PathNotFoundException:
+            self.config = None
+
         # Flow configuration
         self.flow_id = flow_id
         self.options = flow_options or FlowOptions.default()
@@ -557,12 +405,19 @@ class Flow:
         self._runtime_actor_ref: Optional[RuntimeActor] = None
         # Infra configuration
         self._infra_actor_ref: Optional[InfraActor] = None
-        self._managed_primitives: List[Primitive] = []
+        self._managed_primitives: Dict[str, Primitive] = {}
         self._services: List[Service] = []
+        self.credentials = FlowCredentials(
+            gcp_credentials=GCPCredentials(self.options.credentials_options),
+            aws_credentials=AWSCredentials(self.options.credentials_options),
+        )
+        self.flow_dependencies = {FlowCredentials: self.credentials}
 
     def _pulumi_program(self) -> List[pulumi.Resource]:
         visited_primitives = _PrimitiveCache()
-        start_primitives = _find_primitives_with_no_parents(self._managed_primitives)
+        start_primitives = _find_primitives_with_no_parents(
+            list(self._managed_primitives.values())
+        )
         if not start_primitives:
             raise ValueError(
                 "Unable to build pulumi dependency tree. "
@@ -576,14 +431,23 @@ class Flow:
                 initial_opts=pulumi.ResourceOptions(),
                 visited_primitives=visited_primitives,
             )
-        return [c.pulumi_resource for c in visited_primitives.cache]
+        return [c.buildflow_resource for c in visited_primitives.cache]
 
     def manage(self, *args: Primitive):
         for primitive in args:
             primitive.enable_managed()
-        self._managed_primitives.extend(args)
+            self._managed_primitives[primitive.primitive_id()] = primitive
+
+            self._managed_primitives.update(
+                _find_all_managed_parent_primitives(primitive)
+            )
 
     def _get_infra_actor(self) -> InfraActor:
+        if self.config is None:
+            raise RuntimeError(
+                "Unable to create InfraActor. "
+                "No BuildFlow config found. Did you run `buildflow init`?"
+            )
         if self._infra_actor_ref is None:
             self._infra_actor_ref = InfraActor(
                 infra_options=self.options.infra_options,
@@ -598,20 +462,26 @@ class Flow:
             self._runtime_actor_ref = RuntimeActor.remote(
                 run_id=run_id,
                 runtime_options=self.options.runtime_options,
+                flow_dependencies=self.flow_dependencies,
             )
         return self._runtime_actor_ref
 
     def _get_credentials(self, primitive_type: PrimitiveType):
         if primitive_type == PrimitiveType.GCP:
-            return GCPCredentials(self.options.credentials_options)
+            return self.credentials.gcp_credentials
         elif primitive_type == PrimitiveType.AWS:
-            return AWSCredentials(self.options.credentials_options)
-        return EmptyCredentials(self.options.credentials_options)
+            return self.credentials.aws_credentials
+        return EmptyCredentials()
 
     def _portable_primitive_to_cloud_primitive(
         self, primitive: Primitive, strategy_type: StategyType
     ):
         if primitive.primitive_type == PrimitiveType.PORTABLE:
+            if self.config is None:
+                raise RuntimeError(
+                    "Unable to create portable primitive. "
+                    "No BuildFlow config found. Did you run `buildflow init`?"
+                )
             primitive: PortablePrimtive
             primitive = primitive.to_cloud_primitive(
                 cloud_provider_config=self.config.cloud_provider_config,
@@ -620,7 +490,7 @@ class Flow:
             primitive.enable_managed()
         return primitive
 
-    # NOTE: The Flow class is responsible for converting Primitives into a Provider
+    # NOTE: The Flow class is responsible for converting Primitives into a strategy
     def consumer(
         self,
         source: Primitive,
@@ -628,9 +498,24 @@ class Flow:
         *,
         num_cpus: float = 1.0,
         num_concurrency: int = 1,
-        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+        enable_autoscaler: bool = True,
+        num_replicas: int = 1,
+        min_replicas: int = 1,
+        max_replicas: int = 1000,
+        autoscale_frequency_secs: int = 60,
+        consumer_backlog_burn_threshold: int = 60,
+        consumer_cpu_percent_target: int = 25,
         log_level: str = "INFO",
     ):
+        autoscale_options = AutoscalerOptions(
+            enable_autoscaler=enable_autoscaler,
+            num_replicas=num_replicas,
+            min_replicas=min_replicas,
+            max_replicas=max_replicas,
+            autoscale_frequency_secs=autoscale_frequency_secs,
+            consumer_backlog_burn_threshold=consumer_backlog_burn_threshold,
+            consumer_cpu_percent_target=consumer_cpu_percent_target,
+        )
         if not dataclasses.is_dataclass(source):
             raise ValueError(
                 f"source must be a dataclass. Received: {type(source).__name__}"
@@ -664,14 +549,20 @@ class Flow:
         )
 
     def add_consumer(self, consumer: Consumer):
-        sink = self._portable_primitive_to_cloud_primitive(
+        if consumer.sink_primitive is not None and not dataclasses.is_dataclass(
+            consumer.sink_primitive
+        ):
+            raise ValueError(
+                f"sink must be a dataclass. Received: {type(consumer.sink_primitive).__name__}"  # noqa
+            )
+        elif consumer.sink_primitive is None:
+            consumer.sink_primitive = Empty()
+        consumer.sink_primitive = self._portable_primitive_to_cloud_primitive(
             consumer.sink_primitive, StategyType.SINK
         )
-        consumer.sink_primitive = sink
-        source = self._portable_primitive_to_cloud_primitive(
+        consumer.source_primitive = self._portable_primitive_to_cloud_primitive(
             consumer.source_primitive, StategyType.SOURCE
         )
-        consumer.source_primitive = source
         # Set up credentials
         source_credentials = self._get_credentials(
             consumer.source_primitive.primitive_type
@@ -689,10 +580,17 @@ class Flow:
         self._add_processor_group(group, consumer.processor_options)
 
     def add_collector(self, collector: Collector):
-        sink = self._portable_primitive_to_cloud_primitive(
+        if collector.sink_primitive is not None and not dataclasses.is_dataclass(
+            collector.sink_primitive
+        ):
+            raise ValueError(
+                f"sink must be a dataclass. Received: {type(collector.sink_primitive).__name__}"  # noqa
+            )
+        elif collector.sink_primitive is None:
+            collector.sink_primitive = Empty()
+        collector.sink_primitive = self._portable_primitive_to_cloud_primitive(
             collector.sink_primitive, StategyType.SINK
         )
-        collector.sink_primitive = sink
         # Set up credentials
         sink_credentials = self._get_credentials(
             collector.sink_primitive.primitive_type
@@ -714,9 +612,20 @@ class Flow:
         sink: Optional[Primitive] = None,
         *,
         num_cpus: float = 1.0,
-        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+        enable_autoscaler: bool = True,
+        num_replicas: int = 1,
+        min_replicas: int = 1,
+        max_replicas: int = 1000,
+        target_num_ongoing_requests_per_replica: int = 80,
         log_level: str = "INFO",
     ):
+        autoscale_options = AutoscalerOptions(
+            enable_autoscaler=enable_autoscaler,
+            num_replicas=num_replicas,
+            min_replicas=min_replicas,
+            max_replicas=max_replicas,
+            target_num_ongoing_requests_per_replica=target_num_ongoing_requests_per_replica,
+        )
         if sink is None:
             sink = Empty()
 
@@ -744,16 +653,25 @@ class Flow:
         self,
         base_route: str = "/",
         *,
+        service_id: str = utils.uuid(),
         num_cpus: float = 1.0,
-        autoscale_options: AutoscalerOptions = AutoscalerOptions.default(),
+        enable_autoscaler: bool = True,
+        num_replicas: int = 1,
+        min_replicas: int = 1,
+        max_replicas: int = 1000,
+        target_num_ongoing_requests_per_replica: int = 80,
         log_level: str = "INFO",
     ):
-        # TODO: add pass in options
         service = Service(
             base_route=base_route,
             num_cpus=num_cpus,
-            autoscale_options=autoscale_options,
+            enable_autoscaler=enable_autoscaler,
+            num_replicas=num_replicas,
+            min_replics=min_replicas,
+            max_replicas=max_replicas,
+            target_num_ongoing_requests_per_replica=target_num_ongoing_requests_per_replica,
             log_level=log_level,
+            service_id=service_id,
         )
         self._services.append(service)
         return service
@@ -774,6 +692,7 @@ class Flow:
                     base_route=service.base_route,
                     group_id=service.service_id,
                     processors=endpoint_processors,
+                    middleware=service.middleware,
                 ),
                 options=ProcessorOptions(
                     num_cpus=service.num_cpus,
@@ -799,6 +718,7 @@ class Flow:
     def run(
         self,
         *,
+        flow_state: Optional[FlowState] = None,
         # runtime-only options
         debug_run: bool = False,
         run_id: Optional[RunID] = None,
@@ -810,10 +730,26 @@ class Flow:
         # Options for testing
         block: bool = True,
     ):
-        # Setup services
         self._add_service_groups()
+        if not self._processor_groups:
+            logging.warning("Flow contains no processors. Exiting.")
+            return
+        if flow_state is None:
+            flow_state = self._flowstate()
+        try:
+            # There's an issue on ray where if we don't do this ray will
+            # start two clusters on mac
+            ray.init(address="auto", ignore_reinit_error=True)
+        except ConnectionError:
+            ray.init()
+        # Setup services
         # Start the Flow Runtime
         runtime_coroutine = self._run(debug_run=debug_run)
+
+        if debug_run:
+            # If debug run is enabled, we want to set the checkin frequency
+            # more often so we can reload faster
+            self.options.runtime_options.checkin_frequency_loop_secs = 1
 
         # Start the Runtime Server (maybe)
         if start_runtime_server:
@@ -821,6 +757,7 @@ class Flow:
                 runtime_actor=self._get_runtime_actor(run_id=run_id),
                 host=runtime_server_host,
                 port=runtime_server_port,
+                flow_state=flow_state,
             )
             with runtime_server.run_in_thread():
                 server_log_message = (
@@ -851,7 +788,7 @@ class Flow:
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(
                 sig,
-                lambda: asyncio.create_task(self._drain()),
+                lambda: asyncio.create_task(self._drain(as_reload=debug_run)),
             )
         # start the runtime and await it to finish
         # NOTE: run() does not necessarily block until the runtime is finished.
@@ -860,9 +797,9 @@ class Flow:
         )
         await self._get_runtime_actor().run_until_complete.remote()
 
-    async def _drain(self):
+    async def _drain(self, as_reload: bool = False):
         logging.debug(f"Draining Flow({self.flow_id})...")
-        await self._get_runtime_actor().drain.remote()
+        await self._get_runtime_actor().drain.remote(as_reload=as_reload)
         logging.debug(f"...Finished draining Flow({self.flow_id})")
         return True
 
@@ -874,13 +811,16 @@ class Flow:
         await self._get_infra_actor().refresh(pulumi_program=self._pulumi_program)
         logging.debug(f"...Finished refreshing Infra for Flow({self.flow_id})")
 
-    def plan(self):
-        return asyncio.get_event_loop().run_until_complete(self._plan())
+    def preview(self):
+        return asyncio.get_event_loop().run_until_complete(self._preview())
 
-    async def _plan(self):
-        logging.debug(f"Planning Infra for Flow({self.flow_id})...")
-        await self._get_infra_actor().plan(pulumi_program=self._pulumi_program)
-        logging.debug(f"...Finished planning Infra for Flow({self.flow_id})")
+    async def _preview(self):
+        logging.debug(f"Previewing Infra for Flow({self.flow_id})...")
+        await self._get_infra_actor().preview(
+            pulumi_program=self._pulumi_program,
+            managed_primitives=self._managed_primitives,
+        )
+        logging.debug(f"...Finished previewing Infra for Flow({self.flow_id})")
 
     def apply(self):
         return asyncio.get_event_loop().run_until_complete(self._apply())
@@ -888,7 +828,7 @@ class Flow:
     async def _apply(self):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
         if self.options.infra_options.require_confirmation:
-            await self._get_infra_actor().plan(pulumi_program=self._pulumi_program)
+            await self._preview()
             print("Would you like to apply these changes?")
             response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
             while True:
@@ -896,41 +836,166 @@ class Flow:
                     print("User rejected Infra changes. Aborting.")
                     return
                 elif response.lower() in ["y", "yes"]:
-                    print("User confirmed Infra changes. Applying.")
+                    print("User confirmed Infra changes. Applying changes...")
                     break
                 else:
                     response = input(
                         'Invalid response. Enter "y (yes)" to '
                         'confirm, "n (no) to reject": '
                     )
+        else:
+            print("Confirmation disabled. Applying changes...")
         await self._get_infra_actor().apply(pulumi_program=self._pulumi_program)
-        logging.debug(f"...Finished setting up Infra for Flow({self.flow_id})")
+        print("...changes applied.")
 
     def destroy(self):
         return asyncio.get_event_loop().run_until_complete(self._destroy())
 
     async def _destroy(self):
-        logging.debug(f"Tearing down infrastructure for Flow({self.flow_id})...")
+        logging.debug(f"Destroying infrastructure for Flow({self.flow_id})...")
+        if self.options.infra_options.require_confirmation:
+            # We pass in no managed primitives, to simulate deleting all infrastructure.
+            await self._get_infra_actor().preview(
+                pulumi_program=self._pulumi_program, managed_primitives={}
+            )
+            print("Would you like to apply these changes?")
+            response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
+            while True:
+                if response.lower() in ["n", "no"]:
+                    print("User rejected changes. Aborting.")
+                    return
+                elif response.lower() in ["y", "yes"]:
+                    print("User confirmed changes. Destroying resources...")
+                    break
+                else:
+                    response = input(
+                        'Invalid response. Enter "y (yes)" to '
+                        'confirm, "n (no) to reject": '
+                    )
+        else:
+            print("Confirmation disabled. Destrying resources...")
         await self._get_infra_actor().destroy(pulumi_program=self._pulumi_program)
-        logging.debug(
-            f"...Finished tearing down infrastructure for Flow({self.flow_id})"
-        )
+        print("...resources destroyed.")
 
-    def inspect(self):
-        # Setup services
+    def flowstate(self) -> FlowState:
         self._add_service_groups()
-        pulumi_workspace = PulumiWorkspace(
-            pulumi_options=self.options.infra_options.pulumi_options,
-            pulumi_config=self.config.pulumi_config,
-        )
-        pulumi_stack_state = pulumi_workspace.get_stack_state()
-        # TODO: update this to work with processor groups
-        return FlowState.parse_resource_states(
+        return self._flowstate()
+
+    def _flowstate(self) -> FlowState:
+        primitive_states = {}
+        managed_primitives = set()
+        for managed_resource in self._managed_primitives.values():
+            managed_primitives.add(managed_resource.primitive_id())
+            states = PrimitiveState.from_primitive(
+                managed_resource,
+                managed_primitives=managed_primitives,
+                visited_primitives=set(),
+            )
+            primitive_states.update({ps.primitive_id: ps for ps in states})
+
+        processor_group_states = []
+        for group in self._processor_groups:
+            processor_states = []
+            for processor in group.processors:
+                if processor.processor_type == ProcessorType.CONSUMER:
+                    sink_id = None
+                    if "sink" in processor.__meta__:
+                        sink = processor.__meta__["sink"]
+                        sink_id = sink.primitive_id()
+                        if (
+                            not isinstance(sink, Empty)
+                            and sink_id not in primitive_states
+                        ):
+                            states = PrimitiveState.from_primitive(
+                                sink,
+                                managed_primitives=managed_primitives,
+                                visited_primitives=set(primitive_states.keys()),
+                            )
+                            primitive_states.update(
+                                {ps.primitive_id: ps for ps in states}
+                            )
+                    source = processor.__meta__["source"]
+                    if source.primitive_id() not in primitive_states:
+                        states = PrimitiveState.from_primitive(
+                            sink,
+                            managed_primitives=managed_primitives,
+                            visited_primitives=set(primitive_states.keys()),
+                        )
+                        primitive_states.update({ps.primitive_id: ps for ps in states})
+                    processor_info = ConsumerState(
+                        source_id=source.primitive_id(),
+                        sink_id=sink_id,
+                    )
+                elif processor.processor_type == ProcessorType.COLLECTOR:
+                    sink_id = None
+                    if "sink" in processor.__meta__:
+                        sink = processor.__meta__["sink"]
+                        sink_id = sink.primitive_id()
+                        if (
+                            not isinstance(sink, Empty)
+                            and sink_id not in primitive_states
+                        ):
+                            states = PrimitiveState.from_primitive(
+                                sink,
+                                managed_primitives=managed_primitives,
+                                visited_primitives=set(primitive_states.keys()),
+                            )
+                            primitive_states.update(
+                                {ps.primitive_id: ps for ps in states}
+                            )
+                    processor_info = CollectorState(sink_id=sink_id)
+                elif processor.processor_type == ProcessorType.ENDPOINT:
+                    end_route = processor.route_info().route
+                    if end_route.startswith(
+                        group.base_route
+                    ) and group.base_route.endswith("/"):
+                        end_route = end_route[len(group.base_route) :]
+                    route = group.base_route + end_route
+                    processor_info = EndpointState(
+                        route=route,
+                        method=processor.route_info().method,
+                    )
+                dependencies = _find_primitive_deps(processor.dependencies())
+                primitive_dependencies = []
+                for prim in dependencies:
+                    primitive_dependencies.append(prim.primitive_id())
+                    if prim.primitive_id() not in primitive_states:
+                        states = PrimitiveState.from_primitive(
+                            prim,
+                            managed_primitives=managed_primitives,
+                            visited_primitives=set(primitive_states.keys()),
+                        )
+                        primitive_states.update({ps.primitive_id: ps for ps in states})
+
+                processor_state = ProcessorState(
+                    processor_id=processor.processor_id,
+                    processor_type=processor.processor_type,
+                    processor_info=processor_info,
+                    primitive_dependencies=primitive_dependencies,
+                )
+                processor_states.append(processor_state)
+            group_info = None
+            if group.group_type == ProcessorGroupType.CONSUMER:
+                group_info = ConsumerGroupState()
+            elif group.group_type == ProcessorGroupType.COLLECTOR:
+                group_info = CollectorGroupState(base_route=group.base_route)
+            elif group.group_type == ProcessorGroupType.SERVICE:
+                group_info = ServiceState(base_route=group.base_route)
+            processor_group_states.append(
+                ProcessorGroupState(
+                    processor_group_id=group.group_id,
+                    processor_states=processor_states,
+                    processor_group_type=group.group_type,
+                    group_info=group_info,
+                )
+            )
+        sys.version
+        return FlowState(
             flow_id=self.flow_id,
-            processor_refs=[],
-            resource_states=pulumi_stack_state.resources(),
-            last_updated=pulumi_stack_state.last_updated,
-            pulumi_stack_name=pulumi_stack_state.stack_name,
+            primitive_states=list(primitive_states.values()),
+            processor_group_states=processor_group_states,
+            python_version=f"{sys.version_info.major}.{sys.version_info.minor}",
+            ray_version=ray.__version__,
         )
 
     def _lifecycle_functions(

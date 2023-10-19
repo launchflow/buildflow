@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Dict
+from typing import Any, Dict, Type
 
 import ray
 
@@ -9,9 +9,9 @@ from buildflow.core.app.runtime.actors.collector_pattern.receive_process_push_ac
     ReceiveProcessPushAck,
 )
 from buildflow.core.app.runtime.actors.process_pool import (
+    IndividualProcessorSnapshot,
     ProcessorGroupReplicaPoolActor,
     ProcessorGroupSnapshot,
-    IndividualProcessorSnapshot,
     ReplicaReference,
 )
 from buildflow.core.options.runtime_options import ProcessorOptions
@@ -61,8 +61,9 @@ class CollectorProcessorPoolActor(ProcessorGroupReplicaPoolActor):
         run_id: RunID,
         processor_group: ProcessorGroup[CollectorProcessor],
         processor_options: ProcessorOptions,
+        flow_dependencies: Dict[Type, Any],
     ) -> None:
-        super().__init__(run_id, processor_group, processor_options)
+        super().__init__(run_id, processor_group, processor_options, flow_dependencies)
         # We only want one replica in the pool, we will start the ray serve
         # deployment with the number of replicas we want.
         self.initial_replicas = 1
@@ -80,6 +81,7 @@ class CollectorProcessorPoolActor(ProcessorGroupReplicaPoolActor):
             self.processor_group,
             processor_options=self.options,
             log_level=self.options.log_level,
+            flow_dependencies=self.flow_dependencies,
         )
 
         return ReplicaReference(

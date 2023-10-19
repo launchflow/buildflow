@@ -1,23 +1,16 @@
 import asyncio
 import dataclasses
 import logging
-import time
-from typing import Dict
+from typing import Any, Dict, Type
 
-import fastapi
 import ray
 from ray import serve
 
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, Snapshot
-from buildflow.core.app.runtime.metrics import (
-    num_events_processed,
-    process_time_counter,
-)
+from buildflow.core.app.runtime.fastapi import create_app
 from buildflow.core.options.runtime_options import ProcessorOptions
-from buildflow.core.processor.patterns.endpoint import EndpointProcessor
-from buildflow.core.processor.processor import ProcessorGroup
-from buildflow.core.processor.utils import process_types
+from buildflow.core.processor.patterns.endpoint import EndpointGroup
 
 _MAX_SERVE_START_TRIES = 10
 
@@ -60,10 +53,11 @@ class ReceiveProcessRespond(Runtime):
     def __init__(
         self,
         run_id: RunID,
-        processor_group: ProcessorGroup[EndpointProcessor],
+        processor_group: EndpointGroup,
         *,
         processor_options: ProcessorOptions,
         log_level: str = "INFO",
+        flow_dependencies: Dict[Type, Any],
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -76,70 +70,18 @@ class ReceiveProcessRespond(Runtime):
         self.endpoint_deployment = None
         self.serve_handle = None
         self.processor_options = processor_options
-        self.processors_map = {}
+        self.flow_dependencies = flow_dependencies
 
     async def run(self) -> bool:
-        app = fastapi.FastAPI()
+        async def process_fn(processor, *args, **kwargs):
+            return await processor.process(*args, **kwargs)
 
-        @app.on_event("startup")
-        def setup_processor_group():
-            for processor in self.processor_group.processors:
-                if hasattr(app.state, "processor_map"):
-                    app.state.processor_map[processor.processor_id] = processor
-                else:
-                    app.state.processor_map = {processor.processor_id: processor}
-                processor.setup()
-
-        for processor in self.processor_group.processors:
-            input_type, _ = process_types(processor)
-
-            class EndpointFastAPIWrapper:
-                def __init__(self, processor_id, run_id):
-                    self.job_id = ray.get_runtime_context().get_job_id()
-                    self.run_id = run_id
-                    self.num_events_processed_counter = num_events_processed(
-                        processor_id=processor_id,
-                        job_id=self.job_id,
-                        run_id=run_id,
-                    )
-                    self.process_time_counter = process_time_counter(
-                        processor_id=processor_id,
-                        job_id=self.job_id,
-                        run_id=run_id,
-                    )
-                    self.processor_id = processor_id
-
-                async def root(self, request: input_type) -> None:
-                    processor = app.state.processor_map[self.processor_id]
-                    self.num_events_processed_counter.inc(
-                        tags={
-                            "processor_id": processor.processor_id,
-                            "JobId": self.job_id,
-                            "RunId": self.run_id,
-                        }
-                    )
-                    start_time = time.monotonic()
-                    output = await processor.process(request)
-                    self.process_time_counter.inc(
-                        (time.monotonic() - start_time) * 1000,
-                        tags={
-                            "processor_id": processor.processor_id,
-                            "JobId": self.job_id,
-                            "RunId": self.run_id,
-                        },
-                    )
-                    return output
-
-            endpoint_wrapper = EndpointFastAPIWrapper(
-                processor.processor_id, self.run_id
-            )
-            self.processors_map[processor.processor_id] = endpoint_wrapper
-
-            app.add_api_route(
-                processor.route_info().route,
-                endpoint_wrapper.root,
-                methods=[processor.route_info().method.name],
-            )
+        app = create_app(
+            self.processor_group,
+            self.flow_dependencies,
+            self.run_id,
+            process_fn,
+        )
 
         @serve.deployment(
             route_prefix=self.processor_group.base_route,
@@ -190,8 +132,8 @@ class ReceiveProcessRespond(Runtime):
     async def snapshot(self) -> Snapshot:
         processor_snapshots = {}
         # TODO: need to figure out local metrics
-        for processor_id, fast_api_wrapper in self.processors_map.items():
-            processor_snapshots[processor_id] = IndividualProcessorMetrics(
+        for processor in self.processor_group.processors:
+            processor_snapshots[processor.processor_id] = IndividualProcessorMetrics(
                 events_processed_per_sec=0,
                 avg_process_time_millis=0,
             )

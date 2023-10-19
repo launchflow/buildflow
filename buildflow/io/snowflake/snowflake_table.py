@@ -1,12 +1,22 @@
 import dataclasses
-from typing import Optional, Type, Union
+from typing import List, Optional, Type, Union
 
+import pulumi
+
+from buildflow.core.background_tasks.background_task import BackgroundTask
+from buildflow.core.credentials.aws_credentials import AWSCredentials
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.utils import uuid
 from buildflow.io.aws.s3 import S3Bucket
 from buildflow.io.gcp.storage import GCSBucket
 from buildflow.io.primitive import Primitive, PrimitiveType
-from buildflow.io.provider import BackgroundTaskProvider, PulumiProvider, SinkProvider
-from buildflow.io.snowflake.providers.table_provider import SnowflakeTableProvider
+from buildflow.io.snowflake.background_tasks.table_load_background_task import (
+    SnowflakeUploadBackgroundTask,
+)
+from buildflow.io.snowflake.pulumi.snowflake_table_resource import (
+    SnowflakeTableSinkResource,
+)
+from buildflow.io.snowflake.strategies.table_sink_startegy import SnowflakeTableSink
 from buildflow.types.portable import FileFormat
 
 _DEFAULT_DATABASE_MANAGED = True
@@ -17,18 +27,7 @@ _DEFAULT_FLUSH_TIME_LIMIT_SECS = 60
 
 
 @dataclasses.dataclass
-class SnowflakeTable(
-    Primitive[
-        # Pulumi provider type
-        SnowflakeTableProvider,
-        # Source provider type
-        None,
-        # Sink provider type
-        SnowflakeTableProvider,
-        # Background task provider type
-        SnowflakeTableProvider,
-    ]
-):
+class SnowflakeTable(Primitive):
     # TODO: make these types more concrete
     # Required arguments
     table: str
@@ -99,64 +98,61 @@ class SnowflakeTable(
         flush_time_limit_secs: int = _DEFAULT_FLUSH_TIME_LIMIT_SECS,
     ) -> "SnowflakeTable":
         self.database_managed = database_managed
-        self.table_schema = table_schema
         self.schema_managed = schema_managed
+        self.table_schema = table_schema
         self.flush_time_limit_secs = flush_time_limit_secs
         return self
 
-    def sink_provider(self) -> SinkProvider:
-        return SnowflakeTableProvider(
-            table=self.table,
-            database=self.database,
-            schema=self.schema,
-            bucket=self.bucket,
-            snow_pipe=self.snow_pipe,
-            snowflake_stage=self.snowflake_stage,
-            database_managed=self.database_managed,
-            schema_managed=self.schema_managed,
-            snow_pipe_managed=self.snow_pipe_managed,
-            stage_managed=self.stage_managed,
-            account=self.account,
-            user=self.user,
-            private_key=self.private_key,
-            flush_time_secs=self.flush_time_limit_secs,
-            table_schema=self.table_schema,
-        )
+    def background_tasks(
+        self, credentials: Union[AWSCredentials, GCPCredentials]
+    ) -> List[BackgroundTask]:
+        return [
+            SnowflakeUploadBackgroundTask(
+                credentials=credentials,
+                bucket_name=self.bucket.bucket_name,
+                account=self.account,
+                user=self.user,
+                database=self.database,
+                schema=self.schema,
+                private_key=self.private_key,
+                pipe=self.snow_pipe,
+                flush_time_secs=self.flush_time_secs,
+            )
+        ]
 
-    def _pulumi_provider(self) -> PulumiProvider:
-        return SnowflakeTableProvider(
-            table=self.table,
-            database=self.database,
-            schema=self.schema,
-            bucket=self.bucket,
-            snow_pipe=self.snow_pipe,
-            snowflake_stage=self.snowflake_stage,
-            database_managed=self.database_managed,
-            schema_managed=self.schema_managed,
-            snow_pipe_managed=self.snow_pipe_managed,
-            stage_managed=self.stage_managed,
-            account=self.account,
-            user=self.user,
-            private_key=self.private_key,
-            flush_time_secs=self.flush_time_limit_secs,
-            table_schema=self.table_schema,
-        )
+    def primitive_id(self) -> str:
+        return f"{self.database}.{self.schema}.{self.table}"
 
-    def background_task_provider(self) -> BackgroundTaskProvider:
-        return SnowflakeTableProvider(
-            table=self.table,
-            database=self.database,
-            schema=self.schema,
-            bucket=self.bucket._pulumi_provider(),
-            snow_pipe=self.snow_pipe,
-            snowflake_stage=self.snowflake_stage,
-            database_managed=self.database_managed,
-            schema_managed=self.schema_managed,
-            snow_pipe_managed=self.snow_pipe_managed,
-            stage_managed=self.stage_managed,
-            account=self.account,
-            user=self.user,
-            private_key=self.private_key,
-            flush_time_secs=self.flush_time_limit_secs,
-            table_schema=self.table_schema,
+    def pulumi_resources(
+        self,
+        credentials: Union[AWSCredentials, GCPCredentials],
+        opts: pulumi.ResourceOptions,
+    ) -> List[pulumi.Resource]:
+        return [
+            SnowflakeTableSinkResource(
+                table=self.table,
+                database=self.database,
+                schema=self.schema,
+                bucket=self.bucket,
+                snowflake_stage=self.snowflake_stage,
+                snow_pipe=self.snow_pipe,
+                database_managed=self.database_managed,
+                schema_managed=self.schema_managed,
+                snow_pipe_managed=self.snow_pipe_managed,
+                stage_managed=self.stage_managed,
+                account=self.account,
+                user=self.user,
+                private_key=self.private_key,
+                table_schema=self.table_schema,
+                credentials=credentials,
+                opts=opts,
+            )
+        ]
+
+    def sink(
+        self, credentials: Union[AWSCredentials, GCPCredentials]
+    ) -> SnowflakeTableSink:
+        return SnowflakeTableSink(
+            credentials=credentials,
+            bucket_sink=self.bucket.sink(credentials),
         )

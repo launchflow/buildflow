@@ -3,27 +3,28 @@
 export BIGQUERY_TABLE=taxi-test-$RANDOM
 
 cd buildflow/samples/pubsub_walkthrough
+mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
-buildflow init --directory=. --default-cloud-provider=gcp --default-gcp-project=$GCP_PROJECT
-buildflow plan main:app || {
-  echo 'plan failed'
+buildflow preview || {
+  echo 'preview failed'
   exit 1
 }
-buildflow apply main:app || {
+buildflow apply || {
   echo 'apply failed'
   exit 1
 }
-buildflow run main:app &
+buildflow run &
 main_pid=$!
 
 sleep 45
 query="SELECT COUNT(*) as count FROM \`$GCP_PROJECT.buildflow_pubsub_to_bigquery_test.$BIGQUERY_TABLE\`"
 echo "Running query: $query"
-num_rows=$(bq query --location=US --nouse_legacy_sql $query | grep -Po '.* \K\d+\.*\d*')
+bq query --location=US --nouse_legacy_sql $query
+num_rows=$(bq query --location=US --nouse_legacy_sql $query | awk 'NR==4 {print $2}')
 
 kill -s 2 $main_pid
 wait $main_pid
-buildflow destroy main:app || {
+buildflow destroy || {
   echo 'destroy failed'
   exit 1
 }

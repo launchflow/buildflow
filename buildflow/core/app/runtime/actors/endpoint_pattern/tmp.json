@@ -1,0 +1,1666 @@
+{
+    "openapi": "3.0.2",
+    "info": {
+        "title": "FastAPI",
+        "version": "0.1.0"
+    },
+    "paths": {
+        "/account/success": {
+            "get": {
+                "tags": [
+                    "account"
+                ],
+                "summary": "Success",
+                "operationId": "success_account_success_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Session Id",
+                            "type": "string"
+                        },
+                        "name": "session_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/account/cancel": {
+            "get": {
+                "tags": [
+                    "account"
+                ],
+                "summary": "Cancel",
+                "operationId": "cancel_account_cancel_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Session Id",
+                            "type": "string"
+                        },
+                        "name": "session_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/account/subscription/webhook": {
+            "post": {
+                "tags": [
+                    "account"
+                ],
+                "summary": "Stripe Webhook",
+                "operationId": "stripe_webhook_account_subscription_webhook_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StripeEvent"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/account/subscription/upgrade": {
+            "post": {
+                "tags": [
+                    "account"
+                ],
+                "summary": "Create Stripe Checkout Session",
+                "operationId": "create_stripe_checkout_session_account_subscription_upgrade_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpgradeAccountSubscriptionRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/account/subscription/cancel": {
+            "post": {
+                "tags": [
+                    "account"
+                ],
+                "summary": "Delete Account Subscription",
+                "operationId": "delete_account_subscription_account_subscription_cancel_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CancelAccountSubscriptionRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CancelAccountSubscriptionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/account/list": {
+            "get": {
+                "tags": [
+                    "account"
+                ],
+                "summary": "List Account Info",
+                "operationId": "list_account_info_account_list_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/account/": {
+            "post": {
+                "tags": [
+                    "account"
+                ],
+                "summary": "Get Account Info",
+                "operationId": "get_account_info_account__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GetAccountRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/account/signup": {
+            "post": {
+                "tags": [
+                    "account"
+                ],
+                "summary": "Signup",
+                "operationId": "signup_account_signup_post",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/auth/url": {
+            "get": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Auth Url",
+                "operationId": "auth_url_auth_url_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/token": {
+            "get": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Auth Token",
+                "operationId": "auth_token_auth_token_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Code",
+                            "type": "string"
+                        },
+                        "name": "code",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "get": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Refresh Token",
+                "operationId": "refresh_token_auth_refresh_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Refresh Token",
+                            "type": "string"
+                        },
+                        "name": "refresh_token",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RefreshResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Get Google Info",
+                "operationId": "get_google_info_auth_me_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GoogleAccountInfo"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/buildflow/usage": {
+            "post": {
+                "tags": [
+                    "buildflow"
+                ],
+                "summary": "Buildflow Usage",
+                "operationId": "buildflow_usage_buildflow_usage_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BuildFlowSession"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/deployments/create": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Create Deployment",
+                "operationId": "create_deployment_deployments_create_post",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_create_deployment_deployments_create_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/update": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Update Deployment",
+                "operationId": "update_deployment_deployments_update_post",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_update_deployment_deployments_update_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/list": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "List Deployments",
+                "operationId": "list_deployments_deployments_list_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ListDeploymentsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ListDeploymentsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/ping": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Ping",
+                "operationId": "ping_deployments_ping_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PingDeploymentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/ping_batch": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Ping Batch",
+                "operationId": "ping_batch_deployments_ping_batch_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BatchPingDeploymentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "title": "Response Ping Batch Deployments Ping Batch Post",
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DeploymentResponse"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/drain": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Drain",
+                "operationId": "drain_deployments_drain_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DrainDeploymentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/stop": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Stop",
+                "operationId": "stop_deployments_stop_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StopDeploymentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/get_logs": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Get Logs",
+                "operationId": "get_logs_deployments_get_logs_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GetDeploymentLogsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentLogsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/add_tags": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Add Tags",
+                "operationId": "add_tags_deployments_add_tags_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddTagsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/deployments/remove_tags": {
+            "post": {
+                "tags": [
+                    "deployments"
+                ],
+                "summary": "Remove Tags",
+                "operationId": "remove_tags_deployments_remove_tags_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoveTagsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Auth": []
+                    }
+                ]
+            }
+        },
+        "/support/feedback": {
+            "post": {
+                "tags": [
+                    "support"
+                ],
+                "summary": "Submit Feedback",
+                "operationId": "submit_feedback_support_feedback_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubmitFeedbackRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "AddTagsRequest": {
+                "title": "AddTagsRequest",
+                "required": [
+                    "deployment_id",
+                    "tags"
+                ],
+                "type": "object",
+                "properties": {
+                    "deployment_id": {
+                        "title": "Deployment Id",
+                        "type": "string"
+                    },
+                    "tags": {
+                        "title": "Tags",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "description": "Request for adding tags to a deployment."
+            },
+            "BatchPingDeploymentRequest": {
+                "title": "BatchPingDeploymentRequest",
+                "required": [
+                    "requests"
+                ],
+                "type": "object",
+                "properties": {
+                    "requests": {
+                        "title": "Requests",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PingDeploymentRequest"
+                        }
+                    }
+                },
+                "description": "Request for pinging a list of deployments."
+            },
+            "Body_create_deployment_deployments_create_post": {
+                "title": "Body_create_deployment_deployments_create_post",
+                "required": [
+                    "project",
+                    "python_version",
+                    "ray_version",
+                    "account_id",
+                    "build_file"
+                ],
+                "type": "object",
+                "properties": {
+                    "project": {
+                        "title": "Project",
+                        "type": "string"
+                    },
+                    "python_version": {
+                        "title": "Python Version",
+                        "type": "string"
+                    },
+                    "ray_version": {
+                        "title": "Ray Version",
+                        "type": "string"
+                    },
+                    "account_id": {
+                        "title": "Account Id",
+                        "type": "string"
+                    },
+                    "build_file": {
+                        "title": "Build File",
+                        "type": "string",
+                        "format": "binary"
+                    },
+                    "environment_variables": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "default": {}
+                    },
+                    "tags": {
+                        "title": "Tags",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "default": {}
+                    },
+                    "num_cpus": {
+                        "title": "Num Cpus",
+                        "type": "integer",
+                        "default": 2
+                    },
+                    "machine_type": {
+                        "title": "Machine Type",
+                        "type": "string",
+                        "default": "standard"
+                    },
+                    "max_workers": {
+                        "title": "Max Workers",
+                        "type": "integer",
+                        "default": 10
+                    }
+                }
+            },
+            "Body_update_deployment_deployments_update_post": {
+                "title": "Body_update_deployment_deployments_update_post",
+                "required": [
+                    "project",
+                    "python_version",
+                    "ray_version",
+                    "deployment_id_to_update",
+                    "build_file"
+                ],
+                "type": "object",
+                "properties": {
+                    "project": {
+                        "title": "Project",
+                        "type": "string"
+                    },
+                    "python_version": {
+                        "title": "Python Version",
+                        "type": "string"
+                    },
+                    "ray_version": {
+                        "title": "Ray Version",
+                        "type": "string"
+                    },
+                    "deployment_id_to_update": {
+                        "title": "Deployment Id To Update",
+                        "type": "string"
+                    },
+                    "build_file": {
+                        "title": "Build File",
+                        "type": "string",
+                        "format": "binary"
+                    },
+                    "environment_variables": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "default": {}
+                    },
+                    "tags": {
+                        "title": "Tags",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "default": {}
+                    },
+                    "num_cpus": {
+                        "title": "Num Cpus",
+                        "type": "integer",
+                        "default": 2
+                    },
+                    "machine_type": {
+                        "title": "Machine Type",
+                        "type": "string",
+                        "default": "standard"
+                    },
+                    "max_workers": {
+                        "title": "Max Workers",
+                        "type": "integer",
+                        "default": 10
+                    }
+                }
+            },
+            "BuildFlowSession": {
+                "title": "BuildFlowSession",
+                "required": [
+                    "id"
+                ],
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "title": "Id",
+                        "type": "string"
+                    }
+                }
+            },
+            "CancelAccountSubscriptionRequest": {
+                "title": "CancelAccountSubscriptionRequest",
+                "required": [
+                    "account_id"
+                ],
+                "type": "object",
+                "properties": {
+                    "account_id": {
+                        "title": "Account Id",
+                        "type": "string"
+                    }
+                },
+                "description": "Request for deleting a subscription"
+            },
+            "CancelAccountSubscriptionResponse": {
+                "title": "CancelAccountSubscriptionResponse",
+                "required": [
+                    "success"
+                ],
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "title": "Success",
+                        "type": "boolean"
+                    }
+                }
+            },
+            "DeploymentLogsResponse": {
+                "title": "DeploymentLogsResponse",
+                "required": [
+                    "logs"
+                ],
+                "type": "object",
+                "properties": {
+                    "next_page_token": {
+                        "title": "Next Page Token",
+                        "type": "string"
+                    },
+                    "logs": {
+                        "title": "Logs",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LogEntry"
+                        }
+                    }
+                }
+            },
+            "DeploymentResponse": {
+                "title": "DeploymentResponse",
+                "required": [
+                    "id",
+                    "project",
+                    "deployment_status",
+                    "created_at",
+                    "metrics",
+                    "tags"
+                ],
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "title": "Id",
+                        "type": "string"
+                    },
+                    "project": {
+                        "title": "Project",
+                        "type": "string"
+                    },
+                    "deployment_status": {
+                        "title": "Deployment Status",
+                        "type": "string"
+                    },
+                    "deployment_details": {
+                        "title": "Deployment Details",
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "title": "Created At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "metrics": {
+                        "title": "Metrics",
+                        "type": "object"
+                    },
+                    "tags": {
+                        "title": "Tags",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "url": {
+                        "title": "Url",
+                        "type": "string"
+                    },
+                    "start_time": {
+                        "title": "Start Time",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "end_time": {
+                        "title": "End Time",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "usage": {
+                        "$ref": "#/components/schemas/Usage"
+                    }
+                }
+            },
+            "DrainDeploymentRequest": {
+                "title": "DrainDeploymentRequest",
+                "required": [
+                    "deployment_id"
+                ],
+                "type": "object",
+                "properties": {
+                    "deployment_id": {
+                        "title": "Deployment Id",
+                        "type": "string"
+                    }
+                },
+                "description": "Request for draining a deployment."
+            },
+            "GetAccountRequest": {
+                "title": "GetAccountRequest",
+                "required": [
+                    "account_id"
+                ],
+                "type": "object",
+                "properties": {
+                    "account_id": {
+                        "title": "Account Id",
+                        "type": "string"
+                    }
+                }
+            },
+            "GetDeploymentLogsRequest": {
+                "title": "GetDeploymentLogsRequest",
+                "required": [
+                    "deployment_id"
+                ],
+                "type": "object",
+                "properties": {
+                    "deployment_id": {
+                        "title": "Deployment Id",
+                        "type": "string"
+                    },
+                    "start_timestamp": {
+                        "title": "Start Timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "end_timestamp": {
+                        "title": "End Timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "page_token": {
+                        "title": "Page Token",
+                        "type": "string"
+                    }
+                },
+                "description": "Request for getting logs for a deployment."
+            },
+            "GoogleAccountInfo": {
+                "title": "GoogleAccountInfo",
+                "required": [
+                    "google_account_id",
+                    "email"
+                ],
+                "type": "object",
+                "properties": {
+                    "google_account_id": {
+                        "title": "Google Account Id",
+                        "type": "string"
+                    },
+                    "email": {
+                        "title": "Email",
+                        "type": "string"
+                    },
+                    "name": {
+                        "title": "Name",
+                        "type": "string"
+                    }
+                }
+            },
+            "HTTPValidationError": {
+                "title": "HTTPValidationError",
+                "type": "object",
+                "properties": {
+                    "detail": {
+                        "title": "Detail",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        }
+                    }
+                }
+            },
+            "ListDeploymentsRequest": {
+                "title": "ListDeploymentsRequest",
+                "required": [
+                    "account_id"
+                ],
+                "type": "object",
+                "properties": {
+                    "account_id": {
+                        "title": "Account Id",
+                        "type": "string"
+                    },
+                    "active": {
+                        "title": "Active",
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "projects": {
+                        "title": "Projects",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": []
+                    }
+                },
+                "description": "Request for listing deployments in an account."
+            },
+            "ListDeploymentsResponse": {
+                "title": "ListDeploymentsResponse",
+                "required": [
+                    "deployments"
+                ],
+                "type": "object",
+                "properties": {
+                    "deployments": {
+                        "title": "Deployments",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeploymentResponse"
+                        }
+                    }
+                }
+            },
+            "LogEntry": {
+                "title": "LogEntry",
+                "required": [
+                    "entry",
+                    "unix_timestamp_secs"
+                ],
+                "type": "object",
+                "properties": {
+                    "entry": {
+                        "title": "Entry",
+                        "type": "string"
+                    },
+                    "unix_timestamp_secs": {
+                        "title": "Unix Timestamp Secs",
+                        "type": "number"
+                    }
+                }
+            },
+            "PingDeploymentRequest": {
+                "title": "PingDeploymentRequest",
+                "required": [
+                    "deployment_id"
+                ],
+                "type": "object",
+                "properties": {
+                    "deployment_id": {
+                        "title": "Deployment Id",
+                        "type": "string"
+                    }
+                },
+                "description": "Request for pinging a deployment."
+            },
+            "RefreshResponse": {
+                "title": "RefreshResponse",
+                "required": [
+                    "access_token",
+                    "refresh_token",
+                    "id_token",
+                    "scopes",
+                    "expires_at"
+                ],
+                "type": "object",
+                "properties": {
+                    "access_token": {
+                        "title": "Access Token",
+                        "type": "string"
+                    },
+                    "refresh_token": {
+                        "title": "Refresh Token",
+                        "type": "string"
+                    },
+                    "id_token": {
+                        "title": "Id Token",
+                        "type": "string"
+                    },
+                    "scopes": {
+                        "title": "Scopes",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "expires_at": {
+                        "title": "Expires At",
+                        "type": "number"
+                    }
+                }
+            },
+            "RemoveTagsRequest": {
+                "title": "RemoveTagsRequest",
+                "required": [
+                    "deployment_id",
+                    "tag_names"
+                ],
+                "type": "object",
+                "properties": {
+                    "deployment_id": {
+                        "title": "Deployment Id",
+                        "type": "string"
+                    },
+                    "tag_names": {
+                        "title": "Tag Names",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "description": "Request for removing tags from a deployment."
+            },
+            "StopDeploymentRequest": {
+                "title": "StopDeploymentRequest",
+                "required": [
+                    "deployment_id"
+                ],
+                "type": "object",
+                "properties": {
+                    "deployment_id": {
+                        "title": "Deployment Id",
+                        "type": "string"
+                    }
+                },
+                "description": "Request for stopping a deployment."
+            },
+            "StripeEvent": {
+                "title": "StripeEvent",
+                "required": [
+                    "id",
+                    "object",
+                    "api_version",
+                    "created",
+                    "data",
+                    "livemode",
+                    "pending_webhooks",
+                    "request",
+                    "type"
+                ],
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "title": "Id",
+                        "type": "string"
+                    },
+                    "object": {
+                        "title": "Object",
+                        "type": "string"
+                    },
+                    "api_version": {
+                        "title": "Api Version",
+                        "type": "string"
+                    },
+                    "created": {
+                        "title": "Created",
+                        "type": "integer"
+                    },
+                    "data": {
+                        "title": "Data",
+                        "type": "object"
+                    },
+                    "livemode": {
+                        "title": "Livemode",
+                        "type": "boolean"
+                    },
+                    "pending_webhooks": {
+                        "title": "Pending Webhooks",
+                        "type": "integer"
+                    },
+                    "request": {
+                        "title": "Request",
+                        "type": "object"
+                    },
+                    "type": {
+                        "title": "Type",
+                        "type": "string"
+                    }
+                }
+            },
+            "SubmitFeedbackRequest": {
+                "title": "SubmitFeedbackRequest",
+                "required": [
+                    "email",
+                    "feedback_type",
+                    "feedback_text"
+                ],
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "title": "Email",
+                        "type": "string"
+                    },
+                    "feedback_type": {
+                        "title": "Feedback Type",
+                        "type": "string"
+                    },
+                    "feedback_text": {
+                        "title": "Feedback Text",
+                        "type": "string"
+                    }
+                },
+                "description": "Request for submitting feedback"
+            },
+            "UpgradeAccountSubscriptionRequest": {
+                "title": "UpgradeAccountSubscriptionRequest",
+                "required": [
+                    "account_id"
+                ],
+                "type": "object",
+                "properties": {
+                    "account_id": {
+                        "title": "Account Id",
+                        "type": "string"
+                    }
+                },
+                "description": "Request for upgrading a subscription"
+            },
+            "Usage": {
+                "title": "Usage",
+                "required": [
+                    "cpu_seconds",
+                    "cost"
+                ],
+                "type": "object",
+                "properties": {
+                    "cpu_seconds": {
+                        "title": "Cpu Seconds",
+                        "type": "number"
+                    },
+                    "cost": {
+                        "title": "Cost",
+                        "type": "number"
+                    }
+                }
+            },
+            "ValidationError": {
+                "title": "ValidationError",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "type": "object",
+                "properties": {
+                    "loc": {
+                        "title": "Location",
+                        "type": "array",
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        }
+                    },
+                    "msg": {
+                        "title": "Message",
+                        "type": "string"
+                    },
+                    "type": {
+                        "title": "Error Type",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "Auth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "Bearer"
+            }
+        }
+    }
+}

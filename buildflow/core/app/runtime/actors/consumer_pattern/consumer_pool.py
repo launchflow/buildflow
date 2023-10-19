@@ -1,6 +1,6 @@
 import logging
 from collections import deque
-from typing import Dict, List
+from typing import Any, Dict, List, Type
 
 import ray
 from ray.exceptions import OutOfMemoryError, RayActorError
@@ -41,8 +41,9 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
         run_id: RunID,
         processor_group: ProcessorGroup[ConsumerProcessor],
         processor_options: ProcessorOptions,
+        flow_dependencies: Dict[Type, Any],
     ) -> None:
-        super().__init__(run_id, processor_group, processor_options)
+        super().__init__(run_id, processor_group, processor_options, flow_dependencies)
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(processor_options.log_level)
@@ -100,6 +101,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             self.processor_group,
             replica_id=replica_id,
             log_level=self.options.log_level,
+            flow_dependencies=self.flow_dependencies,
         )
 
         return ReplicaReference(
@@ -134,6 +136,9 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
         processor_snapshots: Dict[str, ConsumerProcessorSnapshot] = {}
         for processor in self.processor_group.processors:
             processor_id = processor.processor_id
+            # TODO: this causes the source to get instantiated which we probably
+            # don't want. Ideally we would have some abstraction for
+            # fetching the backlog.
             source_backlog = await processor.source().backlog()
             self.current_backlog_gauge.set(
                 source_backlog, tags={"processor_id": processor_id}

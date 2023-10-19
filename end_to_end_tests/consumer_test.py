@@ -9,13 +9,14 @@ import duckdb
 import pytest
 
 import buildflow
+from buildflow.dependencies.base import Scope, dependency
 from buildflow.io.local import File
 from buildflow.io.portable.file_change_stream import FileChangeStream
 from buildflow.io.portable.table import AnalysisTable
 from buildflow.types.portable import FileChangeEvent, FileFormat
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class FileStreamLocalTest(unittest.TestCase):
     def get_async_result(self, coro):
@@ -113,6 +114,10 @@ class FileStreamLocalTest(unittest.TestCase):
 
             with open(output_file, "r") as f:
                 lines = f.readlines()
+                # NOTE: for some reason these come out of order sometimes.
+                # I think it's due to the local file system notifications
+                # being delivered out of order.
+                lines.sort()
                 self.assertEqual(len(lines), 3)
                 self.assertEqual(lines[0], '"content"\n')
                 self.assertEqual(lines[1], '"hello"\n')
@@ -151,6 +156,70 @@ class FileStreamLocalTest(unittest.TestCase):
         got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
 
         self.assertEqual(got_data[0], 1)
+        self.get_async_result(app._drain())
+
+    def test_file_stream_duckdb_dependencies(self):
+        app = buildflow.Flow()
+
+        @dependency(scope=Scope.NO_SCOPE)
+        class NoScope:
+            def __init__(self):
+                self.val = 1
+
+        @dependency(scope=Scope.GLOBAL)
+        class GlobalScope:
+            def __init__(self, no: NoScope):
+                self.val = 2
+                self.no = no
+
+        @dependency(scope=Scope.REPLICA)
+        class ReplicaScope:
+            def __init__(self, global_: GlobalScope):
+                self.val = 3
+                self.global_ = global_
+
+        @dependency(scope=Scope.PROCESS)
+        class ProcessScope:
+            def __init__(self, replica: ReplicaScope):
+                self.val = 4
+                self.replica = replica
+
+        @app.consumer(
+            source=FileChangeStream(file_path=self.dir_to_watch),
+            sink=AnalysisTable(table_name=self.table),
+            num_cpus=0.5,
+        )
+        def my_consumer(
+            event: FileChangeEvent,
+            no: NoScope,
+            global_: GlobalScope,
+            replica: ReplicaScope,
+            process: ProcessScope,
+        ) -> Dict[str, int]:
+            if id(process.replica) != id(replica):
+                raise Exception("Replica scope not the same")
+            if id(replica.global_) != id(global_):
+                raise Exception("Global scope not the same")
+            if id(global_.no) == id(no):
+                raise Exception("No scope was the same")
+            return {"val": no.val + global_.val + replica.val + process.val}
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        create_path = os.path.join(self.dir_to_watch, "file.txt")
+        with open(create_path, "w") as f:
+            f.write("hello")
+
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
+        conn = duckdb.connect(database=database, read_only=True)
+        got_data = conn.execute(f"SELECT * FROM {self.table}").fetchone()
+
+        self.assertEqual(got_data[0], 10)
         self.get_async_result(app._drain())
 
 

@@ -1,28 +1,22 @@
 import dataclasses
-from typing import Optional
+from typing import List, Optional
+
+import pulumi
+import pulumi_aws
 
 from buildflow.config.cloud_provider_config import AWSOptions
+from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.types.aws_types import AWSRegion, S3BucketName
 from buildflow.core.types.shared_types import FilePath
-from buildflow.io.aws.providers.s3_provider import S3BucketProvider
+from buildflow.io.aws.pulumi.providers import aws_provider
+from buildflow.io.aws.strategies.s3_strategies import S3BucketSink
 from buildflow.io.primitive import AWSPrimtive
-from buildflow.io.provider import PulumiProvider, SinkProvider
+from buildflow.io.strategies.sink import SinkStrategy
 from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
-class S3Bucket(
-    AWSPrimtive[
-        # Pulumi provider type
-        S3BucketProvider,
-        # Source provider type
-        None,
-        # Sink provider type
-        S3BucketProvider,
-        # Background task provider type
-        None,
-    ]
-):
+class S3Bucket(AWSPrimtive):
     bucket_name: S3BucketName
 
     # args if you are writing to the bucket as a sink
@@ -41,6 +35,9 @@ class S3Bucket(
     def bucket_url(self):
         return f"s3://{self.bucket_name}"
 
+    def primitive_id(self):
+        return self.bucket_url
+
     @classmethod
     def from_aws_options(
         cls, aws_options: AWSOptions, *, bucket_name: S3BucketName
@@ -48,24 +45,28 @@ class S3Bucket(
         region = aws_options.default_region
         return cls(bucket_name=bucket_name, aws_region=region)
 
-    def options(self, *, force_destroy: bool = False):
+    def options(self, *, force_destroy: bool = False) -> "S3Bucket":
         self.force_destroy = force_destroy
         return self
 
-    def sink_provider(self) -> SinkProvider:
-        return S3BucketProvider(
-            bucket_name=self.bucket_name,
-            aws_region=self.aws_region,
-            force_destroy=self.force_destroy,
-            file_path=self.file_path,
-            file_format=self.file_format,
+    def sink(self, credentials: AWSCredentials) -> SinkStrategy:
+        return S3BucketSink(
+            credentials, self.bucket_name, self.file_path, self.file_format
         )
 
-    def _pulumi_provider(self) -> PulumiProvider:
-        return S3BucketProvider(
-            bucket_name=self.bucket_name,
-            aws_region=self.aws_region,
-            force_destroy=self.force_destroy,
-            file_path=self.file_path,
-            file_format=self.file_format,
+    def pulumi_resources(
+        self, credentials: AWSCredentials, opts: pulumi.ResourceOptions
+    ) -> List[pulumi.Resource]:
+        provider = aws_provider(
+            self.bucket_name, aws_account_id=None, aws_region=self.aws_region
         )
+        opts = pulumi.ResourceOptions.merge(
+            opts, pulumi.ResourceOptions(provider=provider)
+        )
+        bucket_resource = pulumi_aws.s3.BucketV2(
+            opts=opts,
+            resource_name=self.bucket_name,
+            bucket=self.bucket_name,
+            force_destroy=self.force_destroy,
+        )
+        return [bucket_resource]

@@ -21,7 +21,7 @@ from buildflow.io.local.testing.pulse_with_backlog import PulseWithBacklog
 from buildflow.types.portable import FileFormat
 
 
-@pytest.mark.usefixtures("ray_fix")
+@pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
 class RunTimeTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -84,7 +84,11 @@ class RunTimeTest(unittest.TestCase):
         # number of CPUs available to the test process. (I didnt actually verify this
         # but I think its true)
         runtime_options.processor_options["process"].num_cpus = 0.5
-        actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
+        actor = RuntimeActor.remote(
+            run_id="test-run",
+            runtime_options=runtime_options,
+            flow_dependencies={},
+        )
 
         actor.run.remote(
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")]
@@ -132,8 +136,7 @@ class RunTimeTest(unittest.TestCase):
             "process"
         ].autoscaler_options.autoscale_frequency_secs = 5
         actor = RuntimeActor.remote(
-            run_id="test-run",
-            runtime_options=runtime_options,
+            run_id="test-run", runtime_options=runtime_options, flow_dependencies={}
         )
 
         self.run_with_timeout(
@@ -198,6 +201,7 @@ class RunTimeTest(unittest.TestCase):
         actor = RuntimeActor.remote(
             run_id="test-run",
             runtime_options=runtime_options,
+            flow_dependencies={},
         )
 
         self.run_with_timeout(
@@ -259,6 +263,7 @@ class RunTimeTest(unittest.TestCase):
         actor = RuntimeActor.remote(
             run_id="test-run",
             runtime_options=runtime_options,
+            flow_dependencies={},
         )
 
         self.run_with_timeout(
@@ -316,7 +321,11 @@ class RunTimeTest(unittest.TestCase):
         runtime_options.processor_options[
             "process"
         ].autoscaler_options.autoscale_frequency_secs = 5
-        actor = RuntimeActor.remote(run_id="test-run", runtime_options=runtime_options)
+        actor = RuntimeActor.remote(
+            run_id="test-run",
+            runtime_options=runtime_options,
+            flow_dependencies={},
+        )
 
         self.run_with_timeout(
             actor.run.remote(

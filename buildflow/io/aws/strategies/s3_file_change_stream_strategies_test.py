@@ -4,7 +4,7 @@ import unittest
 
 import boto3
 import pytest
-from moto import mock_sqs
+from moto import mock_sqs, mock_sts
 
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.options.credentials_options import CredentialsOptions
@@ -35,6 +35,7 @@ class S3FileChangeStreamTest(unittest.TestCase):
         self.creds = AWSCredentials(CredentialsOptions.default())
 
     @mock_sqs
+    @mock_sts
     def test_s3_file_change_stream_test_event(self):
         self.queue_url = self._create_queue(self.queue_name, self.region)
         sink = SQSSink(
@@ -92,6 +93,7 @@ class S3FileChangeStreamTest(unittest.TestCase):
         self.assertEqual(payload.file_path, None)
 
     @mock_sqs
+    @mock_sts
     def test_s3_file_change_stream_create(self):
         self.queue_url = self._create_queue(self.queue_name, self.region)
         sink = SQSSink(

@@ -6,13 +6,18 @@ from typing import Optional
 
 import uvicorn
 from fastapi import APIRouter, FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from ray import kill
 
+from buildflow.core.app.flow_state import FlowState
 from buildflow.core.app.infra.actors.infra import InfraActor
 from buildflow.core.app.runtime.actors.runtime import RuntimeActor, RuntimeSnapshot
 
-app = FastAPI()
+app = FastAPI(
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 
 
 index_html = """
@@ -36,7 +41,7 @@ index_html = """
         }
     </script>
     <body>
-        <h1>Node Server UI</h1>
+        <h1>RuntimeServer Server UI</h1>
         <button onclick="drain()">Drain</button>
         <button onclick="snapshot()">Snapshot</button>
         <div>
@@ -53,6 +58,7 @@ class RuntimeServer(uvicorn.Server):
         runtime_actor: RuntimeActor,
         host: str,
         port: int,
+        flow_state: FlowState,
         infra_actor: Optional[InfraActor] = None,
         *,
         log_level: str = "WARNING",
@@ -60,6 +66,7 @@ class RuntimeServer(uvicorn.Server):
         super().__init__(
             uvicorn.Config(app, host=host, port=port, log_level=log_level.lower())
         )
+        self.flow_state = flow_state.to_dict()
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(log_level)
@@ -80,6 +87,7 @@ class RuntimeServer(uvicorn.Server):
             "/runtime/status", self.runtime_status, methods=["GET"]
         )
         self.router.add_api_route("/infra/status", self.runtime_status, methods=["GET"])
+        self.router.add_api_route("/flowstate", self.flowstate, methods=["GET"])
         app.include_router(self.router)
 
     @contextlib.contextmanager
@@ -104,7 +112,7 @@ class RuntimeServer(uvicorn.Server):
 
     async def runtime_snapshot(self):
         snapshot: RuntimeSnapshot = await self.runtime_actor.snapshot.remote()
-        return snapshot.as_dict()
+        return JSONResponse(snapshot.as_dict())
 
     async def runtime_stop(self):
         kill(self.runtime_actor)
@@ -115,3 +123,6 @@ class RuntimeServer(uvicorn.Server):
 
     async def infra_snapshot(self):
         return "Not implemented yet."
+
+    async def flowstate(self):
+        return JSONResponse(self.flow_state)
