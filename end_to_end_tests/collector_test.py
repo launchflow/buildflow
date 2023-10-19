@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from multiprocessing import Process
 
 import duckdb
 import pytest
@@ -15,6 +16,21 @@ from buildflow.dependencies.base import Scope, dependency
 from buildflow.io.local import File
 from buildflow.io.portable.table import AnalysisTable
 from buildflow.types.portable import FileFormat
+
+
+def run_flow(table: str):
+    app = buildflow.Flow()
+
+    @app.collector(
+        route="/test",
+        method="POST",
+        sink=AnalysisTable(table_name=table),
+        num_cpus=0.5,
+    )
+    def my_collector(input: InputRequest) -> OutputResponse:
+        return OutputResponse(input.val + 1)
+
+    app.run(start_runtime_server=True)
 
 
 @dataclasses.dataclass
@@ -58,22 +74,12 @@ class CollectorLocalTest(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    def test_collector_duckdb_end_to_end(self):
-        app = buildflow.Flow()
-
-        @app.collector(
-            route="/test",
-            method="POST",
-            sink=AnalysisTable(table_name=self.table),
-            num_cpus=0.5,
-        )
-        def my_collector(input: InputRequest) -> OutputResponse:
-            return OutputResponse(input.val + 1)
-
-        run_coro = app.run(block=False)
+    def test_collector_duckdb_end_to_end_with_runtime_server(self):
+        p = Process(target=run_flow, args=(self.table,))
+        p.start()
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        self.get_async_result(asyncio.sleep(20))
 
         response = requests.post(
             "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
@@ -85,7 +91,16 @@ class CollectorLocalTest(unittest.TestCase):
         got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
 
         self.assertEqual(got_data[0], 1)
-        self.get_async_result(app._drain())
+
+        response = requests.get("http://127.0.0.1:9653/runtime/snapshot", timeout=10)
+        response.raise_for_status()
+
+        self.assertEqual(response.json()["status"], "RUNNING")
+
+        response = requests.post("http://127.0.0.1:9653/runtime/drain", timeout=10)
+        response.raise_for_status()
+
+        p.join(timeout=20)
 
     def test_collector_file_end_to_end(self):
         output_dir = tempfile.mkdtemp()

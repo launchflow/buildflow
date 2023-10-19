@@ -30,8 +30,9 @@ class AutoscalerOptions(Options):
     # Options for configuring scaling for consumers
     consumer_backlog_burn_threshold: int = 60
     consumer_cpu_percent_target: int = 25
-    # Options for configuring scaling for collectors
+    # Options for configuring scaling for collectors and endpoints
     target_num_ongoing_requests_per_replica: int = 1
+    max_concurrent_queries: int = 100
 
     @classmethod
     def default(cls) -> "AutoscalerOptions":
@@ -54,9 +55,7 @@ class AutoscalerOptions(Options):
 @dataclasses.dataclass
 class ProcessorOptions(Options):
     num_cpus: float
-    num_gpus: float
     num_concurrency: int
-    max_concurrent_queries: int
     log_level: str
     # the configuration of the autoscaler for this processor
     autoscaler_options: AutoscalerOptions
@@ -65,7 +64,6 @@ class ProcessorOptions(Options):
     def default(cls) -> "ProcessorOptions":
         return cls(
             num_cpus=1.0,
-            num_gpus=0.0,
             max_concurrent_queries=100,
             num_concurrency=1,
             log_level="INFO",

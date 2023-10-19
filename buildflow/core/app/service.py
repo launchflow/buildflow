@@ -11,7 +11,6 @@ from buildflow.io.endpoint import Method, Route
 class Service:
     base_route: str = "/"
     num_cpus: float = 1.0
-    num_gpus: float = 0.0
     max_concurrent_queries: int = 100
     enable_autoscaler: bool = True
     num_replicas: int = 1
@@ -31,6 +30,7 @@ class Service:
             num_replicas=self.num_replicas,
             max_replicas=self.max_replicas,
             target_num_ongoing_requests_per_replica=self.target_num_ongoing_requests_per_replica,
+            max_concurrent_queries=self.max_concurrent_queries,
         )
 
     def endpoint(self, route: Route, method: Method) -> None:

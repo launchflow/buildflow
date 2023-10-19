@@ -51,6 +51,8 @@ def run_flow(
     start_runtime_server: bool,
     runtime_server_host: str,
     runtime_server_port: int,
+    serve_host: str,
+    serve_port: int,
     flow_state: Optional[FlowState] = None,
 ):
     if isinstance(flow, buildflow.Flow):
@@ -62,6 +64,8 @@ def run_flow(
                 run_id=run_id,
                 runtime_server_host=runtime_server_host,
                 runtime_server_port=runtime_server_port,
+                serve_host=serve_host,
+                serve_port=serve_port,
             )
             asyncio.run(watcher.run())
 
@@ -72,6 +76,8 @@ def run_flow(
                 runtime_server_port=runtime_server_port,
                 run_id=run_id,
                 flow_state=flow_state,
+                serve_host=serve_host,
+                serve_port=serve_port,
             )
     else:
         typer.echo(f"{app} is not a buildflow flow.")
@@ -80,14 +86,20 @@ def run_flow(
 
 @app.command(help="Run a buildflow flow.")
 def run(
+    serve_host: str = typer.Option(
+        "127.0.0.1", help="The host to use for serving endpoints and collectors."
+    ),
+    serve_port: int = typer.Option(
+        8000, help="The port to use for serving endpoitns and collectors."
+    ),
     start_runtime_server: bool = typer.Option(
         False, help="Whether to start the server for the running flow."
     ),
     runtime_server_host: str = typer.Option(
-        "127.0.0.1", help="The host to use for the flow server."
+        "127.0.0.1", help="The host to use for the runtime server."
     ),
     runtime_server_port: int = typer.Option(
-        9653, help="The port to use for the flow server."
+        9653, help="The port to use for the runtime server."
     ),
     run_id: Optional[str] = typer.Option(None, help="The run id to use for this run."),
     reload: bool = typer.Option(False, help="Whether to reload the app on change."),
@@ -111,6 +123,8 @@ def run(
             start_runtime_server,
             runtime_server_host,
             runtime_server_port,
+            serve_host,
+            serve_port,
         )
     else:
         if reload:

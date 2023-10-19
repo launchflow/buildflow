@@ -3,10 +3,12 @@ import os
 import shutil
 import tempfile
 import unittest
+from multiprocessing import Process
 from typing import Dict
 
 import duckdb
 import pytest
+import requests
 
 import buildflow
 from buildflow.dependencies.base import Scope, dependency
@@ -14,6 +16,20 @@ from buildflow.io.local import File
 from buildflow.io.portable.file_change_stream import FileChangeStream
 from buildflow.io.portable.table import AnalysisTable
 from buildflow.types.portable import FileChangeEvent, FileFormat
+
+
+def run_flow(dir_to_watch: str, table: str):
+    app = buildflow.Flow()
+
+    @app.consumer(
+        source=FileChangeStream(file_path=dir_to_watch),
+        sink=AnalysisTable(table_name=table),
+        num_cpus=0.5,
+    )
+    def my_consumer(event: FileChangeEvent) -> Dict[str, str]:
+        return event.metadata
+
+    app.run(start_runtime_server=True)
 
 
 @pytest.mark.usefixtures("ray")
@@ -49,34 +65,32 @@ class FileStreamLocalTest(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    def test_file_stream_duckdb_end_to_end(self):
-        app = buildflow.Flow()
-
-        @app.consumer(
-            source=FileChangeStream(file_path=self.dir_to_watch),
-            sink=AnalysisTable(table_name=self.table),
-            num_cpus=0.5,
-        )
-        def my_consumer(event: FileChangeEvent) -> Dict[str, str]:
-            return event.metadata
-
-        run_coro = app.run(block=False)
+    def test_file_stream_duckdb_end_to_end_with_runtime_server(self):
+        p = Process(target=run_flow, args=(self.dir_to_watch, self.table))
+        p.start()
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        self.get_async_result(asyncio.sleep(20))
 
         create_path = os.path.join(self.dir_to_watch, "file.txt")
         with open(create_path, "w") as f:
             f.write("hello")
 
-        run_coro = self.run_for_time(run_coro, time=20)
+        self.get_async_result(asyncio.sleep(20))
 
         database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
         conn = duckdb.connect(database=database, read_only=True)
         got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
 
         self.assertEqual(got_data[0], 1)
-        self.get_async_result(app._drain())
+        response = requests.get("http://127.0.0.1:9653/runtime/snapshot", timeout=10)
+        response.raise_for_status()
+
+        self.assertEqual(response.json()["status"], "RUNNING")
+
+        response = requests.post("http://127.0.0.1:9653/runtime/drain", timeout=10)
+        response.raise_for_status()
+        p.join(timeout=20)
 
     def test_file_stream_file_end_to_end(self):
         output_dir = tempfile.mkdtemp()

@@ -58,6 +58,8 @@ class ReceiveProcessRespond(Runtime):
         processor_options: ProcessorOptions,
         log_level: str = "INFO",
         flow_dependencies: Dict[Type, Any],
+        serve_host: str,
+        serve_port: str,
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
@@ -71,6 +73,8 @@ class ReceiveProcessRespond(Runtime):
         self.serve_handle = None
         self.processor_options = processor_options
         self.flow_dependencies = flow_dependencies
+        self.serve_host = serve_host
+        self.serve_port = serve_port
 
     async def run(self) -> bool:
         async def process_fn(processor, *args, **kwargs):
@@ -87,7 +91,6 @@ class ReceiveProcessRespond(Runtime):
             route_prefix=self.processor_group.base_route,
             ray_actor_options={
                 "num_cpus": self.processor_options.num_cpus,
-                "num_gpus": self.processor_options.num_gpus,
             },
             autoscaling_config={
                 "min_replicas": self.processor_options.autoscaler_options.min_replicas,
@@ -95,7 +98,7 @@ class ReceiveProcessRespond(Runtime):
                 "max_replicas": self.processor_options.autoscaler_options.max_replicas,
                 "target_num_ongoing_requests_per_replica": self.processor_options.autoscaler_options.target_num_ongoing_requests_per_replica,  # noqa: E501
             },
-            max_concurrent_queries=self.processor_options.max_concurrent_queries,
+            max_concurrent_queries=self.processor_options.autoscaler_options.max_concurrent_queries,
         )
         @serve.ingress(app)
         class FastAPIWrapper:
@@ -110,8 +113,8 @@ class ReceiveProcessRespond(Runtime):
                 tries += 1
                 self.serve_handle = serve.run(
                     self.endpoint_application,
-                    host="0.0.0.0",
-                    port=8000,
+                    host=self.serve_host,
+                    port=self.serve_port,
                     name=self.processor_group.group_id,
                 )
                 break
