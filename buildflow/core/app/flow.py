@@ -461,6 +461,7 @@ class Flow:
             if run_id is None:
                 run_id = utils.uuid()
             print("DO NOT SUBMIT: initializing runtime actor")
+            print("DO NOT SUBMIT: ", ray.available_resources())
             self._runtime_actor_ref = RuntimeActor.remote(
                 run_id=run_id,
                 runtime_options=self.options.runtime_options,
