@@ -768,6 +768,7 @@ class Flow:
 
         # Start the Runtime Server (maybe)
         if start_runtime_server:
+            print("DO NOT SUBMIT: initializing runtime server")
             runtime_server = RuntimeServer(
                 runtime_actor=self._get_runtime_actor(run_id=run_id),
                 host=runtime_server_host,
