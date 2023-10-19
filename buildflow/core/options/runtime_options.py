@@ -64,7 +64,6 @@ class ProcessorOptions(Options):
     def default(cls) -> "ProcessorOptions":
         return cls(
             num_cpus=1.0,
-            max_concurrent_queries=100,
             num_concurrency=1,
             log_level="INFO",
             autoscaler_options=AutoscalerOptions.default(),

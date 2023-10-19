@@ -19,6 +19,8 @@ def launch_debug_app(
     run_id: str,
     runtime_server_host: str,
     runtime_server_port: int,
+    serve_host: str,
+    serve_port: int,
 ):
     sys.path.insert(0, "")
     imported = utils.import_from_string(app)
@@ -28,6 +30,8 @@ def launch_debug_app(
         runtime_server_port=runtime_server_port,
         run_id=run_id,
         debug_run=True,
+        serve_host=serve_host,
+        serve_port=serve_port,
     )
 
 

@@ -75,32 +75,38 @@ class CollectorLocalTest(unittest.TestCase):
             pass
 
     def test_collector_duckdb_end_to_end_with_runtime_server(self):
-        p = Process(target=run_flow, args=(self.table,))
-        p.start()
+        try:
+            p = Process(target=run_flow, args=(self.table,))
+            p.start()
 
-        # wait for 20 seconds to let it spin up
-        self.get_async_result(asyncio.sleep(20))
+            # wait for 20 seconds to let it spin up
+            self.get_async_result(asyncio.sleep(20))
 
-        response = requests.post(
-            "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
-        )
-        response.raise_for_status()
+            response = requests.post(
+                "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
+            )
+            response.raise_for_status()
 
-        database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
-        conn = duckdb.connect(database=database, read_only=True)
-        got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
+            database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
+            conn = duckdb.connect(database=database, read_only=True)
+            got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
 
-        self.assertEqual(got_data[0], 1)
+            self.assertEqual(got_data[0], 1)
 
-        response = requests.get("http://127.0.0.1:9653/runtime/snapshot", timeout=10)
-        response.raise_for_status()
+            response = requests.get(
+                "http://127.0.0.1:9653/runtime/snapshot", timeout=10
+            )
+            response.raise_for_status()
 
-        self.assertEqual(response.json()["status"], "RUNNING")
+            self.assertEqual(response.json()["status"], "RUNNING")
 
-        response = requests.post("http://127.0.0.1:9653/runtime/drain", timeout=10)
-        response.raise_for_status()
-
-        p.join(timeout=20)
+            response = requests.post("http://127.0.0.1:9653/runtime/drain", timeout=10)
+            response.raise_for_status()
+        finally:
+            p.join(timeout=20)
+            if p.is_alive():
+                p.kill()
+                p.join()
 
     def test_collector_file_end_to_end(self):
         output_dir = tempfile.mkdtemp()
