@@ -749,7 +749,7 @@ class Flow:
             # start two clusters on mac
             ray.init(address="auto", ignore_reinit_error=True)
         except ConnectionError:
-            ray.init()
+            ray.init(ignore_reinit_error=True)
         # Setup services
         # Start the Flow Runtime
         runtime_coroutine = self._run(
