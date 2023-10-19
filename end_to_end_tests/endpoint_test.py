@@ -63,7 +63,7 @@ class EndpointLocalTest(unittest.TestCase):
             p.start()
 
             # wait for 20 seconds to let it spin up
-            self.get_async_result(asyncio.sleep(20))
+            self.get_async_result(asyncio.sleep(40))
 
             response = requests.post(
                 "http://127.0.0.1:8000/test", json={"val": 1}, timeout=10

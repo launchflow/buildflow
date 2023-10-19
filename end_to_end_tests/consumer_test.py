@@ -71,7 +71,7 @@ class FileStreamLocalTest(unittest.TestCase):
             p.start()
 
             # wait for 20 seconds to let it spin up
-            self.get_async_result(asyncio.sleep(20))
+            self.get_async_result(asyncio.sleep(40))
 
             create_path = os.path.join(self.dir_to_watch, "file.txt")
             with open(create_path, "w") as f:

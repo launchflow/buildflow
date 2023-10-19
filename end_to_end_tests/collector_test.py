@@ -80,7 +80,7 @@ class CollectorLocalTest(unittest.TestCase):
             p.start()
 
             # wait for 20 seconds to let it spin up
-            self.get_async_result(asyncio.sleep(20))
+            self.get_async_result(asyncio.sleep(40))
 
             response = requests.post(
                 "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
