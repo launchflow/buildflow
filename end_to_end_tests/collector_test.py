@@ -25,7 +25,7 @@ def run_flow(table: str):
         route="/test",
         method="POST",
         sink=AnalysisTable(table_name=table),
-        num_cpus=0.5,
+        num_cpus=0.1,
     )
     def my_collector(input: InputRequest) -> OutputResponse:
         return OutputResponse(input.val + 1)

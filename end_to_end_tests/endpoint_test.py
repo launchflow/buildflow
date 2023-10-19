@@ -27,7 +27,7 @@ class OutputResponse:
 
 def run_flow():
     app = buildflow.Flow()
-    service = app.service(num_cpus=0.5)
+    service = app.service(num_cpus=0.1)
 
     @service.endpoint(route="/test", method="POST")
     def my_endpoint(input: InputRequest) -> OutputResponse:

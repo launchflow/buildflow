@@ -24,7 +24,7 @@ def run_flow(dir_to_watch: str, table: str):
     @app.consumer(
         source=FileChangeStream(file_path=dir_to_watch),
         sink=AnalysisTable(table_name=table),
-        num_cpus=0.5,
+        num_cpus=0.1,
     )
     def my_consumer(event: FileChangeEvent) -> Dict[str, str]:
         return event.metadata
