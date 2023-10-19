@@ -460,11 +460,13 @@ class Flow:
         if self._runtime_actor_ref is None:
             if run_id is None:
                 run_id = utils.uuid()
+            print("DO NOT SUBMIT: initializing runtime actor")
             self._runtime_actor_ref = RuntimeActor.remote(
                 run_id=run_id,
                 runtime_options=self.options.runtime_options,
                 flow_dependencies=self.flow_dependencies,
             )
+            print("DO NOT SUBMIT: got runtime actor")
         return self._runtime_actor_ref
 
     def _get_credentials(self, primitive_type: PrimitiveType):
