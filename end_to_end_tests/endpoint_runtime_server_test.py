@@ -1,7 +1,7 @@
 import asyncio
 import dataclasses
 import unittest
-from multiprocessing import Process
+from multiprocessing import Process, TimeoutError
 
 import pytest
 import requests
@@ -57,7 +57,7 @@ class EndpointLocalTest(unittest.TestCase):
             p.start()
 
             # wait for 20 seconds to let it spin up
-            self.get_async_result(asyncio.sleep(60))
+            self.get_async_result(asyncio.sleep(20))
 
             response = requests.post(
                 "http://127.0.0.1:8000/test", json={"val": 1}, timeout=10
@@ -76,10 +76,10 @@ class EndpointLocalTest(unittest.TestCase):
             response.raise_for_status()
 
         finally:
-            p.join(timeout=20)
-            if p.is_alive():
+            try:
+                p.join(timeout=20)
+            except TimeoutError:
                 p.kill()
-                p.join()
 
 
 if __name__ == "__main__":

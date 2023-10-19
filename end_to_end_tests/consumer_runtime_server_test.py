@@ -3,7 +3,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from multiprocessing import Process
+from multiprocessing import Process, TimeoutError
 from typing import Dict
 
 import duckdb
@@ -37,20 +37,6 @@ class FileStreamLocalTest(unittest.TestCase):
         """Run a coroutine synchronously."""
         return self.event_loop.run_until_complete(coro)
 
-    def run_for_time(self, coro, time: int = 5):
-        async def wait_wrapper():
-            completed, pending = await asyncio.wait(
-                [coro], timeout=time, return_when="FIRST_EXCEPTION"
-            )
-            if completed:
-                # This general should only happen when there was an exception so
-                # we want to raise it to make the test failure more obvious.
-                completed.pop().result()
-            if pending:
-                return pending.pop()
-
-        return self.event_loop.run_until_complete(wait_wrapper())
-
     def setUp(self) -> None:
         self.dir_to_watch = tempfile.mkdtemp()
         self.table = "end_to_end_test"
@@ -69,7 +55,7 @@ class FileStreamLocalTest(unittest.TestCase):
             p.start()
 
             # wait for 20 seconds to let it spin up
-            self.get_async_result(asyncio.sleep(40))
+            self.get_async_result(asyncio.sleep(20))
 
             create_path = os.path.join(self.dir_to_watch, "file.txt")
             with open(create_path, "w") as f:
@@ -92,10 +78,10 @@ class FileStreamLocalTest(unittest.TestCase):
             response = requests.post("http://127.0.0.1:9653/runtime/drain", timeout=10)
             response.raise_for_status()
         finally:
-            p.join(timeout=20)
-            if p.is_alive():
+            try:
+                p.join(timeout=20)
+            except TimeoutError:
                 p.kill()
-                p.join()
 
 
 if __name__ == "__main__":

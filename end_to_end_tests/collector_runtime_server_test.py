@@ -2,7 +2,7 @@ import asyncio
 import dataclasses
 import os
 import unittest
-from multiprocessing import Process
+from multiprocessing import Process, TimeoutError
 
 import duckdb
 import pytest
@@ -44,20 +44,6 @@ class CollectorLocalTest(unittest.TestCase):
         """Run a coroutine synchronously."""
         return self.event_loop.run_until_complete(coro)
 
-    def run_for_time(self, coro, time: int = 5):
-        async def wait_wrapper():
-            completed, pending = await asyncio.wait(
-                [coro], timeout=time, return_when="FIRST_EXCEPTION"
-            )
-            if completed:
-                # This general should only happen when there was an exception so
-                # we want to raise it to make the test failure more obvious.
-                completed.pop().result()
-            if pending:
-                return pending.pop()
-
-        return self.event_loop.run_until_complete(wait_wrapper())
-
     def setUp(self) -> None:
         self.table = "end_to_end_test"
         self.database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
@@ -74,7 +60,7 @@ class CollectorLocalTest(unittest.TestCase):
             p.start()
 
             # wait for 20 seconds to let it spin up
-            self.get_async_result(asyncio.sleep(40))
+            self.get_async_result(asyncio.sleep(20))
 
             response = requests.post(
                 "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
@@ -97,10 +83,10 @@ class CollectorLocalTest(unittest.TestCase):
             response = requests.post("http://127.0.0.1:9653/runtime/drain", timeout=10)
             response.raise_for_status()
         finally:
-            p.join(timeout=20)
-            if p.is_alive():
+            try:
+                p.join(timeout=20)
+            except TimeoutError:
                 p.kill()
-                p.join()
 
 
 if __name__ == "__main__":
