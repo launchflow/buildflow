@@ -772,6 +772,7 @@ class Flow:
                 port=runtime_server_port,
                 flow_state=flow_state,
             )
+            print("DO NOT SUBMIT: starting runtime server")
             with runtime_server.run_in_thread():
                 server_log_message = (
                     "-" * 80
@@ -789,8 +790,10 @@ class Flow:
                         "Starting the Runtime Server is only "
                         "supported if blocking=True."
                     )
+            print("DO NOT SUBMIT: runtime server starting")
         else:
             if block:
+                print("DO NOT SUBMIT: blocking on runtime coroutine")
                 asyncio.get_event_loop().run_until_complete(runtime_coroutine)
             else:
                 return runtime_coroutine
