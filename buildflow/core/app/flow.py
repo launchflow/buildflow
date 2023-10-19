@@ -759,6 +759,8 @@ class Flow:
             debug_run=debug_run, serve_host=serve_host, serve_port=serve_port
         )
 
+        print("DO NOT SUBMIT: started runtime")
+
         if debug_run:
             # If debug run is enabled, we want to set the checkin frequency
             # more often so we can reload faster
