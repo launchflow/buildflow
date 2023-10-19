@@ -23,9 +23,10 @@ def event_loop_instance(request):
 
 @pytest.fixture(scope="function", name="ray")
 def ray_fix():
-    ray.init(num_cpus=1, ignore_reinit_error=True)
-    yield None
-    ray.shutdown()
+    pass
+    # ray.init(num_cpus=1, ignore_reinit_error=True)
+    # yield None
+    # ray.shutdown()
 
 
 def pytest_collection_modifyitems(items):
