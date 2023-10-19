@@ -747,9 +747,12 @@ class Flow:
         try:
             # There's an issue on ray where if we don't do this ray will
             # start two clusters on mac
+            print("DO NOT SUBMIT: attempting to initialize")
             ray.init(address="auto", ignore_reinit_error=True)
         except ConnectionError:
+            print("DO NOT SUBMIT: got connection error trying again")
             ray.init(ignore_reinit_error=True)
+        print("DO NOT SUBMIT: initialized")
         # Setup services
         # Start the Flow Runtime
         runtime_coroutine = self._run(
