@@ -460,14 +460,11 @@ class Flow:
         if self._runtime_actor_ref is None:
             if run_id is None:
                 run_id = utils.uuid()
-            print("DO NOT SUBMIT: initializing runtime actor")
-            print("DO NOT SUBMIT: ", ray.available_resources())
             self._runtime_actor_ref = RuntimeActor.remote(
                 run_id=run_id,
                 runtime_options=self.options.runtime_options,
                 flow_dependencies=self.flow_dependencies,
             )
-            print("DO NOT SUBMIT: got runtime actor")
         return self._runtime_actor_ref
 
     def _get_credentials(self, primitive_type: PrimitiveType):
@@ -750,19 +747,14 @@ class Flow:
         try:
             # There's an issue on ray where if we don't do this ray will
             # start two clusters on mac
-            print("DO NOT SUBMIT: attempting to initialize")
             ray.init(address="auto", ignore_reinit_error=True)
         except ConnectionError:
-            print("DO NOT SUBMIT: got connection error trying again")
             ray.init(ignore_reinit_error=True)
-        print("DO NOT SUBMIT: initialized")
         # Setup services
         # Start the Flow Runtime
         runtime_coroutine = self._run(
             debug_run=debug_run, serve_host=serve_host, serve_port=serve_port
         )
-
-        print("DO NOT SUBMIT: started runtime")
 
         if debug_run:
             # If debug run is enabled, we want to set the checkin frequency
@@ -771,14 +763,12 @@ class Flow:
 
         # Start the Runtime Server (maybe)
         if start_runtime_server:
-            print("DO NOT SUBMIT: initializing runtime server")
             runtime_server = RuntimeServer(
                 runtime_actor=self._get_runtime_actor(run_id=run_id),
                 host=runtime_server_host,
                 port=runtime_server_port,
                 flow_state=flow_state,
             )
-            print("DO NOT SUBMIT: starting runtime server")
             with runtime_server.run_in_thread():
                 server_log_message = (
                     "-" * 80
@@ -796,10 +786,8 @@ class Flow:
                         "Starting the Runtime Server is only "
                         "supported if blocking=True."
                     )
-            print("DO NOT SUBMIT: runtime server starting")
         else:
             if block:
-                print("DO NOT SUBMIT: blocking on runtime coroutine")
                 asyncio.get_event_loop().run_until_complete(runtime_coroutine)
             else:
                 return runtime_coroutine
