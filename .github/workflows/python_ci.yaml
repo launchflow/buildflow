@@ -55,7 +55,7 @@ jobs:
           pip install .[dev]
       - name: Test with pytest
         run: |
-          pytest --disable-warnings --cov -k test_endpoint_end_to_end_with_runtime_server
+          pytest --disable-warnings --cov
 
-      # - name: Upload coverage reports to Codecov
-      #   uses: codecov/codecov-action@v3
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
