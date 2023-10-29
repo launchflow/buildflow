@@ -20,7 +20,7 @@ dependencies = [
     "cloud-sql-python-connector",
     "dacite",
     "duckdb",
-    "clickhouse-connect==0.6.14",
+    "clickhouse-connect",
     "gcsfs",
     "google-auth",
     "google-cloud-bigquery",

@@ -4,8 +4,6 @@ import unittest
 import clickhouse_connect
 import pytest
 
-from buildflow.core.credentials import ClickhouseCredentials
-from buildflow.core.options.credentials_options import CredentialsOptions
 from buildflow.io.clickhouse.strategies import clickhouse_strategies
 
 
@@ -26,11 +24,18 @@ class ClickhouseStrategiesTest(unittest.TestCase):
             pass
 
     def setUp(self) -> None:
+        self.host = "localhost"
+        self.username = "default"
+        self.password = ""
         self.db = "default"
         self.table = "default"
-        self.credentials = ClickhouseCredentials(CredentialsOptions.default())
         self.sink = clickhouse_strategies.ClickhouseSink(
-            credentials=self.credentials, database=self.db, table=self.table
+            credentials=None,
+            host=self.host,
+            username=self.username,
+            password=self.password,
+            database=self.db,
+            table=self.table,
         )
 
     def test_clickhouse_push_base(self):

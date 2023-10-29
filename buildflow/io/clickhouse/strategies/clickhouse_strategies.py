@@ -5,8 +5,14 @@ from typing import Any, Callable, Dict, Iterable, Type
 import clickhouse_connect
 import pandas as pd
 
-from buildflow.core.credentials import ClickhouseCredentials
-from buildflow.core.types.clickhouse_types import ClickhouseDatabase, ClickhouseTableID
+from buildflow.core.credentials import EmptyCredentials
+from buildflow.core.types.clickhouse_types import (
+    ClickhouseDatabase,
+    ClickhouseHost,
+    ClickhousePassword,
+    ClickhouseTableID,
+    ClickhouseUsername,
+)
 from buildflow.io.strategies.sink import SinkStrategy
 from buildflow.io.utils.schemas import converters
 
@@ -17,7 +23,10 @@ class ClickhouseSink(SinkStrategy):
     def __init__(
         self,
         *,
-        credentials: ClickhouseCredentials,
+        credentials: EmptyCredentials,
+        host: ClickhouseHost,
+        username: ClickhouseUsername,
+        password: ClickhousePassword,
         database: ClickhouseDatabase,
         table: ClickhouseTableID,
     ):
@@ -25,16 +34,22 @@ class ClickhouseSink(SinkStrategy):
         self.client = None
         self.database = database
         self.table = table
-        self.connect(credentials)
+        self.host = host
+        self.username = username
+        self.password = password
+        try:
+            self.connect()
+        except ConnectionError:
+            logging.exception("failed to get an instance of clickhouse client")
 
-    async def connect(self, credentials: ClickhouseCredentials):
+    async def connect(self):
         connect_tries = 0
         while connect_tries < _MAX_CONNECT_TRIES:
             try:
                 self.client = clickhouse_connect.get_client(
-                    host=credentials.host,
-                    username=credentials.username,
-                    password=credentials.password,
+                    host=self.host,
+                    username=self.username,
+                    password=self.password,
                 )
                 self.client.command(
                     f"CREATE DATABASE IF NOT EXISTS {self.database} ENGINE = Memory"
@@ -67,4 +82,6 @@ class ClickhouseSink(SinkStrategy):
         try:
             self.client.insert_df(self.table, df)
         except clickhouse_connect.driver.exceptions.DataError:
-            logging.exception("failed to connect to duckdb database")
+            logging.exception("failed to connect to clickhouse database")
+        # except AttributeError:
+        #     logging.exception("failed to write to clickhouse database")

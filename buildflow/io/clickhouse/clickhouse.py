@@ -1,29 +1,31 @@
 import dataclasses
 from typing import Optional, Type
 
-from buildflow.core.types.clickhouse_types import ClickhouseDatabase, ClickhouseTableID
-from buildflow.io.clickhouse.providers.clickhouse_providers import ClickhouseProvider
+from buildflow.config.cloud_provider_config import LocalOptions
+from buildflow.core.credentials import EmptyCredentials
+from buildflow.core.types.clickhouse_types import (
+    ClickhouseDatabase,
+    ClickhouseHost,
+    ClickhousePassword,
+    ClickhouseTableID,
+    ClickhouseUsername,
+)
+from buildflow.io.clickhouse.strategies.clickhouse_strategies import ClickhouseSink
 from buildflow.io.primitive import LocalPrimtive, Primitive
 
 _DEFAULT_DESTROY_PROTECTION = False
 _DEFAULT_BATCH_SIZE = 10_000
 
 
-class ClickhouseTable(
-    LocalPrimtive[
-        # Pulumi provider type
-        None,
-        # Source provider type
-        None,
-        # Sink provider type
-        ClickhouseProvider,
-        # Background task provider type
-        None,
-    ]
-):
+@dataclasses.dataclass
+class ClickhouseTable(LocalPrimtive):
     database: ClickhouseDatabase
     table: ClickhouseTableID
     schema: Optional[Type] = dataclasses.field(default=None, init=False)
+    # Arguments for authentication
+    host: Optional[str]
+    username: Optional[str]
+    password: Optional[str]
 
     def options(
         self,
@@ -38,8 +40,26 @@ class ClickhouseTable(
         self.schema = schema
         return self
 
-    def sink_provider(self) -> ClickhouseProvider:
-        return ClickhouseProvider(database=self.database, table=self.table)
+    @classmethod
+    def from_local_options(
+        cls,
+        local_options: LocalOptions,
+        *,
+        host: ClickhouseHost,
+        username: ClickhouseUsername,
+        password: ClickhousePassword,
+        database: ClickhouseDatabase,
+        table: ClickhouseTableID,
+    ) -> "LocalPrimtive":
+        """Create a primitive from LocalOptions."""
+        return cls(host, username, password, database, table)
 
-    def _pulumi_provider(self) -> ClickhouseProvider:
-        return ClickhouseProvider(database=self.database, table=self.table)
+    def sink(self, credentials: EmptyCredentials):
+        return ClickhouseSink(
+            credentials=credentials,
+            host=self.host,
+            username=self.username,
+            password=self.password,
+            database=self.database,
+            table=self.table,
+        )
