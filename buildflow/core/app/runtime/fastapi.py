@@ -115,7 +115,7 @@ def create_app(
 
             @add_input_types(input_types, output_type)
             async def handle_request(
-                self, raw_request: fastapi.Request, *args, **kwargs
+                self, raw_request: fastapi.Request = None, *args, **kwargs
             ) -> output_type:
                 processor = app.state.processor_map[self.processor_id]
                 self.num_events_processed_counter.inc(

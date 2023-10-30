@@ -11,6 +11,7 @@ import buildflow
 from buildflow.dependencies.base import Scope, dependency
 from buildflow.dependencies.sink import SinkDependencyBuilder
 from buildflow.io.local.file import File
+from buildflow.requests import Request
 from buildflow.types.portable import FileFormat
 
 
@@ -191,6 +192,52 @@ class EndpointLocalTest(unittest.TestCase):
                 self.assertEqual(lines[1], "11\n")
 
             self.get_async_result(app._drain())
+
+    def test_endpoint_with_default(self):
+        app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
+
+        @service.endpoint(route="/test", method="GET")
+        def my_endpoint(input: int = 1) -> OutputResponse:
+            return OutputResponse(input + 1)
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        response = requests.get("http://0.0.0.0:8000/test", timeout=10)
+        response.raise_for_status()
+        self.assertEqual(response.json(), {"val": 2})
+
+        response = requests.get("http://0.0.0.0:8000/test?input=2", timeout=10)
+        response.raise_for_status()
+        self.assertEqual(response.json(), {"val": 3})
+
+        self.get_async_result(app._drain())
+
+    def test_endpoint_with_request(self):
+        app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
+
+        @service.endpoint(route="/test", method="GET")
+        def my_endpoint(request: Request, input: int = 1) -> OutputResponse:
+            return OutputResponse(input + 1)
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        response = requests.get("http://0.0.0.0:8000/test", timeout=10)
+        response.raise_for_status()
+        self.assertEqual(response.json(), {"val": 2})
+
+        response = requests.get("http://0.0.0.0:8000/test?input=2", timeout=10)
+        response.raise_for_status()
+        self.assertEqual(response.json(), {"val": 3})
+
+        self.get_async_result(app._drain())
 
 
 if __name__ == "__main__":
