@@ -66,10 +66,7 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    # There was an issue with this for moto3 testing.
-    # was getting the following error:
-    #   module 'aiobotocore' has no attribute 'AioSession'
-    "aiobotocore<2.6.0",
+    "aiobotocore",
     "aiohttp",
     "botocore",
     "isort",
