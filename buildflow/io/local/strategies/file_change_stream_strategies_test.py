@@ -46,9 +46,9 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
 
             data = self.get_async_result(strat.pull())
 
-            self.assertGreaterEqual(len(data.payload), 1)
+            self.assertGreaterEqual(len(data.payloads), 1)
             found_file_create = False
-            for event in data.payload:
+            for event, _ in data.payloads:
                 if (
                     event.event_type == FileChangeStreamEventType.CREATED
                     and not os.path.isdir(event.file_path)
@@ -69,14 +69,14 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
             self.get_async_result(asyncio.sleep(1))
             data = self.get_async_result(strat.pull())
             # Nothing has changed since our last pull so we should get no elements.
-            self.assertEqual(len(data.payload), 0)
+            self.assertEqual(len(data.payloads), 0)
 
             os.remove(create_path)
             self.get_async_result(asyncio.sleep(1))
             data = self.get_async_result(strat.pull())
-            self.assertGreaterEqual(len(data.payload), 1)
+            self.assertGreaterEqual(len(data.payloads), 1)
             found_delete_event = False
-            for event in data.payload:
+            for event, _ in data.payloads:
                 if (
                     event.event_type == FileChangeStreamEventType.DELETED
                     and not os.path.isdir(event.file_path)

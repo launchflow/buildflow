@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Callable, Iterable, Type
+from typing import Any, Callable, Iterable, Tuple, Type
 
 from buildflow.core.credentials import CredentialType
 from buildflow.io.strategies._strategy import StategyType, Strategy, StrategyID
@@ -11,8 +11,7 @@ class AckInfo:
 
 @dataclasses.dataclass
 class PullResponse:
-    payload: Iterable[Any]
-    ack_info: AckInfo
+    payloads: Iterable[Tuple[Any, AckInfo]]
 
 
 class SourceStrategy(Strategy):
@@ -25,7 +24,7 @@ class SourceStrategy(Strategy):
         """Pull returns a batch of data from the source."""
         raise NotImplementedError("pull not implemented")
 
-    async def ack(self, to_ack: AckInfo, success: bool):
+    async def ack(self, successful: Iterable[AckInfo], failed: Iterable[AckInfo]):
         """Ack acknowledges data pulled from the source."""
         raise NotImplementedError("ack not implemented")
 

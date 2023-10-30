@@ -20,7 +20,7 @@ class PulsePrimitiveTest(unittest.TestCase):
         start_time = time.time()
         for i in range(3):
             result = self.get_async_result(pulse_source.pull())
-            self.assertEqual(result.payload, [i + 1])
+            self.assertEqual(result.payloads, [(i + 1, i)])
         end_time = time.time() - start_time
         self.assertGreaterEqual(end_time, 3)
 

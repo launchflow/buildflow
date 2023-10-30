@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional, Type
+from typing import Any, Callable, Iterable, Optional, Type
 
 from buildflow.core.credentials import GCPCredentials
 from buildflow.io.gcp.strategies.pubsub_strategies import GCPPubSubSubscriptionSource
@@ -29,19 +29,24 @@ class GCSFileChangeStreamSource(SourceStrategy):
 
     async def pull(self) -> PullResponse:
         pull_response = await self.pubsub_source.pull()
-        payload = [
-            GCSFileChangeEvent(
-                file_path=payload.attributes["objectId"],
-                event_type=GCSChangeStreamEventType[payload.attributes["eventType"]],
-                metadata=payload.attributes,
-                storage_client=self.storage_client,
+        payloads = [
+            (
+                GCSFileChangeEvent(
+                    file_path=payload.attributes["objectId"],
+                    event_type=GCSChangeStreamEventType[
+                        payload.attributes["eventType"]
+                    ],
+                    metadata=payload.attributes,
+                    storage_client=self.storage_client,
+                ),
+                ack_id,
             )
-            for payload in pull_response.payload
+            for payload, ack_id in pull_response.payloads
         ]
-        return PullResponse(payload=payload, ack_info=pull_response.ack_info)
+        return PullResponse(payloads=payloads)
 
-    async def ack(self, ack_info: AckInfo, success: bool):
-        return await self.pubsub_source.ack(ack_info=ack_info, success=success)
+    async def ack(self, successful: Iterable[AckInfo], failed: Iterable[AckInfo]):
+        return await self.pubsub_source.ack(successful, failed)
 
     async def backlog(self) -> int:
         return await self.pubsub_source.backlog()

@@ -1,5 +1,6 @@
 import asyncio
 import dataclasses
+import uuid
 from threading import Lock
 from typing import Any, Callable, Dict, Iterable, Type
 
@@ -73,9 +74,10 @@ class LocalFileChangeStreamSource(SourceStrategy):
         payloads = []
         if self.event_queue:
             with self.lock:
-                payloads.extend(self.event_queue)
+                for event in self.event_queue:
+                    payloads.append((event, uuid.uuid4().hex))
                 self.event_queue.clear()
-        return PullResponse(payload=payloads, ack_info=None)
+        return PullResponse(payloads)
 
     def pull_converter(
         self, user_defined_type: Type
@@ -85,7 +87,7 @@ class LocalFileChangeStreamSource(SourceStrategy):
     async def backlog(self) -> int:
         return 0
 
-    async def ack(self, to_ack: AckInfo, success: bool):
+    async def ack(self, successful: Iterable[AckInfo], failed: Iterable[AckInfo]):
         return
 
     def max_batch_size(self) -> int:

@@ -80,15 +80,16 @@ class SqsStrategiesTest(unittest.TestCase):
         self.assertEqual(backlog, 12)
 
         pull_response1 = self.get_async_result(source.pull())
-        self.assertEqual(len(pull_response1.payload), 10)
+        self.assertEqual(len(pull_response1.payloads), 10)
 
-        self.get_async_result(source.ack(pull_response1.ack_info, True))
+        ack_infos = [ack_info for _, ack_info in pull_response1.payloads]
+        self.get_async_result(source.ack(ack_infos, []))
         backlog = self.get_async_result(source.backlog())
         self.assertEqual(backlog, 2)
 
         pull_response2 = self.get_async_result(source.pull())
-        self.assertEqual(len(pull_response2.payload), 2)
-        self.get_async_result(source.ack(pull_response1.ack_info, True))
+        ack_infos = [ack_info for _, ack_info in pull_response2.payloads]
+        self.get_async_result(source.ack(ack_infos, []))
         backlog = self.get_async_result(source.backlog())
         self.assertEqual(backlog, 0)
 

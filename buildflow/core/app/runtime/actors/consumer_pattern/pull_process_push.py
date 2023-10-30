@@ -229,7 +229,7 @@ class PullProcessPushActor(Runtime):
             except Exception:
                 logging.exception("pull failed")
                 continue
-            if not response.payload:
+            if not response.payloads:
                 self.pull_percentage_counter[processor_id].empty_inc()
                 cpu_percent = proc.cpu_percent()
                 if cpu_percent > 0.0:
@@ -238,61 +238,72 @@ class PullProcessPushActor(Runtime):
                     self.cpu_percentage[processor_id].empty_inc()
                 continue
             # PROCESS
-            process_success = True
             process_start_time = time.monotonic()
 
             if max_batch_size > 0:
                 self.pull_percentage_counter[processor_id].inc(
-                    len(response.payload) / source.max_batch_size()
+                    len(response.payloads) / source.max_batch_size()
                 )
-            try:
-                coros = []
-                for element in response.payload:
-                    dependency_args = dependency_args = resolve_dependencies(
-                        processor.dependencies(), self.flow_dependencies
-                    )
-                    coros.append(process_element(element, **dependency_args))
-                flattened_results = await asyncio.gather(*coros)
-                batch_results = []
-                for results in flattened_results:
-                    if results is None:
-                        # Exclude none from the users batch
-                        continue
-                    if isinstance(results, list):
-                        batch_results.extend(results)
-                    else:
-                        batch_results.append(results)
-
-                batch_process_time_millis = (
-                    time.monotonic() - process_start_time
-                ) * 1000
-                self.batch_time_counter[processor_id].inc(
-                    (time.monotonic() - process_start_time) * 1000
+            successful_ackids = []
+            failed_ackids = []
+            coros = {}
+            for element, ack_info in response.payloads:
+                dependency_args = dependency_args = resolve_dependencies(
+                    processor.dependencies(), self.flow_dependencies
                 )
-                element_process_time_millis = batch_process_time_millis / len(
-                    response.payload
-                )
-                self.process_time_counter[processor_id].inc(element_process_time_millis)
-
-                # PUSH
-                if batch_results:
-                    await sink.push(batch_results)
-            except Exception:
-                logging.exception(
-                    "failed to process batch, messages will not be acknowledged"
-                )
-                process_success = False
-            finally:
-                # ACK
-                try:
-                    await source.ack(response.ack_info, process_success)
-                except Exception:
-                    # This can happen if there is network failures for w/e reason
-                    # we want to try and catch here so our runtime loop
-                    # doesn't die.
-                    logging.exception("failed to ack batch, will continue")
+                coros[ack_info] = process_element(element, **dependency_args)
+            coro_results = await asyncio.gather(*coros.values(), return_exceptions=True)
+            succesful_results = {}
+            for key, result in zip(coros.keys(), coro_results):
+                if isinstance(result, Exception):
+                    failed_ackids.append(key)
+                else:
+                    succesful_results[key] = result
+            batch_results = []
+            for key, results in succesful_results.items():
+                if results is None:
+                    # Exclude none from the users batch
                     continue
-            self.num_events_processed[processor_id].inc(len(response.payload))
+                if isinstance(results, list):
+                    batch_results.extend(results)
+                else:
+                    batch_results.append(results)
+
+            batch_process_time_millis = (time.monotonic() - process_start_time) * 1000
+            self.batch_time_counter[processor_id].inc(
+                (time.monotonic() - process_start_time) * 1000
+            )
+            element_process_time_millis = batch_process_time_millis / len(
+                response.payloads
+            )
+            self.process_time_counter[processor_id].inc(element_process_time_millis)
+
+            # PUSH
+            for key, result in succesful_results.items():
+                if result is None:
+                    # Exclude none results
+                    continue
+                elif not isinstance(result, (list, tuple)):
+                    result = [result]
+                try:
+                    await sink.push(result)
+                    successful_ackids.append(key)
+                except Exception:
+                    logging.exception(
+                        "failed to write message %s to sink, will not ack."
+                    )
+                    failed_ackids.append(key)
+                    continue
+            # ACK
+            try:
+                await source.ack(successful_ackids, failed_ackids)
+            except Exception:
+                # This can happen if there is network failures for w/e reason
+                # we want to try and catch here so our runtime loop
+                # doesn't die.
+                logging.exception("failed to ack batch, will continue")
+                continue
+            self.num_events_processed[processor_id].inc(len(response.payloads))
             # DONE -> LOOP
             self.total_time_counter[processor_id].inc(
                 (time.monotonic() - total_start_time) * 1000

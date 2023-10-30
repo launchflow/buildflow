@@ -6,7 +6,7 @@ from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.core.types.aws_types import AWSAccountID, AWSRegion, SQSQueueName
 from buildflow.core.utils import uuid
 from buildflow.io.strategies.sink import Batch, SinkStrategy
-from buildflow.io.strategies.source import AckInfo, PullResponse, SourceStrategy
+from buildflow.io.strategies.source import PullResponse, SourceStrategy
 from buildflow.io.utils.clients.aws_clients import AWSClients
 from buildflow.io.utils.schemas import converters
 
@@ -17,11 +17,6 @@ _MAX_BATCH_SIZE = 10
 class _MessageInfo:
     message_id: str
     receipt_handle: str
-
-
-@dataclasses.dataclass
-class _SQSAckInfo(AckInfo):
-    message_infos: Iterable[_MessageInfo]
 
 
 def _get_queue_url(
@@ -103,17 +98,15 @@ class SQSSource(SourceStrategy):
             AttributeNames=["All"],
             MaxNumberOfMessages=_MAX_BATCH_SIZE,
         )
-        payload = []
+        payloads = []
         message_infos = []
         for message in response.get("Messages", []):
             message_info = _MessageInfo(
                 message_id=message["MessageId"], receipt_handle=message["ReceiptHandle"]
             )
             message_infos.append(message_info)
-            payload.append(message["Body"])
-        return PullResponse(
-            payload=payload, ack_info=_SQSAckInfo(message_infos=message_infos)
-        )
+            payloads.append((message["Body"], message_info))
+        return PullResponse(payloads=payloads)
 
     async def pull(self) -> PullResponse:
         loop = asyncio.get_event_loop()
@@ -131,16 +124,17 @@ class SQSSource(SourceStrategy):
         if "Failed" in response:
             raise ValueError(f"message delete failed: {response['Failed']}")
 
-    async def ack(self, to_ack: _SQSAckInfo, success: bool):
-        if success:
-            coros = []
-            loop = asyncio.get_event_loop()
-            for i in range(0, len(to_ack.message_infos), _MAX_BATCH_SIZE):
-                batch_to_delete = to_ack.message_infos[i : i + _MAX_BATCH_SIZE]
-                coros.append(
-                    loop.run_in_executor(None, self._delete_messages, batch_to_delete)
-                )
-            await asyncio.gather(*coros)
+    async def ack(
+        self, successful: Iterable[_MessageInfo], failed: Iterable[_MessageInfo]
+    ):
+        coros = []
+        loop = asyncio.get_event_loop()
+        for i in range(0, len(successful), _MAX_BATCH_SIZE):
+            batch_to_delete = successful[i : i + _MAX_BATCH_SIZE]
+            coros.append(
+                loop.run_in_executor(None, self._delete_messages, batch_to_delete)
+            )
+        await asyncio.gather(*coros)
 
     def _get_backlog(self):
         queue_atts = self.sqs_client.get_queue_attributes(

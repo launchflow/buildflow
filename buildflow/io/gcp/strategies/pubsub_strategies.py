@@ -18,14 +18,9 @@ from buildflow.core.types.gcp_types import (
     PubSubTopicName,
 )
 from buildflow.io.strategies.sink import Batch, SinkStrategy
-from buildflow.io.strategies.source import AckInfo, PullResponse, SourceStrategy
+from buildflow.io.strategies.source import PullResponse, SourceStrategy
 from buildflow.io.utils.clients import gcp_clients
 from buildflow.io.utils.schemas import converters
-
-
-@dataclasses.dataclass(frozen=True)
-class _PubsubAckInfo(AckInfo):
-    ack_ids: Iterable[str]
 
 
 @dataclasses.dataclass
@@ -83,10 +78,9 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
             )
         except Exception as e:
             logging.error("pubsub pull failed with: %s", e)
-            return PullResponse([], _PubsubAckInfo([]))
+            return PullResponse(payloads=[])
 
         payloads = []
-        ack_ids = []
         for received_message in response.received_messages:
             if received_message.message.data:
                 payload = received_message.message.data
@@ -97,26 +91,24 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
                     att_dict[key] = value
                 payload = PubsubMessage(received_message.message.data, att_dict)
 
-            payloads.append(payload)
-            ack_ids.append(received_message.ack_id)
+            payloads.append((payload, received_message.ack_id))
 
-        return PullResponse(payloads, _PubsubAckInfo(ack_ids))
+        return PullResponse(payloads)
 
-    async def ack(self, ack_info: _PubsubAckInfo, success: bool):
-        if ack_info.ack_ids:
-            if success:
-                await self.subscriber_client.acknowledge(
-                    ack_ids=ack_info.ack_ids, subscription=self.subscription_id
-                )
-            else:
-                # This nacks the messages. See:
-                # https://github.com/googleapis/python-pubsub/pull/123/files
-                ack_deadline_seconds = 0
-                await self.subscriber_client.modify_ack_deadline(
-                    subscription=self.subscription_id,
-                    ack_ids=ack_info.ack_ids,
-                    ack_deadline_seconds=ack_deadline_seconds,
-                )
+    async def ack(self, successful: Iterable[str], failed: Iterable[str]):
+        if successful:
+            await self.subscriber_client.acknowledge(
+                ack_ids=successful, subscription=self.subscription_id
+            )
+        if failed:
+            # This nacks the messages. See:
+            # https://github.com/googleapis/python-pubsub/pull/123/files
+            ack_deadline_seconds = 0
+            await self.subscriber_client.modify_ack_deadline(
+                subscription=self.subscription_id,
+                ack_ids=failed,
+                ack_deadline_seconds=ack_deadline_seconds,
+            )
 
     async def backlog(self) -> int:
         split_sub = self.subscription_id.split("/")

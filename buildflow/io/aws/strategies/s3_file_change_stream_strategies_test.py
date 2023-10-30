@@ -84,9 +84,9 @@ class S3FileChangeStreamTest(unittest.TestCase):
         self.assertEqual(backlog, 1)
 
         pull_response = self.get_async_result(s3_stream.pull())
-        self.assertEqual(len(pull_response.payload), 1)
+        self.assertEqual(len(pull_response.payloads), 1)
 
-        payload = pull_response.payload[0]
+        payload = pull_response.payloads[0][0]
         self.assertEqual(payload.bucket_name, "test-bucket")
         self.assertEqual(payload.event_type, S3ChangeStreamEventType.UNKNOWN)
         self.assertEqual(payload.metadata, contents)
@@ -139,15 +139,15 @@ class S3FileChangeStreamTest(unittest.TestCase):
         self.assertEqual(backlog, 1)
 
         pull_response = self.get_async_result(s3_stream.pull())
-        self.assertEqual(len(pull_response.payload), 2)
+        self.assertEqual(len(pull_response.payloads), 2)
 
-        create = pull_response.payload[0]
+        create = pull_response.payloads[0][0]
         self.assertEqual(create.bucket_name, "test-bucket")
         self.assertEqual(create.event_type, S3ChangeStreamEventType.OBJECT_CREATED_PUT)
         self.assertEqual(create.metadata, contents["Records"][0])
         self.assertEqual(create.file_path, want_create_path)
 
-        delete = pull_response.payload[1]
+        delete = pull_response.payloads[1][0]
         self.assertEqual(delete.bucket_name, "test-bucket")
         self.assertEqual(
             delete.event_type, S3ChangeStreamEventType.OBJECT_REMOVED_DELETE

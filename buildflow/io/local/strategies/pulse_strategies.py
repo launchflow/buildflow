@@ -27,15 +27,16 @@ class PulseSource(SourceStrategy):
     async def pull(self) -> PullResponse:
         await asyncio.sleep(self.pulse_interval_seconds)
         item = self.items[self._to_emit]
+        emit_idx = self._to_emit
         self._to_emit += 1
         if self._to_emit == len(self.items):
             self._to_emit = 0
-        return PullResponse([item], None)
+        return PullResponse([(item, emit_idx)])
 
     def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
         return converters.identity()
 
-    async def ack(self, to_ack: AckInfo, success: bool):
+    async def ack(self, successful: Iterable[AckInfo], failed: Iterable[AckInfo]):
         pass
 
     async def backlog(self) -> int:

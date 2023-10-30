@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, Coroutine, Type
+from typing import Any, Callable, Coroutine, Iterable, Type
 
 from buildflow.core.credentials.aws_credentials import AWSCredentials
 from buildflow.io.aws.strategies.sqs_strategies import SQSSource
@@ -27,7 +27,7 @@ class S3FileChangeStreamSource(SourceStrategy):
     async def pull(self) -> PullResponse:
         sqs_response = await self.sqs_queue_source.pull()
         parsed_payloads = []
-        for payload in sqs_response.payload:
+        for payload, ack_info in sqs_response.payloads:
             metadata = json.loads(payload)
             if "Records" in metadata:
                 for record in metadata["Records"]:
@@ -35,27 +35,33 @@ class S3FileChangeStreamSource(SourceStrategy):
                     bucket_name = record["s3"]["bucket"]["name"]
                     s3_event_type = S3ChangeStreamEventType(record["eventName"])
                     parsed_payloads.append(
-                        S3FileChangeEvent(
-                            bucket_name=bucket_name,
-                            s3_client=self._s3_client,
-                            file_path=file_path,
-                            event_type=s3_event_type,
-                            metadata=record,
+                        (
+                            S3FileChangeEvent(
+                                bucket_name=bucket_name,
+                                s3_client=self._s3_client,
+                                file_path=file_path,
+                                event_type=s3_event_type,
+                                metadata=record,
+                            ),
+                            ack_info,
                         )
                     )
             else:
                 # This can happen for the initial test notification that is sent
                 # on the queue.
                 parsed_payloads.append(
-                    S3FileChangeEvent(
-                        s3_client=self._s3_client,
-                        bucket_name=metadata.get("Bucket"),
-                        metadata=metadata,
-                        file_path=None,
-                        event_type=S3ChangeStreamEventType.UNKNOWN,
+                    (
+                        S3FileChangeEvent(
+                            s3_client=self._s3_client,
+                            bucket_name=metadata.get("Bucket"),
+                            metadata=metadata,
+                            file_path=None,
+                            event_type=S3ChangeStreamEventType.UNKNOWN,
+                        ),
+                        ack_info,
                     )
                 )
-        return PullResponse(parsed_payloads, sqs_response.ack_info)
+        return PullResponse(parsed_payloads)
 
     def pull_converter(self, user_defined_type: Type) -> Callable[[Any], Any]:
         return converters.identity()
@@ -63,8 +69,8 @@ class S3FileChangeStreamSource(SourceStrategy):
     async def backlog(self) -> Coroutine[Any, Any, int]:
         return await self.sqs_queue_source.backlog()
 
-    async def ack(self, to_ack: AckInfo, success: bool):
-        return await self.sqs_queue_source.ack(to_ack, success)
+    async def ack(self, successful: Iterable[AckInfo], failed: Iterable[AckInfo]):
+        return await self.sqs_queue_source.ack(successful, failed)
 
     def max_batch_size(self) -> int:
         return self.sqs_queue_source.max_batch_size()
