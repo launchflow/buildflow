@@ -91,7 +91,9 @@ class RunTimeTest(unittest.TestCase):
         )
 
         actor.run.remote(
-            processor_groups=[ConsumerGroup(processors=[process], group_id="process")]
+            processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
+            serve_port=0,
+            serve_host="unused",
         )
 
         time.sleep(15)
@@ -143,7 +145,9 @@ class RunTimeTest(unittest.TestCase):
             actor.run.remote(
                 processor_groups=[
                     ConsumerGroup(processors=[process], group_id="process")
-                ]
+                ],
+                serve_port=0,
+                serve_host="unused",
             )
         )
         # Run for ten seconds to let it scale up.
@@ -208,7 +212,9 @@ class RunTimeTest(unittest.TestCase):
             actor.run.remote(
                 processor_groups=[
                     ConsumerGroup(processors=[process], group_id="process")
-                ]
+                ],
+                serve_port=0,
+                serve_host="unused",
             )
         )
         # Run for ten seconds to let it scale up.
@@ -270,7 +276,9 @@ class RunTimeTest(unittest.TestCase):
             actor.run.remote(
                 processor_groups=[
                     ConsumerGroup(processors=[process], group_id="process")
-                ]
+                ],
+                serve_port=0,
+                serve_host="unused",
             )
         )
         # Run for ten seconds to let it scale up.
@@ -331,7 +339,9 @@ class RunTimeTest(unittest.TestCase):
             actor.run.remote(
                 processor_groups=[
                     ConsumerGroup(processors=[process], group_id="process")
-                ]
+                ],
+                serve_port=0,
+                serve_host="unused",
             )
         )
 

@@ -154,6 +154,7 @@ class FlowState:
     processor_group_states: List[ProcessorGroupState]
     python_version: str
     ray_version: str
+    buildflow_version: str
 
     def to_dict(self):
         return {
@@ -164,4 +165,5 @@ class FlowState:
             ],
             "python_version": self.python_version,
             "ray_version": self.ray_version,
+            "buildflow_version": self.buildflow_version,
         }

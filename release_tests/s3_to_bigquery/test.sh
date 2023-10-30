@@ -8,8 +8,8 @@ cd release_tests/s3_to_bigquery
 mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
 
-buildflow plan || {
-  echo 'plan failed'
+buildflow preview || {
+  echo 'preview failed'
   exit 1
 }
 buildflow apply || {

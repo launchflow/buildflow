@@ -30,8 +30,9 @@ class AutoscalerOptions(Options):
     # Options for configuring scaling for consumers
     consumer_backlog_burn_threshold: int = 60
     consumer_cpu_percent_target: int = 25
-    # Options for configuring scaling for collectors
-    target_num_ongoing_requests_per_replica: int = 80
+    # Options for configuring scaling for collectors and endpoints
+    target_num_ongoing_requests_per_replica: int = 1
+    max_concurrent_queries: int = 100
 
     @classmethod
     def default(cls) -> "AutoscalerOptions":

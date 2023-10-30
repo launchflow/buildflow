@@ -11,7 +11,6 @@ from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, S
 from buildflow.core.app.runtime.fastapi import create_app
 from buildflow.core.options.runtime_options import ProcessorOptions
 from buildflow.core.processor.patterns.collector import CollectorGroup
-from buildflow.core.processor.processor import ProcessorType
 
 _MAX_SERVE_START_TRIES = 10
 
@@ -58,6 +57,8 @@ class ReceiveProcessPushAck(Runtime):
         *,
         processor_options: ProcessorOptions,
         flow_dependencies: Dict[Type, Any],
+        serve_host: str,
+        serve_port: int,
         log_level: str = "INFO",
     ) -> None:
         # NOTE: Ray actors run in their own process, so we need to configure
@@ -73,6 +74,8 @@ class ReceiveProcessPushAck(Runtime):
         self.processor_options = processor_options
         self.processors_map = {}
         self.flow_dependencies = flow_dependencies
+        self.serve_host = serve_host
+        self.serve_port = serve_port
 
     async def run(self) -> bool:
         async def process_fn(processor, *args, **kwargs):
@@ -109,6 +112,7 @@ class ReceiveProcessPushAck(Runtime):
                 "max_replicas": self.processor_options.autoscaler_options.max_replicas,
                 "target_num_ongoing_requests_per_replica": self.processor_options.autoscaler_options.target_num_ongoing_requests_per_replica,  # noqa: E501
             },
+            max_concurrent_queries=self.processor_options.autoscaler_options.max_concurrent_queries,  # noqa: E501
         )
         @serve.ingress(app)
         class FastAPIWrapper:
@@ -122,8 +126,8 @@ class ReceiveProcessPushAck(Runtime):
                 tries += 1
                 self.serve_handle = serve.run(
                     self.collector_application,
-                    host="0.0.0.0",
-                    port=8000,
+                    host=self.serve_host,
+                    port=self.serve_port,
                     name=self.processor_group.group_id,
                 )
                 break
@@ -148,9 +152,6 @@ class ReceiveProcessPushAck(Runtime):
         processor_snapshots = {}
         for processor in self.processor_group.processors:
             processor_snapshots[processor.processor_id] = IndividualProcessorMetrics(
-                processor_id=processor.processor_id,
-                # TODO: should probably get this from the actual processor.
-                processor_type=ProcessorType.COLLECTOR,
                 events_processed_per_sec=0,
                 avg_process_time_millis=0,
             )

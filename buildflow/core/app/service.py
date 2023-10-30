@@ -11,11 +11,12 @@ from buildflow.io.endpoint import Method, Route
 class Service:
     base_route: str = "/"
     num_cpus: float = 1.0
+    max_concurrent_queries: int = 100
     enable_autoscaler: bool = True
     num_replicas: int = 1
     min_replics: int = 1
     max_replicas: int = 1000
-    target_num_ongoing_requests_per_replica: int = 80
+    target_num_ongoing_requests_per_replica: int = 1
     log_level: str = "INFO"
     service_id: str = dataclasses.field(default_factory=uuid)
     endpoints: List[Endpoint] = dataclasses.field(default_factory=list, init=False)
@@ -29,6 +30,7 @@ class Service:
             num_replicas=self.num_replicas,
             max_replicas=self.max_replicas,
             target_num_ongoing_requests_per_replica=self.target_num_ongoing_requests_per_replica,
+            max_concurrent_queries=self.max_concurrent_queries,
         )
 
     def endpoint(self, route: Route, method: Method) -> None:
