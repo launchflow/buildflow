@@ -13,10 +13,6 @@ class ClickhouseStrategiesTest(unittest.TestCase):
         """Run a coroutine synchronously."""
         return self.event_loop.run_until_complete(coro)
 
-    @pytest.fixture(autouse=True)
-    def inject_fixtures(self, caplog):
-        self._caplog = caplog
-
     def tearDown(self) -> None:
         try:
             os.remove(self.db)

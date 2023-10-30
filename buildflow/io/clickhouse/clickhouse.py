@@ -23,9 +23,9 @@ class ClickhouseTable(LocalPrimtive):
     table: ClickhouseTableID
     schema: Optional[Type] = dataclasses.field(default=None, init=False)
     # Arguments for authentication
-    host: Optional[str]
-    username: Optional[str]
-    password: Optional[str]
+    host: ClickhouseHost
+    username: ClickhouseUsername
+    password: ClickhousePassword
 
     def options(
         self,

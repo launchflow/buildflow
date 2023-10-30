@@ -37,10 +37,7 @@ class ClickhouseSink(SinkStrategy):
         self.host = host
         self.username = username
         self.password = password
-        try:
-            self.connect()
-        except ConnectionError:
-            logging.exception("failed to get an instance of clickhouse client")
+        self.connect()
 
     async def connect(self):
         connect_tries = 0
@@ -83,5 +80,3 @@ class ClickhouseSink(SinkStrategy):
             self.client.insert_df(self.table, df)
         except clickhouse_connect.driver.exceptions.DataError:
             logging.exception("failed to connect to clickhouse database")
-        # except AttributeError:
-        #     logging.exception("failed to write to clickhouse database")
