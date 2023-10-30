@@ -69,7 +69,7 @@ dev = [
     # There was an issue with this for moto3 testing.
     # was getting the following error:
     #   module 'aiobotocore' has no attribute 'AioSession'
-    "aiobotocore<2.7.0",
+    "aiobotocore<2.6.0",
     "aiohttp",
     "botocore",
     "isort",
