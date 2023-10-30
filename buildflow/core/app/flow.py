@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import pulumi
 import ray
 
+import buildflow
 from buildflow.config.buildflow_config import BuildFlowConfig
 from buildflow.core import utils
 from buildflow.core.app.collector import Collector
@@ -612,11 +613,12 @@ class Flow:
         sink: Optional[Primitive] = None,
         *,
         num_cpus: float = 1.0,
+        max_concurrent_queries: int = 100,
         enable_autoscaler: bool = True,
         num_replicas: int = 1,
         min_replicas: int = 1,
         max_replicas: int = 1000,
-        target_num_ongoing_requests_per_replica: int = 80,
+        target_num_ongoing_requests_per_replica: int = 1,
         log_level: str = "INFO",
     ):
         autoscale_options = AutoscalerOptions(
@@ -625,6 +627,7 @@ class Flow:
             min_replicas=min_replicas,
             max_replicas=max_replicas,
             target_num_ongoing_requests_per_replica=target_num_ongoing_requests_per_replica,
+            max_concurrent_queries=max_concurrent_queries,
         )
         if sink is None:
             sink = Empty()
@@ -659,13 +662,15 @@ class Flow:
         num_replicas: int = 1,
         min_replicas: int = 1,
         max_replicas: int = 1000,
-        target_num_ongoing_requests_per_replica: int = 80,
+        max_concurrent_queries: int = 100,
+        target_num_ongoing_requests_per_replica: int = 1,
         log_level: str = "INFO",
     ):
         service = Service(
             base_route=base_route,
             num_cpus=num_cpus,
             enable_autoscaler=enable_autoscaler,
+            max_concurrent_queries=max_concurrent_queries,
             num_replicas=num_replicas,
             min_replics=min_replicas,
             max_replicas=max_replicas,
@@ -722,7 +727,10 @@ class Flow:
         # runtime-only options
         debug_run: bool = False,
         run_id: Optional[RunID] = None,
-        # server-only options. TODO: Move this into RuntimeOptions / consider
+        # global ray serve options consumed by collectors and endpoints
+        serve_host: str = "127.0.0.1",
+        serve_port: int = 8000,
+        # runtime server-only options.
         # having Runtime manage the server
         start_runtime_server: bool = False,
         runtime_server_host: str = "127.0.0.1",
@@ -741,10 +749,12 @@ class Flow:
             # start two clusters on mac
             ray.init(address="auto", ignore_reinit_error=True)
         except ConnectionError:
-            ray.init()
+            ray.init(ignore_reinit_error=True)
         # Setup services
         # Start the Flow Runtime
-        runtime_coroutine = self._run(debug_run=debug_run)
+        runtime_coroutine = self._run(
+            debug_run=debug_run, serve_host=serve_host, serve_port=serve_port
+        )
 
         if debug_run:
             # If debug run is enabled, we want to set the checkin frequency
@@ -782,7 +792,7 @@ class Flow:
             else:
                 return runtime_coroutine
 
-    async def _run(self, debug_run: bool = False):
+    async def _run(self, serve_host: str, serve_port: int, debug_run: bool = False):
         # Add a signal handler to drain the runtime when the process is killed
         loop = asyncio.get_event_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -793,7 +803,9 @@ class Flow:
         # start the runtime and await it to finish
         # NOTE: run() does not necessarily block until the runtime is finished.
         await self._get_runtime_actor().run.remote(
-            processor_groups=self._processor_groups
+            processor_groups=self._processor_groups,
+            serve_host=serve_host,
+            serve_port=serve_port,
         )
         await self._get_runtime_actor().run_until_complete.remote()
 
@@ -996,6 +1008,7 @@ class Flow:
             processor_group_states=processor_group_states,
             python_version=f"{sys.version_info.major}.{sys.version_info.minor}",
             ray_version=ray.__version__,
+            buildflow_version=buildflow.__version__,
         )
 
     def _lifecycle_functions(

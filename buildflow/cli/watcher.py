@@ -19,6 +19,8 @@ def launch_debug_app(
     run_id: str,
     runtime_server_host: str,
     runtime_server_port: int,
+    serve_host: str,
+    serve_port: int,
 ):
     sys.path.insert(0, "")
     imported = utils.import_from_string(app)
@@ -28,6 +30,8 @@ def launch_debug_app(
         runtime_server_port=runtime_server_port,
         run_id=run_id,
         debug_run=True,
+        serve_host=serve_host,
+        serve_port=serve_port,
     )
 
 
@@ -39,12 +43,16 @@ class RunTimeWatcher:
         run_id: str,
         runtime_server_host: str,
         runtime_server_port: int,
+        serve_host: str,
+        serve_port: int,
     ) -> None:
         self.app = app
         self.start_runtime_server = start_runtime_server
         self.run_id = run_id
         self.runtime_server_host = runtime_server_host
         self.runtime_server_port = runtime_server_port
+        self.serve_host = serve_host
+        self.serve_port = serve_port
 
     async def run(self):
         self.process = self.start_process()
@@ -69,6 +77,8 @@ class RunTimeWatcher:
                 "run_id": self.run_id,
                 "runtime_server_host": self.runtime_server_host,
                 "runtime_server_port": self.runtime_server_port,
+                "serve_host": self.serve_host,
+                "serve_port": self.serve_port,
             },
         )
         process.start()
