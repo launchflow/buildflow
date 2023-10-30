@@ -67,7 +67,7 @@ def add_input_types(input_types: Iterable[TypeWrapper], output_type):
                 default=input_type.default,
             )
             new_params.append(new_param)
-        final_params = params[0:1] + new_params
+        final_params = [params[0]] + new_params + [params[1]]
         if output_type is None:
             new_sig = sig.replace(parameters=final_params)
         else:
