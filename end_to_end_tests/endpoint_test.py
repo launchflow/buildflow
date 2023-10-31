@@ -241,7 +241,7 @@ class EndpointLocalTest(unittest.TestCase):
 
         self.get_async_result(app._drain())
 
-    def test_endpoint_websocket(self):
+    def test_endpoint_websocket_base(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
@@ -251,11 +251,13 @@ class EndpointLocalTest(unittest.TestCase):
                 self.header = ws.headers["test"]
 
         @service.endpoint(route="/test", method="websocket")
-        async def my_endpoint(websocket: WebSocket, deb: WebSocketDeb):
+        async def my_endpoint(
+            query_param: str, websocket: WebSocket, deb: WebSocketDeb
+        ):
             await websocket.accept()
             while True:
                 message = await websocket.receive_text()
-                await websocket.send_text(f"{message}, {deb.header}")
+                await websocket.send_text(f"{message}, {deb.header}, {query_param}")
 
         run_coro = app.run(block=False)
 
@@ -263,11 +265,12 @@ class EndpointLocalTest(unittest.TestCase):
         run_coro = self.run_for_time(run_coro, time=20)
 
         with connect(
-            "ws://127.0.0.1:8000/test", additional_headers={"test": "world!"}
+            "ws://127.0.0.1:8000/test?query_param=bye",
+            additional_headers={"test": "world"},
         ) as ws:
             ws.send("Hello")
             message = ws.recv()
-            self.assertEqual(message, "Hello, world!")
+            self.assertEqual(message, "Hello, world, bye")
 
         self.get_async_result(app._drain())
 

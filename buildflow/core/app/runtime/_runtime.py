@@ -4,9 +4,10 @@ RunID = str
 
 
 class RuntimeStatus(enum.Enum):
-    IDLE = enum.auto()
+    PENDING = enum.auto()
     RUNNING = enum.auto()
     DRAINING = enum.auto()
+    DRAINED = enum.auto()
     # Used for local reloading
     RELOADING = enum.auto()
 

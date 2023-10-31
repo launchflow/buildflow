@@ -97,7 +97,7 @@ class ProcessorGroupReplicaPoolActor(Runtime):
         self.background_tasks: List[BackgroundTask] = []
         for p in self.processor_group.processors:
             self.background_tasks.extend(p.background_tasks())
-        self._status = RuntimeStatus.IDLE
+        self._status = RuntimeStatus.PENDING
         # metrics
         job_id = ray.get_runtime_context().get_job_id()
         self.num_replicas_gauge = SimpleGaugeMetric(
@@ -174,8 +174,6 @@ class ProcessorGroupReplicaPoolActor(Runtime):
 
     async def run(self):
         logging.info(f"Starting ProcessorPool({self.processor_group.group_id})...")
-        if self._status != RuntimeStatus.IDLE:
-            raise RuntimeError("Can only start an Idle Runtime.")
         self._status = RuntimeStatus.RUNNING
         await self.add_replicas(self.initial_replicas)
 
@@ -192,16 +190,11 @@ class ProcessorGroupReplicaPoolActor(Runtime):
         for task in self.background_tasks:
             coros.append(task.shutdown())
         await asyncio.gather(*coros)
-        self._status = RuntimeStatus.IDLE
+        self._status = RuntimeStatus.DRAINED
         logging.info(f"Drain ProcessorPool({self.processor_group.group_id}) complete.")
         return True
 
     async def status(self):
-        if self._status == RuntimeStatus.DRAINING:
-            for replica in self.replicas:
-                if await replica.ray_actor_handle.status.remote() != RuntimeStatus.IDLE:
-                    return RuntimeStatus.DRAINING
-            self._status = RuntimeStatus.IDLE
         return self._status
 
     # NOTE: Subclasses should override this method if they need to provide additional

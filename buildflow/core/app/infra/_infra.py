@@ -1,14 +1,4 @@
-import enum
-
 from buildflow.core.options.infra_options import InfraOptions
-
-
-class InfraStatus(enum.Enum):
-    IDLE = enum.auto()
-    REFRESHING = enum.auto()
-    PREVIEWING = enum.auto()
-    APPLYING = enum.auto()
-    DESTROYING = enum.auto()
 
 
 class Infra:
@@ -29,7 +19,3 @@ class Infra:
     async def destroy(self):
         """Destroys the infrastructure."""
         raise NotImplementedError("destroy not implemented")
-
-    async def status(self) -> InfraStatus:
-        """Returns the current status of the infra runner."""
-        raise NotImplementedError("status not implemented")

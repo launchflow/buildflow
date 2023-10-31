@@ -100,7 +100,7 @@ class PullProcessPushActor(Runtime):
         # TODO: Validate that the schemas & types are all compatible
 
         # initial runtime state
-        self._status = RuntimeStatus.IDLE
+        self._status = RuntimeStatus.PENDING
         self._num_running_threads = 0
         self._replica_id = replica_id
         self._last_snapshot_time = time.monotonic()
@@ -170,7 +170,7 @@ class PullProcessPushActor(Runtime):
             )
 
     async def run(self):
-        if self._status == RuntimeStatus.IDLE:
+        if self._status == RuntimeStatus.PENDING:
             logging.info("Starting PullProcessPushActor...")
             self._status = RuntimeStatus.RUNNING
         elif self._status == RuntimeStatus.DRAINING:
@@ -185,7 +185,6 @@ class PullProcessPushActor(Runtime):
         await asyncio.gather(*tasks)
         self._num_running_threads -= 1
         if self._num_running_threads == 0:
-            self._status = RuntimeStatus.IDLE
             logging.info("PullProcessPushActor Complete.")
 
         logging.debug("Thread Complete.")
@@ -303,6 +302,7 @@ class PullProcessPushActor(Runtime):
                 self.cpu_percentage[processor_id].inc(cpu_percent)
             else:
                 self.cpu_percentage[processor_id].empty_inc()
+        self._status = RuntimeStatus.DRAINED
 
     async def status(self):
         # TODO: Have this method count the number of active threads

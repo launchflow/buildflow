@@ -67,7 +67,7 @@ class RuntimeActor(Runtime):
         self.run_id = run_id
         self.options = runtime_options
         # initial runtime state
-        self._status = RuntimeStatus.IDLE
+        self._status = RuntimeStatus.PENDING
         self._processor_group_pool_refs: List[ProcessorGroupPoolReference] = []
         self._runtime_loop_future = None
         self.flow_dependencies = flow_dependencies
@@ -132,8 +132,6 @@ class RuntimeActor(Runtime):
         serve_port: int,
     ):
         logging.info("Starting Runtime...")
-        if self._status != RuntimeStatus.IDLE:
-            raise RuntimeError("Can only start an Idle Runtime.")
         self._set_status(RuntimeStatus.RUNNING)
         self._processor_group_pool_refs = []
         self.initialize_global_dependencies(processor_groups)
@@ -172,20 +170,12 @@ class RuntimeActor(Runtime):
                 for processor_pool in self._processor_group_pool_refs
             ]
             await asyncio.gather(*drain_tasks)
-            self._set_status(RuntimeStatus.IDLE)
             if not as_reload:
                 logging.info("Drain Runtime complete.")
+            self._set_status(RuntimeStatus.DRAINED)
         return True
 
     async def status(self):
-        if self._status == RuntimeStatus.DRAINING:
-            for processor_pool in self._processor_group_pool_refs:
-                if (
-                    await processor_pool.actor_handle.status.remote()
-                    != RuntimeStatus.IDLE
-                ):
-                    return RuntimeStatus.DRAINING
-            self._set_status(RuntimeStatus.IDLE)
         return self._status
 
     async def snapshot(self):
@@ -203,10 +193,6 @@ class RuntimeActor(Runtime):
     async def run_until_complete(self):
         if self._runtime_loop_future is not None:
             await self._runtime_loop_future
-        self._set_status(RuntimeStatus.IDLE)
-
-    def is_active(self):
-        return self._status != RuntimeStatus.IDLE
 
     async def _runtime_checkin_loop(self, serve_host: str, serve_port: int):
         logging.info("Runtime checkin loop started...")
