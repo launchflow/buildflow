@@ -123,7 +123,7 @@ def create_app(
                 self,
                 # NOTE: This can actually be of type Request or WebSocket
                 # but fastapi doesn't appreciate it when we pass in a union
-                request_or_websocket: Request,
+                request_or_websocket: Request = None,
                 *args,
                 **kwargs,
             ) -> output_type:
