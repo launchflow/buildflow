@@ -61,7 +61,7 @@ def dependency_wrappers(
 def resolve_dependencies(
     dependencies: List[DependencyWrapper],
     flow_dependencies: Dict[Type, Any],
-    request: Optional[Request] = None,
+    request: Optional[Union[Request, WebSocket]] = None,
 ) -> Dict[str, Any]:
     dependency_args = {}
     visited_dependencies: Dict[Callable, Any] = {}
@@ -121,7 +121,7 @@ class Dependency:
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Optional[Union[Request, WebSocket]]] = None,
     ):
         raise NotImplementedError()
 
@@ -129,7 +129,7 @@ class Dependency:
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ) -> Dict[str, Any]:
         deps = {}
         for dep in self.sub_dependencies:
@@ -171,7 +171,7 @@ class ProcessScoped(Dependency):
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ):
         args = self._resolve_dependencies(
             flow_dependencies, visited_dependencies, request
@@ -210,7 +210,7 @@ class ReplicaScoped(Dependency):
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ):
         if self._instance is None:
             raise ValueError("Replica scoped dependency not initialized")
@@ -244,7 +244,7 @@ class GlobalScoped(Dependency):
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ):
         if self._instance is not None:
             return self._instance
@@ -261,7 +261,7 @@ class NoScoped(Dependency):
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ):
         args = self._resolve_dependencies(
             flow_dependencies, visited_dependencies, request

@@ -3,6 +3,7 @@ import inspect
 from typing import Any, Dict, Iterable, Optional, Set, Tuple, Type
 
 from starlette.requests import Request
+from starlette.websockets import WebSocket
 
 from buildflow.dependencies import Scope, dependency
 from buildflow.dependencies.base import Dependency, DependencyWrapper
@@ -29,7 +30,11 @@ class SecurityHeader:
 
 @dependency(scope=Scope.PROCESS)
 class BearerCredentials(SecurityHeader):
-    def __init__(self, request: Request):
+    def __init__(self, request: Request = None, websocket: WebSocket = None):
+        if request is None and websocket is None:
+            raise ValueError("request or websocket must be provided")
+        if request is None:
+            request = websocket
         auth_header = request.headers.get("Authorization")
         self.token: Optional[str] = parse_credentials(auth_header)
 

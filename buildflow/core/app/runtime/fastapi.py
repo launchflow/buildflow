@@ -102,13 +102,17 @@ def create_app(
                 self.processor_id = processor_id
                 self.flow_dependencies = flow_dependencies
                 self.request_arg = None
+                self.websocket_arg = None
                 argspec = inspect.getfullargspec(processor.process)
                 for arg in argspec.args:
                     if arg in argspec.annotations and (
                         argspec.annotations[arg] == fastapi.Request
-                        or argspec.annotations[arg] == fastapi.WebSocket
                     ):
                         self.request_arg = arg
+                    if arg in argspec.annotations and (
+                        argspec.annotations[arg] == fastapi.WebSocket
+                    ):
+                        self.websocket_arg = arg
 
             # NOTE: we have to import this seperately because it gets run
             # inside of the ray actor
@@ -117,7 +121,9 @@ def create_app(
             @add_input_types(input_types, output_type)
             async def handle_request(
                 self,
-                raw_request: Union[fastapi.Request, fastapi.WebSocket] = None,
+                # NOTE: This can actually be of type Request or WebSocket
+                # but fastapi doesn't appreciate it when we pass in a union
+                request_or_websocket: Request,
                 *args,
                 **kwargs,
             ) -> output_type:
@@ -131,10 +137,14 @@ def create_app(
                 )
                 start_time = time.monotonic()
                 dependency_args = resolve_dependencies(
-                    processor.dependencies(), self.flow_dependencies, raw_request
+                    processor.dependencies(),
+                    self.flow_dependencies,
+                    request_or_websocket,
                 )
                 if self.request_arg is not None:
-                    kwargs[self.request_arg] = raw_request
+                    kwargs[self.request_arg] = request_or_websocket
+                if self.websocket_arg is not None:
+                    kwargs[self.websocket_arg] = request_or_websocket
 
                 output = await process_fn(processor, *args, **kwargs, **dependency_args)
                 self.process_time_counter.inc(
