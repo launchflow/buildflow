@@ -6,6 +6,7 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 from googleapiclient.errors import HttpError
 from starlette.requests import Request
+from starlette.websockets import WebSocket
 
 from buildflow.dependencies import Scope, dependency
 from buildflow.dependencies.headers import BearerCredentials
@@ -28,8 +29,13 @@ def AuthenticatedGoogleUserDepBuilder(
     @dependency(scope=Scope.PROCESS)
     class AuthenticatedGoogleUser:
         def __init__(
-            self, request: Request, credentials: bearer_credentials_dependency
+            self,
+            credentials: bearer_credentials_dependency,
+            request: Request = None,
+            ws: WebSocket = None,
         ):
+            if request is None:
+                request = ws
             self.google_user = None
             if (
                 session_id_token is not None

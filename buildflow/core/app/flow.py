@@ -621,6 +621,11 @@ class Flow:
         target_num_ongoing_requests_per_replica: int = 1,
         log_level: str = "INFO",
     ):
+        if isinstance(method, str):
+            method = Method(method.upper())
+        if method == Method.WEBSOCKET:
+            raise NotImplementedError("Websocket collectors are not yet supported")
+
         autoscale_options = AutoscalerOptions(
             enable_autoscaler=enable_autoscaler,
             num_replicas=num_replicas,

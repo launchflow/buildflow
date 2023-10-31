@@ -26,6 +26,7 @@ from buildflow.dependencies.base import (
     resolve_dependencies,
 )
 from buildflow.dependencies.headers import security_dependencies
+from buildflow.io.endpoint import Method
 
 
 def create_app(
@@ -101,13 +102,17 @@ def create_app(
                 self.processor_id = processor_id
                 self.flow_dependencies = flow_dependencies
                 self.request_arg = None
+                self.websocket_arg = None
                 argspec = inspect.getfullargspec(processor.process)
                 for arg in argspec.args:
-                    if (
-                        arg in argspec.annotations
-                        and argspec.annotations[arg] == fastapi.Request
+                    if arg in argspec.annotations and (
+                        argspec.annotations[arg] == fastapi.Request
                     ):
                         self.request_arg = arg
+                    if arg in argspec.annotations and (
+                        argspec.annotations[arg] == fastapi.WebSocket
+                    ):
+                        self.websocket_arg = arg
 
             # NOTE: we have to import this seperately because it gets run
             # inside of the ray actor
@@ -115,7 +120,12 @@ def create_app(
 
             @add_input_types(input_types, output_type)
             async def handle_request(
-                self, raw_request: fastapi.Request = None, *args, **kwargs
+                self,
+                # NOTE: This can actually be of type Request or WebSocket
+                # but fastapi doesn't appreciate it when we pass in a union
+                request_or_websocket: Request = None,
+                *args,
+                **kwargs,
             ) -> output_type:
                 processor = app.state.processor_map[self.processor_id]
                 self.num_events_processed_counter.inc(
@@ -127,10 +137,14 @@ def create_app(
                 )
                 start_time = time.monotonic()
                 dependency_args = resolve_dependencies(
-                    processor.dependencies(), self.flow_dependencies, raw_request
+                    processor.dependencies(),
+                    self.flow_dependencies,
+                    request_or_websocket,
                 )
                 if self.request_arg is not None:
-                    kwargs[self.request_arg] = raw_request
+                    kwargs[self.request_arg] = request_or_websocket
+                if self.websocket_arg is not None:
+                    kwargs[self.websocket_arg] = request_or_websocket
 
                 output = await process_fn(processor, *args, **kwargs, **dependency_args)
                 self.process_time_counter.inc(
@@ -154,13 +168,19 @@ def create_app(
         openapi_extras = None
         if security_openapi_extras:
             openapi_extras = {"security": [security_openapi_extras]}
-        app.add_api_route(
-            processor.route_info().route,
-            endpoint_wrapper.handle_request,
-            methods=[processor.route_info().method.name],
-            summary=processor.processor_id,
-            openapi_extra=openapi_extras,
-        )
+        if processor.route_info().method == Method.WEBSOCKET:
+            app.add_websocket_route(
+                path=processor.route_info().route,
+                route=endpoint_wrapper.handle_request,
+            )
+        else:
+            app.add_api_route(
+                processor.route_info().route,
+                endpoint_wrapper.handle_request,
+                methods=[processor.route_info().method.name],
+                summary=processor.processor_id,
+                openapi_extra=openapi_extras,
+            )
 
     def custom_openapi():
         if app.openapi_schema:

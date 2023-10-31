@@ -6,12 +6,14 @@ import unittest
 
 import pytest
 import requests
+from websockets.sync.client import connect
 
 import buildflow
+from buildflow.dependencies.auth import BearerCredentials
 from buildflow.dependencies.base import Scope, dependency
 from buildflow.dependencies.sink import SinkDependencyBuilder
 from buildflow.io.local.file import File
-from buildflow.requests import Request
+from buildflow.requests import Request, WebSocket
 from buildflow.types.portable import FileFormat
 
 
@@ -236,6 +238,74 @@ class EndpointLocalTest(unittest.TestCase):
         response = requests.get("http://0.0.0.0:8000/test?input=2", timeout=10)
         response.raise_for_status()
         self.assertEqual(response.json(), {"val": 3})
+
+        self.get_async_result(app._drain())
+
+    def test_endpoint_websocket(self):
+        app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
+
+        @dependency(scope=Scope.PROCESS)
+        class WebSocketDeb:
+            def __init__(self, ws: WebSocket):
+                self.header = ws.headers["test"]
+
+        @service.endpoint(route="/test", method="websocket")
+        async def my_endpoint(websocket: WebSocket, deb: WebSocketDeb):
+            await websocket.accept()
+            while True:
+                message = await websocket.receive_text()
+                await websocket.send_text(f"{message}, {deb.header}")
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        with connect(
+            "ws://127.0.0.1:8000/test", additional_headers={"test": "world!"}
+        ) as ws:
+            ws.send("Hello")
+            message = ws.recv()
+            self.assertEqual(message, "Hello, world!")
+
+        self.get_async_result(app._drain())
+
+    def test_endpoint_websocket_and_get_bearer_credentials(self):
+        app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
+
+        @service.endpoint(route="/test_ws", method="websocket")
+        async def my_ws_endpoint(websocket: WebSocket, deb: BearerCredentials):
+            await websocket.accept()
+            while True:
+                message = await websocket.receive_text()
+                await websocket.send_text(f"{message}, {deb.token}")
+
+        @service.endpoint(route="/test", method="get")
+        async def my_non_ws_endpoint(message: str, deb: BearerCredentials) -> str:
+            return f"{message}, {deb.token}"
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        with connect(
+            "ws://127.0.0.1:8000/test_ws",
+            additional_headers={"Authorization": "Bearer websocket!"},
+        ) as ws:
+            ws.send("Hello")
+            message = ws.recv()
+            self.assertEqual(message, "Hello, websocket!")
+
+        response = requests.get(
+            "http://0.0.0.0:8000/test?message=Hello",
+            timeout=10,
+            headers={"Authorization": "Bearer get!"},
+        )
+        response.raise_for_status()
+        self.assertEqual(response.json(), "Hello, get!")
 
         self.get_async_result(app._drain())
 

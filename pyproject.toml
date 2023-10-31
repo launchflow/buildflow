@@ -21,6 +21,7 @@ dependencies = [
     "dacite",
     "duckdb",
     "gcsfs",
+    "google-api-python-client",
     "google-auth",
     "google-cloud-bigquery",
     "google-cloud-bigquery-storage",
@@ -76,6 +77,7 @@ dev = [
     "ruff",
     "pre-commit",
     "setuptools",
+    "websockets",
     "wheel",
 ]
 

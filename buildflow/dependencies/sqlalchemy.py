@@ -15,7 +15,20 @@ def engine(
     db_user: str,
     db_password: str,
     credentials: Optional[Credentials] = None,
+    **kwargs,
 ):
+    """
+    Args:
+        db: The database instance to connect to
+        db_user: The database user to user for authentication
+        db_password: The password for the database user
+        credentials: The optional google credentials to use to connect to the
+            database if using GCP.
+        **kwargs: Additional keyword arguments to pass to the sqlalchemy
+         `create_engine` function
+
+    """
+
     def getconn() -> Connector:
         with Connector(credentials=credentials) as connector:
             conn = connector.connect(
@@ -28,10 +41,21 @@ def engine(
             )
         return conn
 
-    return create_engine("postgresql+pg8000://", creator=getconn)
+    return create_engine("postgresql+pg8000://", creator=getconn, **kwargs)
 
 
-def SessionDep(db_primitive: CloudSQLDatabase, db_user: str, db_password: str):
+def SessionDep(
+    db_primitive: CloudSQLDatabase, db_user: str, db_password: str, **kwargs
+):
+    """
+    Args:
+        db: The database primitive to connect to
+        db_user: The database user to user for authentication
+        db_password: The password for the database user
+        **kwargs: Additional keyword arguments to pass to the sqlalchemy
+         `create_engine` function
+
+    """
     DBDependency = db_primitive.dependency()
 
     @dependency(scope=Scope.REPLICA)
@@ -41,7 +65,7 @@ def SessionDep(db_primitive: CloudSQLDatabase, db_user: str, db_password: str):
             self.SessionLocal = sessionmaker(
                 autocommit=False,
                 autoflush=False,
-                bind=engine(db, db_user, db_password, creds),
+                bind=engine(db, db_user, db_password, creds, **kwargs),
             )
 
     @dependency(scope=Scope.PROCESS)

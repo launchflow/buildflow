@@ -15,6 +15,7 @@ from typing import (
 
 import ray
 from starlette.requests import Request
+from starlette.websockets import WebSocket
 
 from buildflow.core.utils import uuid
 from buildflow.exceptions.exceptions import InvalidDependencyHierarchyOrder
@@ -52,7 +53,7 @@ def dependency_wrappers(
                 )
     request_arg = None
     for key, annotation in full_arg_spec.annotations.items():
-        if annotation == Request:
+        if annotation == Request or annotation == WebSocket:
             request_arg = key
     return dependencies, request_arg
 
@@ -60,7 +61,7 @@ def dependency_wrappers(
 def resolve_dependencies(
     dependencies: List[DependencyWrapper],
     flow_dependencies: Dict[Type, Any],
-    request: Optional[Request] = None,
+    request: Optional[Union[Request, WebSocket]] = None,
 ) -> Dict[str, Any]:
     dependency_args = {}
     visited_dependencies: Dict[Callable, Any] = {}
@@ -102,7 +103,7 @@ class Dependency:
                     )
         self.request_arg = None
         for key, annotation in full_arg_spec.annotations.items():
-            if annotation == Request:
+            if annotation == Request or annotation == WebSocket:
                 self.request_arg = key
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
@@ -120,7 +121,7 @@ class Dependency:
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Optional[Union[Request, WebSocket]]] = None,
     ):
         raise NotImplementedError()
 
@@ -128,7 +129,7 @@ class Dependency:
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ) -> Dict[str, Any]:
         deps = {}
         for dep in self.sub_dependencies:
@@ -138,7 +139,7 @@ class Dependency:
         if self.request_arg is not None:
             if request is None:
                 raise ValueError(
-                    f"Unable to provide Request to dependency `{self.request_arg}`"
+                    f"Unable to provide Request / WebSocket to dependency `{self.request_arg}`"  # noqa
                 )
             deps[self.request_arg] = request
         full_arg_spec = inspect.getfullargspec(self.dependency_fn)
@@ -170,7 +171,7 @@ class ProcessScoped(Dependency):
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ):
         args = self._resolve_dependencies(
             flow_dependencies, visited_dependencies, request
@@ -209,7 +210,7 @@ class ReplicaScoped(Dependency):
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ):
         if self._instance is None:
             raise ValueError("Replica scoped dependency not initialized")
@@ -243,7 +244,7 @@ class GlobalScoped(Dependency):
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ):
         if self._instance is not None:
             return self._instance
@@ -260,7 +261,7 @@ class NoScoped(Dependency):
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
-        request: Optional[Request] = None,
+        request: Optional[Union[Request, WebSocket]] = None,
     ):
         args = self._resolve_dependencies(
             flow_dependencies, visited_dependencies, request
