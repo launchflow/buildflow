@@ -120,7 +120,10 @@ def create_app(
             from buildflow.core.processor.utils import add_input_types
 
             async def process(
-                self, request: Union[Request, WebSocket], *args, **kwargs
+                self,
+                internal_buildflow_request: Union[Request, WebSocket],
+                *args,
+                **kwargs,
             ):
                 processor = app.state.processor_map[self.processor_id]
                 self.num_events_processed_counter.inc(
@@ -135,12 +138,12 @@ def create_app(
                 dependency_args = resolve_dependencies(
                     processor.dependencies(),
                     self.flow_dependencies,
-                    request,
+                    internal_buildflow_request,
                 )
                 if self.request_arg is not None and self.request_arg not in kwargs:
-                    kwargs[self.request_arg] = request
+                    kwargs[self.request_arg] = internal_buildflow_request
                 if self.websocket_arg is not None and self.websocket_arg not in kwargs:
-                    kwargs[self.websocket_arg] = request
+                    kwargs[self.websocket_arg] = internal_buildflow_request
 
                 output = await process_fn(processor, *args, **kwargs, **dependency_args)
                 self.process_time_counter.inc(
