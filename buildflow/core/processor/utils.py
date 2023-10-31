@@ -67,6 +67,9 @@ def add_input_types(input_types: Iterable[TypeWrapper], output_type):
                 default=input_type.default,
             )
             new_params.append(new_param)
+        # params[0] adds self
+        # params[0] adds the request / websocket this is needed to be able to
+        # pass it to dependencies
         final_params = [params[0]] + new_params + [params[1]]
         if output_type is None:
             new_sig = sig.replace(parameters=final_params)
@@ -74,7 +77,6 @@ def add_input_types(input_types: Iterable[TypeWrapper], output_type):
             new_sig = sig.replace(
                 parameters=final_params, return_annotation=output_type
             )
-
         wrapper.__signature__ = new_sig
         return wrapper
 

@@ -3,7 +3,7 @@ from collections import OrderedDict
 from typing import Any, Callable, Dict
 
 from buildflow.config.pulumi_config import PulumiConfig
-from buildflow.core.app.infra._infra import Infra, InfraStatus
+from buildflow.core.app.infra._infra import Infra
 from buildflow.core.app.infra.pulumi_workspace import (
     PulumiWorkspace,
     WrappedPreviewResult,
@@ -42,38 +42,25 @@ class InfraActor(Infra):
         # configuration
         self.options = infra_options
         # initial infra state
-        self._status = InfraStatus.IDLE
         self._pulumi_workspace = PulumiWorkspace(
             infra_options.pulumi_options,
             pulumi_config,
         )
-
-    def _set_status(self, status: InfraStatus):
-        self._status = status
 
     async def stack_state(self):
         return self._pulumi_workspace.get_stack_state()
 
     async def refresh(self, *, pulumi_program: Callable):
         logging.debug("Refreshing Infra...")
-        if self._status != InfraStatus.IDLE:
-            raise RuntimeError("Can only refresh Infra while Idle.")
-        self._set_status(InfraStatus.REFRESHING)
-
         refresh_result: WrappedRefreshResult = await self._pulumi_workspace.refresh(
             pulumi_program=pulumi_program,
         )
         refresh_result.log_summary()
 
-        self._set_status(InfraStatus.IDLE)
-
     async def preview(
         self, *, pulumi_program: Callable, managed_primitives: Dict[str, Primitive]
     ):
         logging.debug("Planning Infra...")
-        if self._status != InfraStatus.IDLE:
-            raise RuntimeError("Can only plan Infra while Idle.")
-        self._set_status(InfraStatus.PREVIEWING)
 
         preview_result: WrappedPreviewResult = await self._pulumi_workspace.preview(
             pulumi_program=pulumi_program,
@@ -159,33 +146,17 @@ class InfraActor(Infra):
             print("---------------------")
             _print_hierarchy(update_primitives)
             print("\n")
-        self._set_status(InfraStatus.IDLE)
 
         return preview_result
 
     async def apply(self, *, pulumi_program: Callable):
-        if self._status != InfraStatus.IDLE:
-            raise RuntimeError("Can only apply Infra while Idle.")
-        self._set_status(InfraStatus.APPLYING)
-
         # Execution phase (potentially remote state changes)
         await self._pulumi_workspace.up(
             pulumi_program=pulumi_program,
         )
 
-        self._set_status(InfraStatus.IDLE)
-
     async def destroy(self, *, pulumi_program: Callable):
-        if self._status != InfraStatus.IDLE:
-            raise RuntimeError("Can only destroy Infra while Idle.")
-        self._set_status(InfraStatus.DESTROYING)
-
         # Execution phase (potentially remote state changes)
         await self._pulumi_workspace.destroy(
             pulumi_program=pulumi_program,
         )
-
-        self._set_status(InfraStatus.IDLE)
-
-    def is_active(self):
-        return self._status != InfraStatus.IDLE

@@ -68,7 +68,7 @@ class ReceiveProcessPushAck(Runtime):
         # Set up actor variables
         self.run_id = run_id
         self.processor_group = processor_group
-        self._status = RuntimeStatus.IDLE
+        self._status = RuntimeStatus.PENDING
         self.collector_deployment = None
         self.serve_handle = None
         self.processor_options = processor_options
@@ -143,6 +143,8 @@ class ReceiveProcessPushAck(Runtime):
 
     async def drain(self) -> bool:
         self._status = RuntimeStatus.DRAINING
+        serve.delete(self.processor_group.group_id)
+        self._status = RuntimeStatus.DRAINED
         return True
 
     async def status(self) -> RuntimeStatus:

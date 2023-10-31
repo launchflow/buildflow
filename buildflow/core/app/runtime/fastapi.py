@@ -11,6 +11,7 @@ from fastapi.openapi.docs import (
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
+from starlette.websockets import WebSocket
 
 from buildflow.core.app.runtime._runtime import RunID
 from buildflow.core.app.runtime.metrics.common import (
@@ -118,15 +119,9 @@ def create_app(
             # inside of the ray actor
             from buildflow.core.processor.utils import add_input_types
 
-            @add_input_types(input_types, output_type)
-            async def handle_request(
-                self,
-                # NOTE: This can actually be of type Request or WebSocket
-                # but fastapi doesn't appreciate it when we pass in a union
-                request_or_websocket: Request = None,
-                *args,
-                **kwargs,
-            ) -> output_type:
+            async def process(
+                self, request: Union[Request, WebSocket], *args, **kwargs
+            ):
                 processor = app.state.processor_map[self.processor_id]
                 self.num_events_processed_counter.inc(
                     tags={
@@ -136,15 +131,16 @@ def create_app(
                     }
                 )
                 start_time = time.monotonic()
+
                 dependency_args = resolve_dependencies(
                     processor.dependencies(),
                     self.flow_dependencies,
-                    request_or_websocket,
+                    request,
                 )
-                if self.request_arg is not None:
-                    kwargs[self.request_arg] = request_or_websocket
-                if self.websocket_arg is not None:
-                    kwargs[self.websocket_arg] = request_or_websocket
+                if self.request_arg is not None and self.request_arg not in kwargs:
+                    kwargs[self.request_arg] = request
+                if self.websocket_arg is not None and self.websocket_arg not in kwargs:
+                    kwargs[self.websocket_arg] = request
 
                 output = await process_fn(processor, *args, **kwargs, **dependency_args)
                 self.process_time_counter.inc(
@@ -156,6 +152,23 @@ def create_app(
                     },
                 )
                 return output
+
+            # TODO: there is a small issue here where this will fail if the user
+            # includes an argument in their process with the name:
+            #   buildflow_internal_websocket or buildflow_internal_request
+            # we will fail.
+
+            @add_input_types(input_types, output_type)
+            async def handle_websocket(
+                self, buildflow_internal_websocket: WebSocket = None, *args, **kwargs
+            ):
+                return await self.process(buildflow_internal_websocket, *args, **kwargs)
+
+            @add_input_types(input_types, output_type)
+            async def handle_request(
+                self, buildflow_internal_request: Request = None, *args, **kwargs
+            ) -> output_type:
+                return await self.process(buildflow_internal_request, *args, **kwargs)
 
         endpoint_wrapper = EndpointFastAPIWrapper(
             processor.processor_id, run_id, flow_dependencies
@@ -169,9 +182,9 @@ def create_app(
         if security_openapi_extras:
             openapi_extras = {"security": [security_openapi_extras]}
         if processor.route_info().method == Method.WEBSOCKET:
-            app.add_websocket_route(
+            app.add_api_websocket_route(
                 path=processor.route_info().route,
-                route=endpoint_wrapper.handle_request,
+                endpoint=endpoint_wrapper.handle_websocket,
             )
         else:
             app.add_api_route(
