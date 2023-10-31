@@ -1,3 +1,3 @@
 # ruff: noqa
-from fastapi import Form, UploadFile, WebSocket
+from fastapi import File, Form, UploadFile, WebSocket
 from starlette.requests import Request
