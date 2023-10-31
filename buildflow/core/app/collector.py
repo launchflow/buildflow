@@ -17,6 +17,12 @@ class Collector:
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.original_process_fn_or_class(*args, **kwargs)
 
+    def __post_init__(self):
+        if isinstance(self.method, str):
+            self.method = Method(self.method.upper())
+        if self.method == Method.WEBSOCKET:
+            raise NotImplementedError("Websocket collectors are not yet supported")
+
 
 def collector(
     route: Route,

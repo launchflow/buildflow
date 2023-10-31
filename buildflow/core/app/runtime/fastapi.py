@@ -26,6 +26,7 @@ from buildflow.dependencies.base import (
     resolve_dependencies,
 )
 from buildflow.dependencies.headers import security_dependencies
+from buildflow.io.endpoint import Method
 
 
 def create_app(
@@ -103,9 +104,9 @@ def create_app(
                 self.request_arg = None
                 argspec = inspect.getfullargspec(processor.process)
                 for arg in argspec.args:
-                    if (
-                        arg in argspec.annotations
-                        and argspec.annotations[arg] == fastapi.Request
+                    if arg in argspec.annotations and (
+                        argspec.annotations[arg] == fastapi.Request
+                        or argspec.annotations[arg] == fastapi.WebSocket
                     ):
                         self.request_arg = arg
 
@@ -115,7 +116,10 @@ def create_app(
 
             @add_input_types(input_types, output_type)
             async def handle_request(
-                self, raw_request: fastapi.Request = None, *args, **kwargs
+                self,
+                raw_request: Union[fastapi.Request, fastapi.WebSocket] = None,
+                *args,
+                **kwargs,
             ) -> output_type:
                 processor = app.state.processor_map[self.processor_id]
                 self.num_events_processed_counter.inc(
@@ -154,13 +158,19 @@ def create_app(
         openapi_extras = None
         if security_openapi_extras:
             openapi_extras = {"security": [security_openapi_extras]}
-        app.add_api_route(
-            processor.route_info().route,
-            endpoint_wrapper.handle_request,
-            methods=[processor.route_info().method.name],
-            summary=processor.processor_id,
-            openapi_extra=openapi_extras,
-        )
+        if processor.route_info().method == Method.WEBSOCKET:
+            app.add_websocket_route(
+                path=processor.route_info().route,
+                route=endpoint_wrapper.handle_request,
+            )
+        else:
+            app.add_api_route(
+                processor.route_info().route,
+                endpoint_wrapper.handle_request,
+                methods=[processor.route_info().method.name],
+                summary=processor.processor_id,
+                openapi_extra=openapi_extras,
+            )
 
     def custom_openapi():
         if app.openapi_schema:

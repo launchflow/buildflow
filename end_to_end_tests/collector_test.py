@@ -330,6 +330,31 @@ class CollectorLocalTest(unittest.TestCase):
         finally:
             shutil.rmtree(output_dir)
 
+    def test_collector_duckdb_websocket_not_supported(self):
+        app = buildflow.Flow()
+
+        with self.assertRaises(NotImplementedError):
+
+            @app.collector(
+                route="/test",
+                method="websocket",
+                sink=AnalysisTable(table_name=self.table),
+                num_cpus=0.5,
+            )
+            def my_collector(input: InputRequest) -> OutputResponse:
+                return OutputResponse(input.val + 1)
+
+        with self.assertRaises(NotImplementedError):
+
+            @buildflow.collector(
+                route="/test",
+                method="websocket",
+                sink=AnalysisTable(table_name=self.table),
+                num_cpus=0.5,
+            )
+            def my_collector(input: InputRequest) -> OutputResponse:  # noqa
+                return OutputResponse(input.val + 1)
+
 
 if __name__ == "__main__":
     unittest.main()

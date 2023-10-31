@@ -76,6 +76,7 @@ dev = [
     "ruff",
     "pre-commit",
     "setuptools",
+    "websockets",
     "wheel",
 ]
 
