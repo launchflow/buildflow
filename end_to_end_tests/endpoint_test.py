@@ -103,8 +103,8 @@ class EndpointLocalTest(unittest.TestCase):
         app.add_service(service)
 
         @service.endpoint(route="/test", method="POST")
-        def my_endpoint(input: InputRequest) -> OutputResponse:
-            return OutputResponse(input.val + 1)
+        def my_endpoint(request: InputRequest) -> OutputResponse:
+            return OutputResponse(request.val + 1)
 
         run_coro = app.run(block=False)
 
@@ -154,7 +154,7 @@ class EndpointLocalTest(unittest.TestCase):
 
             @service.endpoint(route="/test", method="POST")
             async def my_endpoint(
-                input: InputRequest,
+                request: InputRequest,
                 no: NoScope,
                 global_: GlobalScope,
                 replica: ReplicaScope,
