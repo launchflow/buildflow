@@ -37,7 +37,6 @@ class ClickhouseSink(SinkStrategy):
         self.host = host
         self.username = username
         self.password = password
-        self.connect()
 
     async def connect(self):
         connect_tries = 0
@@ -75,6 +74,8 @@ class ClickhouseSink(SinkStrategy):
         return converters.json_push_converter(user_defined_type)
 
     async def push(self, batch: Iterable[Dict[str, Any]]):
+        if self.client is None:
+            await self.connect()
         df = pd.DataFrame(batch)
         try:
             self.client.insert_df(self.table, df)
