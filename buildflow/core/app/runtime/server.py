@@ -67,6 +67,7 @@ class RuntimeServer(uvicorn.Server):
             uvicorn.Config(app, host=host, port=port, log_level=log_level.lower())
         )
         self.flow_state = flow_state.to_dict()
+        print("flow_state", self.flow_state)
         # NOTE: Ray actors run in their own process, so we need to configure
         # logging per actor / remote task.
         logging.getLogger().setLevel(log_level)
