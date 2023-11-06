@@ -1,4 +1,4 @@
-project: sqs-to-sqs
+app: sqs-to-sqs
 pulumi_config:
     stacks:
     -   name: local

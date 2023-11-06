@@ -1,4 +1,4 @@
-project: pubsub-to-pubsub
+app: pubsub-to-pubsub
 pulumi_config:
     stacks:
     -   name: local

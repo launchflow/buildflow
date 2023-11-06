@@ -1,4 +1,4 @@
-project: end-to-end-tests
+app: end-to-end-tests
 pulumi_config:
   pulumi_home: .buildflow/_pulumi
   stacks:
