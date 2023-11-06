@@ -167,7 +167,9 @@ class EndpointLocalTest(unittest.TestCase):
                     raise Exception("Global scope not the same")
                 if id(global_.no) == id(no):
                     raise Exception("No scope was the same")
-                to_write = input.val + no.val + global_.val + replica.val + process.val
+                to_write = (
+                    request.val + no.val + global_.val + replica.val + process.val
+                )
                 to_return = OutputResponse(to_write)
                 await sink.push(to_return)
                 return OutputResponse(to_write)
