@@ -28,7 +28,7 @@ from buildflow.core.utils import uuid
 warnings.simplefilter("ignore", UserWarning)
 logging.basicConfig(level=logging.ERROR)
 
-_PROJECT_NAME_PATTERN = r"^[a-z-]{1,63}$"
+_APP_NAME_PATTERN = r"^[a-z-]{1,63}$"
 BUILDFLOW_HELP = """\
 Welcome to the buildflow CLI!
 """
@@ -308,7 +308,7 @@ buildflow
 
 @app.command(help="Initialize a new buildflow app")
 def init(
-    project: str = typer.Option("", help=("The name of the project")),
+    app: str = typer.Option("", help=("The name of the app")),
     directory: str = typer.Option(default=".", help="The directory to initialize"),
 ):
     buildflow_config_dir = os.path.join(directory, BUILDFLOW_CONFIG_FILE)
@@ -317,12 +317,12 @@ def init(
             f"buildflow config already exists at {buildflow_config_dir}, skipping."
         )
         raise typer.Exit(1)
-    if not project:
-        project = input("Please enter a project name: ")
-    if not re.fullmatch(_PROJECT_NAME_PATTERN, project):
-        typer.echo("project must contain only lowercase letters and hyphens")
+    if not app:
+        app = input("Please enter an app name: ")
+    if not re.fullmatch(_APP_NAME_PATTERN, app):
+        typer.echo("app name must contain only lowercase letters and hyphens")
         raise typer.Exit(1)
-    buildflow_config = BuildFlowConfig.default(project=project, directory=directory)
+    buildflow_config = BuildFlowConfig.default(app=app, directory=directory)
 
     requirements_txt_path = os.path.join(directory, "requirements.txt")
     if os.path.exists(requirements_txt_path):
@@ -333,28 +333,29 @@ def init(
         with open(requirements_txt_path, "w") as requirements_txt_file:
             requirements_txt_file.write(_DEFAULT_REQUIREMENTS_TXT)
 
+    os.makedirs(directory, exist_ok=True)
     buildflow_config.dump(directory)
 
-    # Create the base project folder
-    project_folder = project.replace("-", "_")
-    project_lib_dir = os.path.join(directory, project_folder)
-    os.mkdir(project_lib_dir)
-    open(os.path.join(project_lib_dir, "__init__.py"), "w").close()
+    # Create the base app folder
+    app_folder = app.replace("-", "_")
+    app_lib_dir = os.path.join(directory, app_folder)
+    os.mkdir(app_lib_dir)
+    open(os.path.join(app_lib_dir, "__init__.py"), "w").close()
 
     # Create the primitives module
-    open(os.path.join(project_folder, "primitives.py"), "w").close()
+    open(os.path.join(app_lib_dir, "primitives.py"), "w").close()
 
     # Create the base processors folder
-    processors_folder = os.path.join(project_lib_dir, "processors")
+    processors_folder = os.path.join(app_lib_dir, "processors")
     os.mkdir(processors_folder)
     open(os.path.join(processors_folder, "__init__.py"), "w").close()
 
     file_name = "main"
     file_path = os.path.join(directory, f"{file_name}.py")
 
-    main_file_template = file_gen.hello_world_main_template(project_folder)
+    main_file_template = file_gen.hello_world_main_template(app_folder)
     with open(os.path.join(processors_folder, "service.py"), "w") as f:
-        f.write(file_gen.hello_world_service_template(project_folder))
+        f.write(file_gen.hello_world_service_template(app_folder))
 
     with open(os.path.join(processors_folder, "hello_world.py"), "w") as f:
         f.write(file_gen.hello_world_endpoint_template())
@@ -370,7 +371,7 @@ def init(
 
     # Create the readme file
     with open(os.path.join(directory, "README.md"), "w") as f:
-        f.write(file_gen.hello_world_readme_template(project, project_folder))
+        f.write(file_gen.hello_world_readme_template(app, app_folder))
 
 
 def main():
