@@ -1,4 +1,4 @@
-project: s3-to-bigquery
+app: s3-to-bigquery
 pulumi_config:
     stacks:
     -   name: local

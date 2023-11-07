@@ -3,7 +3,7 @@ from typing import List, Optional, Set, Union
 
 from buildflow.core.processor.processor import ProcessorGroupType, ProcessorType
 from buildflow.io.endpoint import Method, Route
-from buildflow.io.primitive import Primitive
+from buildflow.io.primitive import Primitive, PrimitiveType
 
 
 def _find_parent_primitives(
@@ -34,6 +34,7 @@ def _find_parent_primitives(
 class PrimitiveState:
     primitive_id: str
     primitive_name: str
+    primitive_type: PrimitiveType
     managed: bool
     primitive_dependencies: List[str] = dataclasses.field(default_factory=list)
     resource_url: Optional[str] = None
@@ -42,6 +43,7 @@ class PrimitiveState:
         return {
             "primitive_id": self.primitive_id,
             "primitive_name": self.primitive_name,
+            "primitive_type": self.primitive_type,
             "managed": self.managed,
             "resource_url": self.resource_url,
             "primitive_dependencies": self.primitive_dependencies,
@@ -57,6 +59,7 @@ class PrimitiveState:
         ps = PrimitiveState(
             primitive_id=primitive.primitive_id(),
             primitive_name=type(primitive).__name__,
+            primitive_type=primitive.primitive_type.value,
             managed=primitive.primitive_id() in managed_primitives,
             resource_url=primitive.cloud_console_url(),
         )

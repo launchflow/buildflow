@@ -1,4 +1,4 @@
-project: pubsub-to-bigquery
+app: pubsub-to-bigquery
 pulumi_config:
     stacks:
     -   name: local
