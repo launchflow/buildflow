@@ -12,6 +12,7 @@ import buildflow
 from buildflow.dependencies.auth import BearerCredentials
 from buildflow.dependencies.base import Scope, dependency
 from buildflow.dependencies.sink import SinkDependencyBuilder
+from buildflow.exceptions import HTTPException
 from buildflow.io.local.file import File
 from buildflow.requests import Request, WebSocket
 from buildflow.types.portable import FileFormat
@@ -167,7 +168,9 @@ class EndpointLocalTest(unittest.TestCase):
                     raise Exception("Global scope not the same")
                 if id(global_.no) == id(no):
                     raise Exception("No scope was the same")
-                to_write = input.val + no.val + global_.val + replica.val + process.val
+                to_write = (
+                    request.val + no.val + global_.val + replica.val + process.val
+                )
                 to_return = OutputResponse(to_write)
                 await sink.push(to_return)
                 return OutputResponse(to_write)
@@ -310,6 +313,44 @@ class EndpointLocalTest(unittest.TestCase):
         response.raise_for_status()
         self.assertEqual(response.json(), "Hello, get!")
 
+        self.get_async_result(app._drain())
+
+    def test_endpoint_end_non_http_exception(self):
+        app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
+
+        @service.endpoint(route="/test", method="POST")
+        def my_endpoint(input: InputRequest) -> OutputResponse:
+            raise ValueError("failed")
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        response = requests.post(
+            "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
+        )
+        self.assertEqual(response.status_code, 500)
+        self.get_async_result(app._drain())
+
+    def test_endpoint_end_http_exception(self):
+        app = buildflow.Flow()
+        service = app.service(num_cpus=0.5)
+
+        @service.endpoint(route="/test", method="POST")
+        def my_endpoint(input: InputRequest) -> OutputResponse:
+            raise HTTPException(401)
+
+        run_coro = app.run(block=False)
+
+        # wait for 20 seconds to let it spin up
+        run_coro = self.run_for_time(run_coro, time=20)
+
+        response = requests.post(
+            "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
+        )
+        self.assertEqual(response.status_code, 401)
         self.get_async_result(app._drain())
 
 

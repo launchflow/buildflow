@@ -182,7 +182,7 @@ class ConsumerAutoScalerTest(unittest.TestCase):
             enable_autoscaler=True,
             min_replicas=2,
             max_replicas=100,
-            num_replicas=1,
+            num_replicas=3,
         )
         logging
         rec_replicas = autoscaler.calculate_target_num_replicas(
