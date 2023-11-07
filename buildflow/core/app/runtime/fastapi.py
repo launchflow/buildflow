@@ -10,6 +10,7 @@ from fastapi.openapi.docs import (
 )
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.websockets import WebSocket
 
@@ -94,11 +95,13 @@ def create_app(
                     processor_id=processor_id,
                     job_id=self.job_id,
                     run_id=run_id,
+                    status_code="200",
                 )
                 self.process_time_counter = process_time_counter(
                     processor_id=processor_id,
                     job_id=self.job_id,
                     run_id=run_id,
+                    status_code="200",
                 )
                 self.processor_id = processor_id
                 self.flow_dependencies = flow_dependencies
@@ -126,34 +129,50 @@ def create_app(
                 **kwargs,
             ):
                 processor = app.state.processor_map[self.processor_id]
-                self.num_events_processed_counter.inc(
-                    tags={
-                        "processor_id": processor.processor_id,
-                        "JobId": self.job_id,
-                        "RunId": self.run_id,
-                    }
-                )
                 start_time = time.monotonic()
 
-                dependency_args = resolve_dependencies(
-                    processor.dependencies(),
-                    self.flow_dependencies,
-                    internal_buildflow_request,
-                )
-                if self.request_arg is not None and self.request_arg not in kwargs:
-                    kwargs[self.request_arg] = internal_buildflow_request
-                if self.websocket_arg is not None and self.websocket_arg not in kwargs:
-                    kwargs[self.websocket_arg] = internal_buildflow_request
-
-                output = await process_fn(processor, *args, **kwargs, **dependency_args)
-                self.process_time_counter.inc(
-                    (time.monotonic() - start_time) * 1000,
-                    tags={
-                        "processor_id": processor.processor_id,
-                        "JobId": self.job_id,
-                        "RunId": self.run_id,
-                    },
-                )
+                status_code = 200
+                try:
+                    dependency_args = resolve_dependencies(
+                        processor.dependencies(),
+                        self.flow_dependencies,
+                        internal_buildflow_request,
+                    )
+                    if self.request_arg is not None and self.request_arg not in kwargs:
+                        kwargs[self.request_arg] = internal_buildflow_request
+                    if (
+                        self.websocket_arg is not None
+                        and self.websocket_arg not in kwargs
+                    ):
+                        kwargs[self.websocket_arg] = internal_buildflow_request
+                    output = await process_fn(
+                        processor, *args, **kwargs, **dependency_args
+                    )
+                except Exception as e:
+                    if isinstance(e, HTTPException):
+                        status_code = e.status_code
+                    else:
+                        status_code = 500
+                    raise e
+                finally:
+                    status_code = str(status_code)
+                    self.num_events_processed_counter.inc(
+                        tags={
+                            "processor_id": processor.processor_id,
+                            "JobId": self.job_id,
+                            "RunId": self.run_id,
+                            "StatusCode": status_code,
+                        }
+                    )
+                    self.process_time_counter.inc(
+                        (time.monotonic() - start_time) * 1000,
+                        tags={
+                            "processor_id": processor.processor_id,
+                            "JobId": self.job_id,
+                            "RunId": self.run_id,
+                            "StatusCode": status_code,
+                        },
+                    )
                 return output
 
             # TODO: there is a small issue here where this will fail if the user

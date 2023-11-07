@@ -49,6 +49,18 @@ class AutoscalerOptions(Options):
             or self.consumer_cpu_percent_target > 100
         ):
             raise ValueError("consumer_cpu_percent_target must be between 0 and 100")
+        if self.min_replicas < 0:
+            raise ValueError("min_replicas must be greater than 0")
+        if self.max_replicas < 0:
+            raise ValueError("max_replicas must be greater than 0")
+        if self.max_replicas < self.min_replicas:
+            raise ValueError(
+                "max_replicas must be greater than or equal to min_replicas"
+            )
+        if self.num_replicas < self.min_replicas:
+            raise ValueError(
+                "num_replicas must be greater than or equal to min_replicas"
+            )
 
 
 # TODO: Add options for other pattern types, or merge into a single options object
