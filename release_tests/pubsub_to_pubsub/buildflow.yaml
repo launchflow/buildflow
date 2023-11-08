@@ -1,5 +1,6 @@
 app: pubsub-to-pubsub
 pulumi_config:
+    default_stack: local
     stacks:
     -   name: local
         backend_url: file://./.buildflow/_pulumi/local
