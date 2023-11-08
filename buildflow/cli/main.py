@@ -277,6 +277,7 @@ def destroy():
         imported = utils.import_from_string(buildflow_config.entry_point)
         progress.advance(load_task)
         progress.remove_task(load_task)
+        progress.console.print("[green]✓[/green] Application Loaded")
         if isinstance(imported, (buildflow.Flow)):
             imported.destroy(progress)
 
