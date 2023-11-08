@@ -39,6 +39,7 @@ class PulumiStack(Config):
 @dataclasses.dataclass
 class PulumiConfig:
     project_name: str
+    default_stack: str
     stacks: List[PulumiStack]
     pulumi_home: str
 
@@ -67,6 +68,7 @@ class PulumiConfig:
         os.makedirs(pulumi_home_dir, exist_ok=True)
         return cls(
             project_name=project_name,
+            default_stack="local",
             stacks=[PulumiStack.default(pulumi_home_dir=pulumi_home_dir)],
             pulumi_home=pulumi_home_dir,
         )
@@ -75,6 +77,7 @@ class PulumiConfig:
         return {
             "stacks": [dataclasses.asdict(s) for s in self.stacks],
             "pulumi_home": self.pulumi_home,
+            "default_stack": self.default_stack,
         }
 
     def get_stack(self, stack: str) -> PulumiStack:

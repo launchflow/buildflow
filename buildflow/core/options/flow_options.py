@@ -26,7 +26,7 @@ class FlowOptions(Options):
         require_confirmation: bool = True,
         infra_log_level: str = "INFO",
         # Pulumi options
-        stack: str = "local",
+        stack: Optional[str] = None,
         enable_destroy_protection: bool = False,
         refresh_state: bool = True,
     ) -> None:
@@ -42,7 +42,8 @@ class FlowOptions(Options):
             require_confirmation (bool): Whether or not confirmation should be
                 required before applying changes. Defaults to True.
             infra_log_level (str): The log level for the infra. Defaults to "INFO".
-            stack (str): The stack to use. Defaults to "local".
+            stack (str): The stack to use. Defaults to the default_stack field
+                configured in your buildflow.yaml.
             enable_destroy_protection (bool): Whether destroy projection should be
                 enabled for pulumi. Defaults to False.
             refresh_state (bool): Whether or not to refresh state before applying

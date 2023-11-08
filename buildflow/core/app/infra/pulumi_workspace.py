@@ -234,11 +234,14 @@ class PulumiWorkspace:
     def __init__(
         self, pulumi_options: PulumiOptions, pulumi_config: PulumiConfig
     ) -> None:
+        # NOTE: PulumiOptions.select_stack is None by default, so we use the
+        # default_stack set in the buildflow.yaml when unset.
+        active_stack = pulumi_options.selected_stack or pulumi_config.default_stack
         # configuration
         self.options = pulumi_options
         self.config = pulumi_config
-        self.workspace_id = self.config.workspace_id(self.options.selected_stack)
-        self.stack: PulumiStack = self.config.get_stack(self.options.selected_stack)
+        self.workspace_id = self.config.workspace_id(active_stack)
+        self.stack: PulumiStack = self.config.get_stack(active_stack)
         # initial state
         self._pulumi_program_cache = {}
 
