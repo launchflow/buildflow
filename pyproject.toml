@@ -54,7 +54,7 @@ dependencies = [
     "snowflake-ingest",
     "ray[default]>=2.4.0",
     "ray[serve]>=2.4.0",
-    "typer",
+    "typer[all]",
     "redis",
     "watchfiles",
 ]

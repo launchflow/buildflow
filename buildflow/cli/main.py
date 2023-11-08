@@ -17,6 +17,7 @@ import pathspec
 import ray
 import typer
 import yaml
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 import buildflow
 from buildflow.cli import file_gen, utils
@@ -225,41 +226,63 @@ def refresh():
 
 @app.command(help="Output all resources used by a buildflow flow")
 def preview():
-    buildflow_config = BuildFlowConfig.load()
-    sys.path.insert(0, "")
-    imported = utils.import_from_string(buildflow_config.entry_point)
-    if isinstance(imported, (buildflow.Flow)):
-        imported.preview()
-
-    else:
-        typer.echo("preview must be run on a flow")
-        typer.Exit(1)
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+    ) as progress:
+        load_task = progress.add_task("Loading Application...", total=1)
+        buildflow_config = BuildFlowConfig.load()
+        sys.path.insert(0, "")
+        imported = utils.import_from_string(buildflow_config.entry_point)
+        progress.advance(load_task)
+        progress.remove_task(load_task)
+        progress.console.print("[green]✓[/green] Application Loaded")
+        if isinstance(imported, (buildflow.Flow)):
+            imported.preview(progress)
+        else:
+            typer.echo("preview must be run on a flow")
+            typer.Exit(1)
 
 
 @app.command(help="Apply all resources used by a buildflow flow")
 def apply():
-    buildflow_config = BuildFlowConfig.load()
-    sys.path.insert(0, "")
-    imported = utils.import_from_string(buildflow_config.entry_point)
-    if isinstance(imported, (buildflow.Flow)):
-        imported.apply()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+    ) as progress:
+        load_task = progress.add_task("Loading Application...", total=1)
+        buildflow_config = BuildFlowConfig.load()
+        sys.path.insert(0, "")
+        imported = utils.import_from_string(buildflow_config.entry_point)
+        progress.advance(load_task)
+        progress.remove_task(load_task)
+        progress.console.print("[green]✓[/green] Application Loaded")
+        if isinstance(imported, (buildflow.Flow)):
+            imported.apply(progress)
 
-    else:
-        typer.echo("preview must be run on a flow")
-        typer.Exit(1)
+        else:
+            typer.echo("preview must be run on a flow")
+            typer.Exit(1)
 
 
 @app.command(help="Destroy all resources used by a buildflow flow ")
 def destroy():
-    buildflow_config = BuildFlowConfig.load()
-    sys.path.insert(0, "")
-    imported = utils.import_from_string(buildflow_config.entry_point)
-    if isinstance(imported, (buildflow.Flow)):
-        imported.destroy()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+    ) as progress:
+        load_task = progress.add_task("Loading Application...", total=1)
+        buildflow_config = BuildFlowConfig.load()
+        sys.path.insert(0, "")
+        imported = utils.import_from_string(buildflow_config.entry_point)
+        progress.advance(load_task)
+        progress.remove_task(load_task)
+        if isinstance(imported, (buildflow.Flow)):
+            imported.destroy(progress)
 
-    else:
-        typer.echo("Destroy must be run on a flow")
-        typer.Exit(1)
+        else:
+            typer.echo("Destroy must be run on a flow")
+            typer.Exit(1)
 
 
 @dataclass

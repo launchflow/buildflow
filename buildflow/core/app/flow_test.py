@@ -108,17 +108,22 @@ class FlowTest(unittest.TestCase):
         bigquery_dataset = BigQueryDataset(
             project_id="project_id", dataset_name="dataset_name"
         )
-        bigquery_table = BigQueryTable(
-            bigquery_dataset, table_name="table_name"
+        bigquery_table1 = BigQueryTable(
+            bigquery_dataset, table_name="table_name1"
+        ).options(schema=MySchema)
+        bigquery_table2 = BigQueryTable(
+            bigquery_dataset, table_name="table_name2"
         ).options(schema=MySchema)
         pubsub_topic = GCPPubSubTopic(project_id="project_id", topic_name="topic_name")
         pubsub_subscription = GCPPubSubSubscription(
             project_id="project_id", subscription_name="subscription_name"
         ).options(topic=pubsub_topic)
 
-        app.manage(bigquery_dataset, bigquery_table, pubsub_subscription)
+        app.manage(
+            bigquery_dataset, bigquery_table1, bigquery_table2, pubsub_subscription
+        )
 
-        @app.consumer(source=pubsub_subscription, sink=bigquery_table)
+        @app.consumer(source=pubsub_subscription, sink=bigquery_table1)
         def process(payload: Dict[str, int]) -> Dict[str, int]:
             return payload
 
@@ -131,7 +136,7 @@ class FlowTest(unittest.TestCase):
         # Ensure all the primitives get visited.
         # We don't actually validate what pulumi resources are created here, since
         # those should have their own tests.
-        self.assertEqual(len(pulumi_resources), 3)
+        self.assertEqual(len(pulumi_resources), 4)
 
     def test_flowstate_consumer(self):
         app = Flow()

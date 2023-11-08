@@ -9,6 +9,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import pulumi
 import ray
+from rich.progress import Progress
+from rich.prompt import Prompt
 
 import buildflow
 from buildflow.config.buildflow_config import BuildFlowConfig
@@ -103,7 +105,12 @@ def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primit
                 and isinstance(field_value, Primitive)
                 and field_value._managed
             ):
-                primitives_without_parents.remove(field_value)
+                try:
+                    primitives_without_parents.remove(field_value)
+                except ValueError:
+                    # This can happen when a primitive is a parent of two or more
+                    # other primitives.
+                    pass
     return primitives_without_parents
 
 
@@ -828,71 +835,95 @@ class Flow:
         await self._get_infra_actor().refresh(pulumi_program=self._pulumi_program)
         logging.debug(f"...Finished refreshing Infra for Flow({self.flow_id})")
 
-    def preview(self):
-        return asyncio.get_event_loop().run_until_complete(self._preview())
+    def preview(self, progress: Optional[Progress] = None):
+        return asyncio.get_event_loop().run_until_complete(self._preview(progress))
 
-    async def _preview(self):
+    async def _preview(self, progress: Optional[Progress] = None):
         logging.debug(f"Previewing Infra for Flow({self.flow_id})...")
+        if progress is not None:
+            preview_task = progress.add_task("Generating Preview...", total=1)
         await self._get_infra_actor().preview(
             pulumi_program=self._pulumi_program,
             managed_primitives=self._managed_primitives,
         )
+        if progress is not None:
+            progress.advance(preview_task)
+            progress.remove_task(preview_task)
         logging.debug(f"...Finished previewing Infra for Flow({self.flow_id})")
 
-    def apply(self):
-        return asyncio.get_event_loop().run_until_complete(self._apply())
+    def apply(self, progress: Optional[Progress] = None):
+        return asyncio.get_event_loop().run_until_complete(self._apply(progress))
 
-    async def _apply(self):
+    async def _apply(self, progress: Optional[Progress] = None):
         logging.debug(f"Setting up Infra for Flow({self.flow_id})...")
         if self.options.infra_options.require_confirmation:
-            await self._preview()
+            await self._preview(progress)
             print("Would you like to apply these changes?")
-            response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
-            while True:
-                if response.lower() in ["n", "no"]:
-                    print("User rejected Infra changes. Aborting.")
-                    return
-                elif response.lower() in ["y", "yes"]:
-                    print("User confirmed Infra changes. Applying changes...")
-                    break
+            if progress is not None:
+                progress.stop()
+            response = Prompt.ask(
+                'Enter "y (yes)" to confirm, "n (no) to reject": ',
+                choices=["y", "n", "yes", "no"],
+            )
+            if response.lower() in ["n", "no"]:
+                if progress is not None:
+                    progress.console.print("[red]✗[/red] Changes rejected.")
                 else:
-                    response = input(
-                        'Invalid response. Enter "y (yes)" to '
-                        'confirm, "n (no) to reject": '
-                    )
+                    print("User rejected Infra changes. Aborting.")
+                return
         else:
-            print("Confirmation disabled. Applying changes...")
+            print("Confirmation disabled.")
+        if progress is not None:
+            progress.start()
+            apply_task = progress.add_task("Applying changes...", total=1)
         await self._get_infra_actor().apply(pulumi_program=self._pulumi_program)
-        print("...changes applied.")
+        if progress is not None:
+            progress.advance(apply_task)
+            progress.remove_task(apply_task)
+            progress.console.print("[green]✓[/green] Changes applied.")
+        else:
+            print("Changes applied.")
 
-    def destroy(self):
-        return asyncio.get_event_loop().run_until_complete(self._destroy())
+    def destroy(self, progress: Optional[Progress] = None):
+        return asyncio.get_event_loop().run_until_complete(self._destroy(progress))
 
-    async def _destroy(self):
+    async def _destroy(self, progress: Optional[Progress] = None):
         logging.debug(f"Destroying infrastructure for Flow({self.flow_id})...")
         if self.options.infra_options.require_confirmation:
             # We pass in no managed primitives, to simulate deleting all infrastructure.
+            if progress is not None:
+                preview_task = progress.add_task("Generating Preview...", total=1)
             await self._get_infra_actor().preview(
                 pulumi_program=self._pulumi_program, managed_primitives={}
             )
+            if progress is not None:
+                progress.advance(preview_task)
+                progress.remove_task(preview_task)
             print("Would you like to apply these changes?")
-            response = input('Enter "y (yes)" to confirm, "n (no) to reject": ')
-            while True:
-                if response.lower() in ["n", "no"]:
-                    print("User rejected changes. Aborting.")
-                    return
-                elif response.lower() in ["y", "yes"]:
-                    print("User confirmed changes. Destroying resources...")
-                    break
+            if progress is not None:
+                progress.stop()
+            response = Prompt.ask(
+                'Enter "y (yes)" to confirm, "n (no) to reject": ',
+                choices=["y", "n", "yes", "no"],
+            )
+            if response.lower() in ["n", "no"]:
+                if progress is not None:
+                    progress.console.print("[red]✗[/red] Changes rejected.")
                 else:
-                    response = input(
-                        'Invalid response. Enter "y (yes)" to '
-                        'confirm, "n (no) to reject": '
-                    )
+                    print("User rejected Infra changes. Aborting.")
+                return
         else:
-            print("Confirmation disabled. Destrying resources...")
+            print("Confirmation disabled.")
+        if progress is not None:
+            progress.start()
+            apply_task = progress.add_task("Destryoing resources...", total=1)
         await self._get_infra_actor().destroy(pulumi_program=self._pulumi_program)
-        print("...resources destroyed.")
+        if progress is not None:
+            progress.advance(apply_task)
+            progress.remove_task(apply_task)
+            progress.console.print("[green]✓[/green] Resources destroyed.")
+        else:
+            print("Resources destroyed.")
 
     def flowstate(self) -> FlowState:
         self._add_service_groups()

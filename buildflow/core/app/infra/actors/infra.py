@@ -110,10 +110,16 @@ class InfraActor(Infra):
             resource = stack_resources[update_urn]
             while True:
                 if "primitive_id" in resource.resource_outputs:
-                    # 'inputDiff': {'updates': {'ackDeadlineSeconds': 2}},
                     diff = list(
                         update_plans[update_urn]["goal"]["inputDiff"]["updates"].keys()
                     )
+                    if (
+                        resource.resource_outputs["primitive_id"]
+                        not in managed_primitives
+                    ):
+                        # This can happen if there is a pending update to a resource
+                        # that is being deleted.
+                        break
                     prim = managed_primitives[resource.resource_outputs["primitive_id"]]
                     prim_type = type(prim).__name__
                     if prim_type in update_primitives:

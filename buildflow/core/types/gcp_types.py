@@ -35,4 +35,6 @@ GCSBucketURL = str
 # CloudSQL Types
 CloudSQLInstanceName = str
 CloudSQLDatabaseName = str
-ClouseSQLDatabaseVersion = str
+CloudSQLDatabaseVersion = str
+CloudSQLUserName = str
+CloudSQLPassword = str
