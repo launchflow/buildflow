@@ -1037,9 +1037,13 @@ class Flow:
                     group_info=group_info,
                 )
             )
-        sys.version
+        if self.options.infra_options.pulumi_options.selected_stack is not None:
+            stack = self.options.infra_options.pulumi_options.selected_stack
+        else:
+            stack = self.config.pulumi_config.default_stack
         return FlowState(
             flow_id=self.flow_id,
+            stack=stack,
             primitive_states=list(primitive_states.values()),
             processor_group_states=processor_group_states,
             python_version=f"{sys.version_info.major}.{sys.version_info.minor}",
