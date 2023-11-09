@@ -1,5 +1,6 @@
 app: end-to-end-tests
 pulumi_config:
+  default_stack: local
   pulumi_home: .buildflow/_pulumi
   stacks:
     - name: local

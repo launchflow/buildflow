@@ -1,5 +1,6 @@
 import dataclasses
 import enum
+from typing import Optional
 
 from buildflow.core.options._options import Options
 
@@ -14,14 +15,14 @@ class SchemaValidation(enum.Enum):
 class PulumiOptions(Options):
     enable_destroy_protection: bool
     refresh_state: bool
-    selected_stack: str
+    selected_stack: Optional[str]
     log_level: str
 
     @classmethod
     def default(cls) -> "PulumiOptions":
         return cls(
             enable_destroy_protection=False,
-            selected_stack="local",
+            selected_stack=None,
             refresh_state=True,
             log_level="DEBUG",
         )
