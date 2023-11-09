@@ -135,7 +135,6 @@ def _get_directory_path_of_caller():
     # Config.
     frame = type_inspect.stack()[2]
     module = type_inspect.getmodule(frame[0])
-    print("DO NOT SUBMIT: ", os.path.dirname(os.path.abspath(module.__file__)))
     return os.path.dirname(os.path.abspath(module.__file__))
 
 
