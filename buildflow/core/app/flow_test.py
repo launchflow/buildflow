@@ -9,6 +9,7 @@ from typing import Dict
 import pulumi
 
 from buildflow.core.app.flow import Flow
+from buildflow.core.options.flow_options import FlowOptions
 from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.io.gcp.bigquery_dataset import BigQueryDataset
 from buildflow.io.gcp.bigquery_table import BigQueryTable
@@ -36,10 +37,27 @@ class FlowTest(unittest.TestCase):
     def setUp(self) -> None:
         self.output_path = tempfile.mkstemp(suffix=".csv")[1]
         self.tempdir = tempfile.mkdtemp()
+        # write buildflow config
+        buildflow_yaml = """\
+app: end-to-end-tests
+pulumi_config:
+  default_stack: local
+  pulumi_home: .buildflow/_pulumi
+  stacks:
+    - name: local
+      backend_url: file://.buildflow/_pulumi/local
+entry_point: main:app
+"""
+        self.buildflow_yaml_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "buildflow.yaml"
+        )
+        with open(self.buildflow_yaml_path, "w") as f:
+            f.write(buildflow_yaml)
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
         os.remove(self.output_path)
+        os.remove(self.buildflow_yaml_path)
 
     def test_flow_process_fn_decorator(self):
         app = Flow()
@@ -165,9 +183,10 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(flowstate.flow_id, app.flow_id)
         self.assertEqual(len(flowstate.processor_group_states), 1)
         self.assertEqual(len(flowstate.primitive_states), 4)
+        self.assertEqual("local", flowstate.stack)
 
     def test_flowstate_collector(self):
-        app = Flow()
+        app = Flow(flow_options=FlowOptions(stack="a-diff-stack"))
 
         bigquery_dataset = BigQueryDataset(
             project_id="project_id", dataset_name="dataset_name"
@@ -190,6 +209,7 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(flowstate.flow_id, app.flow_id)
         self.assertEqual(len(flowstate.processor_group_states), 1)
         self.assertEqual(len(flowstate.primitive_states), 3)
+        self.assertEqual("a-diff-stack", flowstate.stack)
 
     def test_flowstate_endpoint(self):
         app = Flow()

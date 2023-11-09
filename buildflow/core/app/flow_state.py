@@ -153,6 +153,7 @@ class ProcessorGroupState:
 @dataclasses.dataclass
 class FlowState:
     flow_id: str
+    stack: str
     primitive_states: List[PrimitiveState]
     processor_group_states: List[ProcessorGroupState]
     python_version: str
@@ -162,6 +163,7 @@ class FlowState:
     def to_dict(self):
         return {
             "flow_id": self.flow_id,
+            "stack": self.stack,
             "primitive_states": [p.to_dict() for p in self.primitive_states],
             "processor_group_states": [
                 p.to_dict() for p in self.processor_group_states
