@@ -10,18 +10,20 @@ import pyarrow.csv as pcsv
 import pytest
 
 from buildflow.core.app.flow import Flow
+from buildflow.core.app.runtime._runtime import RuntimeStatus
 from buildflow.core.app.runtime.actors.consumer_pattern.pull_process_push import (
     PullProcessPushActor,
 )
 from buildflow.core.processor.patterns.consumer import ConsumerGroup
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
+from buildflow.testing.test_case import AsyncTestCase
 from buildflow.types.portable import FileFormat
 
 
 @pytest.mark.usefixtures("ray")
 @pytest.mark.usefixtures("event_loop_instance")
-class PullProcessPushTest(unittest.TestCase):
+class PullProcessPushTest(AsyncTestCase):
     def get_output_file(self) -> str:
         files = os.listdir(self.output_dir)
         self.assertEqual(1, len(files))
@@ -40,6 +42,20 @@ class PullProcessPushTest(unittest.TestCase):
             self.event_loop.run_until_complete(asyncio.wait_for(coro, timeout=5))
         except asyncio.TimeoutError:
             return
+
+    def run_for_time(self, coro, time: int = 5):
+        async def wait_wrapper():
+            completed, pending = await asyncio.wait(
+                [coro], timeout=time, return_when="FIRST_EXCEPTION"
+            )
+            if completed:
+                # This general should only happen when there was an exception so
+                # we want to raise it to make the test failure more obvious.
+                completed.pop().result()
+            if pending:
+                return pending.pop()
+
+        return self.event_loop.run_until_complete(wait_wrapper())
 
     def test_end_to_end_with_processor_class(self):
         app = Flow()
@@ -151,6 +167,75 @@ class PullProcessPushTest(unittest.TestCase):
         # Assert that the first two rows are the same.
         # This should always be true because we are returning the same payload twice.
         self.assertTrue(first_two[0] == first_two[1])
+
+    def test_end_to_end_with_processor_drain_multi_thread(self):
+        app = Flow()
+
+        @app.consumer(
+            source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
+            sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
+        )
+        class MyProcesesor:
+            def setup(self):
+                self.calls = 0
+
+            async def process(self, payload: Dict[str, int]) -> Dict[str, int]:
+                # This is set to some astronimical number to ensure that the
+                # this thread is still processing when the drain is called.
+                if self.calls == 0:
+                    self.calls += 1
+                    await asyncio.sleep(10000)
+                return payload
+
+        actor = PullProcessPushActor.remote(
+            run_id="test-run",
+            processor_group=ConsumerGroup(group_id="g", processors=[MyProcesesor]),
+            replica_id="1",
+            flow_dependencies={},
+        )
+
+        coro1 = self.run_for_time(actor.run.remote())
+        coro2 = self.run_for_time(actor.run.remote())
+        self.assertEqual(2, self.get_async_result(actor.num_active_threads.remote()))
+        self.run_for_time(actor.drain.remote())
+        self.run_for_time(coro1)
+        self.run_for_time(coro2)
+        self.assertEqual(1, self.get_async_result(actor.num_active_threads.remote()))
+        self.assertEqual(
+            RuntimeStatus.DRAINING, self.get_async_result(actor.status.remote())
+        )
+
+    def test_end_to_end_with_processor_fully_drained(self):
+        app = Flow()
+
+        @app.consumer(
+            source=Pulse([{"field": 1}, {"field": 2}], pulse_interval_seconds=0.1),
+            sink=File(file_path=self.output_path, file_format=FileFormat.CSV),
+        )
+        class MyProcesesor:
+            def setup(self):
+                self.calls = 0
+
+            async def process(self, payload: Dict[str, int]) -> Dict[str, int]:
+                return payload
+
+        actor = PullProcessPushActor.remote(
+            run_id="test-run",
+            processor_group=ConsumerGroup(group_id="g", processors=[MyProcesesor]),
+            replica_id="1",
+            flow_dependencies={},
+        )
+
+        coro1 = self.run_for_time(actor.run.remote())
+        coro2 = self.run_for_time(actor.run.remote())
+        self.assertEqual(2, self.get_async_result(actor.num_active_threads.remote()))
+        self.run_for_time(actor.drain.remote())
+        self.run_for_time(coro1)
+        self.run_for_time(coro2)
+        self.assertEqual(0, self.get_async_result(actor.num_active_threads.remote()))
+        self.assertEqual(
+            RuntimeStatus.DRAINED, self.get_async_result(actor.status.remote())
+        )
 
 
 if __name__ == "__main__":

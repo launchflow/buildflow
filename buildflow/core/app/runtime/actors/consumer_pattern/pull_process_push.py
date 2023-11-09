@@ -317,6 +317,9 @@ class PullProcessPushActor(Runtime):
             await asyncio.sleep(1)
         return True
 
+    async def num_active_threads(self):
+        return self._num_running_threads
+
     async def snapshot(self):
         individual_metrics = {}
         for processor in self.processor_group.processors:
