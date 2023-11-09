@@ -184,7 +184,9 @@ class PullProcessPushActor(Runtime):
             tasks.append(asyncio.create_task(self._run_processor(processor)))
         await asyncio.gather(*tasks)
         self._num_running_threads -= 1
-        if self._num_running_threads == 0:
+        if self._num_running_threads <= 0:
+            # Only mark this as drained if all the threads have completed.
+            self._status = RuntimeStatus.DRAINED
             logging.info("PullProcessPushActor Complete.")
 
         logging.debug("Thread Complete.")
@@ -302,7 +304,6 @@ class PullProcessPushActor(Runtime):
                 self.cpu_percentage[processor_id].inc(cpu_percent)
             else:
                 self.cpu_percentage[processor_id].empty_inc()
-        self._status = RuntimeStatus.DRAINED
 
     async def status(self):
         # TODO: Have this method count the number of active threads
