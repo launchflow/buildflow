@@ -209,7 +209,7 @@ def build(
     path.parent.mkdir(parents=True, exist_ok=True)
     final_excludes = _BASE_EXCLUDE + ignores + buildflow_config.build_ignores
     if as_template:
-        final_excludes.extend([".buildflow", "buildflow.yaml"])
+        final_excludes.append("buildflow.yaml")
     print(f"Generating buildflow build at:\n  {build_path}")
     if isinstance(imported, (buildflow.Flow)):
         flowstate = imported.flowstate()
