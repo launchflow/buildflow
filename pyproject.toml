@@ -20,6 +20,7 @@ dependencies = [
     "cloud-sql-python-connector",
     "dacite",
     "duckdb",
+    "clickhouse-connect",
     "gcsfs",
     "google-api-python-client",
     "google-auth",
