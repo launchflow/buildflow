@@ -50,7 +50,7 @@ class ProcessorGroupPoolReference:
     processor_group: ProcessorGroup
 
 
-@ray.remote(num_cpus=0.1)
+@ray.remote
 class RuntimeActor(Runtime):
     def __init__(
         self,

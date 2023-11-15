@@ -27,7 +27,7 @@ from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.core.processor.processor import ProcessorGroup
 
 
-@ray.remote(num_cpus=0.1)
+@ray.remote
 class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
     """
     This actor acts as a proxy reference for a group of replica Processors.
