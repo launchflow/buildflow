@@ -96,6 +96,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
         replica_id = utils.uuid()
         replica_actor_handle = PullProcessPushActor.options(
             num_cpus=self.options.num_cpus,
+            name=f"PullProcessPushActor-{self.processor_group.group_id}-{replica_id}",
         ).remote(
             self.run_id,
             self.processor_group,
