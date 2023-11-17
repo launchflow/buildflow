@@ -1,7 +1,6 @@
 import asyncio
 import inspect
 from enum import Enum
-from functools import wraps
 from typing import (
     Any,
     Callable,
@@ -56,7 +55,7 @@ def dependency_wrappers(
     fn: Callable,
 ) -> Tuple[Iterable[DependencyWrapper], Optional[str]]:
     """Returns the dependencies of the processor."""
-    full_arg_spec = inspect.getfullargspec(fn)
+    full_arg_spec = inspect.getfullargspec(fn.__init__)
     dependencies = []
     for arg in full_arg_spec.args:
         if arg in full_arg_spec.annotations:
@@ -79,7 +78,7 @@ async def resolve_dependencies(
     visited_dependencies: Dict[Callable, Any] = {}
     coros = {}
     for wrapper in dependencies:
-        coros[wrapper.arg_name] = await wrapper.dependency.resolve(
+        coros[wrapper.arg_name] = wrapper.dependency.resolve(
             flow_dependencies,
             visited_dependencies,
             request,
@@ -117,7 +116,7 @@ class Dependency:
             if callable(getattr(dependency_fn, attr)):
                 setattr(self, attr, getattr(dependency_fn, attr))
         self.sub_dependencies: List[DependencyWrapper] = []
-        full_arg_spec = inspect.getfullargspec(dependency_fn)
+        full_arg_spec = inspect.getfullargspec(dependency_fn.__init__)
         for arg in full_arg_spec.args:
             if arg in full_arg_spec.annotations:
                 if isinstance(full_arg_spec.annotations[arg], Dependency):
@@ -167,7 +166,7 @@ class Dependency:
                     f"Unable to provide Request / WebSocket to dependency `{self.request_arg}`"  # noqa
                 )
             deps[self.request_arg] = request
-        full_arg_spec = inspect.getfullargspec(self.dependency_fn)
+        full_arg_spec = inspect.getfullargspec(self.dependency_fn.__init__)
         for arg in full_arg_spec.args:
             if arg in full_arg_spec.annotations:
                 if full_arg_spec.annotations[arg] in flow_dependencies:
@@ -309,11 +308,6 @@ def dependency(scope: Union[Scope, str]) -> Callable[[T], T]:
 
     def decorator(fn: Callable[[T], T]) -> T:
         if inspect.iscoroutinefunction(fn.__init__):
-            original_init = fn.__init__
-
-            @wraps(original_init)
-            async def async_init(self, *args, **kwargs):
-                await original_init(self, *args, **kwargs)
 
             async def __new__(cls, *args, **kwargs):
                 instance = super(cls, cls).__new__(cls)

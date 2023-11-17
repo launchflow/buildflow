@@ -16,7 +16,7 @@ class NoScope:
 
 @base.dependency(scope=base.Scope.GLOBAL)
 class GlobalDep:
-    def __init__(self, no_scope: NoScope):
+    async def __init__(self, no_scope: NoScope):
         self.value = 1
         self.no_scope = no_scope
 
@@ -142,7 +142,7 @@ class BaseDependenciesTest(AsyncTestCase):
 
         @base.dependency(scope=base.Scope.PROCESS)
         class ProcessDep3:
-            def __init__(self, request: Request, f: FlowDep) -> None:
+            async def __init__(self, request: Request, f: FlowDep) -> None:
                 self.request = request
                 self.f = f
 
