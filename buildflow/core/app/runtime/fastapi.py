@@ -71,14 +71,14 @@ def create_app(
     security_schemes = {}
 
     @app.on_event("startup")
-    def setup_processor_group():
+    async def setup_processor_group():
         for processor in processor_group.processors:
             if hasattr(app.state, "processor_map"):
                 app.state.processor_map[processor.processor_id] = processor
             else:
                 app.state.processor_map = {processor.processor_id: processor}
             processor.setup()
-            initialize_dependencies(
+            await initialize_dependencies(
                 processor.dependencies(), flow_dependencies, [Scope.REPLICA]
             )
 
@@ -133,7 +133,7 @@ def create_app(
 
                 status_code = 200
                 try:
-                    dependency_args = resolve_dependencies(
+                    dependency_args = await resolve_dependencies(
                         processor.dependencies(),
                         self.flow_dependencies,
                         internal_buildflow_request,

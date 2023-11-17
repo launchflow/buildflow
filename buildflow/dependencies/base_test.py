@@ -5,11 +5,12 @@ from starlette.requests import Request
 
 from buildflow.dependencies import base
 from buildflow.exceptions.exceptions import InvalidDependencyHierarchyOrder
+from buildflow.testing.test_case import AsyncTestCase
 
 
 @base.dependency(scope=base.Scope.NO_SCOPE)
 class NoScope:
-    def __init__(self):
+    async def __init__(self):
         self.value = 0
 
 
@@ -37,7 +38,7 @@ class ProcessDep:
 
 @mock.patch("ray.put")
 @mock.patch("ray.get")
-class BaseDependenciesTest(unittest.TestCase):
+class BaseDependenciesTest(AsyncTestCase):
     def setUp(self) -> None:
         self.NoScopeDep = NoScope
         self.GlobalDep = GlobalDep
@@ -64,18 +65,24 @@ class BaseDependenciesTest(unittest.TestCase):
     ):
         self.setup_ray_mocks(mock_get, mock_put)
 
-        self.GlobalDep.initialize({}, {}, scopes=[base.Scope.GLOBAL])
-        global_dep = self.GlobalDep.resolve({}, {})
+        self.get_async_result(
+            self.GlobalDep.initialize({}, {}, scopes=[base.Scope.GLOBAL])
+        )
+        global_dep = self.get_async_result(self.GlobalDep.resolve({}, {}))
         self.assertEqual(global_dep.value, 1)
         self.assertEqual(global_dep.no_scope.value, 0)
 
-        self.ReplicaDep.initialize({}, {}, scopes=[base.Scope.REPLICA])
-        replica_dep = self.ReplicaDep.resolve({}, {})
+        self.get_async_result(
+            self.ReplicaDep.initialize({}, {}, scopes=[base.Scope.REPLICA])
+        )
+        replica_dep = self.get_async_result(self.ReplicaDep.resolve({}, {}))
         self.assertEqual(replica_dep.value, 2)
         self.assertEqual(id(global_dep), id(replica_dep.global_dep))
 
-        self.ProcessDep.initialize({}, {}, scopes=[base.Scope.PROCESS])
-        process_dep = self.ProcessDep.resolve({}, {})
+        self.get_async_result(
+            self.ProcessDep.initialize({}, {}, scopes=[base.Scope.PROCESS])
+        )
+        process_dep = self.get_async_result(self.ProcessDep.resolve({}, {}))
         self.assertEqual(process_dep.value, 3)
         self.assertEqual(id(replica_dep), id(process_dep.replia_dep))
         self.assertEqual(process_dep.no_scope.value, 0)
@@ -99,7 +106,9 @@ class BaseDependenciesTest(unittest.TestCase):
                 pass
 
         with self.assertRaises(InvalidDependencyHierarchyOrder):
-            ReplicaDep2.initialize({}, {}, scopes=[base.Scope.REPLICA])
+            self.get_async_result(
+                ReplicaDep2.initialize({}, {}, scopes=[base.Scope.REPLICA])
+            )
 
     def test_inject_request(self, mock_get: mock.MagicMock, mock_put: mock.MagicMock):
         self.setup_ray_mocks(mock_get, mock_put)
@@ -112,8 +121,12 @@ class BaseDependenciesTest(unittest.TestCase):
         # This is technically a type hint hack, but we really just want
         # to ensure the request is injected in the dependency we expect.
         request = "request"
-        ProcessDep3.initialize({}, {}, scopes=[base.Scope.PROCESS])
-        process_dep = ProcessDep3.resolve({}, {}, request=request)
+        self.get_async_result(
+            ProcessDep3.initialize({}, {}, scopes=[base.Scope.PROCESS])
+        )
+        process_dep = self.get_async_result(
+            ProcessDep3.resolve({}, {}, request=request)
+        )
         self.assertEqual(id(process_dep.request), id(request))
 
     def test_inject_flow_dependencies(
@@ -136,8 +149,12 @@ class BaseDependenciesTest(unittest.TestCase):
         # This is technically a type hint hack, but we really just want
         # to ensure the request is injected in the dependency we expect.
         request = "request"
-        ProcessDep3.initialize({}, {}, scopes=[base.Scope.PROCESS])
-        process_dep = ProcessDep3.resolve({FlowDep: flow_dep}, {}, request=request)
+        self.get_async_result(
+            ProcessDep3.initialize({}, {}, scopes=[base.Scope.PROCESS])
+        )
+        process_dep = self.get_async_result(
+            ProcessDep3.resolve({FlowDep: flow_dep}, {}, request=request)
+        )
         self.assertEqual(id(process_dep.request), id(request))
         self.assertEqual(id(process_dep.f), id(flow_dep))
 
@@ -151,12 +168,14 @@ class BaseDependenciesTest(unittest.TestCase):
             def __init__(self):
                 self.class_val += 1
 
-        resolved = base.resolve_dependencies(
-            dependencies=[
-                base.DependencyWrapper("a", ProcessDep2),
-                base.DependencyWrapper("b", ProcessDep2),
-            ],
-            flow_dependencies={},
+        resolved = self.get_async_result(
+            base.resolve_dependencies(
+                dependencies=[
+                    base.DependencyWrapper("a", ProcessDep2),
+                    base.DependencyWrapper("b", ProcessDep2),
+                ],
+                flow_dependencies={},
+            )
         )
 
         self.assertEqual(resolved["a"], resolved["b"])

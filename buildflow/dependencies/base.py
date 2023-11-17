@@ -1,5 +1,7 @@
+import asyncio
 import inspect
 from enum import Enum
+from functools import wraps
 from typing import (
     Any,
     Callable,
@@ -39,6 +41,17 @@ class DependencyWrapper:
         self.dependency = dependency
 
 
+async def _create_dependency(
+    dependency_fn: Callable,
+    *args,
+    **kwargs,
+) -> Any:
+    to_ret = dependency_fn(*args, **kwargs)
+    if inspect.iscoroutine(to_ret):
+        return await to_ret
+    return to_ret
+
+
 def dependency_wrappers(
     fn: Callable,
 ) -> Tuple[Iterable[DependencyWrapper], Optional[str]]:
@@ -58,30 +71,40 @@ def dependency_wrappers(
     return dependencies, request_arg
 
 
-def resolve_dependencies(
+async def resolve_dependencies(
     dependencies: List[DependencyWrapper],
     flow_dependencies: Dict[Type, Any],
     request: Optional[Union[Request, WebSocket]] = None,
 ) -> Dict[str, Any]:
-    dependency_args = {}
     visited_dependencies: Dict[Callable, Any] = {}
+    coros = {}
     for wrapper in dependencies:
-        dependency_args[wrapper.arg_name] = wrapper.dependency.resolve(
+        coros[wrapper.arg_name] = wrapper.dependency.resolve(
             flow_dependencies,
             visited_dependencies,
             request,
         )
+    dependency_args = {}
+    results = await asyncio.gather(*coros.values())
+    for arg_name, result in zip(coros.keys(), results):
+        dependency_args[arg_name] = result
     return dependency_args
 
 
-def initialize_dependencies(
+async def initialize_dependencies(
     dependencies: List[DependencyWrapper],
     flow_dependencies: Dict[Type, Any],
     scopes: Iterable[Scope] = Scope.all(),
 ):
     visited_dependencies: Dict[Callable, Any] = {}
+    dependency_coros = []
     for wrapper in dependencies:
-        wrapper.dependency.initialize(flow_dependencies, visited_dependencies, scopes)
+        dependency_coros.append(
+            wrapper.dependency.initialize(
+                flow_dependencies, visited_dependencies, scopes
+            )
+        )
+    await asyncio.gather(*dependency_coros)
 
 
 class Dependency:
@@ -109,15 +132,17 @@ class Dependency:
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.dependency_fn(*args, **kwds)
 
-    def initialize(
+    async def initialize(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
         scopes: Iterable[Scope] = Scope.all(),
     ):
-        self._initialize_dependencies(flow_dependencies, visited_dependencies, scopes)
+        await self._initialize_dependencies(
+            flow_dependencies, visited_dependencies, scopes
+        )
 
-    def resolve(
+    async def resolve(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
@@ -125,7 +150,7 @@ class Dependency:
     ):
         raise NotImplementedError()
 
-    def _resolve_dependencies(
+    async def _resolve_dependencies(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
@@ -133,7 +158,7 @@ class Dependency:
     ) -> Dict[str, Any]:
         deps = {}
         for dep in self.sub_dependencies:
-            deps[dep.arg_name] = dep.dependency.resolve(
+            deps[dep.arg_name] = await dep.dependency.resolve(
                 flow_dependencies, visited_dependencies, request
             )
         if self.request_arg is not None:
@@ -149,7 +174,7 @@ class Dependency:
                     deps[arg] = flow_dependencies[full_arg_spec.annotations[arg]]
         return deps
 
-    def _initialize_dependencies(
+    async def _initialize_dependencies(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
@@ -160,26 +185,28 @@ class Dependency:
                 raise InvalidDependencyHierarchyOrder(
                     dep.arg_name, dep.dependency.scope.name, self.scope.name
                 )
-            dep.dependency.initialize(flow_dependencies, visited_dependencies, scopes)
+            await dep.dependency.initialize(
+                flow_dependencies, visited_dependencies, scopes
+            )
 
 
 class ProcessScoped(Dependency):
     def __init__(self, dependency_fn):
         super().__init__(dependency_fn, Scope.PROCESS)
 
-    def resolve(
+    async def resolve(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
         request: Optional[Union[Request, WebSocket]] = None,
     ):
-        args = self._resolve_dependencies(
+        args = await self._resolve_dependencies(
             flow_dependencies, visited_dependencies, request
         )
         if self.dependency_fn in visited_dependencies:
             return visited_dependencies[self.dependency_fn]
         else:
-            to_return = self.dependency_fn(**args)
+            to_return = await _create_dependency(self.dependency_fn, **args)
             visited_dependencies[self.dependency_fn] = to_return
             return to_return
 
@@ -190,23 +217,23 @@ class ReplicaScoped(Dependency):
     def __init__(self, dependency_fn):
         super().__init__(dependency_fn, Scope.REPLICA)
 
-    def initialize(
+    async def initialize(
         self,
         flow_dependencies: List[Any],
         visited_dependencies: Dict[Callable, Any],
         scopes: Iterable[Scope] = [Scope.REPLICA, Scope.GLOBAL],
     ):
-        super().initialize(flow_dependencies, visited_dependencies, scopes)
+        await super().initialize(flow_dependencies, visited_dependencies, scopes)
         if self._instance is not None or self.scope not in scopes:
             return
-        args = self._resolve_dependencies(flow_dependencies, visited_dependencies)
+        args = await self._resolve_dependencies(flow_dependencies, visited_dependencies)
         if self.dependency_fn in visited_dependencies:
             self._instance = visited_dependencies[self.dependency_fn]
         else:
-            self._instance = self.dependency_fn(**args)
+            self._instance = await _create_dependency(self.dependency_fn, **args)
             visited_dependencies[self.dependency_fn] = self._instance
 
-    def resolve(
+    async def resolve(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
@@ -223,24 +250,24 @@ class GlobalScoped(Dependency):
         self._object_ref = None
         self.global_scoped_id = uuid()
 
-    def initialize(
+    async def initialize(
         self,
         flow_dependencies: List[Any],
         visited_dependencies: Dict[Callable, Any],
         scopes: Iterable[Scope] = [Scope.GLOBAL],
     ):
-        super().initialize(flow_dependencies, visited_dependencies, scopes)
+        await super().initialize(flow_dependencies, visited_dependencies, scopes)
         if self._object_ref is not None or self.scope not in scopes:
             return
-        args = self._resolve_dependencies(flow_dependencies, visited_dependencies)
+        args = await self._resolve_dependencies(flow_dependencies, visited_dependencies)
         if self.dependency_fn in visited_dependencies:
             self._instance = visited_dependencies[self.dependency_fn]
         else:
-            self._instance = self.dependency_fn(**args)
+            self._instance = await _create_dependency(self.dependency_fn, **args)
             visited_dependencies[self.dependency_fn] = self._instance
         self._object_ref = ray.put(self._instance)
 
-    def resolve(
+    async def resolve(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
@@ -257,16 +284,16 @@ class NoScoped(Dependency):
     def __init__(self, dependency_fn):
         super().__init__(dependency_fn, Scope.NO_SCOPE)
 
-    def resolve(
+    async def resolve(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],
         request: Optional[Union[Request, WebSocket]] = None,
     ):
-        args = self._resolve_dependencies(
+        args = await self._resolve_dependencies(
             flow_dependencies, visited_dependencies, request
         )
-        return self.dependency_fn(**args)
+        return await _create_dependency(self.dependency_fn, **args)
 
 
 T = TypeVar("T")
@@ -281,6 +308,20 @@ def dependency(scope: Union[Scope, str]) -> Callable[[T], T]:
             raise ValueError(f"Invalid scope `{scope}`. Valid scopes are {Scope.all()}")
 
     def decorator(fn: Callable[[T], T]) -> T:
+        if inspect.iscoroutinefunction(fn.__init__):
+            original_init = fn.__init__
+
+            @wraps(original_init)
+            async def async_init(self, *args, **kwargs):
+                await original_init(self, *args, **kwargs)
+
+            async def __new__(cls, *args, **kwargs):
+                instance = super(cls, cls).__new__(cls)
+                await instance.__init__(*args, **kwargs)
+                return instance
+
+            fn.__new__ = __new__
+
         if scope == Scope.PROCESS:
             return ProcessScoped(fn)
         elif scope == Scope.REPLICA:

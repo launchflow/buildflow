@@ -104,6 +104,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             log_level=self.options.log_level,
             flow_dependencies=self.flow_dependencies,
         )
+        await replica_actor_handle.initialize.remote()
 
         return ReplicaReference(
             replica_id=replica_id,
