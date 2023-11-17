@@ -51,7 +51,6 @@ def engine(
     db: CloudSQLDatabase,
     db_user: str,
     db_password: str,
-    async_engine: bool = False,
     credentials: Optional[Credentials] = None,
     **kwargs,
 ):
@@ -71,7 +70,7 @@ def engine(
         with Connector(credentials=credentials) as connector:
             conn = connector.connect(
                 instance_connection_string=f"{db.instance.project_id}:{db.instance.region}:{db.instance.instance_name}",
-                driver="pg80000",
+                driver="pg8000",
                 user=db_user,
                 password=db_password,
                 db=db.database_name,
@@ -79,7 +78,7 @@ def engine(
             )
         return conn
 
-    return create_engine("postgresql+pg8000://", async_creator=getconn, **kwargs)
+    return create_engine("postgresql+pg8000://", creator=getconn, **kwargs)
 
 
 def SessionDep(

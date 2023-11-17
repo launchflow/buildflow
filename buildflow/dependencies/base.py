@@ -55,7 +55,7 @@ def dependency_wrappers(
     fn: Callable,
 ) -> Tuple[Iterable[DependencyWrapper], Optional[str]]:
     """Returns the dependencies of the processor."""
-    full_arg_spec = inspect.getfullargspec(fn.__init__)
+    full_arg_spec = inspect.getfullargspec(fn)
     dependencies = []
     for arg in full_arg_spec.args:
         if arg in full_arg_spec.annotations:
@@ -83,6 +83,7 @@ async def resolve_dependencies(
             visited_dependencies,
             request,
         )
+    print("DO NOT SUBMIT: ", coros)
     dependency_args = {}
     results = await asyncio.gather(*coros.values())
     for arg_name, result in zip(coros.keys(), results):
