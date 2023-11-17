@@ -4,7 +4,7 @@ import asyncpg
 from google.auth.credentials import Credentials
 from google.cloud.sql.connector import Connector, IPTypes, create_async_connector
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from buildflow.dependencies import Scope, dependency
@@ -16,7 +16,6 @@ async def async_engine(
     db: CloudSQLDatabase,
     db_user: str,
     db_password: str,
-    async_engine: bool = False,
     credentials: Optional[Credentials] = None,
     **kwargs,
 ):
@@ -30,7 +29,7 @@ async def async_engine(
         **kwargs: Additional keyword arguments to pass to the sqlalchemy
          `create_engine` function
     """
-    connector = await create_async_connector()
+    connector = await create_async_connector(credentials=credentials)
 
     # initialize Connector object for connections to Cloud SQL
     async def getconn() -> asyncpg.Connection:
@@ -81,11 +80,10 @@ def engine(
     return create_engine("postgresql+pg8000://", creator=getconn, **kwargs)
 
 
-def SessionDep(
+def SessionDepBuilder(
     db_primitive: CloudSQLDatabase,
     db_user: str,
     db_password: str,
-    use_async: bool = False,
     **kwargs,
 ):
     """
@@ -101,18 +99,12 @@ def SessionDep(
 
     @dependency(scope=Scope.REPLICA)
     class _SessionMakerDep:
-        async def __init__(
-            self, db: DBDependency, flow_credentials: FlowCredentials
-        ) -> None:
+        def __init__(self, db: DBDependency, flow_credentials: FlowCredentials) -> None:
             creds = flow_credentials.gcp_credentials.get_creds()
-            if use_async:
-                session_engine = await async_engine(
-                    db, db_user, db_password, creds, **kwargs
-                )
-            else:
-                session_engine = engine(db, db_user, db_password, creds, **kwargs)
             self.SessionLocal = sessionmaker(
-                autocommit=False, autoflush=False, bind=session_engine
+                autocommit=False,
+                autoflush=False,
+                bind=engine(db, db_user, db_password, creds, **kwargs),
             )
 
     @dependency(scope=Scope.PROCESS)
@@ -121,3 +113,41 @@ def SessionDep(
             self.session = sm_dep.SessionLocal()
 
     return _SessionDep
+
+
+def AsyncSessionDepBuilder(
+    db_primitive: CloudSQLDatabase,
+    db_user: str,
+    db_password: str,
+    **kwargs,
+):
+    """
+    Args:
+        db: The database primitive to connect to
+        db_user: The database user to user for authentication
+        db_password: The password for the database user
+        **kwargs: Additional keyword arguments to pass to the sqlalchemy
+         `create_engine` function
+
+    """
+    DBDependency = db_primitive.dependency()
+
+    @dependency(scope=Scope.REPLICA)
+    class _AsyncSessionMakerDep:
+        async def __init__(
+            self, db: DBDependency, flow_credentials: FlowCredentials
+        ) -> None:
+            creds = flow_credentials.gcp_credentials.get_creds()
+            session_engine = await async_engine(
+                db, db_user, db_password, creds, **kwargs
+            )
+            self.SessionLocal = async_sessionmaker(
+                autocommit=False, autoflush=False, bind=session_engine
+            )
+
+    @dependency(scope=Scope.PROCESS)
+    class _AsyncSessionDep:
+        async def __init__(self, sm_dep: _AsyncSessionMakerDep) -> None:
+            self.session = sm_dep.SessionLocal()
+
+    return _AsyncSessionDep

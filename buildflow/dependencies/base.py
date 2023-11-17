@@ -83,7 +83,6 @@ async def resolve_dependencies(
             visited_dependencies,
             request,
         )
-    print("DO NOT SUBMIT: ", coros)
     dependency_args = {}
     results = await asyncio.gather(*coros.values())
     for arg_name, result in zip(coros.keys(), results):
