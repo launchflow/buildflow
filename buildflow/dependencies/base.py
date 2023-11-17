@@ -79,7 +79,7 @@ async def resolve_dependencies(
     visited_dependencies: Dict[Callable, Any] = {}
     coros = {}
     for wrapper in dependencies:
-        coros[wrapper.arg_name] = wrapper.dependency.resolve(
+        coros[wrapper.arg_name] = await wrapper.dependency.resolve(
             flow_dependencies,
             visited_dependencies,
             request,
