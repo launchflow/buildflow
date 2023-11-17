@@ -59,7 +59,7 @@ def SessionDep(
     DBDependency = db_primitive.dependency()
 
     @dependency(scope=Scope.REPLICA)
-    class _SessionMakerDeb:
+    class _SessionMakerDep:
         def __init__(self, db: DBDependency, flow_credentials: FlowCredentials) -> None:
             creds = flow_credentials.gcp_credentials.get_creds()
             self.SessionLocal = sessionmaker(
@@ -69,8 +69,8 @@ def SessionDep(
             )
 
     @dependency(scope=Scope.PROCESS)
-    class _SessionDeb:
-        def __init__(self, sm_dep: _SessionMakerDeb) -> None:
+    class _SessionDep:
+        def __init__(self, sm_dep: _SessionMakerDep) -> None:
             self.session = sm_dep.SessionLocal()
 
-    return _SessionDeb
+    return _SessionDep
