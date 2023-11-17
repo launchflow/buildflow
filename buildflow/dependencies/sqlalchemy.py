@@ -3,6 +3,7 @@ from typing import Optional
 from google.auth.credentials import Credentials
 from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from buildflow.dependencies import Scope, dependency
@@ -14,6 +15,7 @@ def engine(
     db: CloudSQLDatabase,
     db_user: str,
     db_password: str,
+    async_engine: bool = False,
     credentials: Optional[Credentials] = None,
     **kwargs,
 ):
@@ -41,11 +43,17 @@ def engine(
             )
         return conn
 
+    if async_engine:
+        return create_async_engine("postgresql+pg8000://", creator=getconn, **kwargs)
     return create_engine("postgresql+pg8000://", creator=getconn, **kwargs)
 
 
 def SessionDep(
-    db_primitive: CloudSQLDatabase, db_user: str, db_password: str, **kwargs
+    db_primitive: CloudSQLDatabase,
+    db_user: str,
+    db_password: str,
+    use_async: bool = False,
+    **kwargs,
 ):
     """
     Args:
@@ -65,7 +73,9 @@ def SessionDep(
             self.SessionLocal = sessionmaker(
                 autocommit=False,
                 autoflush=False,
-                bind=engine(db, db_user, db_password, creds, **kwargs),
+                bind=engine(
+                    db, db_user, db_password, creds, async_engine=True, **kwargs
+                ),
             )
 
     @dependency(scope=Scope.PROCESS)

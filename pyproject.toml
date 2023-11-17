@@ -51,7 +51,7 @@ dependencies = [
     #   https://github.com/yaml/pyyaml/issues/724
     "pyyaml<5.4.0,<6.0.0",
     "s3fs",
-    "sqlalchemy",
+    "sqlalchemy[asyncio]",
     "snowflake-ingest",
     "ray[default]>=2.4.0",
     "ray[serve]>=2.4.0",
