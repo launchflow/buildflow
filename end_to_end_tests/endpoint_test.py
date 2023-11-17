@@ -249,18 +249,18 @@ class EndpointLocalTest(unittest.TestCase):
         service = app.service(num_cpus=0.5)
 
         @dependency(scope=Scope.PROCESS)
-        class WebSocketDeb:
+        class WebSocketDep:
             def __init__(self, ws: WebSocket):
                 self.header = ws.headers["test"]
 
         @service.endpoint(route="/test", method="websocket")
         async def my_endpoint(
-            query_param: str, websocket: WebSocket, deb: WebSocketDeb
+            query_param: str, websocket: WebSocket, dep: WebSocketDep
         ):
             await websocket.accept()
             while True:
                 message = await websocket.receive_text()
-                await websocket.send_text(f"{message}, {deb.header}, {query_param}")
+                await websocket.send_text(f"{message}, {dep.header}, {query_param}")
 
         run_coro = app.run(block=False)
 
@@ -282,15 +282,15 @@ class EndpointLocalTest(unittest.TestCase):
         service = app.service(num_cpus=0.5)
 
         @service.endpoint(route="/test_ws", method="websocket")
-        async def my_ws_endpoint(websocket: WebSocket, deb: BearerCredentials):
+        async def my_ws_endpoint(websocket: WebSocket, dep: BearerCredentials):
             await websocket.accept()
             while True:
                 message = await websocket.receive_text()
-                await websocket.send_text(f"{message}, {deb.token}")
+                await websocket.send_text(f"{message}, {dep.token}")
 
         @service.endpoint(route="/test", method="get")
-        async def my_non_ws_endpoint(message: str, deb: BearerCredentials) -> str:
-            return f"{message}, {deb.token}"
+        async def my_non_ws_endpoint(message: str, dep: BearerCredentials) -> str:
+            return f"{message}, {dep.token}"
 
         run_coro = app.run(block=False)
 
