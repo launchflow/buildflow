@@ -84,6 +84,8 @@ def SessionDepBuilder(
     db_primitive: CloudSQLDatabase,
     db_user: str,
     db_password: str,
+    expire_on_commit: bool = False,
+    autoflush: bool = False,
     **kwargs,
 ):
     """
@@ -102,8 +104,8 @@ def SessionDepBuilder(
         def __init__(self, db: DBDependency, flow_credentials: FlowCredentials) -> None:
             creds = flow_credentials.gcp_credentials.get_creds()
             self.SessionLocal = sessionmaker(
-                autocommit=False,
-                autoflush=False,
+                autoflush=autoflush,
+                expire_on_commit=expire_on_commit,
                 bind=engine(db, db_user, db_password, creds, **kwargs),
             )
 
@@ -119,6 +121,8 @@ def AsyncSessionDepBuilder(
     db_primitive: CloudSQLDatabase,
     db_user: str,
     db_password: str,
+    expire_on_commit: bool = False,
+    autoflush: bool = False,
     **kwargs,
 ):
     """
@@ -142,7 +146,9 @@ def AsyncSessionDepBuilder(
                 db, db_user, db_password, creds, **kwargs
             )
             self.SessionLocal = async_sessionmaker(
-                autocommit=False, autoflush=False, bind=session_engine
+                autoflush=autoflush,
+                bind=session_engine,
+                expire_on_commit=expire_on_commit,
             )
 
     @dependency(scope=Scope.PROCESS)
