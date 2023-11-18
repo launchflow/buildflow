@@ -79,6 +79,7 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
+        self.get_async_result(actor.initialize.remote())
 
         self.run_with_timeout(actor.run.remote())
 
@@ -105,6 +106,7 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
+        self.get_async_result(actor.initialize.remote())
 
         self.run_with_timeout(actor.run.remote())
 
@@ -130,6 +132,7 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
+        self.get_async_result(actor.initialize.remote())
 
         self.run_with_timeout(actor.run.remote())
 
@@ -155,6 +158,7 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
+        self.get_async_result(actor.initialize.remote())
 
         self.run_with_timeout(actor.run.remote())
 
@@ -193,6 +197,7 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
+        self.get_async_result(actor.initialize.remote())
 
         coro1 = self.run_for_time(actor.run.remote())
         coro2 = self.run_for_time(actor.run.remote())
@@ -225,6 +230,7 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
+        self.get_async_result(actor.initialize.remote())
 
         coro1 = self.run_for_time(actor.run.remote())
         coro2 = self.run_for_time(actor.run.remote())
