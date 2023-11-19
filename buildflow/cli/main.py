@@ -215,9 +215,8 @@ def build(
         flowstate = imported.flowstate()
         with zipfile.ZipFile(build_path, "w", zipfile.ZIP_DEFLATED) as zipf:
             zipdir(os.getcwd(), zipf, excludes=final_excludes)
-            if not as_template:
-                yaml_str = yaml.dump(flowstate.to_dict())
-                zipf.writestr("flowstate.yaml", yaml_str)
+            yaml_str = yaml.dump(flowstate.to_dict())
+            zipf.writestr("flowstate.yaml", yaml_str)
     else:
         typer.echo("build must be run on a flow")
         typer.Exit(1)
