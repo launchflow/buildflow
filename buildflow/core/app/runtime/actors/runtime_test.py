@@ -3,7 +3,6 @@ import os
 import shutil
 import signal
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
@@ -39,9 +38,9 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
                 raise
             return
 
-    async def run_for_time(self, coro, time: int = 5):
+    async def run_for_time(self, coro, run_time: int = 5):
         completed, pending = await asyncio.wait(
-            [coro], timeout=time, return_when="FIRST_EXCEPTION"
+            [coro], timeout=run_time, return_when="FIRST_EXCEPTION"
         )
         if completed:
             # This general should only happen when there was an exception so
@@ -86,13 +85,12 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             flow_dependencies={},
         )
 
-        actor.run.remote(
+        await actor.run.remote(
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
         )
-
-        time.sleep(15)
+        await asyncio.sleep(15)
 
         await self.run_with_timeout(actor.drain.remote(), fail=True)
 
@@ -137,14 +135,10 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             run_id="test-run", runtime_options=runtime_options, flow_dependencies={}
         )
 
-        await self.run_with_timeout(
-            actor.run.remote(
-                processor_groups=[
-                    ConsumerGroup(processors=[process], group_id="process")
-                ],
-                serve_port=0,
-                serve_host="unused",
-            )
+        await actor.run.remote(
+            processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
+            serve_port=0,
+            serve_host="unused",
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 10)
@@ -204,14 +198,10 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             flow_dependencies={},
         )
 
-        await self.run_with_timeout(
-            actor.run.remote(
-                processor_groups=[
-                    ConsumerGroup(processors=[process], group_id="process")
-                ],
-                serve_port=0,
-                serve_host="unused",
-            )
+        await actor.run.remote(
+            processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
+            serve_port=0,
+            serve_host="unused",
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 20)
@@ -268,14 +258,10 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             flow_dependencies={},
         )
 
-        await self.run_with_timeout(
-            actor.run.remote(
-                processor_groups=[
-                    ConsumerGroup(processors=[process], group_id="process")
-                ],
-                serve_port=0,
-                serve_host="unused",
-            )
+        await actor.run.remote(
+            processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
+            serve_port=0,
+            serve_host="unused",
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 10)
