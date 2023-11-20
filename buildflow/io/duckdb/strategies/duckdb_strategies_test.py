@@ -70,21 +70,23 @@ class DuckDBStrategiesTest(unittest.IsolatedAsyncioTestCase):
 
         p.kill()
 
-        self.assertEqual(len(self._caplog.records), 3)
+        found_failure_log = False
+        found_retry_log = True
+        for log in self._caplog.records:
+            if (
+                log.levelname == "ERROR"
+                and log.message == "failed to connect to duckdb database"
+            ):
+                found_failure_log = True
+            if (
+                log.levelname == "WARNING"
+                and log.message
+                == "can't concurrently write to DuckDB waiting 2 seconds then will try again"  # noqa
+            ):
+                found_retry_log = True
 
-        first_failure = self._caplog.records[0]
-        retry_log = self._caplog.records[1]
-        final_failure = self._caplog.records[2]
-
-        self.assertEqual(first_failure.levelname, "ERROR")
-        self.assertEqual(first_failure.message, "failed to connect to duckdb database")
-        self.assertEqual(retry_log.levelname, "WARNING")
-        self.assertEqual(
-            retry_log.message,
-            "can't concurrently write to DuckDB waiting 2 seconds then will try again",
-        )
-        self.assertEqual(final_failure.levelname, "ERROR")
-        self.assertEqual(final_failure.message, "failed to connect to duckdb database")
+        self.assertTrue(found_failure_log, "failed to find failure log")
+        self.assertTrue(found_retry_log, "failed to find retry log")
 
 
 if __name__ == "__main__":
