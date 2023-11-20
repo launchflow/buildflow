@@ -4,17 +4,11 @@ from unittest.mock import Mock, patch
 
 import clickhouse_connect
 import pandas as pd
-import pytest
 
 from buildflow.io.clickhouse.strategies import clickhouse_strategies
 
 
-@pytest.mark.usefixtures("event_loop_instance")
-class ClickhouseStrategiesTest(unittest.TestCase):
-    def get_async_result(self, coro):
-        """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
-
+class ClickhouseStrategiesTest(unittest.IsolatedAsyncioTestCase):
     def tearDown(self) -> None:
         try:
             os.remove(self.db)
@@ -37,7 +31,7 @@ class ClickhouseStrategiesTest(unittest.TestCase):
         )
 
     @patch("clickhouse_connect.get_client")
-    def test_clickhouse_push_base(self, mock_get_client):
+    async def test_clickhouse_push_base(self, mock_get_client):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
         # Mocking clickhouse_connect.get_client()
@@ -48,7 +42,7 @@ class ClickhouseStrategiesTest(unittest.TestCase):
 
         # Mocking self.sink.push(data)
         with patch.object(self.sink, "push", return_value=None) as mock_push:
-            self.get_async_result(self.sink.push(data))
+            await self.sink.push(data)
 
             client = clickhouse_connect.get_client()
             result_df = client.query_df(f'SELECT * from "{self.table}"')

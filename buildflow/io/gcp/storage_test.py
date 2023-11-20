@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 import pulumi
 import pulumi_gcp
-import pytest
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.io.gcp.storage import GCSBucket
@@ -29,12 +28,7 @@ pulumi.runtime.set_mocks(
 
 
 # TODO: Add tests for Sink methods. Can reference bigquery_test.py for an example.
-@pytest.mark.usefixtures("event_loop_instance")
 class GCSTest(unittest.TestCase):
-    def get_async_result(self, coro):
-        """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
-
     @pulumi.runtime.test
     def test_gcs_bucket_pulumi_base(self):
         gcs_bucket = GCSBucket(

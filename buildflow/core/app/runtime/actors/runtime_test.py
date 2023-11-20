@@ -22,8 +22,7 @@ from buildflow.types.portable import FileFormat
 
 
 @pytest.mark.usefixtures("ray")
-@pytest.mark.usefixtures("event_loop_instance")
-class RunTimeTest(unittest.TestCase):
+class RunTimeTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.output_dir = tempfile.mkdtemp()
         self.output_path = os.path.join(self.output_dir, "test.csv")
@@ -31,28 +30,25 @@ class RunTimeTest(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.output_dir)
 
-    def run_with_timeout(self, coro, timeout: int = 5):
+    async def run_with_timeout(self, coro, timeout: int = 5, fail: bool = False):
         """Run a coroutine synchronously."""
         try:
-            return self.event_loop.run_until_complete(
-                asyncio.wait_for(coro, timeout=timeout)
-            )
+            return await asyncio.wait_for(coro, timeout=timeout)
         except asyncio.TimeoutError:
+            if fail:
+                raise
             return
 
-    def run_for_time(self, coro, time: int = 5):
-        async def wait_wrapper():
-            completed, pending = await asyncio.wait(
-                [coro], timeout=time, return_when="FIRST_EXCEPTION"
-            )
-            if completed:
-                # This general should only happen when there was an exception so
-                # we want to raise it to make the test failure more obvious.
-                completed.pop().result()
-            if pending:
-                return pending.pop()
-
-        return self.event_loop.run_until_complete(wait_wrapper())
+    async def run_for_time(self, coro, time: int = 5):
+        completed, pending = await asyncio.wait(
+            [coro], timeout=time, return_when="FIRST_EXCEPTION"
+        )
+        if completed:
+            # This general should only happen when there was an exception so
+            # we want to raise it to make the test failure more obvious.
+            completed.pop().result()
+        if pending:
+            return pending.pop()
 
     def assertInStderr(self, expected_match: str):
         _, err = self._capfd.readouterr()
@@ -68,7 +64,7 @@ class RunTimeTest(unittest.TestCase):
     def inject_fixtures(self, capfd: pytest.CaptureFixture[str]):
         self._capfd = capfd
 
-    def test_runtime_end_to_end(self):
+    async def test_runtime_end_to_end(self):
         app = Flow()
 
         @app.consumer(
@@ -98,7 +94,7 @@ class RunTimeTest(unittest.TestCase):
 
         time.sleep(15)
 
-        self.run_with_timeout(actor.drain.remote())
+        await self.run_with_timeout(actor.drain.remote(), fail=True)
 
         files = os.listdir(self.output_dir)
         self.assertEqual(len(files), 1)
@@ -109,7 +105,7 @@ class RunTimeTest(unittest.TestCase):
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
 
-    def test_runtime_kill_processor_pool(self):
+    async def test_runtime_kill_processor_pool(self):
         app = Flow()
 
         @app.consumer(
@@ -141,7 +137,7 @@ class RunTimeTest(unittest.TestCase):
             run_id="test-run", runtime_options=runtime_options, flow_dependencies={}
         )
 
-        self.run_with_timeout(
+        await self.run_with_timeout(
             actor.run.remote(
                 processor_groups=[
                     ConsumerGroup(processors=[process], group_id="process")
@@ -151,10 +147,10 @@ class RunTimeTest(unittest.TestCase):
             )
         )
         # Run for ten seconds to let it scale up.
-        pending = self.run_for_time(actor.run_until_complete.remote(), 10)
+        pending = await self.run_for_time(actor.run_until_complete.remote(), 10)
 
         # Grab snapshot to see how many replicas we have scaled up to.
-        snapshot = self.run_with_timeout(actor.snapshot.remote())
+        snapshot = await self.run_with_timeout(actor.snapshot.remote())
         num_replicas = snapshot.processor_groups[0].num_replicas
 
         # Kill our process pool actor.
@@ -166,15 +162,15 @@ class RunTimeTest(unittest.TestCase):
         pid = pool_actor["pid"]
         os.kill(pid, signal.SIGKILL)
 
-        self.run_for_time(pending, 20)
-        snapshot = self.run_with_timeout(actor.snapshot.remote())
+        await self.run_for_time(pending, 20)
+        snapshot = await self.run_with_timeout(actor.snapshot.remote())
         self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, num_replicas)
 
-        self.run_with_timeout(actor.drain.remote())
+        await self.run_with_timeout(actor.drain.remote(), fail=True)
 
         self.assertInStderr("process actor unexpectedly died. will restart.")
 
-    def test_runtime_kill_single_replica(self):
+    async def test_runtime_kill_single_replica(self):
         app = Flow()
 
         @app.consumer(
@@ -208,7 +204,7 @@ class RunTimeTest(unittest.TestCase):
             flow_dependencies={},
         )
 
-        self.run_with_timeout(
+        await self.run_with_timeout(
             actor.run.remote(
                 processor_groups=[
                     ConsumerGroup(processors=[process], group_id="process")
@@ -218,10 +214,10 @@ class RunTimeTest(unittest.TestCase):
             )
         )
         # Run for ten seconds to let it scale up.
-        pending = self.run_for_time(actor.run_until_complete.remote(), 20)
+        pending = await self.run_for_time(actor.run_until_complete.remote(), 20)
 
         # Grab snapshot to see how many replicas we have scaled up to.
-        snapshot = self.run_with_timeout(actor.snapshot.remote())
+        snapshot = await self.run_with_timeout(actor.snapshot.remote())
         num_replicas = snapshot.processor_groups[0].num_replicas
 
         # Kill all replica actors.
@@ -231,14 +227,14 @@ class RunTimeTest(unittest.TestCase):
         pid = replica["pid"]
         os.kill(pid, signal.SIGKILL)
 
-        self.run_for_time(pending, 10)
-        snapshot = self.run_with_timeout(actor.snapshot.remote())
+        await self.run_for_time(pending, 10)
+        snapshot = await self.run_with_timeout(actor.snapshot.remote())
         self.assertEqual(num_replicas, snapshot.processor_groups[0].num_replicas)
 
-        self.run_with_timeout(actor.drain.remote())
+        await self.run_with_timeout(actor.drain.remote())
         self.assertInStderr("replica actor unexpectedly died. will restart.")
 
-    def test_runtime_kill_all_replicas(self):
+    async def test_runtime_kill_all_replicas(self):
         app = Flow()
 
         @app.consumer(
@@ -272,7 +268,7 @@ class RunTimeTest(unittest.TestCase):
             flow_dependencies={},
         )
 
-        self.run_with_timeout(
+        await self.run_with_timeout(
             actor.run.remote(
                 processor_groups=[
                     ConsumerGroup(processors=[process], group_id="process")
@@ -282,10 +278,10 @@ class RunTimeTest(unittest.TestCase):
             )
         )
         # Run for ten seconds to let it scale up.
-        pending = self.run_for_time(actor.run_until_complete.remote(), 10)
+        pending = await self.run_for_time(actor.run_until_complete.remote(), 10)
 
         # Grab snapshot to see how many replicas we have scaled up to.
-        snapshot = self.run_with_timeout(actor.snapshot.remote())
+        snapshot = await self.run_with_timeout(actor.snapshot.remote())
 
         # Kill all replica actors.
         # Then let the consumer run for a couple seconds to allow them to be spun
@@ -297,14 +293,14 @@ class RunTimeTest(unittest.TestCase):
             pid = replica["pid"]
             os.kill(pid, signal.SIGKILL)
 
-        self.run_for_time(pending, 10)
-        snapshot = self.run_with_timeout(actor.snapshot.remote())
+        await self.run_for_time(pending, 10)
+        snapshot = await self.run_with_timeout(actor.snapshot.remote())
         self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, 1)
 
-        self.run_with_timeout(actor.drain.remote())
+        await self.run_with_timeout(actor.drain.remote())
         self.assertInStderr("replica actor unexpectedly died. will restart.")
 
-    def test_runtime_scales_up(self):
+    async def test_runtime_scales_up(self):
         app = Flow()
 
         @app.consumer(
@@ -335,7 +331,7 @@ class RunTimeTest(unittest.TestCase):
             flow_dependencies={},
         )
 
-        self.run_with_timeout(
+        await self.run_with_timeout(
             actor.run.remote(
                 processor_groups=[
                     ConsumerGroup(processors=[process], group_id="process")
@@ -345,13 +341,12 @@ class RunTimeTest(unittest.TestCase):
             )
         )
 
-        self.run_for_time(actor.run_until_complete.remote(), 15)
+        await self.run_for_time(actor.run_until_complete.remote(), 15)
 
-        snapshot = self.run_with_timeout(actor.snapshot.remote())
-
-        self.run_with_timeout(actor.drain.remote())
-
+        snapshot = await self.run_with_timeout(actor.snapshot.remote())
         self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, 2)
+
+        await self.run_with_timeout(actor.drain.remote())
 
 
 if __name__ == "__main__":

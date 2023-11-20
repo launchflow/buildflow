@@ -17,13 +17,11 @@ from buildflow.core.app.runtime.actors.consumer_pattern.pull_process_push import
 from buildflow.core.processor.patterns.consumer import ConsumerGroup
 from buildflow.io.local.file import File
 from buildflow.io.local.pulse import Pulse
-from buildflow.testing.test_case import AsyncTestCase
 from buildflow.types.portable import FileFormat
 
 
 @pytest.mark.usefixtures("ray")
-@pytest.mark.usefixtures("event_loop_instance")
-class PullProcessPushTest(AsyncTestCase):
+class PullProcessPushTest(unittest.IsolatedAsyncioTestCase):
     def get_output_file(self) -> str:
         files = os.listdir(self.output_dir)
         self.assertEqual(1, len(files))
@@ -36,28 +34,27 @@ class PullProcessPushTest(AsyncTestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.output_dir)
 
-    def run_with_timeout(self, coro):
+    async def run_with_timeout(self, coro, timeout: int = 5, fail: bool = False):
         """Run a coroutine synchronously."""
         try:
-            self.event_loop.run_until_complete(asyncio.wait_for(coro, timeout=5))
+            return await asyncio.wait_for(coro, timeout=timeout)
         except asyncio.TimeoutError:
+            if fail:
+                raise
             return
 
-    def run_for_time(self, coro, time: int = 5):
-        async def wait_wrapper():
-            completed, pending = await asyncio.wait(
-                [coro], timeout=time, return_when="FIRST_EXCEPTION"
-            )
-            if completed:
-                # This general should only happen when there was an exception so
-                # we want to raise it to make the test failure more obvious.
-                completed.pop().result()
-            if pending:
-                return pending.pop()
+    async def run_for_time(self, coro, time: int = 5):
+        completed, pending = await asyncio.wait(
+            [coro], timeout=time, return_when="FIRST_EXCEPTION"
+        )
+        if completed:
+            # This general should only happen when there was an exception so
+            # we want to raise it to make the test failure more obvious.
+            completed.pop().result()
+        if pending:
+            return pending.pop()
 
-        return self.event_loop.run_until_complete(wait_wrapper())
-
-    def test_end_to_end_with_processor_class(self):
+    async def test_end_to_end_with_processor_class(self):
         app = Flow()
 
         @app.consumer(
@@ -79,9 +76,9 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
-        self.get_async_result(actor.initialize.remote())
+        await actor.initialize.remote()
 
-        self.run_with_timeout(actor.run.remote())
+        await self.run_with_timeout(actor.run.remote())
 
         final_file = self.get_output_file()
 
@@ -90,7 +87,9 @@ class PullProcessPushTest(AsyncTestCase):
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 2}, {"field": 3}], table_list[0:2])
 
-    def test_end_to_end_with_processor_decorator(self):
+        await self.run_with_timeout(actor.drain.remote())
+
+    async def test_end_to_end_with_processor_decorator(self):
         app = Flow()
 
         @app.consumer(
@@ -106,9 +105,9 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
-        self.get_async_result(actor.initialize.remote())
+        await actor.initialize.remote()
 
-        self.run_with_timeout(actor.run.remote())
+        await self.run_with_timeout(actor.run.remote())
 
         final_file = self.get_output_file()
         table = pcsv.read_csv(Path(final_file))
@@ -116,7 +115,9 @@ class PullProcessPushTest(AsyncTestCase):
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
 
-    def test_end_to_end_with_processor_decorator_async(self):
+        await self.run_with_timeout(actor.drain.remote())
+
+    async def test_end_to_end_with_processor_decorator_async(self):
         app = Flow()
 
         @app.consumer(
@@ -132,9 +133,9 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
-        self.get_async_result(actor.initialize.remote())
+        await actor.initialize.remote()
 
-        self.run_with_timeout(actor.run.remote())
+        await self.run_with_timeout(actor.run.remote())
 
         final_file = self.get_output_file()
         table = pcsv.read_csv(Path(final_file))
@@ -142,7 +143,9 @@ class PullProcessPushTest(AsyncTestCase):
         self.assertGreaterEqual(len(table_list), 2)
         self.assertCountEqual([{"field": 1}, {"field": 2}], table_list[0:2])
 
-    def test_end_to_end_with_processor_decorator_flatten(self):
+        await self.run_with_timeout(actor.drain.remote())
+
+    async def test_end_to_end_with_processor_decorator_flatten(self):
         app = Flow()
 
         @app.consumer(
@@ -158,9 +161,9 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
-        self.get_async_result(actor.initialize.remote())
+        await actor.initialize.remote()
 
-        self.run_with_timeout(actor.run.remote())
+        await self.run_with_timeout(actor.run.remote())
 
         final_file = self.get_output_file()
         table = pcsv.read_csv(Path(final_file))
@@ -172,7 +175,9 @@ class PullProcessPushTest(AsyncTestCase):
         # This should always be true because we are returning the same payload twice.
         self.assertTrue(first_two[0] == first_two[1])
 
-    def test_end_to_end_with_processor_drain_multi_thread(self):
+        await self.run_with_timeout(actor.drain.remote())
+
+    async def test_end_to_end_with_processor_drain_multi_thread(self):
         app = Flow()
 
         @app.consumer(
@@ -197,20 +202,22 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
-        self.get_async_result(actor.initialize.remote())
+        await actor.initialize.remote()
 
-        coro1 = self.run_for_time(actor.run.remote())
-        coro2 = self.run_for_time(actor.run.remote())
-        self.assertEqual(2, self.get_async_result(actor.num_active_threads.remote()))
-        self.run_for_time(actor.drain.remote())
-        self.run_for_time(coro1)
-        self.run_for_time(coro2)
-        self.assertEqual(1, self.get_async_result(actor.num_active_threads.remote()))
-        self.assertEqual(
-            RuntimeStatus.DRAINING, self.get_async_result(actor.status.remote())
-        )
+        coro1 = await self.run_for_time(actor.run.remote())
+        coro2 = await self.run_for_time(actor.run.remote())
+        num_active_threads = await actor.num_active_threads.remote()
+        self.assertEqual(2, num_active_threads)
+        await self.run_for_time(actor.drain.remote())
+        await self.run_for_time(coro1)
+        await self.run_for_time(coro2)
+        num_active_threads = await actor.num_active_threads.remote()
+        self.assertEqual(1, num_active_threads)
+        status = await actor.status.remote()
+        self.assertEqual(RuntimeStatus.DRAINING, status)
+        await self.run_with_timeout(actor.drain.remote())
 
-    def test_end_to_end_with_processor_fully_drained(self):
+    async def test_end_to_end_with_processor_fully_drained(self):
         app = Flow()
 
         @app.consumer(
@@ -230,18 +237,20 @@ class PullProcessPushTest(AsyncTestCase):
             replica_id="1",
             flow_dependencies={},
         )
-        self.get_async_result(actor.initialize.remote())
+        await actor.initialize.remote()
 
-        coro1 = self.run_for_time(actor.run.remote())
-        coro2 = self.run_for_time(actor.run.remote())
-        self.assertEqual(2, self.get_async_result(actor.num_active_threads.remote()))
-        self.run_for_time(actor.drain.remote())
-        self.run_for_time(coro1)
-        self.run_for_time(coro2)
-        self.assertEqual(0, self.get_async_result(actor.num_active_threads.remote()))
-        self.assertEqual(
-            RuntimeStatus.DRAINED, self.get_async_result(actor.status.remote())
-        )
+        coro1 = await self.run_for_time(actor.run.remote())
+        coro2 = await self.run_for_time(actor.run.remote())
+        num_active_threads = await actor.num_active_threads.remote()
+        self.assertEqual(2, num_active_threads)
+        await self.run_for_time(actor.drain.remote())
+        await self.run_for_time(coro1)
+        await self.run_for_time(coro2)
+        num_active_threads = await actor.num_active_threads.remote()
+        self.assertEqual(0, num_active_threads)
+        status = await actor.status.remote()
+        self.assertEqual(RuntimeStatus.DRAINED, status)
+        await self.run_with_timeout(actor.drain.remote())
 
 
 if __name__ == "__main__":

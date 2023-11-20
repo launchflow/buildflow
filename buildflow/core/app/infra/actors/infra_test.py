@@ -13,7 +13,6 @@ from buildflow.io.gcp import (
     GCPPubSubSubscription,
     GCPPubSubTopic,
 )
-from buildflow.testing.test_case import AsyncTestCase
 from buildflow.types.gcp import CloudSQLDatabaseVersion, CloudSQLInstanceSettings
 
 _PREVIEW_OUTPUT = """\
@@ -47,7 +46,7 @@ Primitives to update:
         └── messageRetentionDuration"""
 
 
-class InfraTest(AsyncTestCase):
+class InfraTest(unittest.TestCase):
     def setUp(self) -> None:
         self.held_output = io.StringIO()
         sys.stdout = self.held_output
@@ -57,7 +56,7 @@ class InfraTest(AsyncTestCase):
         sys.stdout = sys.__stdout__
 
     @mock.patch("buildflow.core.app.infra.actors.infra.PulumiWorkspace")
-    def test_infra_preview(self, workspace_mock: mock.MagicMock):
+    async def test_infra_preview(self, workspace_mock: mock.MagicMock):
         checkin_topic = GCPPubSubTopic(
             project_id="testing-gcp-project", topic_name="checkin-topic"
         )
@@ -165,10 +164,8 @@ class InfraTest(AsyncTestCase):
         workspace_mock.return_value.get_stack_state.return_value = stack_state
 
         infra_actor = infra.InfraActor(InfraOptions.default(), None)
-        self.get_async_result(
-            infra_actor.preview(
-                pulumi_program=lambda x: x, managed_primitives=managed_primitives
-            )
+        await infra_actor.preview(
+            pulumi_program=lambda x: x, managed_primitives=managed_primitives
         )
 
         self.held_output.seek(0)
