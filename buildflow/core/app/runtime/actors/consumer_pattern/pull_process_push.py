@@ -168,7 +168,7 @@ class PullProcessPushActor(Runtime):
     async def initialize(self):
         for processor in self.processor_group.processors:
             processor.setup()
-            initialize_dependencies(
+            await initialize_dependencies(
                 processor.dependencies(), self.flow_dependencies, [Scope.REPLICA]
             )
 
