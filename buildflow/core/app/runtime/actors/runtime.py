@@ -134,7 +134,9 @@ class RuntimeActor(Runtime):
         logging.info("Starting Runtime...")
         self._set_status(RuntimeStatus.RUNNING)
         self._processor_group_pool_refs = []
+        print("DO NOT SUBMIT: initialize_global_dependencies")
         await self.initialize_global_dependencies(processor_groups)
+        print("DO NOT SUBMIT: done initilizing global dependencies")
         for processor_group in processor_groups:
             process_group_pool_ref = self._start_processor_group(
                 processor_group, serve_host, serve_port

@@ -85,18 +85,14 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             flow_dependencies={},
         )
 
-        print("DO NOT SUBMIT: starting runtime")
         await actor.run.remote(
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
         )
-        print("DO NOT SUBMIT: finished starting runtime")
         await asyncio.sleep(15)
 
-        print("DO NOT SUBMIT: starting drain")
         await self.run_with_timeout(actor.drain.remote(), fail=True)
-        print("DO NOT SUBMIT: finished drain")
 
         files = os.listdir(self.output_dir)
         self.assertEqual(len(files), 1)
