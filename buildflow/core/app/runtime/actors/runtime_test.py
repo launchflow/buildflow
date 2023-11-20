@@ -264,17 +264,14 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             serve_host="unused",
         )
         # Run for ten seconds to let it scale up.
-        print("DO NOT SUBMIT launching runtime")
-        pending = await self.run_for_time(actor.run_until_complete.remote(), 15)
+        pending = await self.run_for_time(actor.run_until_complete.remote(), 20)
 
         # Grab snapshot to see how many replicas we have scaled up to.
-        print("DO NOT SUBMIT: grabbing snapshot")
         snapshot = await self.run_with_timeout(actor.snapshot.remote())
 
         # Kill all replica actors.
         # Then let the consumer run for a couple seconds to allow them to be spun
         # up again.
-        print("DO NOT SUBMIT: killing replicas")
         replica_actors = list_actors(
             filters=[("class_name", "=", "PullProcessPushActor")]
         )
@@ -282,13 +279,10 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             pid = replica["pid"]
             os.kill(pid, signal.SIGKILL)
 
-        print("DO NOT SUBMIT: waiting for pending")
         await self.run_for_time(pending, 10)
-        print("DO NOT SUBMIT: waiting for snapshot")
         snapshot = await self.run_with_timeout(actor.snapshot.remote())
         self.assertGreaterEqual(snapshot.processor_groups[0].num_replicas, 1)
 
-        print("DO NOT SUBMIT draining")
         await self.run_with_timeout(actor.drain.remote())
         self.assertInStderr("replica actor unexpectedly died. will restart.")
 

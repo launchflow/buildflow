@@ -55,7 +55,7 @@ jobs:
           pip install .[dev]
       - name: Test with pytest
         run: |
-          pytest --disable-warnings --cov -s -k test_runtime_kill_all_replicas
+          pytest --disable-warnings --cov
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
