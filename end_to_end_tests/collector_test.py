@@ -28,25 +28,26 @@ class OutputResponse:
 
 
 @pytest.mark.usefixtures("ray")
-@pytest.mark.usefixtures("event_loop_instance")
-class CollectorLocalTest(unittest.TestCase):
-    def get_async_result(self, coro):
+class CollectorLocalTest(unittest.IsolatedAsyncioTestCase):
+    async def run_for_time(self, coro, time: int = 5):
+        completed, pending = await asyncio.wait(
+            [coro], timeout=time, return_when="FIRST_EXCEPTION"
+        )
+        if completed:
+            # This general should only happen when there was an exception so
+            # we want to raise it to make the test failure more obvious.
+            completed.pop().result()
+        if pending:
+            return pending.pop()
+
+    async def run_with_timeout(self, coro, timeout: int = 5, fail: bool = False):
         """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
-
-    def run_for_time(self, coro, time: int = 5):
-        async def wait_wrapper():
-            completed, pending = await asyncio.wait(
-                [coro], timeout=time, return_when="FIRST_EXCEPTION"
-            )
-            if completed:
-                # This general should only happen when there was an exception so
-                # we want to raise it to make the test failure more obvious.
-                completed.pop().result()
-            if pending:
-                return pending.pop()
-
-        return self.event_loop.run_until_complete(wait_wrapper())
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout)
+        except asyncio.TimeoutError:
+            if fail:
+                raise
+            return
 
     def setUp(self) -> None:
         self.table = "end_to_end_test"
@@ -58,7 +59,7 @@ class CollectorLocalTest(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    def test_collector_duckdb_end_to_end(self):
+    async def test_collector_duckdb_end_to_end(self):
         app = buildflow.Flow()
 
         @app.collector(
@@ -73,7 +74,7 @@ class CollectorLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.post(
             "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
@@ -85,9 +86,9 @@ class CollectorLocalTest(unittest.TestCase):
         got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
 
         self.assertEqual(got_data[0], 1)
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_collector_file_end_to_end(self):
+    async def test_collector_file_end_to_end(self):
         output_dir = tempfile.mkdtemp()
         try:
             app = buildflow.Flow()
@@ -106,14 +107,14 @@ class CollectorLocalTest(unittest.TestCase):
             run_coro = app.run(block=False)
 
             # wait for 20 seconds to let it spin up
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             response = requests.post(
                 "http://localhost:8000/test", json={"val": 1}, timeout=10
             )
             response.raise_for_status()
 
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             output_files = os.listdir(output_dir)
             self.assertEqual(len(output_files), 1)
@@ -125,11 +126,11 @@ class CollectorLocalTest(unittest.TestCase):
                 self.assertEqual(lines[0], '"val"\n')
                 self.assertEqual(lines[1], "2\n")
 
-            self.get_async_result(app._drain())
+            await self.run_with_timeout(app._drain())
         finally:
             shutil.rmtree(output_dir)
 
-    def test_collector_file_end_to_end_class(self):
+    async def test_collector_file_end_to_end_class(self):
         output_dir = tempfile.mkdtemp()
         try:
             app = buildflow.Flow()
@@ -155,14 +156,14 @@ class CollectorLocalTest(unittest.TestCase):
             run_coro = app.run(block=False)
 
             # wait for 20 seconds to let it spin up
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             response = requests.post(
                 "http://localhost:8000/test", json={"val": 1}, timeout=10
             )
             response.raise_for_status()
 
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             output_files = os.listdir(output_dir)
             self.assertEqual(len(output_files), 1)
@@ -174,11 +175,11 @@ class CollectorLocalTest(unittest.TestCase):
                 self.assertEqual(lines[0], '"val"\n')
                 self.assertEqual(lines[1], "11\n")
 
-            self.get_async_result(app._drain())
+            await self.run_with_timeout(app._drain())
         finally:
             shutil.rmtree(output_dir)
 
-    def test_collector_file_multi_output(self):
+    async def test_collector_file_multi_output(self):
         output_dir = tempfile.mkdtemp()
         try:
             app = buildflow.Flow()
@@ -197,14 +198,14 @@ class CollectorLocalTest(unittest.TestCase):
             run_coro = app.run(block=False)
 
             # wait for 20 seconds to let it spin up
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             response = requests.post(
                 "http://localhost:8000/test", json={"val": 1}, timeout=10
             )
             response.raise_for_status()
 
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             output_files = os.listdir(output_dir)
             self.assertEqual(len(output_files), 1)
@@ -215,11 +216,11 @@ class CollectorLocalTest(unittest.TestCase):
                 self.assertEqual(len(lines), 3)
                 self.assertEqual(lines, ['"val"\n', "2\n", "3\n"])
 
-            self.get_async_result(app._drain())
+            await self.run_with_timeout(app._drain())
         finally:
             shutil.rmtree(output_dir)
 
-    def test_collector_duckdb_end_to_end_unattached(self):
+    async def test_collector_duckdb_end_to_end_unattached(self):
         app = buildflow.Flow()
 
         @buildflow.collector(
@@ -236,7 +237,7 @@ class CollectorLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.post(
             "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
@@ -248,9 +249,9 @@ class CollectorLocalTest(unittest.TestCase):
         got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
 
         self.assertEqual(got_data[0], 1)
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_collector_with_dependencies(self):
+    async def test_collector_with_dependencies(self):
         output_dir = tempfile.mkdtemp()
 
         @dependency(scope=Scope.NO_SCOPE)
@@ -307,14 +308,14 @@ class CollectorLocalTest(unittest.TestCase):
             run_coro = app.run(block=False)
 
             # wait for 20 seconds to let it spin up
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             response = requests.post(
                 "http://localhost:8000/test", json={"val": 1}, timeout=10
             )
             response.raise_for_status()
 
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             output_files = os.listdir(output_dir)
             self.assertEqual(len(output_files), 1)
@@ -326,7 +327,7 @@ class CollectorLocalTest(unittest.TestCase):
                 self.assertEqual(lines[0], '"val"\n')
                 self.assertEqual(lines[1], "11\n")
 
-            self.get_async_result(app._drain())
+            await self.run_with_timeout(app._drain())
         finally:
             shutil.rmtree(output_dir)
 

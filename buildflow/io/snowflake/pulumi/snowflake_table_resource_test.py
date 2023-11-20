@@ -20,7 +20,7 @@ class SnowflakeTableType:
     val: int
 
 
-class SnowflakeTableResourceTest(unittest.TestCase):
+class SnowflakeTableResourceTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.creds = AWSCredentials(
             CredentialsOptions(

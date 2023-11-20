@@ -25,6 +25,7 @@ class _CombinedMetrics:
     backlog: int
     throughput: float
     avg_replica_cpu_percentage: float
+    pulls_per_sec: float
 
     @classmethod
     def from_snapshot(cls, snapshot: ConsumerProcessorGroupSnapshot):
@@ -37,10 +38,16 @@ class _CombinedMetrics:
             s.avg_cpu_percentage_per_replica
             for s in snapshot.processor_snapshots.values()
         ) / len(snapshot.processor_snapshots)
+        avg_pulls_per_sec: float = round(
+            sum(s.total_pulls_per_sec for s in snapshot.processor_snapshots.values())
+            / len(snapshot.processor_snapshots),
+            2,
+        )
         return cls(
             backlog=backlog,
             throughput=throughput,
             avg_replica_cpu_percentage=avg_replica_cpu_percentage,
+            pulls_per_sec=avg_pulls_per_sec,
         )
 
 
@@ -177,6 +184,12 @@ def _calculate_target_num_replicas_for_consumer_v2(
             want_throughput = throughput + backlog_growth_per_sec
             logging.debug("want throughput: %s", want_throughput)
             new_num_replicas = math.ceil(want_throughput / throughput_per_replica)
+    # No backlog but we're not processing any data so add one replica. This helps catch
+    # the case where the backlog reporting is delayed.
+    elif current_metrics.pulls_per_sec == 0:
+        # If we hit this case add one replica
+        logging.debug("adding one replica because we're not processing any data")
+        new_num_replicas = num_replicas + 1
     # Scale down event.
     elif (
         avg_replica_cpu_percentage > 0
@@ -207,11 +220,9 @@ def _calculate_target_num_replicas_for_consumer_v2(
             cpu_to_request = new_num_replicas * cpus_per_replica * 2
             request_resources(num_cpus=math.ceil(cpu_to_request))
     elif new_num_replicas <= current_snapshot.num_replicas:
-        # we're scaling down so only request resources that are needed for
-        # the smaller amount.
-        # This will override the case where we requested a bunch of
-        # resources for a replicas that haven't been fufilled yet.
-        request_resources(num_cpus=math.ceil(new_num_replicas * cpus_per_replica))
+        # We're scaling down so we don't need to request any resources. Set this to 0
+        # to let the autoscaler know that we're not requesting any resources.
+        request_resources(0)
 
     if new_num_replicas != current_snapshot.num_replicas:
         logging.warning(

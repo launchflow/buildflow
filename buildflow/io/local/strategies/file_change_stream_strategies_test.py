@@ -4,27 +4,20 @@ import shutil
 import tempfile
 import unittest
 
-import pytest
-
 from buildflow.io.local.strategies.file_change_stream_strategies import (
     LocalFileChangeStreamSource,
 )
 from buildflow.types.local import FileChangeStreamEventType
 
 
-@pytest.mark.usefixtures("event_loop_instance")
 class FileChangeStreamStrategiesTest(unittest.TestCase):
-    def get_async_result(self, coro):
-        """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
-
     def setUp(self):
         self.watch_dir = tempfile.mkdtemp()
 
     def tearDown(self) -> None:
         shutil.rmtree(self.watch_dir)
 
-    def test_all_file_change_event_types(self):
+    async def test_all_file_change_event_types(self):
         strat = LocalFileChangeStreamSource(
             credentials=None,
             file_path=self.watch_dir,
@@ -36,15 +29,15 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
         )
 
         try:
-            data = self.get_async_result(strat.pull())
-            self.get_async_result(asyncio.sleep(1))
+            data = await strat.pull()
+            await asyncio.sleep(1)
             create_path = os.path.join(self.watch_dir, "file.txt")
             with open(create_path, "w") as f:
                 f.write("hello")
 
-            self.get_async_result(asyncio.sleep(1))
+            await asyncio.sleep(1)
 
-            data = self.get_async_result(strat.pull())
+            data = await strat.pull()
 
             self.assertGreaterEqual(len(data.payload), 1)
             found_file_create = False
@@ -66,14 +59,14 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
             if not found_file_create:
                 self.fail("Did not find file create event")
 
-            self.get_async_result(asyncio.sleep(1))
-            data = self.get_async_result(strat.pull())
+            await asyncio.sleep(1)
+            data = await strat.pull()
             # Nothing has changed since our last pull so we should get no elements.
             self.assertEqual(len(data.payload), 0)
 
             os.remove(create_path)
-            self.get_async_result(asyncio.sleep(1))
-            data = self.get_async_result(strat.pull())
+            await asyncio.sleep(1)
+            data = await strat.pull()
             self.assertGreaterEqual(len(data.payload), 1)
             found_delete_event = False
             for event in data.payload:
@@ -94,7 +87,7 @@ class FileChangeStreamStrategiesTest(unittest.TestCase):
             if not found_delete_event:
                 self.fail("Did not find file delete event")
         finally:
-            self.get_async_result(strat.teardown())
+            await strat.teardown()
 
 
 if __name__ == "__main__":
