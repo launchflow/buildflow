@@ -5,7 +5,7 @@ import logging
 import os
 import signal
 import sys
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pulumi
 import ray
@@ -94,19 +94,28 @@ class _PrimitiveCache:
         self.cache.clear()
 
 
+def _find_managed_primitives(field_value: Any) -> List[Primitive]:
+    primitives = []
+    if field_value is None:
+        return []
+    elif isinstance(field_value, Primitive) and field_value._managed:
+        primitives.append(field_value)
+    elif isinstance(field_value, list):
+        for item in field_value:
+            primitives.extend(_find_managed_primitives(item))
+    return primitives
+
+
 def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primitive]:
     primitives_without_parents = primitives.copy()
     for primitive in primitives:
         fields = dataclasses.fields(primitive)
         for field in fields:
             field_value = getattr(primitive, field.name)
-            if (
-                field_value is not None
-                and isinstance(field_value, Primitive)
-                and field_value._managed
-            ):
+            managed_primitives = _find_managed_primitives(field_value)
+            for managed_primitive in managed_primitives:
                 try:
-                    primitives_without_parents.remove(field_value)
+                    primitives_without_parents.remove(managed_primitive)
                 except ValueError:
                     # This can happen when a primitive is a parent of two or more
                     # other primitives.
@@ -119,13 +128,12 @@ def _find_all_managed_parent_primitives(primitive: Primitive) -> Dict[str, Primi
     managed_parents = {}
     for field in fields:
         field_value = getattr(primitive, field.name)
-        if (
-            field_value is not None
-            and isinstance(field_value, Primitive)
-            and field_value._managed
-        ):
-            managed_parents[field_value.primitive_id()] = field_value
-            managed_parents.update(_find_all_managed_parent_primitives(field_value))
+        managed_primitives = _find_managed_primitives(field_value)
+        for managed_primitive in managed_primitives:
+            managed_parents[managed_primitive.primitive_id()] = managed_primitive
+            managed_parents.update(
+                _find_all_managed_parent_primitives(managed_primitive)
+            )
     return managed_parents
 
 
@@ -151,17 +159,13 @@ def _traverse_primitive_for_pulumi(
     parent_resources = []
     for field in fields:
         field_value = getattr(primitive, field.name)
-        if (
-            field_value is not None
-            and isinstance(field_value, Primitive)
-            and field_value._managed
-        ):
-            visited_resource = visited_primitives.get(field_value)
-            # Visit all managed parent primitives to create the parent resources
+        managed_primitives = _find_managed_primitives(field_value)
+        for managed_primitive in managed_primitives:
+            visited_resource = visited_primitives.get(managed_primitive)
             if visited_resource is None:
                 parent_resources.append(
                     _traverse_primitive_for_pulumi(
-                        field_value,
+                        managed_primitive,
                         credentials,
                         initial_opts,
                         visited_primitives,
@@ -443,6 +447,10 @@ class Flow:
 
     def manage(self, *args: Primitive):
         for primitive in args:
+            if not isinstance(primitive, Primitive):
+                raise ValueError(
+                    f"manage must be called with a Primitive type. Got: {primitive}"
+                )
             primitive.enable_managed()
             self._managed_primitives[primitive.primitive_id()] = primitive
 
