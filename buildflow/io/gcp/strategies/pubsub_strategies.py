@@ -101,7 +101,10 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
                 continue
             else:
                 msg_ids.add(received_message.message.message_id)
-            print("DO NOT SUBMIT: ", received_message.message.message_id)
+            print(
+                f"DO NOT SUBMIT: msg id: {received_message.message.message_id} "
+                f"ack_id: {received_message.ack_id}",
+            )
             if self.include_attributes:
                 att_dict = {}
                 attributes = received_message.message.attributes
