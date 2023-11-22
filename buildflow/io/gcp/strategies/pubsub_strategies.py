@@ -88,6 +88,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         payloads = []
         ack_ids = []
         for received_message in response.received_messages:
+            print("DO NOT SUBMIT: ", received_message.message.message_id)
             if received_message.message.data:
                 payload = received_message.message.data
             if self.include_attributes:
