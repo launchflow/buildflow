@@ -87,17 +87,36 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
 
         payloads = []
         ack_ids = []
+        if len(response.received_messages) > 1:
+            print(
+                "DO NOT SUMBIT RECEIVE MORE THAN 1 MESSAGE: ",
+                len(response.received_messages),
+            )
+        msg_ids = set()
         for received_message in response.received_messages:
+            if received_message.message.message_id in msg_ids:
+                print(
+                    "DO NOT SUBMIT RECEIVED DUPLICATE MESSAGE ID: ",
+                    received_message.message.message_id,
+                )
+                continue
+            else:
+                msg_ids.add(received_message.message.message_id)
             print("DO NOT SUBMIT: ", received_message.message.message_id)
-            if received_message.message.data:
-                payload = received_message.message.data
             if self.include_attributes:
                 att_dict = {}
                 attributes = received_message.message.attributes
                 for key, value in attributes.items():
                     att_dict[key] = value
                 payload = PubsubMessage(received_message.message.data, att_dict)
-
+            elif received_message.message.data:
+                payload = received_message.message.data
+            else:
+                logging.error(
+                    "Received empty message from pubsub"
+                    "did you mean to set include attributes?"
+                )
+                payload = None
             payloads.append(payload)
             ack_ids.append(received_message.ack_id)
 
