@@ -79,7 +79,6 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
                 max_messages=self.batch_size,
-                return_immediately=True,
             )
         except Exception as e:
             logging.error("pubsub pull failed with: %s", e)
