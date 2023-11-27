@@ -1,4 +1,5 @@
 import ast
+import builtins
 import importlib
 import sys
 from typing import Any
@@ -22,6 +23,8 @@ def import_from_string(import_str: str) -> Any:
             import_str = f"{filename[:-3]}:{varname}"
         else:
             raise ValueError(f"Could not find Flow object in {filename}")
+    if hasattr(builtins, import_str):
+        return getattr(builtins, import_str)
     module_str, _, attrs_str = import_str.partition(":")
     if not module_str or not attrs_str:
         message = (

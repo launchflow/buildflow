@@ -17,6 +17,7 @@ _DEFAULT_ACK_DEADLINE_SECONDS = 10 * 60
 _DEFAULT_MESSAGE_RETENTION_DURATION = "1200s"
 _DEFAULT_BATCH_SIZE = 1_000
 _DEFAULT_INCLUDE_ATTRIBUTES = False
+_DEFAULT_ENABLE_EXACTLY_ONCE_DELIVERY = False
 
 
 # NOTE: A user should use this in the case where they want to connect to an existing
@@ -38,12 +39,16 @@ class GCPPubSubSubscription(GCPPrimtive):
         default=_DEFAULT_MESSAGE_RETENTION_DURATION, init=False
     )
     topic: Optional[GCPPubSubTopic] = dataclasses.field(default=None, init=False)
+    enable_exactly_once_delivery: bool = dataclasses.field(
+        default=_DEFAULT_ENABLE_EXACTLY_ONCE_DELIVERY, init=False
+    )
 
     def options(
         self,
         # Pulumi management options
         ack_deadline_seconds: bool = _DEFAULT_ACK_DEADLINE_SECONDS,
         message_retention_duration: str = _DEFAULT_MESSAGE_RETENTION_DURATION,
+        enable_exactly_once_delivery: bool = _DEFAULT_ENABLE_EXACTLY_ONCE_DELIVERY,
         topic: Optional[GCPPubSubTopic] = None,
         # Source options
         batch_size: int = _DEFAULT_BATCH_SIZE,
@@ -54,6 +59,7 @@ class GCPPubSubSubscription(GCPPrimtive):
         self.topic = topic
         self.batch_size = batch_size
         self.include_attributes = include_attributes
+        self.enable_exactly_once_delivery = enable_exactly_once_delivery
         return self
 
     def primitive_id(self):
@@ -109,6 +115,7 @@ class GCPPubSubSubscription(GCPPrimtive):
                 project=self.project_id,
                 ack_deadline_seconds=self.ack_deadline_seconds,
                 message_retention_duration=self.message_retention_duration,
+                enable_exactly_once_delivery=self.enable_exactly_once_delivery,
             )
         ]
 

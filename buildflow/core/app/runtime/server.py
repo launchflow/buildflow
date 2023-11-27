@@ -7,7 +7,6 @@ from typing import Optional
 import uvicorn
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
-from ray import kill
 
 from buildflow.core.app.flow_state import FlowState
 from buildflow.core.app.infra.actors.infra import InfraActor
@@ -115,7 +114,9 @@ class RuntimeServer(uvicorn.Server):
         return JSONResponse(snapshot.as_dict())
 
     async def runtime_stop(self):
-        kill(self.runtime_actor)
+        # Send two drain requests to stop the runtime.
+        self.runtime_actor.drain.remote()
+        self.runtime_actor.drain.remote()
 
     async def runtime_status(self):
         status = await self.runtime_actor.status.remote()

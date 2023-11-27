@@ -5,7 +5,7 @@ import logging
 import os
 import signal
 import sys
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pulumi
 import ray
@@ -94,19 +94,28 @@ class _PrimitiveCache:
         self.cache.clear()
 
 
+def _find_managed_primitives(field_value: Any) -> List[Primitive]:
+    primitives = []
+    if field_value is None:
+        return []
+    elif isinstance(field_value, Primitive) and field_value._managed:
+        primitives.append(field_value)
+    elif isinstance(field_value, list):
+        for item in field_value:
+            primitives.extend(_find_managed_primitives(item))
+    return primitives
+
+
 def _find_primitives_with_no_parents(primitives: List[Primitive]) -> List[Primitive]:
     primitives_without_parents = primitives.copy()
     for primitive in primitives:
         fields = dataclasses.fields(primitive)
         for field in fields:
             field_value = getattr(primitive, field.name)
-            if (
-                field_value is not None
-                and isinstance(field_value, Primitive)
-                and field_value._managed
-            ):
+            managed_primitives = _find_managed_primitives(field_value)
+            for managed_primitive in managed_primitives:
                 try:
-                    primitives_without_parents.remove(field_value)
+                    primitives_without_parents.remove(managed_primitive)
                 except ValueError:
                     # This can happen when a primitive is a parent of two or more
                     # other primitives.
@@ -119,13 +128,12 @@ def _find_all_managed_parent_primitives(primitive: Primitive) -> Dict[str, Primi
     managed_parents = {}
     for field in fields:
         field_value = getattr(primitive, field.name)
-        if (
-            field_value is not None
-            and isinstance(field_value, Primitive)
-            and field_value._managed
-        ):
-            managed_parents[field_value.primitive_id()] = field_value
-            managed_parents.update(_find_all_managed_parent_primitives(field_value))
+        managed_primitives = _find_managed_primitives(field_value)
+        for managed_primitive in managed_primitives:
+            managed_parents[managed_primitive.primitive_id()] = managed_primitive
+            managed_parents.update(
+                _find_all_managed_parent_primitives(managed_primitive)
+            )
     return managed_parents
 
 
@@ -151,17 +159,13 @@ def _traverse_primitive_for_pulumi(
     parent_resources = []
     for field in fields:
         field_value = getattr(primitive, field.name)
-        if (
-            field_value is not None
-            and isinstance(field_value, Primitive)
-            and field_value._managed
-        ):
-            visited_resource = visited_primitives.get(field_value)
-            # Visit all managed parent primitives to create the parent resources
+        managed_primitives = _find_managed_primitives(field_value)
+        for managed_primitive in managed_primitives:
+            visited_resource = visited_primitives.get(managed_primitive)
             if visited_resource is None:
                 parent_resources.append(
                     _traverse_primitive_for_pulumi(
-                        field_value,
+                        managed_primitive,
                         credentials,
                         initial_opts,
                         visited_primitives,
@@ -443,6 +447,10 @@ class Flow:
 
     def manage(self, *args: Primitive):
         for primitive in args:
+            if not isinstance(primitive, Primitive):
+                raise ValueError(
+                    f"manage must be called with a Primitive type. Got: {primitive}"
+                )
             primitive.enable_managed()
             self._managed_primitives[primitive.primitive_id()] = primitive
 
@@ -749,6 +757,7 @@ class Flow:
         runtime_server_port: int = 9653,
         # Options for testing
         block: bool = True,
+        event_subscriber: Optional[Callable] = None,
     ):
         self._add_service_groups()
         if not self._processor_groups:
@@ -765,7 +774,10 @@ class Flow:
         # Setup services
         # Start the Flow Runtime
         runtime_coroutine = self._run(
-            debug_run=debug_run, serve_host=serve_host, serve_port=serve_port
+            debug_run=debug_run,
+            serve_host=serve_host,
+            serve_port=serve_port,
+            event_subscriber=event_subscriber,
         )
 
         if debug_run:
@@ -804,7 +816,13 @@ class Flow:
             else:
                 return runtime_coroutine
 
-    async def _run(self, serve_host: str, serve_port: int, debug_run: bool = False):
+    async def _run(
+        self,
+        serve_host: str,
+        serve_port: int,
+        debug_run: bool = False,
+        event_subscriber: Optional[Callable] = None,
+    ):
         # Add a signal handler to drain the runtime when the process is killed
         loop = asyncio.get_event_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -818,6 +836,7 @@ class Flow:
             processor_groups=self._processor_groups,
             serve_host=serve_host,
             serve_port=serve_port,
+            event_subscriber=event_subscriber,
         )
         await self._get_runtime_actor().run_until_complete.remote()
 

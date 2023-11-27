@@ -5,14 +5,21 @@ import dataclasses
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, Type
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type
 
 import ray
 from ray.actor import ActorHandle
 from ray.exceptions import OutOfMemoryError, RayActorError
 
 from buildflow.core import utils
-from buildflow.core.app.runtime._runtime import RunID, Runtime, RuntimeStatus, Snapshot
+from buildflow.core.app.runtime._runtime import (
+    RunID,
+    Runtime,
+    RuntimeEvent,
+    RuntimeStatus,
+    RuntimeStatusReport,
+    Snapshot,
+)
 from buildflow.core.app.runtime.actors.collector_pattern.collector_pool import (
     CollectorProcessorPoolActor,
 )
@@ -71,6 +78,7 @@ class RuntimeActor(Runtime):
         self._processor_group_pool_refs: List[ProcessorGroupPoolReference] = []
         self._runtime_loop_future = None
         self.flow_dependencies = flow_dependencies
+        self._event_subscriber = None
 
     def _set_status(self, status: RuntimeStatus):
         self._status = status
@@ -130,8 +138,10 @@ class RuntimeActor(Runtime):
         processor_groups: Iterable[ProcessorGroup],
         serve_host: str,
         serve_port: int,
+        event_subscriber: Optional[Callable],
     ):
         logging.info("Starting Runtime...")
+        self._event_subscriber = event_subscriber
         self._set_status(RuntimeStatus.RUNNING)
         self._processor_group_pool_refs = []
         await self.initialize_global_dependencies(processor_groups)
@@ -154,6 +164,15 @@ class RuntimeActor(Runtime):
                 for processor_pool in self._processor_group_pool_refs
             ]
             # Kill the runtime actor to stop the even loop.
+            if self._event_subscriber is not None:
+                event = RuntimeEvent(
+                    self.run_id,
+                    RuntimeStatusReport(
+                        status=RuntimeStatus.STOPPED,
+                        processor_group_statuses={},
+                    ),
+                )
+                self._event_subscriber(event)
             ray.actor.exit_actor()
         else:
             if as_reload:
@@ -194,7 +213,11 @@ class RuntimeActor(Runtime):
         if self._runtime_loop_future is not None:
             await self._runtime_loop_future
 
-    async def _runtime_checkin_loop(self, serve_host: str, serve_port: int):
+    async def _runtime_checkin_loop(
+        self,
+        serve_host: str,
+        serve_port: int,
+    ):
         logging.info("Runtime checkin loop started...")
         last_autoscale_event = time.monotonic()
         # We keep running the loop while the job is running or draining to ensure
@@ -203,16 +226,24 @@ class RuntimeActor(Runtime):
         # processor types need scaling (e.g. only consumer).
         #   - one for checking the status (i.e. is it still running)
         #   - one for autoscaling
+        previous_status_report = None
         while (
             self._status == RuntimeStatus.RUNNING
             or self._status == RuntimeStatus.DRAINING
         ):
             scaling_coros = []
+            processor_group_statuses = {}
             for processor_pool in self._processor_group_pool_refs:
                 try:
                     # Check to see if our processpool actor needs to be restarted.
-                    await processor_pool.actor_handle.status.remote()
+                    status = await processor_pool.actor_handle.status.remote()
+                    processor_group_statuses[
+                        processor_pool.processor_group.group_id
+                    ] = status
                 except (RayActorError, OutOfMemoryError):
+                    processor_group_statuses[
+                        processor_pool.processor_group.group_id
+                    ] = RuntimeStatus.DIED
                     logging.exception("process actor unexpectedly died. will restart.")
                     if self._status == RuntimeStatus.RUNNING:
                         # Only restart if we are running, otherwise we are draining
@@ -222,6 +253,20 @@ class RuntimeActor(Runtime):
                             serve_port=serve_port,
                         )
                         processor_pool.actor_handle = new_processor_ref.actor_handle
+                if self._event_subscriber is not None:
+                    status_report = RuntimeStatusReport(
+                        status=self._status,
+                        processor_group_statuses=processor_group_statuses,
+                    )
+
+                    try:
+                        if previous_status_report != status_report:
+                            event = RuntimeEvent(self.run_id, status_report)
+                            self._event_subscriber(event)
+                    except Exception:
+                        logging.exception("event subscriber failed")
+                    previous_status_report = status_report
+
                 processor_options = self.options.processor_options[
                     processor_pool.processor_group.group_id
                 ]
@@ -245,3 +290,26 @@ class RuntimeActor(Runtime):
                 logging.debug("autoscale check ended at: %s", datetime.utcnow())
 
             await asyncio.sleep(self.options.checkin_frequency_loop_secs)
+        processor_group_statuses = {}
+        for processor_pool in self._processor_group_pool_refs:
+            try:
+                # Check to see if our processpool actor needs to be restarted.
+                status = await processor_pool.actor_handle.status.remote()
+                processor_group_statuses[
+                    processor_pool.processor_group.group_id
+                ] = status
+            except (RayActorError, OutOfMemoryError):
+                processor_group_statuses[
+                    processor_pool.processor_group.group_id
+                ] = RuntimeStatus.DIED
+            if self._event_subscriber is not None:
+                status_report = RuntimeStatusReport(
+                    status=self._status,
+                    processor_group_statuses=processor_group_statuses,
+                )
+
+                try:
+                    event = RuntimeEvent(self.run_id, status_report)
+                    self._event_subscriber(event)
+                except Exception:
+                    logging.exception("event subscriber failed")
