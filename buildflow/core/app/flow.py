@@ -757,6 +757,7 @@ class Flow:
         runtime_server_port: int = 9653,
         # Options for testing
         block: bool = True,
+        event_subscriber: Optional[Callable] = None,
     ):
         self._add_service_groups()
         if not self._processor_groups:
@@ -773,7 +774,10 @@ class Flow:
         # Setup services
         # Start the Flow Runtime
         runtime_coroutine = self._run(
-            debug_run=debug_run, serve_host=serve_host, serve_port=serve_port
+            debug_run=debug_run,
+            serve_host=serve_host,
+            serve_port=serve_port,
+            event_subscriber=event_subscriber,
         )
 
         if debug_run:
@@ -812,7 +816,13 @@ class Flow:
             else:
                 return runtime_coroutine
 
-    async def _run(self, serve_host: str, serve_port: int, debug_run: bool = False):
+    async def _run(
+        self,
+        serve_host: str,
+        serve_port: int,
+        debug_run: bool = False,
+        event_subscriber: Optional[Callable] = None,
+    ):
         # Add a signal handler to drain the runtime when the process is killed
         loop = asyncio.get_event_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -826,6 +836,7 @@ class Flow:
             processor_groups=self._processor_groups,
             serve_host=serve_host,
             serve_port=serve_port,
+            event_subscriber=event_subscriber,
         )
         await self._get_runtime_actor().run_until_complete.remote()
 

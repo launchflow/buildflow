@@ -3,6 +3,7 @@ import os
 import signal
 import sys
 from multiprocessing import get_context
+from typing import Callable, Optional
 
 from watchfiles import awatch
 
@@ -45,6 +46,7 @@ class RunTimeWatcher:
         runtime_server_port: int,
         serve_host: str,
         serve_port: int,
+        event_subscriber: Optional[Callable],
     ) -> None:
         self.app = app
         self.start_runtime_server = start_runtime_server
@@ -53,6 +55,7 @@ class RunTimeWatcher:
         self.runtime_server_port = runtime_server_port
         self.serve_host = serve_host
         self.serve_port = serve_port
+        self.event_subscriber = event_subscriber
 
     async def run(self):
         self.process = self.start_process()
@@ -79,6 +82,7 @@ class RunTimeWatcher:
                 "runtime_server_port": self.runtime_server_port,
                 "serve_host": self.serve_host,
                 "serve_port": self.serve_port,
+                "event_subscriber": self.event_subscriber,
             },
         )
         process.start()

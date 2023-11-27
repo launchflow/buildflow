@@ -1,4 +1,6 @@
+import dataclasses
 import enum
+from typing import Dict, Optional
 
 RunID = str
 
@@ -8,8 +10,36 @@ class RuntimeStatus(enum.Enum):
     RUNNING = enum.auto()
     DRAINING = enum.auto()
     DRAINED = enum.auto()
+    DIED = enum.auto()
+    STOPPED = enum.auto()
     # Used for local reloading
     RELOADING = enum.auto()
+
+
+@dataclasses.dataclass
+class RuntimeStatusReport:
+    status: RuntimeStatus
+    processor_group_statuses: Dict[str, RuntimeStatus]
+
+    def to_dict(self):
+        return {
+            "status": self.status.name,
+            "processor_group_statuses": {
+                k: v.name for k, v in self.processor_group_statuses.items()
+            },
+        }
+
+
+@dataclasses.dataclass
+class RuntimeEvent:
+    run_id: RunID
+    status_change: Optional[RuntimeStatusReport]
+
+    def to_dict(self):
+        return {
+            "run_id": self.run_id,
+            "status_change": self.status_change.to_dict(),
+        }
 
 
 class Snapshot:
