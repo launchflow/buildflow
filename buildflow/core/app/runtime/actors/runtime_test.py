@@ -59,16 +59,6 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
                 break
         assert found_match, f"Expected to find `{expected_match}` in stderr."
 
-    def assertInStdout(self, expected_match: str):
-        out, _ = self._capfd.readouterr()
-        split_out = out.split("\n")
-        found_match = False
-        for line in split_out:
-            if expected_match in line:
-                found_match = True
-                break
-        assert found_match, f"Expected to find `{expected_match}` in stdout."
-
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, capfd: pytest.CaptureFixture[str]):
         self._capfd = capfd
