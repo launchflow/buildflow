@@ -59,6 +59,16 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
                 break
         assert found_match, f"Expected to find `{expected_match}` in stderr."
 
+    def assertInStdout(self, expected_match: str):
+        out, _ = self._capfd.readouterr()
+        split_out = out.split("\n")
+        found_match = False
+        for line in split_out:
+            if expected_match in line:
+                found_match = True
+                break
+        assert found_match, f"Expected to find `{expected_match}` in stdout."
+
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, capfd: pytest.CaptureFixture[str]):
         self._capfd = capfd
@@ -89,6 +99,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
+            event_subscriber=None,
         )
         await asyncio.sleep(15)
 
@@ -139,6 +150,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
+            event_subscriber=None,
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 10)
@@ -202,6 +214,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
+            event_subscriber=None,
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 20)
@@ -262,6 +275,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
+            event_subscriber=None,
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 20)
@@ -324,6 +338,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
                 ],
                 serve_port=0,
                 serve_host="unused",
+                event_subscriber=None,
             )
         )
 
