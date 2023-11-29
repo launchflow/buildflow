@@ -367,24 +367,26 @@ def init(
     open(os.path.join(app_lib_dir, "__init__.py"), "w").close()
 
     # Create the primitives module
-    open(os.path.join(app_lib_dir, "primitives.py"), "w").close()
+    primitives_template = file_gen.hello_world_primitives_template()
+    with open(os.path.join(app_lib_dir, "primitives.py"), "w") as f:
+        f.write(primitives_template)
 
-    # Create the base processors folder
-    processors_folder = os.path.join(app_lib_dir, "processors")
-    os.mkdir(processors_folder)
-    open(os.path.join(processors_folder, "__init__.py"), "w").close()
+    resources_template = file_gen.hello_world_dependencies_template(app_folder)
+    with open(os.path.join(app_lib_dir, "dependencies.py"), "w") as f:
+        f.write(resources_template)
+
+    service_template = file_gen.hello_world_service_template(app_folder)
+    with open(os.path.join(app_lib_dir, "service.py"), "w") as f:
+        f.write(service_template)
+
+    settings_template = file_gen.hello_world_settings_template()
+    with open(os.path.join(app_lib_dir, "settings.py"), "w") as f:
+        f.write(settings_template)
 
     file_name = "main"
     file_path = os.path.join(directory, f"{file_name}.py")
 
     main_file_template = file_gen.hello_world_main_template(app_folder)
-    with open(os.path.join(processors_folder, "service.py"), "w") as f:
-        f.write(file_gen.hello_world_service_template(app_folder))
-
-    with open(os.path.join(processors_folder, "hello_world.py"), "w") as f:
-        f.write(file_gen.hello_world_endpoint_template())
-
-    # Create the main file
     file_name = "main"
     file_path = os.path.join(directory, f"{file_name}.py")
     if os.path.exists(file_path):
