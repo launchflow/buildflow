@@ -79,7 +79,6 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
                 max_messages=self.batch_size,
-                return_immediately=True,
             )
         except Exception as e:
             logging.error("pubsub pull failed with: %s", e)
@@ -87,16 +86,26 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
 
         payloads = []
         ack_ids = []
+        msg_ids = set()
         for received_message in response.received_messages:
-            if received_message.message.data:
-                payload = received_message.message.data
+            if received_message.message.message_id in msg_ids:
+                continue
+            else:
+                msg_ids.add(received_message.message.message_id)
             if self.include_attributes:
                 att_dict = {}
                 attributes = received_message.message.attributes
                 for key, value in attributes.items():
                     att_dict[key] = value
                 payload = PubsubMessage(received_message.message.data, att_dict)
-
+            elif received_message.message.data:
+                payload = received_message.message.data
+            else:
+                logging.error(
+                    "Received empty message from pubsub"
+                    "did you mean to set include attributes?"
+                )
+                payload = None
             payloads.append(payload)
             ack_ids.append(received_message.ack_id)
 

@@ -89,6 +89,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
+            event_subscriber=None,
         )
         await asyncio.sleep(15)
 
@@ -139,6 +140,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
+            event_subscriber=None,
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 10)
@@ -202,6 +204,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
+            event_subscriber=None,
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 20)
@@ -262,6 +265,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
             processor_groups=[ConsumerGroup(processors=[process], group_id="process")],
             serve_port=0,
             serve_host="unused",
+            event_subscriber=None,
         )
         # Run for ten seconds to let it scale up.
         pending = await self.run_for_time(actor.run_until_complete.remote(), 20)
@@ -324,6 +328,7 @@ class RunTimeTest(unittest.IsolatedAsyncioTestCase):
                 ],
                 serve_port=0,
                 serve_host="unused",
+                event_subscriber=None,
             )
         )
 

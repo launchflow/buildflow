@@ -11,7 +11,7 @@ import zipfile
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pprint import pprint
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import pathspec
 import ray
@@ -55,6 +55,7 @@ def run_flow(
     serve_host: str,
     serve_port: int,
     flow_state: Optional[FlowState] = None,
+    event_subscriber: Optional[Callable] = None,
 ):
     if isinstance(flow, buildflow.Flow):
         if reload:
@@ -67,6 +68,7 @@ def run_flow(
                 runtime_server_port=runtime_server_port,
                 serve_host=serve_host,
                 serve_port=serve_port,
+                event_subscriber=event_subscriber,
             )
             asyncio.run(watcher.run())
 
@@ -79,6 +81,7 @@ def run_flow(
                 flow_state=flow_state,
                 serve_host=serve_host,
                 serve_port=serve_port,
+                event_subscriber=event_subscriber,
             )
     else:
         typer.echo(f"{app} is not a buildflow flow.")
@@ -111,7 +114,15 @@ def run(
         "",
         help="The location the build will be decompressed to. Only relevent if setting --from-build, defaults to a temporary directory",  # noqa
     ),
+    event_subscriber: str = typer.Option(
+        None,
+        help="A python function that will be called when a status change occurs in the runtime.",  # noqa
+    ),
 ):
+    event_subscriber_import = None
+    if event_subscriber:
+        sys.path.insert(0, "")
+        event_subscriber_import = utils.import_from_string(event_subscriber)
     if not from_build:
         buildflow_config = BuildFlowConfig.load()
         sys.path.insert(0, "")
@@ -126,6 +137,7 @@ def run(
             runtime_server_port,
             serve_host,
             serve_port,
+            event_subscriber=event_subscriber_import,
         )
     else:
         if reload:
@@ -157,6 +169,7 @@ def run(
             runtime_server_host,
             runtime_server_port,
             flow_state=flow_state,
+            envent_subscriber=event_subscriber_import,
         )
 
 

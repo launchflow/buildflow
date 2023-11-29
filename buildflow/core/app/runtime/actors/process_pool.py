@@ -134,11 +134,6 @@ class ProcessorGroupReplicaPoolActor(Runtime):
                 "this can happen if a drain occurs at the same time as a scale up."
             )
             return
-        if self._status != RuntimeStatus.RUNNING:
-            raise RuntimeError(
-                "Can only add replicas to a processor pool that is running "
-                f"was in state: {self._status}."
-            )
         for _ in range(num_replicas):
             replica = await self.create_replica()
 
@@ -194,7 +189,7 @@ class ProcessorGroupReplicaPoolActor(Runtime):
         logging.info(f"Drain ProcessorPool({self.processor_group.group_id}) complete.")
         return True
 
-    async def status(self):
+    async def status(self) -> RuntimeStatus:
         return self._status
 
     # NOTE: Subclasses should override this method if they need to provide additional

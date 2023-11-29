@@ -111,7 +111,14 @@ class InfraActor(Infra):
             while True:
                 if "primitive_id" in resource.resource_outputs:
                     diff = list(
-                        update_plans[update_urn]["goal"]["inputDiff"]["updates"].keys()
+                        update_plans[update_urn]["goal"]["inputDiff"]
+                        .get("updates", {})
+                        .keys()
+                    )
+                    diff.extend(
+                        update_plans[update_urn]["goal"]["inputDiff"]
+                        .get("adds", {})
+                        .keys()
                     )
                     if (
                         resource.resource_outputs["primitive_id"]
