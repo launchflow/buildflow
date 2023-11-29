@@ -2,7 +2,6 @@ import os
 import unittest
 
 import gcsfs
-import pytest
 
 from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.options.credentials_options import CredentialsOptions
@@ -10,12 +9,7 @@ from buildflow.io.gcp.strategies.storage_strategies import GCSBucketSink
 from buildflow.types.portable import FileFormat
 
 
-@pytest.mark.usefixtures("event_loop_instance")
 class StorageStrategiesTest(unittest.TestCase):
-    def get_async_result(self, coro):
-        """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
-
     def setUp(self) -> None:
         os.environ["AWS_ACCESS_KEY_ID"] = "dummy"
         os.environ["AWS_SECRET_ACCESS_KEY"] = "dummy"

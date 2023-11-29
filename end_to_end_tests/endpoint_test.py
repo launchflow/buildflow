@@ -29,27 +29,28 @@ class OutputResponse:
 
 
 @pytest.mark.usefixtures("ray")
-@pytest.mark.usefixtures("event_loop_instance")
-class EndpointLocalTest(unittest.TestCase):
-    def get_async_result(self, coro):
+class EndpointLocalTest(unittest.IsolatedAsyncioTestCase):
+    async def run_for_time(self, coro, time: int = 5):
+        completed, pending = await asyncio.wait(
+            [coro], timeout=time, return_when="FIRST_EXCEPTION"
+        )
+        if completed:
+            # This general should only happen when there was an exception so
+            # we want to raise it to make the test failure more obvious.
+            completed.pop().result()
+        if pending:
+            return pending.pop()
+
+    async def run_with_timeout(self, coro, timeout: int = 5, fail: bool = False):
         """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout)
+        except asyncio.TimeoutError:
+            if fail:
+                raise
+            return
 
-    def run_for_time(self, coro, time: int = 5):
-        async def wait_wrapper():
-            completed, pending = await asyncio.wait(
-                [coro], timeout=time, return_when="FIRST_EXCEPTION"
-            )
-            if completed:
-                # This general should only happen when there was an exception so
-                # we want to raise it to make the test failure more obvious.
-                completed.pop().result()
-            if pending:
-                return pending.pop()
-
-        return self.event_loop.run_until_complete(wait_wrapper())
-
-    def test_endpoint_end_to_end(self):
+    async def test_endpoint_end_to_end(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
@@ -60,7 +61,7 @@ class EndpointLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.post(
             "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
@@ -68,9 +69,9 @@ class EndpointLocalTest(unittest.TestCase):
         response.raise_for_status()
         self.assertEqual(response.json(), {"val": 2})
 
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_endpoint_end_to_end_class(self):
+    async def test_endpoint_end_to_end_class(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
@@ -88,7 +89,7 @@ class EndpointLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.post(
             "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
@@ -96,9 +97,9 @@ class EndpointLocalTest(unittest.TestCase):
         response.raise_for_status()
         self.assertEqual(response.json(), {"val": 11})
 
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_endpoint_end_to_end_detached(self):
+    async def test_endpoint_end_to_end_detached(self):
         app = buildflow.Flow()
         service = buildflow.Service(num_cpus=0.5)
         app.add_service(service)
@@ -110,7 +111,7 @@ class EndpointLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.post(
             "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
@@ -118,9 +119,9 @@ class EndpointLocalTest(unittest.TestCase):
         response.raise_for_status()
         self.assertEqual(response.json(), {"val": 2})
 
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_endpoint_dependencies(self):
+    async def test_endpoint_dependencies(self):
         @dependency(scope=Scope.NO_SCOPE)
         class NoScope:
             def __init__(self):
@@ -178,7 +179,7 @@ class EndpointLocalTest(unittest.TestCase):
             run_coro = app.run(block=False)
 
             # wait for 20 seconds to let it spin up
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             response = requests.post(
                 "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
@@ -196,9 +197,9 @@ class EndpointLocalTest(unittest.TestCase):
                 self.assertEqual(lines[0], '"val"\n')
                 self.assertEqual(lines[1], "11\n")
 
-            self.get_async_result(app._drain())
+            await self.run_with_timeout(app._drain())
 
-    def test_endpoint_with_default(self):
+    async def test_endpoint_with_default(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
@@ -209,7 +210,7 @@ class EndpointLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.get("http://0.0.0.0:8000/test", timeout=10)
         response.raise_for_status()
@@ -219,9 +220,9 @@ class EndpointLocalTest(unittest.TestCase):
         response.raise_for_status()
         self.assertEqual(response.json(), {"val": 3})
 
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_endpoint_with_request(self):
+    async def test_endpoint_with_request(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
@@ -232,7 +233,7 @@ class EndpointLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.get("http://0.0.0.0:8000/test", timeout=10)
         response.raise_for_status()
@@ -242,30 +243,30 @@ class EndpointLocalTest(unittest.TestCase):
         response.raise_for_status()
         self.assertEqual(response.json(), {"val": 3})
 
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_endpoint_websocket_base(self):
+    async def test_endpoint_websocket_base(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
         @dependency(scope=Scope.PROCESS)
-        class WebSocketDeb:
+        class WebSocketDep:
             def __init__(self, ws: WebSocket):
                 self.header = ws.headers["test"]
 
         @service.endpoint(route="/test", method="websocket")
         async def my_endpoint(
-            query_param: str, websocket: WebSocket, deb: WebSocketDeb
+            query_param: str, websocket: WebSocket, dep: WebSocketDep
         ):
             await websocket.accept()
             while True:
                 message = await websocket.receive_text()
-                await websocket.send_text(f"{message}, {deb.header}, {query_param}")
+                await websocket.send_text(f"{message}, {dep.header}, {query_param}")
 
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         with connect(
             "ws://127.0.0.1:8000/test?query_param=bye",
@@ -275,27 +276,27 @@ class EndpointLocalTest(unittest.TestCase):
             message = ws.recv()
             self.assertEqual(message, "Hello, world, bye")
 
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_endpoint_websocket_and_get_bearer_credentials(self):
+    async def test_endpoint_websocket_and_get_bearer_credentials(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
         @service.endpoint(route="/test_ws", method="websocket")
-        async def my_ws_endpoint(websocket: WebSocket, deb: BearerCredentials):
+        async def my_ws_endpoint(websocket: WebSocket, dep: BearerCredentials):
             await websocket.accept()
             while True:
                 message = await websocket.receive_text()
-                await websocket.send_text(f"{message}, {deb.token}")
+                await websocket.send_text(f"{message}, {dep.token}")
 
         @service.endpoint(route="/test", method="get")
-        async def my_non_ws_endpoint(message: str, deb: BearerCredentials) -> str:
-            return f"{message}, {deb.token}"
+        async def my_non_ws_endpoint(message: str, dep: BearerCredentials) -> str:
+            return f"{message}, {dep.token}"
 
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         with connect(
             "ws://127.0.0.1:8000/test_ws",
@@ -313,9 +314,9 @@ class EndpointLocalTest(unittest.TestCase):
         response.raise_for_status()
         self.assertEqual(response.json(), "Hello, get!")
 
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_endpoint_end_non_http_exception(self):
+    async def test_endpoint_end_non_http_exception(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
@@ -326,15 +327,15 @@ class EndpointLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.post(
             "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
         )
         self.assertEqual(response.status_code, 500)
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_endpoint_end_http_exception(self):
+    async def test_endpoint_end_http_exception(self):
         app = buildflow.Flow()
         service = app.service(num_cpus=0.5)
 
@@ -345,13 +346,13 @@ class EndpointLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         response = requests.post(
             "http://0.0.0.0:8000/test", json={"val": 1}, timeout=10
         )
         self.assertEqual(response.status_code, 401)
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
 
 if __name__ == "__main__":

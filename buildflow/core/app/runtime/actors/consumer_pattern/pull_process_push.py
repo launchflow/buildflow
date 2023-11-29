@@ -114,10 +114,6 @@ class PullProcessPushActor(Runtime):
         self.cpu_percentage = {}
         for processor in self.processor_group.processors:
             processor_id = processor.processor_id
-            processor.setup()
-            initialize_dependencies(
-                processor.dependencies(), flow_dependencies, [Scope.REPLICA]
-            )
 
             self.num_events_processed[processor_id] = num_events_processed(
                 processor_id=processor_id,
@@ -167,6 +163,13 @@ class PullProcessPushActor(Runtime):
                     "RunId": self.run_id,
                     "ReplicaID": self._replica_id,
                 },
+            )
+
+    async def initialize(self):
+        for processor in self.processor_group.processors:
+            processor.setup()
+            await initialize_dependencies(
+                processor.dependencies(), self.flow_dependencies, [Scope.REPLICA]
             )
 
     async def run(self):
@@ -249,7 +252,7 @@ class PullProcessPushActor(Runtime):
             try:
                 coros = []
                 for element in response.payload:
-                    dependency_args = dependency_args = resolve_dependencies(
+                    dependency_args = dependency_args = await resolve_dependencies(
                         processor.dependencies(), self.flow_dependencies
                     )
                     coros.append(process_element(element, **dependency_args))

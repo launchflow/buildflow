@@ -102,7 +102,7 @@ class PrimitiveDependency(NoScoped):
         super().__init__(lambda: primitive)
         self.primitive = primitive
 
-    def resolve(
+    async def resolve(
         self,
         flow_dependencies: Dict[Type, Any],
         visited_dependencies: Dict[Callable, Any],

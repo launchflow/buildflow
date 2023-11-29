@@ -50,7 +50,7 @@ class ProcessorGroupPoolReference:
     processor_group: ProcessorGroup
 
 
-@ray.remote(num_cpus=0.1)
+@ray.remote
 class RuntimeActor(Runtime):
     def __init__(
         self,
@@ -115,14 +115,14 @@ class RuntimeActor(Runtime):
         processor_pool_group_ref.actor_handle.run.remote()
         return processor_pool_group_ref
 
-    def initialize_global_dependencies(
+    async def initialize_global_dependencies(
         self, processor_groups: Iterable[ProcessorGroup]
     ):
         for group in processor_groups:
             deps = []
             for processor in group.processors:
                 deps.extend(processor.dependencies())
-            initialize_dependencies(deps, self.flow_dependencies, [Scope.GLOBAL])
+            await initialize_dependencies(deps, self.flow_dependencies, [Scope.GLOBAL])
 
     async def run(
         self,
@@ -134,7 +134,7 @@ class RuntimeActor(Runtime):
         logging.info("Starting Runtime...")
         self._set_status(RuntimeStatus.RUNNING)
         self._processor_group_pool_refs = []
-        self.initialize_global_dependencies(processor_groups)
+        await self.initialize_global_dependencies(processor_groups)
         for processor_group in processor_groups:
             process_group_pool_ref = self._start_processor_group(
                 processor_group, serve_host, serve_port

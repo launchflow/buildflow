@@ -189,16 +189,27 @@ def build(
         [],
         help="Files to ignore when building, these can be the same syntax as .gitignore",  # noqa
     ),  # noqa
+    as_template: bool = typer.Option(
+        False,
+        help="Whether to output the build as a template, this will not include the flowstate.yaml file.",  # noqa
+    ),
 ):
     buildflow_config = BuildFlowConfig.load()
     sys.path.insert(0, "")
     imported = utils.import_from_string(buildflow_config.entry_point)
     if not build_path:
-        build_path = os.path.join(os.getcwd(), ".buildflow", "build", "build.flow")
+        if as_template:
+            build_path = os.path.join(
+                os.getcwd(), ".buildflow", "build", "template.flow"
+            )
+        else:
+            build_path = os.path.join(os.getcwd(), ".buildflow", "build", "build.flow")
     build_path = os.path.abspath(build_path)
     path = pathlib.Path(build_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     final_excludes = _BASE_EXCLUDE + ignores + buildflow_config.build_ignores
+    if as_template:
+        final_excludes.append("buildflow.yaml")
     print(f"Generating buildflow build at:\n  {build_path}")
     if isinstance(imported, (buildflow.Flow)):
         flowstate = imported.flowstate()

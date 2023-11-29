@@ -9,13 +9,13 @@ from buildflow.exceptions.exceptions import InvalidDependencyHierarchyOrder
 
 @base.dependency(scope=base.Scope.NO_SCOPE)
 class NoScope:
-    def __init__(self):
+    async def __init__(self):
         self.value = 0
 
 
 @base.dependency(scope=base.Scope.GLOBAL)
 class GlobalDep:
-    def __init__(self, no_scope: NoScope):
+    async def __init__(self, no_scope: NoScope):
         self.value = 1
         self.no_scope = no_scope
 
@@ -37,7 +37,7 @@ class ProcessDep:
 
 @mock.patch("ray.put")
 @mock.patch("ray.get")
-class BaseDependenciesTest(unittest.TestCase):
+class BaseDependenciesTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.NoScopeDep = NoScope
         self.GlobalDep = GlobalDep
@@ -59,23 +59,23 @@ class BaseDependenciesTest(unittest.TestCase):
         mock_put.side_effect = set_put_value
         mock_get.side_effect = get_put_value
 
-    def test_resolve_dependencies(
+    async def test_resolve_dependencies(
         self, mock_get: mock.MagicMock, mock_put: mock.MagicMock
     ):
         self.setup_ray_mocks(mock_get, mock_put)
 
-        self.GlobalDep.initialize({}, {}, scopes=[base.Scope.GLOBAL])
-        global_dep = self.GlobalDep.resolve({}, {})
+        await self.GlobalDep.initialize({}, {}, scopes=[base.Scope.GLOBAL])
+        global_dep = await self.GlobalDep.resolve({}, {})
         self.assertEqual(global_dep.value, 1)
         self.assertEqual(global_dep.no_scope.value, 0)
 
-        self.ReplicaDep.initialize({}, {}, scopes=[base.Scope.REPLICA])
-        replica_dep = self.ReplicaDep.resolve({}, {})
+        await self.ReplicaDep.initialize({}, {}, scopes=[base.Scope.REPLICA])
+        replica_dep = await self.ReplicaDep.resolve({}, {})
         self.assertEqual(replica_dep.value, 2)
         self.assertEqual(id(global_dep), id(replica_dep.global_dep))
 
-        self.ProcessDep.initialize({}, {}, scopes=[base.Scope.PROCESS])
-        process_dep = self.ProcessDep.resolve({}, {})
+        await self.ProcessDep.initialize({}, {}, scopes=[base.Scope.PROCESS])
+        process_dep = await self.ProcessDep.resolve({}, {})
         self.assertEqual(process_dep.value, 3)
         self.assertEqual(id(replica_dep), id(process_dep.replia_dep))
         self.assertEqual(process_dep.no_scope.value, 0)
@@ -83,7 +83,7 @@ class BaseDependenciesTest(unittest.TestCase):
         # will create a new instance for all of it's uses.
         self.assertNotEqual(id(process_dep.no_scope), id(global_dep.no_scope))
 
-    def test_invalid_dep_order(
+    async def test_invalid_dep_order(
         self, mock_get: mock.MagicMock, mock_put: mock.MagicMock
     ):
         self.setup_ray_mocks(mock_get, mock_put)
@@ -99,9 +99,11 @@ class BaseDependenciesTest(unittest.TestCase):
                 pass
 
         with self.assertRaises(InvalidDependencyHierarchyOrder):
-            ReplicaDep2.initialize({}, {}, scopes=[base.Scope.REPLICA])
+            await ReplicaDep2.initialize({}, {}, scopes=[base.Scope.REPLICA])
 
-    def test_inject_request(self, mock_get: mock.MagicMock, mock_put: mock.MagicMock):
+    async def test_inject_request(
+        self, mock_get: mock.MagicMock, mock_put: mock.MagicMock
+    ):
         self.setup_ray_mocks(mock_get, mock_put)
 
         @base.dependency(scope=base.Scope.PROCESS)
@@ -112,11 +114,11 @@ class BaseDependenciesTest(unittest.TestCase):
         # This is technically a type hint hack, but we really just want
         # to ensure the request is injected in the dependency we expect.
         request = "request"
-        ProcessDep3.initialize({}, {}, scopes=[base.Scope.PROCESS])
-        process_dep = ProcessDep3.resolve({}, {}, request=request)
+        await ProcessDep3.initialize({}, {}, scopes=[base.Scope.PROCESS])
+        process_dep = await ProcessDep3.resolve({}, {}, request=request)
         self.assertEqual(id(process_dep.request), id(request))
 
-    def test_inject_flow_dependencies(
+    async def test_inject_flow_dependencies(
         self, mock_get: mock.MagicMock, mock_put: mock.MagicMock
     ):
         self.setup_ray_mocks(mock_get, mock_put)
@@ -129,19 +131,21 @@ class BaseDependenciesTest(unittest.TestCase):
 
         @base.dependency(scope=base.Scope.PROCESS)
         class ProcessDep3:
-            def __init__(self, request: Request, f: FlowDep) -> None:
+            async def __init__(self, request: Request, f: FlowDep) -> None:
                 self.request = request
                 self.f = f
 
         # This is technically a type hint hack, but we really just want
         # to ensure the request is injected in the dependency we expect.
         request = "request"
-        ProcessDep3.initialize({}, {}, scopes=[base.Scope.PROCESS])
-        process_dep = ProcessDep3.resolve({FlowDep: flow_dep}, {}, request=request)
+        await ProcessDep3.initialize({}, {}, scopes=[base.Scope.PROCESS])
+        process_dep = await ProcessDep3.resolve(
+            {FlowDep: flow_dep}, {}, request=request
+        )
         self.assertEqual(id(process_dep.request), id(request))
         self.assertEqual(id(process_dep.f), id(flow_dep))
 
-    def test_initialize_with_cache(
+    async def test_initialize_with_cache(
         self, mock_get: mock.MagicMock, mock_put: mock.MagicMock
     ):
         @base.dependency(scope=base.Scope.PROCESS)
@@ -151,7 +155,7 @@ class BaseDependenciesTest(unittest.TestCase):
             def __init__(self):
                 self.class_val += 1
 
-        resolved = base.resolve_dependencies(
+        resolved = await base.resolve_dependencies(
             dependencies=[
                 base.DependencyWrapper("a", ProcessDep2),
                 base.DependencyWrapper("b", ProcessDep2),

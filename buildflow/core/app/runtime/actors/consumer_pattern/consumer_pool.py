@@ -27,7 +27,7 @@ from buildflow.core.processor.patterns.consumer import ConsumerProcessor
 from buildflow.core.processor.processor import ProcessorGroup
 
 
-@ray.remote(num_cpus=0.1)
+@ray.remote
 class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
     """
     This actor acts as a proxy reference for a group of replica Processors.
@@ -96,6 +96,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
         replica_id = utils.uuid()
         replica_actor_handle = PullProcessPushActor.options(
             num_cpus=self.options.num_cpus,
+            name=f"PullProcessPushActor-{self.processor_group.group_id}-{replica_id}",
         ).remote(
             self.run_id,
             self.processor_group,
@@ -103,6 +104,7 @@ class ConsumerProcessorReplicaPoolActor(ProcessorGroupReplicaPoolActor):
             log_level=self.options.log_level,
             flow_dependencies=self.flow_dependencies,
         )
+        await replica_actor_handle.initialize.remote()
 
         return ReplicaReference(
             replica_id=replica_id,

@@ -17,25 +17,26 @@ from buildflow.types.portable import FileChangeEvent, FileFormat
 
 
 @pytest.mark.usefixtures("ray")
-@pytest.mark.usefixtures("event_loop_instance")
-class FileStreamLocalTest(unittest.TestCase):
-    def get_async_result(self, coro):
+class FileStreamLocalTest(unittest.IsolatedAsyncioTestCase):
+    async def run_for_time(self, coro, time: int = 5):
+        completed, pending = await asyncio.wait(
+            [coro], timeout=time, return_when="FIRST_EXCEPTION"
+        )
+        if completed:
+            # This general should only happen when there was an exception so
+            # we want to raise it to make the test failure more obvious.
+            completed.pop().result()
+        if pending:
+            return pending.pop()
+
+    async def run_with_timeout(self, coro, timeout: int = 5, fail: bool = False):
         """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
-
-    def run_for_time(self, coro, time: int = 5):
-        async def wait_wrapper():
-            completed, pending = await asyncio.wait(
-                [coro], timeout=time, return_when="FIRST_EXCEPTION"
-            )
-            if completed:
-                # This general should only happen when there was an exception so
-                # we want to raise it to make the test failure more obvious.
-                completed.pop().result()
-            if pending:
-                return pending.pop()
-
-        return self.event_loop.run_until_complete(wait_wrapper())
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout)
+        except asyncio.TimeoutError:
+            if fail:
+                raise
+            return
 
     def setUp(self) -> None:
         self.dir_to_watch = tempfile.mkdtemp()
@@ -49,7 +50,7 @@ class FileStreamLocalTest(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    def test_file_stream_duckdb_end_to_end(self):
+    async def test_file_stream_duckdb_end_to_end(self):
         app = buildflow.Flow()
 
         @app.consumer(
@@ -63,22 +64,22 @@ class FileStreamLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         create_path = os.path.join(self.dir_to_watch, "file.txt")
         with open(create_path, "w") as f:
             f.write("hello")
 
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
         conn = duckdb.connect(database=database, read_only=True)
         got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
 
         self.assertEqual(got_data[0], 1)
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_file_stream_file_end_to_end(self):
+    async def test_file_stream_file_end_to_end(self):
         output_dir = tempfile.mkdtemp()
         try:
             app = buildflow.Flow()
@@ -96,7 +97,7 @@ class FileStreamLocalTest(unittest.TestCase):
             run_coro = app.run(block=False)
 
             # wait for 20 seconds to let it spin up
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             create_path = os.path.join(self.dir_to_watch, "hello.txt")
             with open(create_path, "w") as f:
@@ -106,7 +107,7 @@ class FileStreamLocalTest(unittest.TestCase):
             with open(create_path, "w") as f:
                 f.write("world")
 
-            run_coro = self.run_for_time(run_coro, time=20)
+            run_coro = await self.run_for_time(run_coro, time=20)
 
             output_files = os.listdir(output_dir)
             self.assertEqual(len(output_files), 1)
@@ -123,11 +124,11 @@ class FileStreamLocalTest(unittest.TestCase):
                 self.assertEqual(lines[1], '"hello"\n')
                 self.assertEqual(lines[2], '"world"\n')
 
-            self.get_async_result(app._drain())
+            await self.run_with_timeout(app._drain())
         finally:
             shutil.rmtree(output_dir)
 
-    def test_file_stream_duckdb_end_to_end_unattached(self):
+    async def test_file_stream_duckdb_end_to_end_unattached(self):
         app = buildflow.Flow()
 
         @buildflow.consumer(
@@ -143,22 +144,22 @@ class FileStreamLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         create_path = os.path.join(self.dir_to_watch, "file.txt")
         with open(create_path, "w") as f:
             f.write("hello")
 
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
         conn = duckdb.connect(database=database, read_only=True)
         got_data = conn.execute(f"SELECT count(*) FROM {self.table}").fetchone()
 
         self.assertEqual(got_data[0], 1)
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
-    def test_file_stream_duckdb_dependencies(self):
+    async def test_file_stream_duckdb_dependencies(self):
         app = buildflow.Flow()
 
         @dependency(scope=Scope.NO_SCOPE)
@@ -207,20 +208,20 @@ class FileStreamLocalTest(unittest.TestCase):
         run_coro = app.run(block=False)
 
         # wait for 20 seconds to let it spin up
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         create_path = os.path.join(self.dir_to_watch, "file.txt")
         with open(create_path, "w") as f:
             f.write("hello")
 
-        run_coro = self.run_for_time(run_coro, time=20)
+        run_coro = await self.run_for_time(run_coro, time=20)
 
         database = os.path.join(os.getcwd(), "buildflow_managed.duckdb")
         conn = duckdb.connect(database=database, read_only=True)
         got_data = conn.execute(f"SELECT * FROM {self.table}").fetchone()
 
         self.assertEqual(got_data[0], 10)
-        self.get_async_result(app._drain())
+        await self.run_with_timeout(app._drain())
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ class EndpointProcessorSnapshot(ProcessorGroupSnapshot):
         return {**parent_dict, **endpoint_dict}
 
 
-@ray.remote(num_cpus=0.1)
+@ray.remote
 class EndpointProcessorGroupPoolActor(ProcessorGroupReplicaPoolActor):
     def __init__(
         self,

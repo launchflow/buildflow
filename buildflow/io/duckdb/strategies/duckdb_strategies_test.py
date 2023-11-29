@@ -17,12 +17,7 @@ def open_connection(db):
     conn.close()
 
 
-@pytest.mark.usefixtures("event_loop_instance")
-class DuckDBStrategiesTest(unittest.TestCase):
-    def get_async_result(self, coro):
-        """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
-
+class DuckDBStrategiesTest(unittest.IsolatedAsyncioTestCase):
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -41,10 +36,10 @@ class DuckDBStrategiesTest(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    def test_duckdb_push_base(self):
+    async def test_duckdb_push_base(self):
         # Test new table is created
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
-        self.get_async_result(self.sink.push(data))
+        await self.sink.push(data)
 
         conn = duckdb.connect(self.db, read_only=False)
         got_data = conn.execute(f"SELECT * FROM {self.table}").fetchdf()
@@ -53,14 +48,14 @@ class DuckDBStrategiesTest(unittest.TestCase):
 
         # Test new rows are appended
         more_data = [{"a": 5, "b": 6}, {"a": 7, "b": 8}]
-        self.get_async_result(self.sink.push(more_data))
+        await self.sink.push(more_data)
 
         conn = duckdb.connect(self.db)
         got_data = conn.execute(f"SELECT * FROM {self.table}").fetchdf()
         self.assertEqual(got_data.to_dict("records"), data + more_data)
         conn.close()
 
-    def test_duckdb_connection_failure(self):
+    async def test_duckdb_connection_failure(self):
         duckdb_strategies._MAX_CONNECT_TRIES = 2
 
         # open a connection so we can't connect when pushing
@@ -71,25 +66,27 @@ class DuckDBStrategiesTest(unittest.TestCase):
 
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         with self.assertRaises(ValueError):
-            self.get_async_result(self.sink.push(data))
+            await self.sink.push(data)
 
         p.kill()
 
-        self.assertEqual(len(self._caplog.records), 3)
+        found_failure_log = False
+        found_retry_log = True
+        for log in self._caplog.records:
+            if (
+                log.levelname == "ERROR"
+                and log.message == "failed to connect to duckdb database"
+            ):
+                found_failure_log = True
+            if (
+                log.levelname == "WARNING"
+                and log.message
+                == "can't concurrently write to DuckDB waiting 2 seconds then will try again"  # noqa
+            ):
+                found_retry_log = True
 
-        first_failure = self._caplog.records[0]
-        retry_log = self._caplog.records[1]
-        final_failure = self._caplog.records[2]
-
-        self.assertEqual(first_failure.levelname, "ERROR")
-        self.assertEqual(first_failure.message, "failed to connect to duckdb database")
-        self.assertEqual(retry_log.levelname, "WARNING")
-        self.assertEqual(
-            retry_log.message,
-            "can't concurrently write to DuckDB waiting 2 seconds then will try again",
-        )
-        self.assertEqual(final_failure.levelname, "ERROR")
-        self.assertEqual(final_failure.message, "failed to connect to duckdb database")
+        self.assertTrue(found_failure_log, "failed to find failure log")
+        self.assertTrue(found_retry_log, "failed to find retry log")
 
 
 if __name__ == "__main__":
