@@ -1,6 +1,7 @@
 <div align="center">
 
-![BuildFlow Logo](docs/images/buildflow.png)
+<img src="https://raw.githubusercontent.com/launchflow/buildflow/main/docs/images/buildflow-light.png#gh-light-mode-only" alt="BuildFlow Logo">
+<img src="https://raw.githubusercontent.com/launchflow/buildflow/main/docs/images/buildflow-dark.png#gh-dark-mode-only" alt="BuildFlow Logo">
 
 <hr>
 
@@ -11,6 +12,14 @@
 [![Python version](https://badge.fury.io/py/buildflow.svg)](https://pypi.org/project/buildflow)
 [![codecov](https://codecov.io/gh/launchflow/buildflow/branch/main/graph/badge.svg?token=AO0TP8XG7X)](https://codecov.io/gh/launchflow/buildflow)
 [![Slack Icon](https://img.shields.io/badge/slack-@launchflowusers-brightgreen.svg?logo=slack)](https://join.slack.com/t/launchflowusers/shared_invite/zt-27wlowsza-Uiu~8hlCGkvPINjmMiaaMQ)
+
+</div>
+
+## 📑 Resources
+
+<div align="center">
+
+📖 [Docs](https://docs.launchflow.com/buildflow/introduction) &nbsp; | &nbsp; ⚡ [Quickstart](https://docs.launchflow.com/buildflow/quickstart) &nbsp; | &nbsp; 👋 [Slack](https://join.slack.com/t/launchflowusers/shared_invite/zt-27wlowsza-Uiu~8hlCGkvPINjmMiaaMQ) &nbsp; | &nbsp; 🌟 [Contribute](https://docs.launchflow.com/buildflow/developers/contribute) &nbsp; | &nbsp; 🚀 [Deployment](https://www.launchflow.com/) &nbsp;
 
 </div>
 
@@ -117,14 +126,6 @@ Installing Pulumi unlocks:
 - allows BuildFlow to manage resource creation and destruction
 - full access to Pulumi API / CLI
 - fine-grained control over Pulumi Stacks & Resources
-
-## 📑 Resources
-
-<div align="center">
-
-📖 [Docs](https://docs.launchflow.com/buildflow/introduction) &nbsp; | &nbsp; ⚡ [Quickstart](https://docs.launchflow.com/buildflow/quickstart) &nbsp; | &nbsp; 👋 [Slack](https://join.slack.com/t/launchflowusers/shared_invite/zt-27wlowsza-Uiu~8hlCGkvPINjmMiaaMQ) &nbsp; | &nbsp; 🌟 [Contribute](https://docs.launchflow.com/buildflow/developers/contribute) &nbsp; | &nbsp; 🚀 [Deployment](https://www.launchflow.com/) &nbsp;
-
-</div>
 
 ## 🩺 Code Health Checks
 
