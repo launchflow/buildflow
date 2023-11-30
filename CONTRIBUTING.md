@@ -1,1 +1,1 @@
-All instructions for contributing can be found here: https://www.buildflow.dev/docs/developers/contribute
+All instructions for contributing can be found here: https://docs.launchflow.com/buildflow/developers/contribute
