@@ -22,6 +22,7 @@ def launch_debug_app(
     runtime_server_port: int,
     serve_host: str,
     serve_port: int,
+    event_subscriber: Optional[Callable],
 ):
     sys.path.insert(0, "")
     imported = utils.import_from_string(app)
@@ -33,6 +34,7 @@ def launch_debug_app(
         debug_run=True,
         serve_host=serve_host,
         serve_port=serve_port,
+        event_subscriber=event_subscriber,
     )
 
 
