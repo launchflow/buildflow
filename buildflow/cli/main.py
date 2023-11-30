@@ -351,6 +351,7 @@ def inspect(
 
 _DEFAULT_REQUIREMENTS_TXT = """\
 buildflow
+python-dotenv
 """
 
 
