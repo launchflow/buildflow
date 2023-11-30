@@ -29,7 +29,7 @@
 
 ### Key Features
 
-#### Common Serving & Processing Patterns | 📖 [Docs](https://docs.launchflow.com/buildflow/introduction)
+#### Common Serving & Processing Patterns | 📖 [Docs](https://docs.launchflow.com/buildflow/concepts#processors)
 
 Turn any function into a component of your backend system.
 
@@ -51,7 +51,7 @@ def process(element: Dict[str, Any]):
     return element
 ```
 
-#### Infrastructure from Code | 📖 [Docs](https://docs.launchflow.com/buildflow/introduction)
+#### Infrastructure from Code | 📖 [Docs](https://docs.launchflow.com/buildflow/guides/manage-cloud-resources)
 
 Create and connect to cloud resources using python (powered by [Pulumi](https://github.com/pulumi/pulumi))
 
@@ -70,7 +70,7 @@ def process(event: YourSchema) -> OutputSchema:
     return OutputSchema(...)
 ```
 
-#### Dependency Injection | 📖 [Docs](https://docs.launchflow.com/buildflow/introduction)
+#### Dependency Injection | 📖 [Docs](https://docs.launchflow.com/buildflow/programming-guide/dependencies)
 
 Inject any dependency with full control over its setup and lifecycle
 
@@ -93,7 +93,7 @@ def hello(db: PostgresDep, custom_dep: MyStringDependency):
     return f"{custom_dep.my_string} {user.name}"
 ```
 
-#### Async Runtime | 📖 [Docs](https://docs.launchflow.com/buildflow/introduction)
+#### Async Runtime | 📖 [Docs](https://docs.launchflow.com/buildflow/programming-guide/processors#async-with-ray)
 
 Scale out parallel tasks across your cluster with [Ray](https://docs.ray.io/en/latest/index.html) or any other async framework.
 
