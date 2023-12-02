@@ -9,8 +9,11 @@ from buildflow.io.primitive import LocalPrimtive
 
 @dataclasses.dataclass
 class Empty(LocalPrimtive):
+    def __post_init__(self):
+        self._primitive_id = uuid()
+
     def primitive_id(self):
-        return uuid()
+        return self._primitive_id
 
     @classmethod
     def from_local_options(

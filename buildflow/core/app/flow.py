@@ -984,7 +984,7 @@ class Flow:
                     source = processor.__meta__["source"]
                     if source.primitive_id() not in primitive_states:
                         states = PrimitiveState.from_primitive(
-                            sink,
+                            source,
                             managed_primitives=managed_primitives,
                             visited_primitives=set(primitive_states.keys()),
                         )

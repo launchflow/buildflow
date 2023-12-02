@@ -13,8 +13,11 @@ class Pulse(LocalPrimtive):
     items: Iterable[Any]
     pulse_interval_seconds: float
 
+    def __post_init__(self):
+        self._primitive_id = uuid()
+
     def primitive_id(self):
-        return uuid()
+        return self._primitive_id
 
     @classmethod
     def from_local_options(
