@@ -23,9 +23,11 @@ class BuildFlowResource(pulumi.ComponentResource):
         self.primitive = primitive
         self.child_resources = primitive.pulumi_resources(credentials, opts=opts)
 
-        self.register_outputs(
-            {
-                "primitive_id": primitive.primitive_id(),
-                "primitive_type": type(primitive).__name__,
-            }
-        )
+        outputs = {
+            "primitive_id": self.primitive.primitive_id(),
+            "primitive_type": type(self.primitive).__name__,
+        }
+        cloud_console_url = self.primitive.cloud_console_url()
+        if cloud_console_url is not None:
+            outputs["cloud_console_url"] = cloud_console_url
+        self.register_outputs(outputs)
