@@ -164,7 +164,8 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         return self.batch_size
 
     def pull_converter(self, type_: Optional[Type]) -> Callable[[bytes], Any]:
-        if type_ is None:
+        if type_ is None or self.include_attributes:
+            # If include attributes is true, we always return a PubsubMessage
             return converters.identity()
         elif hasattr(type_, "from_bytes"):
             return lambda output: type_.from_bytes(output)
