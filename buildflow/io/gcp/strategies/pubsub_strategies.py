@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
 import logging
-from typing import Any, Callable, Dict, Iterable, Optional, Type, Union
+from typing import Any, Callable, Iterable, Optional, Type, Union
 
 from google.cloud.monitoring_v3 import query
 from google.cloud.pubsub_v1.types import PubsubMessage as GCPPubSubMessage
@@ -21,17 +21,12 @@ from buildflow.io.strategies.sink import Batch, SinkStrategy
 from buildflow.io.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.io.utils.clients import gcp_clients
 from buildflow.io.utils.schemas import converters
+from buildflow.types.gcp import PubsubMessage
 
 
 @dataclasses.dataclass(frozen=True)
 class _PubsubAckInfo(AckInfo):
     ack_ids: Iterable[str]
-
-
-@dataclasses.dataclass
-class PubsubMessage:
-    data: bytes
-    attributes: Dict[str, Any]
 
 
 def _timestamp_to_datetime(timestamp: Union[datetime.datetime, Timestamp]):
@@ -97,7 +92,10 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
                 attributes = received_message.message.attributes
                 for key, value in attributes.items():
                     att_dict[key] = value
-                payload = PubsubMessage(received_message.message.data, att_dict)
+
+                payload = PubsubMessage(
+                    received_message.message.data, att_dict, received_message.ack_id
+                )
             elif received_message.message.data:
                 payload = received_message.message.data
             else:

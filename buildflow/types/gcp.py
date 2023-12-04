@@ -1,5 +1,6 @@
 import dataclasses
 import enum
+from typing import Any, Dict
 
 from google.cloud import storage
 from pulumi_gcp.sql import (  # noqa
@@ -48,3 +49,10 @@ class CloudSQLDatabaseVersion:
     POSTGRES_13 = "POSTGRES_13"
     POSTGRES_14 = "POSTGRES_14"
     POSTGRES_15 = "POSTGRES_15"
+
+
+@dataclasses.dataclass
+class PubsubMessage:
+    data: bytes
+    attributes: Dict[str, Any]
+    ack_id: str
