@@ -174,15 +174,26 @@ def run(
 
 
 def zipdir(path: str, ziph: zipfile.ZipFile, excludes: List[str]):
+    # TODO: Move checks like this to a dedicated validation module
+    requirements_file_found = False
     # ziph is zipfile handle
     file_names = []
     matcher = pathspec.PathSpec.from_lines("gitwildmatch", excludes)
     for root, dirs, files in os.walk(path):
         for file in files:
+            if file == "requirements.txt":
+                requirements_file_found = True
             base_path = os.path.join(root, file)
             if matcher.match_file(base_path):
                 continue
             file_names.append(base_path)
+
+    if not requirements_file_found:
+        typer.echo(
+            "Build failed: requirements.txt not found.\n"
+            "Please add one to the root directory and try again."
+        )
+        raise typer.Exit(1)
 
     for file in file_names:
         ziph.write(
