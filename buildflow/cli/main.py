@@ -84,11 +84,11 @@ def run_flow(
                 event_subscriber=event_subscriber,
             )
     else:
-        typer.echo(f"{app} is not a buildflow flow.")
+        typer.echo(f"{app} is not a buildflow.Flow object.")
         raise typer.Exit(1)
 
 
-@app.command(help="Run a buildflow flow.")
+@app.command(help="Run a buildflow application.")
 def run(
     serve_host: str = typer.Option(
         "127.0.0.1", help="The host to use for serving endpoints and collectors."
@@ -203,10 +203,10 @@ def zipdir(path: str, ziph: zipfile.ZipFile, excludes: List[str]):
 
 
 _BASE_EXCLUDE = [".buildflow", "__pycache__", "build", ".git", ".gitignore"]
-_BUILD_PATH_HELP = "Output director to store the build in, defaults to ./.buildflow/build/build.flow"  # noqa
+_BUILD_PATH_HELP = "Output directory to store the build in, defaults to ./.buildflow/build/build.flow"  # noqa
 
 
-@app.command(help="Build a buildflow flow.")
+@app.command(help="Build a buildflow application.")
 def build(
     build_path: str = typer.Option("", help=_BUILD_PATH_HELP),
     ignores: List[str] = typer.Option(
@@ -247,7 +247,7 @@ def build(
         typer.Exit(1)
 
 
-@app.command(help="Refresh all resources used by a buildflow flow")
+@app.command(help="Refresh all resources used by a buildflow application")
 def refresh():
     buildflow_config = BuildFlowConfig.load()
     sys.path.insert(0, "")
@@ -260,7 +260,7 @@ def refresh():
         typer.Exit(1)
 
 
-@app.command(help="Output all resources used by a buildflow flow")
+@app.command(help="Output all resources used by a buildflow application")
 def preview():
     with Progress(
         SpinnerColumn(),
@@ -280,7 +280,7 @@ def preview():
             typer.Exit(1)
 
 
-@app.command(help="Apply all resources used by a buildflow flow")
+@app.command(help="Apply all resources used by a buildflow application")
 def apply():
     with Progress(
         SpinnerColumn(),
@@ -301,7 +301,7 @@ def apply():
             typer.Exit(1)
 
 
-@app.command(help="Destroy all resources used by a buildflow flow ")
+@app.command(help="Destroy all resources used by a buildflow application ")
 def destroy():
     with Progress(
         SpinnerColumn(),
@@ -332,7 +332,7 @@ class InspectFlowState:
         print(json.dumps(asdict(self)))
 
 
-@app.command(help="Inspect the Pulumi Stack state of a buildflow flow")
+@app.command(help="Inspect the Pulumi Stack state of a buildflow application")
 def inspect(
     as_json: bool = typer.Option(False, help="Whether to print the output as json"),
 ):
