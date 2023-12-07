@@ -81,12 +81,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
 
         payloads = []
         ack_ids = []
-        msg_ids = set()
         for received_message in response.received_messages:
-            if received_message.message.message_id in msg_ids:
-                continue
-            else:
-                msg_ids.add(received_message.message.message_id)
             if self.include_attributes:
                 att_dict = {}
                 attributes = received_message.message.attributes
