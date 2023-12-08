@@ -133,7 +133,7 @@ We use [black](https://github.com/psf/black) and [ruff](https://github.com/charl
 To setup these locally:
 
 - Clone the repo
-- Install the `dev` dependencies like `python -m pip install .[dev]
+- Install the `dev` dependencies like `python -m pip install -e .[dev]`
 - Check if pre-commit is installed correctly by running `pre-commit --version`
 - Setup pre-commit to run before every commit on staged changes by running `pre-commit install`
 - Pre-commit can also be ran manually as `pre-commit run --all-files`
