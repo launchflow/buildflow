@@ -2,9 +2,10 @@
 requires = ["setuptools>=64.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+
 [project]
 name = "buildflow"
-version = "0.2.2"
+version = "0.3.0"
 authors = [
     { name = "Caleb Van Dyke", email = "caleb@launchflow.com" },
     { name = "Josh Tanke", email = "josh@launchflow.com" },
@@ -13,12 +14,16 @@ description = "BuildFlow, is an open source framework for building large scale s
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
+    "asyncpg",
     "black",
     # TODO: split up AWS and GCP dependencies.
     "boto3",
+    "cloud-sql-python-connector",
     "dacite",
     "duckdb",
+    "clickhouse-connect",
     "gcsfs",
+    "google-api-python-client",
     "google-auth",
     "google-cloud-bigquery",
     "google-cloud-bigquery-storage",
@@ -26,12 +31,17 @@ dependencies = [
     "google-cloud-pubsub",
     "google-cloud-storage",
     "grpcio>=1.56.0",
+    "itsdangerous",
     "fastparquet",
     "opentelemetry-api",
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp",
     "opentelemetry-exporter-jaeger",
+    "pathspec",
+    # Duckdb doesn't work with this version.
+    # We can remove this once duckdb has released version 0.8.2
     "pandas",
+    "pg8000",
     "pulumi==3.35.3",
     "pulumi_aws",
     "pulumi_gcp",
@@ -40,14 +50,15 @@ dependencies = [
     "pydantic<2.0.2",
     # Avoid issue with cython 3.0.0 and pyyaml:
     #   https://github.com/yaml/pyyaml/issues/724
-    "pyyaml!=5.4.1,!=5.4.0,!=6.0.0",
+    "pyyaml<5.4.0,<6.0.0",
     "s3fs",
+    "sqlalchemy[asyncio]",
     "snowflake-ingest",
     "ray[default]>=2.4.0",
     "ray[serve]>=2.4.0",
-    "typer",
+    "typer[all]",
     "redis",
-    "watchdog",
+    "watchfiles",
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -68,6 +79,7 @@ dev = [
     "ruff",
     "pre-commit",
     "setuptools",
+    "websockets",
     "wheel",
 ]
 
@@ -100,3 +112,11 @@ omit = [
 
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+markers = [
+    "ray: marks tests as slow because it will spin up ray (deselect with '-m \"not ray\"')",
+]
+
+[tool.setuptools]
+include-package-data = true

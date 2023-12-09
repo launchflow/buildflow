@@ -4,16 +4,15 @@ export INPUT_QUEUE=input-$RANDOM
 export OUTPUT_QUEUE=output-$RANDOM
 
 cd release_tests/sqs_to_sqs
-
+mkdir -p .buildflow/_pulumi/local
 ray start --head --num-cpus=2
 
-buildflow init --directory=. --default-cloud-provider=aws
-buildflow plan main:app || {
-    echo 'plan failed'
+buildflow preview || {
+    echo 'preview failed'
     exit 1
 }
 
-buildflow apply main:app || {
+buildflow apply || {
     echo 'apply failed'
     exit 1
 }
@@ -21,7 +20,7 @@ buildflow apply main:app || {
 input_queue_url=$(aws sqs get-queue-url --region=us-east-1 --queue-name $INPUT_QUEUE --output text --query "QueueUrl")
 output_queue_url=$(aws sqs get-queue-url --region=us-east-1 --queue-name $OUTPUT_QUEUE --output text --query "QueueUrl")
 
-buildflow run main:app &
+buildflow run &
 main_pid=$!
 
 sleep 20
@@ -36,7 +35,7 @@ final_code=$?
 num_input_messages=$(aws sqs get-queue-attributes --queue-url $input_queue_url --region=us-east-1 --attribute-names=ApproximateNumberOfMessages --output text --query "Attributes.ApproximateNumberOfMessages")
 num_output_messages=$(aws sqs get-queue-attributes --queue-url $output_queue_url --region=us-east-1 --attribute-names=ApproximateNumberOfMessages --output text --query "Attributes.ApproximateNumberOfMessages")
 
-buildflow destroy main:app || {
+buildflow destroy || {
     echo 'destroy failed'
     exit 1
 }

@@ -1,15 +1,17 @@
 import dataclasses
 import datetime
 import enum
+import json
 import logging
+import os
 import re
-from typing import Any, Dict, Iterable, Optional
+import tempfile
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from pulumi import automation as auto
 
-from buildflow.config.pulumi_config import PulumiConfig
+from buildflow.config.pulumi_config import PulumiConfig, PulumiStack
 from buildflow.core.options.infra_options import PulumiOptions
-from buildflow.core.processor.processor import ProcessorAPI
 
 
 # TODO: This only works when its the only error in the logs. Need to update the regex
@@ -76,6 +78,7 @@ class WrappedRefreshResult:
 @dataclasses.dataclass
 class WrappedPreviewResult:
     preview_result: auto.PreviewResult
+    plan_result: Dict[str, Any]
 
     def __post_init__(self):
         self.preview_result.stderr = _clean_stderr(self.preview_result.stderr)
@@ -87,23 +90,6 @@ class WrappedPreviewResult:
         logging.debug(self.preview_result.change_summary)
 
     def print_change_summary(self):
-        # num_to_create = self.preview_result.change_summary.get("create", 0)
-        # resource_outputs = extract_outputs_from_stdout(self.preview_result.stdout)
-        # resource_outputs_str = "\n".join(
-        #     [
-        #         f"    {output_key}:{output_value}"
-        #         for output_key, output_value in resource_outputs.items()
-        #     ]
-        # )
-        # lines = [
-        #     "-" * 80,
-        #     f"Number of Resources to create: {num_to_create}",
-        #     "",
-        #     "Resource Outputs:",
-        #     resource_outputs_str,
-        #     "-" * 80,
-        # ]
-        # print("\n".join(lines))
         print(self.preview_result.stdout)
 
 
@@ -184,12 +170,12 @@ class WrappedStackState:
         else:
             return datetime.datetime.now()
 
-    def resources(self) -> Iterable[ResourceState]:
+    def resources(self) -> Dict[str, ResourceState]:
         if self._deployment is None:
             return []
         else:
-            return [
-                ResourceState(
+            return {
+                resource["urn"]: ResourceState(
                     resource_urn=resource["urn"],
                     resource_type=resource["type"],
                     resource_id=resource.get("id"),
@@ -201,7 +187,7 @@ class WrappedStackState:
                     dependencies=resource.get("dependencies", []),
                 )
                 for resource in self._deployment.deployment.get("resources", [])
-            ]
+            }
 
     # NOTE: We only wrap this so we can have an interface between the Pulumi type
     # (in case they change their API)
@@ -248,24 +234,29 @@ class PulumiWorkspace:
     def __init__(
         self, pulumi_options: PulumiOptions, pulumi_config: PulumiConfig
     ) -> None:
+        # NOTE: PulumiOptions.select_stack is None by default, so we use the
+        # default_stack set in the buildflow.yaml when unset.
+        active_stack = pulumi_options.selected_stack or pulumi_config.default_stack
         # configuration
         self.options = pulumi_options
         self.config = pulumi_config
+        self.workspace_id = self.config.workspace_id(active_stack)
+        self.stack: PulumiStack = self.config.get_stack(active_stack)
         # initial state
         self._pulumi_program_cache = {}
 
     def get_stack_state(self) -> WrappedStackState:
         try:
             stack = auto.select_stack(
-                stack_name=self.config.stack_name,
+                stack_name=self.stack.name,
                 project_name=self.config.project_name,
                 program=None,
-                work_dir=self.config.pulumi_home,
-                opts=self.config.workspace_options(),
+                work_dir=self.config.full_pulumi_home,
+                opts=self.config.workspace_options(self.stack.name),
             )
             return WrappedStackState(
                 project_name=self.config.project_name,
-                stack_name=self.config.stack_name,
+                stack_name=self.stack.name,
                 _deployment=stack.export_stack(),
                 _update_summary=stack.info(),
                 _output_map=stack.outputs(),
@@ -273,66 +264,58 @@ class PulumiWorkspace:
         except auto.StackNotFoundError:
             return WrappedStackState(
                 project_name=self.config.project_name,
-                stack_name=self.config.stack_name,
+                stack_name=self.stack.name,
                 _deployment=None,
                 _update_summary=None,
                 _output_map={},
             )
 
-    async def refresh(
-        self, *, processors: Iterable[ProcessorAPI]
-    ) -> WrappedRefreshResult:
-        logging.debug(f"Pulumi Refresh: {self.config.workspace_id}")
-        stack = self._create_or_select_stack(processors)
+    async def refresh(self, *, pulumi_program: Callable) -> WrappedRefreshResult:
+        logging.debug(f"Pulumi Refresh: {self.workspace_id}")
+        stack = self._create_or_select_stack(pulumi_program)
         return WrappedRefreshResult(refresh_result=stack.refresh())
 
-    async def preview(
-        self, *, processors: Iterable[ProcessorAPI]
-    ) -> WrappedPreviewResult:
-        logging.debug(f"Pulumi Preview: {self.config.workspace_id}")
-        stack = self._create_or_select_stack(processors)
-        return WrappedPreviewResult(preview_result=stack.preview())
+    async def preview(self, *, pulumi_program: Callable) -> WrappedPreviewResult:
+        logging.debug(f"Pulumi Preview: {self.workspace_id}")
+        stack = self._create_or_select_stack(pulumi_program)
 
-    async def up(self, *, processors: Iterable[ProcessorAPI]) -> WrappedUpResult:
-        logging.debug(f"Pulumi Up: {self.config.workspace_id}")
-        stack = self._create_or_select_stack(processors)
+        plan_path = os.path.join(tempfile.gettempdir(), "buildflow-pulumi-plan.json")
+        preview_result = stack.preview(plan=plan_path)
+
+        with open(plan_path, "r") as plan_file:
+            plan_result = json.load(plan_file)
+
+        return WrappedPreviewResult(
+            preview_result=preview_result,
+            plan_result=plan_result,
+        )
+
+    async def up(self, *, pulumi_program: Callable) -> WrappedUpResult:
+        logging.debug(f"Pulumi Up: {self.workspace_id}")
+        stack = self._create_or_select_stack(pulumi_program)
         return WrappedUpResult(up_result=stack.up())
 
-    async def outputs(self, *, processors: Iterable[ProcessorAPI]) -> WrappedOutputMap:
-        logging.debug(f"Pulumi Outputs: {self.config.workspace_id}")
-        stack = self._create_or_select_stack(processors)
+    async def outputs(self, *, pulumi_program: Callable) -> WrappedOutputMap:
+        logging.debug(f"Pulumi Outputs: {self.workspace_id}")
+        stack = self._create_or_select_stack(pulumi_program)
         return WrappedOutputMap(output_map=stack.outputs())
 
-    async def destroy(
-        self, *, processors: Iterable[ProcessorAPI]
-    ) -> WrappedDestroyResult:
-        logging.debug(f"Pulumi Destroy: {self.config.workspace_id}")  # noqa: E501
-        stack = self._create_or_select_stack(processors)
+    async def destroy(self, *, pulumi_program: Callable) -> WrappedDestroyResult:
+        logging.debug(f"Pulumi Destroy: {self.workspace_id}")  # noqa: E501
+        stack = self._create_or_select_stack(pulumi_program)
         return WrappedDestroyResult(destroy_result=stack.destroy())
 
-    def _create_pulumi_program(self, processors: Iterable[ProcessorAPI]):
-        def pulumi_program():
-            for processor in processors:
-                # NOTE: All we need to do is run this method because any Pulumi
-                # resources will be instantiated when called. Any Pulumi resources
-                # created in the scope of the pulumi_program function will be included
-                # in the Pulumi program / stack.
-                processor.pulumi_program()
-
-        return pulumi_program
-
-    def _create_or_select_stack(self, processors: Iterable[ProcessorAPI]):
-        if self.config.workspace_id not in self._pulumi_program_cache:
-            pulumi_program = self._create_pulumi_program(processors)
-            self._pulumi_program_cache[self.config.workspace_id] = pulumi_program
+    def _create_or_select_stack(self, pulumi_program: Callable):
+        if self.workspace_id not in self._pulumi_program_cache:
+            self._pulumi_program_cache[self.workspace_id] = pulumi_program
         else:
-            pulumi_program = self._pulumi_program_cache[self.config.workspace_id]
+            pulumi_program = self._pulumi_program_cache[self.workspace_id]
 
         stack = auto.create_or_select_stack(
-            stack_name=self.config.stack_name,
+            stack_name=self.stack.name,
             project_name=self.config.project_name,
             program=pulumi_program,
-            opts=self.config.workspace_options(),
+            opts=self.config.workspace_options(self.stack.name),
         )
 
         if self.options.refresh_state:

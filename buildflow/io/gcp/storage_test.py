@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 import pulumi
 import pulumi_gcp
-import pytest
 
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.io.gcp.storage import GCSBucket
@@ -29,30 +28,22 @@ pulumi.runtime.set_mocks(
 
 
 # TODO: Add tests for Sink methods. Can reference bigquery_test.py for an example.
-@pytest.mark.usefixtures("event_loop_instance")
 class GCSTest(unittest.TestCase):
-    def get_async_result(self, coro):
-        """Run a coroutine synchronously."""
-        return self.event_loop.run_until_complete(coro)
-
     @pulumi.runtime.test
     def test_gcs_bucket_pulumi_base(self):
         gcs_bucket = GCSBucket(
             project_id="project_id",
             bucket_name="bucket_name",
-        ).options(managed=True, bucket_region="US")
+        ).options(bucket_region="US")
+        gcs_bucket.enable_managed()
 
-        bucket_resource = gcs_bucket.pulumi_provider().pulumi_resource(
-            type_=None,
-            credentials=EmptyCredentials(None),
+        bucket_resources = gcs_bucket.pulumi_resources(
+            credentials=EmptyCredentials(),
             opts=pulumi.ResourceOptions(),
         )
 
-        self.assertIsNotNone(bucket_resource)
-
-        child_resources = bucket_resource._childResources
-        self.assertEqual(len(child_resources), 1)
-        self.assertIsInstance(list(child_resources)[0], pulumi_gcp.storage.Bucket)
+        self.assertEqual(len(bucket_resources), 1)
+        self.assertIsInstance(bucket_resources[0], pulumi_gcp.storage.Bucket)
 
 
 if __name__ == "__main__":

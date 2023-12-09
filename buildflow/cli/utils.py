@@ -1,5 +1,7 @@
 import ast
+import builtins
 import importlib
+import sys
 from typing import Any
 
 
@@ -21,7 +23,8 @@ def import_from_string(import_str: str) -> Any:
             import_str = f"{filename[:-3]}:{varname}"
         else:
             raise ValueError(f"Could not find Flow object in {filename}")
-
+    if hasattr(builtins, import_str):
+        return getattr(builtins, import_str)
     module_str, _, attrs_str = import_str.partition(":")
     if not module_str or not attrs_str:
         message = (
@@ -30,7 +33,7 @@ def import_from_string(import_str: str) -> Any:
         raise ValueError(message.format(import_str=import_str))
 
     try:
-        module = importlib.import_module(module_str, ".")
+        module = importlib.import_module(module_str)
     except ImportError as exc:
         if exc.name != module_str:
             raise exc from None
@@ -44,5 +47,8 @@ def import_from_string(import_str: str) -> Any:
     except AttributeError:
         message = 'Attribute "{attrs_str}" not found in module "{module_str}".'
         raise ValueError(message.format(attrs_str=attrs_str, module_str=module_str))
+
+    # Clear cache to allow reloading of module
+    del sys.modules[module_str]
 
     return instance

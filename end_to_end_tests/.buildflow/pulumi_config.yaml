@@ -1,5 +1,0 @@
-stack_name: buildflow-stack
-project_name: buildflow-project
-passphrase: buildflow-is-awesome
-backend_url: file:///home/caleb/code/backend/caleb-bf-fork/end_to_end_tests/.buildflow/_pulumi
-pulumi_home: /home/caleb/code/backend/caleb-bf-fork/end_to_end_tests/.buildflow/_pulumi

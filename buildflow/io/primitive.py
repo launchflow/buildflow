@@ -1,6 +1,8 @@
-import copy
 import enum
-from typing import Generic, Optional, final
+from typing import Any, Callable, Dict, List, Optional, Type
+
+import pulumi
+from starlette.requests import Request
 
 from buildflow.config.cloud_provider_config import (
     AWSOptions,
@@ -9,8 +11,12 @@ from buildflow.config.cloud_provider_config import (
     GCPOptions,
     LocalOptions,
 )
-from buildflow.io.provider import BTT, PPT, SIT, SOT
+from buildflow.core.background_tasks.background_task import BackgroundTask
+from buildflow.core.credentials import CredentialType
+from buildflow.dependencies.base import NoScoped
 from buildflow.io.strategies._strategy import StategyType
+from buildflow.io.strategies.sink import SinkStrategy
+from buildflow.io.strategies.source import SourceStrategy
 
 
 class PrimitiveType(enum.Enum):
@@ -23,54 +29,90 @@ class PrimitiveType(enum.Enum):
     AGNOSTIC = "agnostic"
 
 
-class Primitive(Generic[PPT, SOT, SIT, BTT]):
+class Primitive:
     primitive_type: PrimitiveType
     _managed: bool = False
 
+    def primitive_id(self):
+        raise NotImplementedError(
+            f"Primitive.primitive_id() is not implemented for type: {type(self)}."
+        )
+
     def enable_managed(self):
-        """Enable managed mode."""
         self._managed = True
 
-    def options(self, managed: bool = False) -> "Primitive":
-        """Return a copy of this primitive with the managed flag set."""
-        to_ret = copy.deepcopy(self)
-        to_ret._managed = managed
-        return to_ret
+    def options(self) -> "Primitive":
+        return self
 
-    @final
-    def pulumi_provider(self) -> Optional[PPT]:
-        if self._managed:
-            return self._pulumi_provider()
+    def pulumi_resources_if_managed(
+        self,
+        credentials: CredentialType,
+        opts: pulumi.ResourceOptions,
+    ):
+        if not self._managed:
+            return None
+        return self.pulumi_resources(credentials, opts)
+
+    def pulumi_resources(
+        self,
+        credentials: CredentialType,
+        opts: pulumi.ResourceOptions,
+    ) -> List[pulumi.Resource]:
+        raise NotImplementedError(
+            f"Primitive.pulumi_resources() is not implemented for type: {type(self)}."
+        )
+
+    def source(self, credentials: CredentialType) -> SourceStrategy:
+        raise NotImplementedError(
+            f"Primitive.source() is not implemented for type: {type(self)}."
+        )
+
+    def sink(self, credentials: CredentialType) -> SinkStrategy:
+        raise NotImplementedError(
+            f"Primitive.sink() is not implemented for type: {type(self)}."
+        )
+
+    def background_tasks(self, credentials: CredentialType) -> List[BackgroundTask]:
+        return []
+
+    def dependency(self) -> "PrimitiveDependency":
+        """Returns a dependency allowing the primitive to be injected as a dependency.
+
+        For example:
+
+        prim = Primitive(...)
+        PrimDep = prim.dependency()
+
+        @dependency(scope=Scope.PROCESS)
+        class MyDep:
+        def __init__(self, injected_primitive: PrimDep):
+            self.prim_field = injected_primitive.field_on_primitive
+        """
+        return PrimitiveDependency(self)
+
+    def cloud_console_url(self) -> Optional[str]:
+        """Returns a URL to the cloud console for this primitive."""
         return None
 
-    # NOTE: This is the method that users should implement for custom providers.
-    def _pulumi_provider(self) -> PPT:
-        """Return a pulumi provider for this primitive."""
-        raise NotImplementedError(
-            f"Primitive._pulumi_provider() is not implemented for type: {type(self)}."
-        )
 
-    def source_provider(self) -> SOT:
-        """Return a source provider for this primitive."""
-        raise NotImplementedError(
-            f"Primitive.source_provider() is not implemented for type: {type(self)}."
-        )
+# Dependency that wraps the primitive that allows the primitive to be injected as a
+# dependency.
+class PrimitiveDependency(NoScoped):
+    def __init__(self, primitive: Primitive):
+        super().__init__(lambda: primitive)
+        self.primitive = primitive
 
-    def sink_provider(self) -> SIT:
-        """Return a sink provider for this primitive."""
-        raise NotImplementedError(
-            f"Primitive.sink_provider() is not implemented for type: {type(self)}."
-        )
-
-    def background_task_provider(self) -> Optional[BTT]:
-        """Return a background task provider for this primitive."""
-        return None
+    async def resolve(
+        self,
+        flow_dependencies: Dict[Type, Any],
+        visited_dependencies: Dict[Callable, Any],
+        request: Optional[Request] = None,
+    ):
+        return self.primitive
 
 
 class PortablePrimtive(Primitive):
     primitive_type = PrimitiveType.PORTABLE
-    # Portable primitives are always managed.
-    _managed: bool = True
 
     def to_cloud_primitive(
         self, cloud_provider_config: CloudProviderConfig, strategy_type: StategyType
@@ -80,22 +122,8 @@ class PortablePrimtive(Primitive):
             "PortablePrimtive.to_cloud_primitive() is not implemented."
         )
 
-    # Override the super class options method since it doesn't make sense to non-manage
-    # a portable primitive.
-    def options(self) -> Primitive:
-        return copy.deepcopy(self)
 
-
-class CompositePrimitive(Primitive):
-    # Composite primitives are always managed.
-    # They defer to their underlying primitives on what should actually be managed.
-    _managed: bool = True
-
-    def options(self) -> "Primitive":
-        return copy.deepcopy(self)
-
-
-class GCPPrimtive(Primitive[PPT, SOT, SIT, BTT]):
+class GCPPrimtive(Primitive):
     # TODO: We need to check the infra State to warn the user if the infra has not been
     # created yet.
     primitive_type = PrimitiveType.GCP
@@ -106,7 +134,7 @@ class GCPPrimtive(Primitive[PPT, SOT, SIT, BTT]):
         raise NotImplementedError("GCPPrimtive.from_gcp_options() is not implemented.")
 
 
-class AWSPrimtive(Primitive[PPT, SOT, SIT, BTT]):
+class AWSPrimtive(Primitive):
     primitive_type = PrimitiveType.AWS
 
     @classmethod
@@ -115,7 +143,7 @@ class AWSPrimtive(Primitive[PPT, SOT, SIT, BTT]):
         raise NotImplementedError("AWSPrimtive.from_aws_options() is not implemented.")
 
 
-class AzurePrimtive(Primitive[PPT, SOT, SIT, BTT]):
+class AzurePrimtive(Primitive):
     primitive_type = PrimitiveType.AZURE
 
     @classmethod
@@ -126,10 +154,8 @@ class AzurePrimtive(Primitive[PPT, SOT, SIT, BTT]):
         )
 
 
-class LocalPrimtive(Primitive[PPT, SOT, SIT, BTT]):
+class LocalPrimtive(Primitive):
     primitive_type = PrimitiveType.LOCAL
-    # LocalPrimitives are never managed.
-    managed: bool = False
 
     @classmethod
     def from_local_options(cls, local_options: LocalOptions) -> "LocalPrimtive":
@@ -137,8 +163,3 @@ class LocalPrimtive(Primitive[PPT, SOT, SIT, BTT]):
         raise NotImplementedError(
             "LocalPrimtive.from_local_options() is not implemented."
         )
-
-    # Composite primitives are always managed.
-    # They defer to their underlying primitives on what should actually be managed.
-    def options(self) -> "Primitive":
-        return copy.deepcopy(self)

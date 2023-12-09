@@ -1,31 +1,25 @@
 import dataclasses
-from typing import Optional
+from typing import List, Optional
+
+import pulumi
+import pulumi_gcp
 
 from buildflow.config.cloud_provider_config import GCPOptions
 from buildflow.core import utils
+from buildflow.core.credentials.gcp_credentials import GCPCredentials
 from buildflow.core.types.gcp_types import GCPProjectID, GCPRegion, GCSBucketName
 from buildflow.core.types.portable_types import BucketName
 from buildflow.core.types.shared_types import FilePath
-from buildflow.io.gcp.providers.storage import GCSBucketProvider
+from buildflow.io.gcp.strategies.storage_strategies import GCSBucketSink
 from buildflow.io.primitive import GCPPrimtive
+from buildflow.io.strategies.sink import SinkStrategy
 from buildflow.types.portable import FileFormat
 
 _DEFAULT_BUCKET_LOCATION = "US"
 
 
 @dataclasses.dataclass
-class GCSBucket(
-    GCPPrimtive[
-        # Pulumi provider type
-        GCSBucketProvider,
-        # Source provider type
-        None,
-        # Sink provider type
-        GCSBucketProvider,
-        # Background task provider type
-        None,
-    ]
-):
+class GCSBucket(GCPPrimtive):
     project_id: GCPProjectID
     bucket_name: GCSBucketName
 
@@ -69,41 +63,59 @@ class GCSBucket(
         project_hash = utils.stable_hash(project_id)
         if bucket_name is None:
             bucket_name = f"buildflow_{project_hash[:8]}"
+        bucket = cls(
+            project_id=project_id,
+            bucket_name=bucket_name,
+            file_path=file_path,
+            file_format=file_format,
+        ).options(bucket_region=region)
+        bucket.enable_managed()
         return cls(
             project_id=project_id,
             bucket_name=bucket_name,
             file_path=file_path,
             file_format=file_format,
-        ).options(managed=True, bucket_region=region)
+        ).options(bucket_region=region)
 
     def options(
         self,
         *,
-        managed: bool = False,
         force_destroy: bool = False,
         bucket_region: GCPRegion = _DEFAULT_BUCKET_LOCATION,
     ) -> "GCSBucket":
-        to_ret = super().options(managed)
-        to_ret.force_destroy = force_destroy
-        to_ret.bucket_region = bucket_region
-        return to_ret
+        self.force_destroy = force_destroy
+        self.bucket_region = bucket_region
+        return self
 
-    def sink_provider(self):
-        return GCSBucketProvider(
+    def sink(self, credentials: GCPCredentials) -> SinkStrategy:
+        return GCSBucketSink(
+            credentials=credentials,
             project_id=self.project_id,
             bucket_name=self.bucket_name,
-            bucket_region=self.bucket_region,
-            force_destroy=self.force_destroy,
             file_path=self.file_path,
             file_format=self.file_format,
         )
 
-    def _pulumi_provider(self):
-        return GCSBucketProvider(
-            project_id=self.project_id,
-            bucket_name=self.bucket_name,
-            bucket_region=self.bucket_region,
-            force_destroy=self.force_destroy,
-            file_path=self.file_path,
-            file_format=self.file_format,
+    def primitive_id(self):
+        return self.bucket_url
+
+    def pulumi_resources(
+        self, credentials: GCPCredentials, opts: pulumi.ResourceOptions
+    ) -> List[pulumi.Resource]:
+        opts = pulumi.ResourceOptions.merge(
+            opts,
+            pulumi.ResourceOptions(custom_timeouts=pulumi.CustomTimeouts(create="3m")),
         )
+        return [
+            pulumi_gcp.storage.Bucket(
+                resource_name=self.bucket_name,
+                name=self.bucket_name,
+                location=self.bucket_region,
+                project=self.project_id,
+                force_destroy=self.force_destroy,
+                opts=opts,
+            )
+        ]
+
+    def cloud_console_url(self) -> str:
+        return f"https://console.cloud.google.com/storage/browser/{self.bucket_name}?project={self.project_id}"

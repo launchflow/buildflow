@@ -2,25 +2,17 @@ import dataclasses
 import os
 
 from buildflow.config.cloud_provider_config import LocalOptions
+from buildflow.core.credentials.empty_credentials import EmptyCredentials
 from buildflow.core.types.shared_types import FilePath
-from buildflow.io.local.providers.file_providers import FileProvider
+from buildflow.core.utils import uuid
+from buildflow.io.local.strategies.file_strategies import FileSink
 from buildflow.io.primitive import LocalPrimtive
+from buildflow.io.strategies.sink import SinkStrategy
 from buildflow.types.portable import FileFormat
 
 
 @dataclasses.dataclass
-class File(
-    LocalPrimtive[
-        # Pulumi provider type
-        None,
-        # Source provider type
-        None,
-        # Sink provider type
-        FileProvider,
-        # Background task provider type
-        None,
-    ]
-):
+class File(LocalPrimtive):
     file_path: FilePath
     file_format: FileFormat
 
@@ -29,6 +21,11 @@ class File(
             self.file_path = os.path.join(os.getcwd(), self.file_path)
         if isinstance(self.file_format, str):
             self.file_format = FileFormat(self.file_format)
+
+        self._primitive_id = uuid()
+
+    def primitive_id(self):
+        return self._primitive_id
 
     @classmethod
     def from_local_options(
@@ -43,10 +40,9 @@ class File(
             file_format=file_format,
         )
 
-    def sink_provider(
-        self,
-    ) -> FileProvider:
-        return FileProvider(
+    def sink(self, credentials: EmptyCredentials) -> SinkStrategy:
+        return FileSink(
             file_path=self.file_path,
             file_format=self.file_format,
+            credentials=credentials,
         )

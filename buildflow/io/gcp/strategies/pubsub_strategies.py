@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
 import logging
-from typing import Any, Callable, Dict, Iterable, Optional, Type, Union
+from typing import Any, Callable, Iterable, Optional, Type, Union
 
 from google.cloud.monitoring_v3 import query
 from google.cloud.pubsub_v1.types import PubsubMessage as GCPPubSubMessage
@@ -21,17 +21,12 @@ from buildflow.io.strategies.sink import Batch, SinkStrategy
 from buildflow.io.strategies.source import AckInfo, PullResponse, SourceStrategy
 from buildflow.io.utils.clients import gcp_clients
 from buildflow.io.utils.schemas import converters
+from buildflow.types.gcp import PubsubMessage
 
 
 @dataclasses.dataclass(frozen=True)
 class _PubsubAckInfo(AckInfo):
     ack_ids: Iterable[str]
-
-
-@dataclasses.dataclass(frozen=True)
-class PubsubMessage:
-    data: bytes
-    attributes: Dict[str, Any]
 
 
 def _timestamp_to_datetime(timestamp: Union[datetime.datetime, Timestamp]):
@@ -79,7 +74,6 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
             response = await self.subscriber_client.pull(
                 subscription=self.subscription_id,
                 max_messages=self.batch_size,
-                return_immediately=True,
             )
         except Exception as e:
             logging.error("pubsub pull failed with: %s", e)
@@ -88,15 +82,23 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         payloads = []
         ack_ids = []
         for received_message in response.received_messages:
-            if received_message.message.data:
-                payload = received_message.message.data
             if self.include_attributes:
                 att_dict = {}
                 attributes = received_message.message.attributes
                 for key, value in attributes.items():
                     att_dict[key] = value
-                payload = PubsubMessage(received_message.message.data, att_dict)
 
+                payload = PubsubMessage(
+                    received_message.message.data, att_dict, received_message.ack_id
+                )
+            elif received_message.message.data:
+                payload = received_message.message.data
+            else:
+                logging.error(
+                    "Received empty message from pubsub"
+                    "did you mean to set include attributes?"
+                )
+                payload = None
             payloads.append(payload)
             ack_ids.append(received_message.ack_id)
 
@@ -140,7 +142,7 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
             if last_timeseries is None:
                 return -1
         except Exception:
-            logging.error(
+            logging.exception(
                 "Failed to get backlog for subscription %s please ensure your "
                 "user has: roles/monitoring.viewer to read the backlog, "
                 "no autoscaling will happen.",
@@ -157,7 +159,8 @@ class GCPPubSubSubscriptionSource(SourceStrategy):
         return self.batch_size
 
     def pull_converter(self, type_: Optional[Type]) -> Callable[[bytes], Any]:
-        if type_ is None:
+        if type_ is None or self.include_attributes:
+            # If include attributes is true, we always return a PubsubMessage
             return converters.identity()
         elif hasattr(type_, "from_bytes"):
             return lambda output: type_.from_bytes(output)

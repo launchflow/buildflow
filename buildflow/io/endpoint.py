@@ -5,6 +5,7 @@ from enum import Enum
 class Method(Enum):
     GET = "GET"
     POST = "POST"
+    WEBSOCKET = "WEBSOCKET"
 
 
 # Route for an endpoint (e.g. /, /diff, /index)
@@ -12,7 +13,7 @@ Route = str
 
 
 @dataclasses.dataclass
-class Endpoint:
+class RouteInfo:
     route: Route
     method: Method
 

@@ -31,3 +31,10 @@ PubSubTopicID = TopicID
 GCSBucketName = BucketName
 
 GCSBucketURL = str
+
+# CloudSQL Types
+CloudSQLInstanceName = str
+CloudSQLDatabaseName = str
+CloudSQLDatabaseVersion = str
+CloudSQLUserName = str
+CloudSQLPassword = str

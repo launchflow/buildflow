@@ -1,341 +1,166 @@
-import enum
-import warnings
-from dataclasses import MISSING, fields, is_dataclass
-from importlib import import_module
-from typing import Iterable, List, Set, Tuple, Type, Union, get_args, get_origin
+# ruff: noqa
+def hello_world_settings_template() -> str:
+    return """\
+\"\"\"This file defines any environment variables needed to run.\"\"\"
 
-import black
+import os
+from enum import Enum
 
-from buildflow.io import list_all_io_primitives
-
-warnings.simplefilter("ignore", UserWarning)
+import dotenv
 
 
-def get_io_submodule(class_name: str) -> str:
-    io_primitives = list_all_io_primitives()
-    class_to_submodule_map = {
-        option.class_name: option.module_name for option in io_primitives
-    }
-    return class_to_submodule_map.get(class_name, "")
+class Environment(Enum):
+    DEV = "dev"
+    PROD = "prod"
+    LOCAL = "local"
 
 
-def get_class(class_name: str, submodule: str) -> Type:
-    module = import_module(f"buildflow.io.{submodule}")
-    return getattr(module, class_name)
+class Settings:
+    def __init__(self) -> None:
+        dotenv.load_dotenv()
+        self.env = Environment(os.getenv("ENV", "local"))
 
 
-def value_to_string(value):
-    imports = set()
-    if isinstance(value, enum.Enum):
-        class_name = value.__class__.__name__
-        module_name = value.__class__.__module__
-        imports.add(f"from {module_name} import {class_name}")
-        return f"{class_name}.{value.name}", imports
-    elif isinstance(value, tuple):
-        tuple_str = "("
-        for v in value:
-            element_str, element_imports = value_to_string(v)
-            tuple_str += element_str + ", "
-            imports.update(element_imports)
-        tuple_str = tuple_str.rstrip(", ") + ("," if len(value) == 1 else "") + ")"
-        return tuple_str, imports
-    elif isinstance(value, list):
-        list_str = "["
-        for v in value:
-            element_str, element_imports = value_to_string(v)
-            list_str += element_str + ", "
-            imports.update(element_imports)
-        list_str = list_str.rstrip(", ") + "]"
-        return list_str, imports
-    else:
-        return repr(value), imports
-
-
-def get_field_default_value(field) -> Tuple[str, str]:
-    field_type = field.type
-    origin_type = get_origin(field_type)
-    args_type = get_args(field_type)
-    imports = set()
-
-    if origin_type is Union and type(None) in args_type:
-        inner_type = [arg for arg in args_type if arg is not type(None)][0]
-        is_optional = True
-    else:
-        inner_type = field_type
-        is_optional = False
-
-    if field.default is None or field.default == MISSING:
-        if inner_type is int:
-            default_value = "0"
-        elif inner_type is float:
-            default_value = "0.0"
-        elif inner_type is str:
-            default_value = '"TODO"'
-        elif is_dataclass(inner_type):
-            class_name = inner_type.__name__
-            if class_name.startswith("from buildflow.io.aws"):
-                class_name = "from buildflow.io.aws"
-            elif class_name.startswith("from buildflow.io.gcp"):
-                class_name = "from buildflow.io.gcp"
-            elif class_name.startswith("from buildflow.io.local"):
-                class_name = "from buildflow.io.local"
-            module_name = inner_type.__module__
-            imports.add(f"from {module_name} import {class_name}")
-            inner_default_fields = []
-            for sub_field in fields(inner_type):
-                if sub_field.init:
-                    sub_default_value, more_imports = get_field_default_value(sub_field)
-                    imports.update(more_imports)
-                    inner_default_fields.append(f"{sub_field.name}={sub_default_value}")
-            inner_default_value = "\n         ".join(inner_default_fields)
-            default_value = f"{inner_type.__name__}({inner_default_value}\n)"
-        else:
-            default_value = '"TODO"'  # Default case for other types
-        if origin_type == Iterable or origin_type == List:
-            default_value = f"[{default_value}]"
-        if origin_type == Set:
-            default_value = f"{{{default_value}}}"
-
-    else:
-        default_value, more_imports = value_to_string(field.default)
-        imports.update(more_imports)
-        # Has a default value so is optional.
-        is_optional = True
-
-    default_value += ","
-
-    if is_optional:
-        default_value += " # Optional field"
-
-    return default_value, imports
-
-
-def generate_pipeline_template(
-    source_class_name: str,
-    sink_class_name: str,
-    file_name: str = "main",
-) -> str:
-    source_submodule = get_io_submodule(source_class_name)
-    sink_submodule = get_io_submodule(sink_class_name)
-
-    source_class = get_class(source_class_name, source_submodule)
-    sink_class = get_class(sink_class_name, sink_submodule)
-
-    cloud_providers = set()
-    if "gcp" in source_submodule or "gcp" in sink_submodule:
-        cloud_providers.add("gcp")
-    if "aws" in source_submodule or "aws" in sink_submodule:
-        cloud_providers.add("aws")
-    if "snowflake" in source_submodule or "snowflake" in sink_submodule:
-        cloud_providers.add("snowflake")
-
-    cli_steps = [
-        "pip install .",
-        "gcloud auth application-default login" if "gcp" in cloud_providers else None,
-        "aws sso login --profile <profile_name>" if "aws" in cloud_providers else None,
-        f"buildflow run {file_name}:app",
-    ]
-
-    cli_steps_str = "\n    ".join(step for step in cli_steps if step is not None)
-
-    imports = set()
-    sink_default_values = []
-    for field in fields(source_class):
-        if field.init:
-            default_value, more_imports = get_field_default_value(field)
-            imports.update(more_imports)
-            sink_default_values.append(f"{field.name}={default_value}")
-    source_fields = "\n    ".join(sink_default_values)
-
-    source_default_values = []
-    for field in fields(sink_class):
-        if field.init:
-            default_value, more_imports = get_field_default_value(field)
-            imports.update(more_imports)
-            source_default_values.append(f"{field.name}={default_value}")
-    sink_fields = "\n    ".join(source_default_values)
-
-    buildflow_imports = [
-        "from buildflow import Flow",
-        f"from buildflow.io.{source_submodule} import {source_class_name}",
-        f"from buildflow.io.{sink_submodule} import {sink_class_name}",
-    ]
-    buildflow_imports.extend(imports)
-    buildflow_imports.sort()
-    buildflow_imports_str = "\n".join(buildflow_imports)
-
-    template = f"""\"\"\"Generated by BuildFlow
-
-steps to run:
-    {cli_steps_str}
-\"\"\"
-import dataclasses
-
-{buildflow_imports_str}
-
-
-@dataclasses.dataclass
-class InputSchema:
-    TODO: str
-
-
-@dataclasses.dataclass
-class OutputSchema:
-    TODO: str
-
-
-app = Flow()
-
-
-source = {source_class_name}(
-    {source_fields}
-).options(
-    # TODO: uncomment if you want Pulumi to manage the source's resource(s)
-    # managed=True,
-)
-sink = {sink_class_name}(
-    {sink_fields}
-).options(
-    # TODO: uncomment if you want Pulumi to manage the sink's resource(s)
-    # managed=True,
-)
-
-
-# Attach a Pipeline to the Flow
-@app.pipeline(source=source, sink=sink)
-def my_pipeline(event: InputSchema) -> OutputSchema:
-    return OutputSchema(event.TODO)
+env = Settings()
 """
 
-    template = black.format_str(template, mode=black.Mode())
+
+def hello_world_primitives_template() -> str:
+    return """\
+\"\"\"This file contains any primitive definitions that you may need in your flow.
+
+For example if you needed a remote storagebucket:
+- Google Cloud Storage: https://docs.launchflow.com/buildflow/primitives/gcp/gcs
+
+    from buildflow.io.gcp import GCSBucket
+
+    bucket = GCSBucket(project_id="project", bucket_name="bucket")
+
+- Amazon S3: https://docs.launchflow.com/buildflow/primitives/aws/s3
+
+
+    from buildflow.io.aws import S3Bucket
+
+    bucket = S3Bucket(bucket_name="bucket", aws_region="us-east-1")
+
+Then in main.py you can mark these as managed to have `buildflow apply` create / manage
+them.
+
+    app.manage(bucket)
+\"\"\"
+"""
+
+
+def hello_world_dependencies_template(app_name) -> str:
+    return f"""\
+\"\"\"This file can contain all of the dependencies needed by your flow.
+
+For example if you needed a authenticated google user: https://docs.launchflow.com/buildflow/dependencies/auth
+
+    from buildflow.dependencies.auth import AuthenticatedGoogleUserDepBuilder
+
+    AuthenticatedGoogleUserDep = AuthenticatedGoogleUserDepBuilder()
+
+Then in your {app_name}/service.py file you can use
+the dependency like so:
+
+    @endpoint("/", method="GET")
+    def hello_world_endpoint(user_dep: AuthenticatedGoogleUserDep) -> str:
+        return "Hello World!"
+\"\"\"
+"""
+
+
+def hello_world_main_template(app_name: str) -> str:
+    template = f"""\
+\"\"\"Here we define the flow which is our main entry point of our project.
+
+For more information see: https://docs.launchflow.com/buildflow/programming-guide/flows
+\"\"\"
+
+from buildflow import Flow, FlowOptions
+from {app_name}.service import service
+from {app_name}.settings import env
+
+# Your Flow is the container for your application.
+app = Flow(flow_options=FlowOptions(stack=env.env.value))
+
+app.add_service(service)
+"""
     return template
 
 
-def generate_collector_template(
-    sink_class_name: str,
-    file_name: str = "main",
-) -> str:
-    sink_submodule = get_io_submodule(sink_class_name)
+def hello_world_service_template(app_name: str) -> str:
+    template = f"""\
+\"\"\"Here we define the Service which exposes the endpoints for our application.
 
-    sink_class = get_class(sink_class_name, sink_submodule)
-
-    cloud_providers = set()
-    if "gcp" in sink_submodule:
-        cloud_providers.add("gcp")
-    if "aws" in sink_submodule:
-        cloud_providers.add("aws")
-    if "snowflake" in sink_submodule:
-        cloud_providers.add("snowflake")
-
-    cli_steps = [
-        "pip install .",
-        "gcloud auth application-default login" if "gcp" in cloud_providers else None,
-        "aws sso login --profile <profile_name>" if "aws" in cloud_providers else None,
-        f"buildflow run {file_name}:app",
-    ]
-
-    cli_steps_str = "\n    ".join(step for step in cli_steps if step is not None)
-
-    imports = set()
-    sink_default_values = []
-    for field in fields(sink_class):
-        if field.init:
-            default_value, more_imports = get_field_default_value(field)
-            imports.update(more_imports)
-            sink_default_values.append(f"{field.name}={default_value}")
-    sink_fields = "\n    ".join(sink_default_values)
-
-    buildflow_imports = [
-        "from buildflow import Flow",
-        f"from buildflow.io.{sink_submodule} import {sink_class_name}",
-    ]
-    buildflow_imports.extend(imports)
-    buildflow_imports.sort()
-    buildflow_imports_str = "\n".join(buildflow_imports)
-
-    template = f"""\"\"\"Generated by BuildFlow
-
-steps to run:
-    {cli_steps_str}
+For more information see: https://docs.launchflow.com/buildflow/programming-guide/endpoints
 \"\"\"
-import dataclasses
 
-{buildflow_imports_str}
+from buildflow import Service
 
+from {app_name}.settings import env
 
-@dataclasses.dataclass
-class RequestSchema:
-    TODO: str
-
-
-@dataclasses.dataclass
-class OutputSchema:
-    TODO: str
+# Define a Service object with a specific ID, all endpoints in this service
+# will share the same resources (1 cpu since we didn't specify).
+# https://docs.launchflow.com/buildflow/programming-guide/endpoints#service-options
+service = Service(service_id="{app_name}-service")
 
 
-app = Flow()
-
-
-sink = {sink_class_name}(
-    {sink_fields}
-).options(
-    # TODO: uncomment if you want Pulumi to manage the sink's resource(s)
-    # managed=True,
-)
-
-
-# Attach a Collector to the Flow
-@app.collector(route="/", method="POST", sink=sink)
-def my_collector(request: RequestSchema) -> OutputSchema:
-    return OutputSchema(request.TODO)
+# Add our hello world endpoint to the service.
+@service.endpoint("/", method="GET")
+def hello_world_endpoint() -> str:
+    return f"Hello, from {{env.env.value}}!"
 """
-
-    template = black.format_str(template, mode=black.Mode())
     return template
 
 
-def generate_endpoint_template(file_name: str = "main") -> str:
-    cli_steps = [
-        "pip install .",
-        f"buildflow run {file_name}:app",
-    ]
+def hello_world_readme_template(app_name: str, app_dir: str) -> str:
+    template = f"""\
+# {app_name}
 
-    cli_steps_str = "\n    ".join(step for step in cli_steps if step is not None)
+Welcome to BuildFlow!
 
-    buildflow_imports = [
-        "from buildflow import Flow",
-    ]
-    buildflow_imports.sort()
-    buildflow_imports_str = "\n".join(buildflow_imports)
+This is a simple example of serving the string "Hello World!" from a service [endpoint](https://docs.launchflow.com/buildflow/programming-guide/endpoints)
 
-    template = f"""\"\"\"Generated by BuildFlow
+If you want to get started quickly you can run your application with:
 
-steps to run:
-    {cli_steps_str}
-\"\"\"
-import dataclasses
+```
+buildflow run
+```
 
-{buildflow_imports_str}
+Then you can visit http://localhost:8000 to see your application running.
 
+## Directory Structure
 
-@dataclasses.dataclass
-class RequestSchema:
-    TODO: str
+At the root level there are three important files:
 
+- `buildflow.yml` - This is the main configuration file for your application. It contains all the information about your application and how it should be built.
+- `main.py` - This is the entry point to your application and where your `Flow` is initialized.
+- `requirements.txt` - This is where you can specify any Python dependencies your application has.
 
-@dataclasses.dataclass
-class ResponseSchema:
-    TODO: str
+Below the root level we have:
 
+**{app_name}**
 
-app = Flow()
+This is the directory where your application code lives. You can put any files you want in here and they will be available to your application. We create a couple directories and files for you:
 
+- **processors**: This is where you can put any custom processors you want to use in your application. In here you will see we have defined a _service.py_ for a service in your application and a _hello_world.py_ file for a custom [endpoint](https://docs.launchflow.com/buildflow/programming-guide/endpoints) processor.
+- **primitives.py**: This is where you can define any custom [primitive](https://docs.launchflow.com/buildflow/programming-guide/primitives) resources that your application will need. Note it is empty right now since your initial application is so simple.
+- **dependencies.py**: This is where you can define any custom [dependencies](https://docs.launchflow.com/buildflow/programming-guide/dependencies) you might need.
+- **settings.py**: This file loads in our environment variables and makes them available to our application.
 
-# Attach an Endpoint to the Flow
-@app.endpoint(route="/", method="POST")
-def my_endpoint(request: RequestSchema) -> ResponseSchema:
-    return ResponseSchema(request.TODO)
+**.buildflow**
+
+This is a hidden directory that contains all the build artifacts for your application. You can general ignore this directory and it will be automatically generated for you. If you are using github you probably want to put this in your _.gitignore_ file.
+
+## Customizing your application
+
+You application is pretty simple now but you can customize it to do anything you want. Here are some ideas:
+
+- Attach [primitives](https://docs.launchflow.com/buildflow/programming-guide/primitives) to your application to add resources like [databases](https://docs.launchflow.com/buildflow/primitives/gcp/cloud_sql), [queues](https://docs.launchflow.com/buildflow/primitives/aws/sqs), [buckets](https://docs.launchflow.com/buildflow/primitives/aws/s3), or [data warehouses](https://docs.launchflow.com/buildflow/primitives/gcp/bigquery)
+- Use [depedencies](https://docs.launchflow.com/buildflow/programming-guide/dependencies) to attach dependencies to your processors. Such as [google auth](https://docs.launchflow.com/buildflow/dependencies/auth#authenticated-google-user), [SQLAlchemy Session](https://docs.launchflow.com/buildflow/dependencies/sqlalchemy), or push data to a [sink](https://docs.launchflow.com/buildflow/dependencies/sink)
+- Add additional processors for [async processing](https://docs.launchflow.com/buildflow/programming-guide/consumers) or [data ingestion](https://docs.launchflow.com/buildflow/programming-guide/collectors)
+- Manage your entire stack with [BuildFlow's pulumi integration](https://docs.launchflow.com/buildflow/programming-guide/buildflow-yaml#pulumi-configure)
 """
-
-    template = black.format_str(template, mode=black.Mode())
     return template

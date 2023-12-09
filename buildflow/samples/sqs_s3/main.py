@@ -10,14 +10,13 @@ queue_name = os.environ["SQS_QUEUE"]
 
 app = buildflow.Flow(flow_options=buildflow.FlowOptions(require_confirmation=False))
 
-source = SQSQueue(queue_name, aws_region="us-east-1").options(managed=True)
+source = SQSQueue(queue_name, aws_region="us-east-1")
 sink = S3Bucket(
     bucket_name=bucket,
     file_format=FileFormat.CSV,
     file_path="output.csv",
     aws_region="us-east-1",
 ).options(
-    managed=True,
     force_destroy=True,
 )
 
@@ -32,7 +31,10 @@ class Output:
     output_val: int
 
 
-@app.pipeline(source=source, sink=sink)
+app.manage(source, sink)
+
+
+@app.consumer(source=source, sink=sink)
 class MyProcessor:
     def process(self, payload: Input) -> Output:
         return Output(output_val=payload.val + 1)
