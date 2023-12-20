@@ -48,9 +48,7 @@ dependencies = [
     "pulumi_snowflake",
     "pyarrow",
     "pydantic<2.0.2",
-    # Avoid issue with cython 3.0.0 and pyyaml:
-    #   https://github.com/yaml/pyyaml/issues/724
-    "pyyaml<5.4.0,<6.0.0",
+    "pyyaml",
     "s3fs",
     "sqlalchemy[asyncio]",
     "snowflake-ingest",
