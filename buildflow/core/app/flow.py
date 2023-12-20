@@ -935,7 +935,7 @@ class Flow:
             print("Confirmation disabled.")
         if progress is not None:
             progress.start()
-            apply_task = progress.add_task("Destryoing resources...", total=1)
+            apply_task = progress.add_task("Destroying resources...", total=1)
         await self._get_infra_actor().destroy(pulumi_program=self._pulumi_program)
         if progress is not None:
             progress.advance(apply_task)

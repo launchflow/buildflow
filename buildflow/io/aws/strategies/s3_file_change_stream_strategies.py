@@ -16,6 +16,7 @@ class S3FileChangeStreamSource(SourceStrategy):
         credentials: AWSCredentials,
         sqs_source: SQSSource,
         aws_region: str,
+        filter_test_events: bool = True,
     ):
         super().__init__(
             credentials=credentials, strategy_id="aws-s3-filestream-source"
@@ -23,6 +24,7 @@ class S3FileChangeStreamSource(SourceStrategy):
         self.sqs_queue_source = sqs_source
         aws_clients = AWSClients(credentials=credentials, region=aws_region)
         self._s3_client = aws_clients.s3_client()
+        self._filter_test_events = filter_test_events
 
     async def pull(self) -> PullResponse:
         sqs_response = await self.sqs_queue_source.pull()
@@ -44,8 +46,13 @@ class S3FileChangeStreamSource(SourceStrategy):
                         )
                     )
             else:
-                # This can happen for the initial test notification that is sent
-                # on the queue.
+                if metadata.get("Event") == "s3:TestEvent" and self._filter_test_events:
+                    # Filter out test events from S3 if specified, we ack it so it
+                    # won't be delivered again.
+                    if len(sqs_response.payload) == 1:
+                        await self.sqs_queue_source.ack(sqs_response.ack_info, True)
+                    continue
+                # Otherwise, we don't know what this is, so we'll just pass it along
                 parsed_payloads.append(
                     S3FileChangeEvent(
                         s3_client=self._s3_client,
