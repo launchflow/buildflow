@@ -28,7 +28,7 @@ class S3FileChangeStreamTest(unittest.IsolatedAsyncioTestCase):
         self.sqs_client = boto3.client("sqs", region_name=self.region)
         self.creds = AWSCredentials(CredentialsOptions.default())
 
-    async def test_s3_file_change_stream_test_event(self):
+    async def test_s3_file_change_stream_test_event_keep(self):
         with mock_sqs():
             with mock_sts():
                 self.queue_url = self._create_queue(self.queue_name, self.region)
@@ -69,7 +69,10 @@ class S3FileChangeStreamTest(unittest.IsolatedAsyncioTestCase):
                     aws_account_id=None,
                 )
                 s3_stream = S3FileChangeStreamSource(
-                    sqs_source=source, aws_region=self.region, credentials=self.creds
+                    sqs_source=source,
+                    aws_region=self.region,
+                    credentials=self.creds,
+                    filter_test_events=False,
                 )
 
                 backlog = await s3_stream.backlog()
@@ -83,6 +86,53 @@ class S3FileChangeStreamTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(payload.event_type, S3ChangeStreamEventType.UNKNOWN)
                 self.assertEqual(payload.metadata, contents)
                 self.assertEqual(payload.file_path, None)
+
+    async def test_s3_file_change_stream_test_event_filter(self):
+        with mock_sqs():
+            with mock_sts():
+                self.queue_url = self._create_queue(self.queue_name, self.region)
+                sink = SQSSink(
+                    credentials=self.creds,
+                    queue_name=self.queue_name,
+                    aws_region=self.region,
+                    aws_account_id=None,
+                )
+                await sink.push(
+                    [
+                        json.dumps(
+                            {
+                                "Service": "Amazon S3",
+                                "Event": "s3:TestEvent",
+                                "Time": "2023-07-28T16:34:05.246Z",
+                                "Bucket": "test-bucket",
+                                "RequestId": "request-id",
+                                "HostId": "host-id",
+                            }
+                        )
+                    ]
+                )
+
+                source = SQSSource(
+                    credentials=self.creds,
+                    queue_name=self.queue_name,
+                    aws_region=self.region,
+                    aws_account_id=None,
+                )
+                s3_stream = S3FileChangeStreamSource(
+                    sqs_source=source,
+                    aws_region=self.region,
+                    credentials=self.creds,
+                    filter_test_events=True,
+                )
+
+                backlog = await s3_stream.backlog()
+                self.assertEqual(backlog, 1)
+
+                pull_response = await s3_stream.pull()
+                self.assertEqual(len(pull_response.payload), 0)
+
+                backlog = await s3_stream.backlog()
+                self.assertEqual(backlog, 0)
 
     async def test_s3_file_change_stream_create(self):
         with mock_sts():
@@ -113,9 +163,23 @@ class S3FileChangeStreamTest(unittest.IsolatedAsyncioTestCase):
                             },
                             "eventName": "ObjectRemoved:Delete",
                         },
-                    ]
+                    ],
                 }
-                await sink.push([json.dumps(contents)])
+                await sink.push(
+                    [
+                        json.dumps(contents),
+                        json.dumps(
+                            {
+                                "Service": "Amazon S3",
+                                "Event": "s3:TestEvent",
+                                "Time": "2023-07-28T16:34:05.246Z",
+                                "Bucket": "test-bucket",
+                                "RequestId": "request-id",
+                                "HostId": "host-id",
+                            }
+                        ),
+                    ]
+                )
 
                 source = SQSSource(
                     credentials=self.creds,
@@ -128,7 +192,7 @@ class S3FileChangeStreamTest(unittest.IsolatedAsyncioTestCase):
                 )
 
                 backlog = await s3_stream.backlog()
-                self.assertEqual(backlog, 1)
+                self.assertEqual(backlog, 2)
 
                 pull_response = await s3_stream.pull()
                 self.assertEqual(len(pull_response.payload), 2)
@@ -148,6 +212,9 @@ class S3FileChangeStreamTest(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertEqual(delete.metadata, contents["Records"][1])
                 self.assertEqual(delete.file_path, want_delete_path)
+
+                backlog = await s3_stream.backlog()
+                self.assertEqual(backlog, 0)
 
 
 if __name__ == "__main__":
