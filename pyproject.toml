@@ -48,7 +48,7 @@ dependencies = [
     "pulumi_snowflake",
     "pyarrow",
     "pydantic<2.0.2",
-    "pyyaml",
+    "pyyaml!=6.0.0",
     "s3fs",
     "sqlalchemy[asyncio]",
     "snowflake-ingest",
