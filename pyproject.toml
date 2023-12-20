@@ -42,12 +42,13 @@ dependencies = [
     # We can remove this once duckdb has released version 0.8.2
     "pandas",
     "pg8000",
-    "pulumi==3.35.3",
+    "pulumi==3.98.0",
     "pulumi_aws",
     "pulumi_gcp",
     "pulumi_snowflake",
     "pyarrow",
     "pydantic<2.0.2",
+    # Add constraints to ensure pyyaml works with cython 3.
     "pyyaml!=5.4.0,!=6.0.0,!=5.4.1",
     "s3fs",
     "sqlalchemy[asyncio]",
