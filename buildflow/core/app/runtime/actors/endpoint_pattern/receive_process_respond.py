@@ -146,7 +146,12 @@ class ReceiveProcessRespond(Runtime):
                 avg_process_time_millis=0,
             )
         if self.endpoint_deployment is not None:
-            num_replicas = self.endpoint_deployment.num_replicas
+            num_replicas = (
+                serve.status()
+                .applications.get(self.processor_group.group_id, {})
+                .deployments.get(self.endpoint_deployment.name, {})
+                .replica_states.get("RUNNING", 0)
+            )
         else:
             num_replicas = 0
 
