@@ -1,14 +1,10 @@
 import dataclasses
+import logging
 import os
-from typing import Optional
 
 from buildflow.config.cloud_provider_config import LocalOptions
 from buildflow.core.credentials.empty_credentials import EmptyCredentials
-from buildflow.core.types.duckdb_types import (
-    DuckDBDatabase,
-    DuckDBTableID,
-    MotherDuckToken,
-)
+from buildflow.core.types.duckdb_types import DuckDBDatabase, DuckDBTableID
 from buildflow.io.duckdb.strategies.duckdb_strategies import DuckDBSink
 from buildflow.io.primitive import LocalPrimtive
 
@@ -17,13 +13,15 @@ from buildflow.io.primitive import LocalPrimtive
 class DuckDBTable(LocalPrimtive):
     database: DuckDBDatabase
     table: DuckDBTableID
-    motherduck_token: Optional[MotherDuckToken] = None
 
     def __post_init__(self):
         if not self.database.startswith("md:") and not self.database.startswith("/"):
             self.database = os.path.join(os.getcwd(), self.database)
-        if self.motherduck_token is not None:
-            self.database = f"{self.database}?{self.motherduck_token}"
+        if self.database.startswith("md:") and "MOTHERDUCK_TOKEN" not in os.environ:
+            logging.warning(
+                "MOTHERDUCK_TOKEN not found in environment variables, "
+                "but you are writing to a database starting with `md:`."
+            )
 
     def primitive_id(self):
         db = self.database
