@@ -26,7 +26,10 @@ class DuckDBTable(LocalPrimtive):
             self.database = f"{self.database}?{self.motherduck_token}"
 
     def primitive_id(self):
-        return f"{self.database}:{self.table}"
+        db = self.database
+        if "?" in self.database:
+            db = self.database.split("?")[0]
+        return f"{db}:{self.table}"
 
     @classmethod
     def from_local_options(
