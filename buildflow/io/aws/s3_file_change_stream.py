@@ -25,6 +25,7 @@ class S3FileChangeStream(AWSPrimtive):
     event_types: Iterable[S3ChangeStreamEventType] = (
         S3ChangeStreamEventType.OBJECT_CREATED_ALL,
     )
+    filter_test_events: bool = True
 
     # The sqs queue is always managed by the S3FileChangeStream and
     # is setup in __post_init__ based on the bucket configuration.
@@ -53,6 +54,7 @@ class S3FileChangeStream(AWSPrimtive):
             credentials=credentials,
             sqs_source=self.sqs_queue.source(credentials),
             aws_region=self.s3_bucket.aws_region,
+            filter_test_events=self.filter_test_events,
         )
 
     def pulumi_resources(

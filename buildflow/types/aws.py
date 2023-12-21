@@ -1,6 +1,7 @@
 import dataclasses
 import enum
 from typing import Any
+from urllib.parse import unquote_plus
 
 from buildflow.core.types.aws_types import S3BucketName
 from buildflow.types.portable import FileChangeEvent, PortableFileChangeEventType
@@ -63,5 +64,8 @@ class S3FileChangeEvent(FileChangeEvent):
 
     @property
     def blob(self) -> bytes:
-        data = self.s3_client.get_object(Bucket=self.bucket_name, Key=self.file_path)
+        # S3 gives us a url encoded path, so we need to decode it inorder to read
+        # the file from s3.
+        file_path = unquote_plus(self.file_path)
+        data = self.s3_client.get_object(Bucket=self.bucket_name, Key=file_path)
         return data["Body"].read()
