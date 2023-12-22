@@ -2,6 +2,7 @@ import dataclasses
 from typing import Any, Dict, Type
 
 import ray
+from ray import serve
 
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import RunID
@@ -96,6 +97,16 @@ class EndpointProcessorGroupPoolActor(ProcessorGroupReplicaPoolActor):
             ray_actor_handle=replica_actor_handle,
         )
 
+    async def status(self):
+        num_replicas = (
+            serve.status()
+            .applications.get(self.processor_group.group_id, {})
+            .deployments.get("FastAPIWrapper", {})
+            .replica_states.get("RUNNING", 0)
+        )
+        self.num_replicas_gauge.set(num_replicas)
+        return self._status
+
     async def snapshot(self) -> ProcessorGroupSnapshot:
         parent_snapshot: ProcessorGroupSnapshot = await super().snapshot()
         num_replicas = 0
@@ -103,7 +114,6 @@ class EndpointProcessorGroupPoolActor(ProcessorGroupReplicaPoolActor):
         if len(self.replicas) > 0:
             replica_snapshot = await self.replicas[0].ray_actor_handle.snapshot.remote()
             num_replicas = replica_snapshot.num_replicas
-            self.num_replicas_gauge.set(num_replicas)
             for pid, metrics in replica_snapshot.processor_snapshots.items():
                 total_events_processed_per_sec = metrics.events_processed_per_sec
                 avg_process_time_millis_per_element = metrics.avg_process_time_millis
