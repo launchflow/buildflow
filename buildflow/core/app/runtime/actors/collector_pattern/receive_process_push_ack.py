@@ -151,13 +151,13 @@ class ReceiveProcessPushAck(Runtime):
         return self._status
 
     async def num_replicas(self) -> int:
-        if self.endpoint_deployment is not None:
+        if self.collector_deployment is not None:
             application = serve.status().applications.get(self.processor_group.group_id)
             if application is None:
                 return 0
 
             num_replicas = application.deployments.get(
-                self.endpoint_deployment.name, {}
+                self.collector_deployment.name, {}
             ).replica_states.get("RUNNING", 0)
         else:
             num_replicas = 0
