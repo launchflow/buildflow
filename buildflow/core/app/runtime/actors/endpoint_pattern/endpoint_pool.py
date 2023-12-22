@@ -103,6 +103,7 @@ class EndpointProcessorGroupPoolActor(ProcessorGroupReplicaPoolActor):
         if len(self.replicas) > 0:
             replica_snapshot = await self.replicas[0].ray_actor_handle.snapshot.remote()
             num_replicas = replica_snapshot.num_replicas
+            self.num_replicas_gauge.set(num_replicas)
             for pid, metrics in replica_snapshot.processor_snapshots.items():
                 total_events_processed_per_sec = metrics.events_processed_per_sec
                 avg_process_time_millis_per_element = metrics.avg_process_time_millis
