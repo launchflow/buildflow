@@ -97,13 +97,9 @@ class CollectorProcessorPoolActor(ProcessorGroupReplicaPoolActor):
         )
 
     async def status(self):
-        num_replicas = (
-            serve.status()
-            .applications.get(self.processor_group.group_id, {})
-            .deployments.get("FastAPIWrapper", {})
-            .replica_states.get("RUNNING", 0)
-        )
-        self.num_replicas_gauge.set(num_replicas)
+        if len(self.replicas) > 0:
+            num_replicas = await self.replicas[0].ray_actor_handle.num_replicas.remote()
+            self.num_replicas_gauge.set(num_replicas)
         return self._status
 
     async def snapshot(self) -> ProcessorGroupSnapshot:
