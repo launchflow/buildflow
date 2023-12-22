@@ -2,7 +2,6 @@ import dataclasses
 from typing import Any, Dict, Type
 
 import ray
-from ray import serve
 
 from buildflow.core import utils
 from buildflow.core.app.runtime._runtime import RunID
