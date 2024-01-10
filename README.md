@@ -11,7 +11,7 @@
 ![Release Tests](https://github.com/launchflow/buildflow/actions/workflows/release_tests.yaml/badge.svg)
 [![Python version](https://badge.fury.io/py/buildflow.svg)](https://pypi.org/project/buildflow)
 [![codecov](https://codecov.io/gh/launchflow/buildflow/branch/main/graph/badge.svg?token=AO0TP8XG7X)](https://codecov.io/gh/launchflow/buildflow)
-[![Discord](https://dcbadge.vercel.app/api/server/jRpkTAeEWx?style=plastic)](https://discord.gg/jRpkTAeEWx)
+[![Discord](https://dcbadge.vercel.app/api/server/jRpkTAeEWx?style=flat)](https://discord.gg/jRpkTAeEWx)
 
 
 </div>
