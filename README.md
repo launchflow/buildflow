@@ -11,7 +11,8 @@
 ![Release Tests](https://github.com/launchflow/buildflow/actions/workflows/release_tests.yaml/badge.svg)
 [![Python version](https://badge.fury.io/py/buildflow.svg)](https://pypi.org/project/buildflow)
 [![codecov](https://codecov.io/gh/launchflow/buildflow/branch/main/graph/badge.svg?token=AO0TP8XG7X)](https://codecov.io/gh/launchflow/buildflow)
-[![Slack Icon](https://img.shields.io/badge/slack-@launchflowusers-brightgreen.svg?logo=slack)](https://join.slack.com/t/launchflowusers/shared_invite/zt-27wlowsza-Uiu~8hlCGkvPINjmMiaaMQ)
+[![Discord](https://dcbadge.vercel.app/api/server/jRpkTAeEWx)](https://discord.gg/jRpkTAeEWx)
+
 
 </div>
 
