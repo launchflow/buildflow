@@ -95,6 +95,12 @@ class CollectorProcessorPoolActor(ProcessorGroupReplicaPoolActor):
             ray_actor_handle=replica_actor_handle,
         )
 
+    async def status(self):
+        if len(self.replicas) > 0:
+            num_replicas = await self.replicas[0].ray_actor_handle.num_replicas.remote()
+            self.num_replicas_gauge.set(num_replicas)
+        return self._status
+
     async def snapshot(self) -> ProcessorGroupSnapshot:
         parent_snapshot: ProcessorGroupSnapshot = await super().snapshot()
         num_replicas = 0

@@ -137,6 +137,19 @@ class ReceiveProcessRespond(Runtime):
     async def status(self) -> RuntimeStatus:
         return self._status
 
+    async def num_replicas(self) -> int:
+        if self.endpoint_deployment is not None:
+            application = serve.status().applications.get(self.processor_group.group_id)
+            if application is None:
+                return 0
+
+            num_replicas = application.deployments.get(
+                self.endpoint_deployment.name, {}
+            ).replica_states.get("RUNNING", 0)
+        else:
+            num_replicas = 0
+        return num_replicas
+
     async def snapshot(self) -> Snapshot:
         processor_snapshots = {}
         # TODO: need to figure out local metrics
@@ -145,19 +158,10 @@ class ReceiveProcessRespond(Runtime):
                 events_processed_per_sec=0,
                 avg_process_time_millis=0,
             )
-        if self.endpoint_deployment is not None:
-            num_replicas = (
-                serve.status()
-                .applications.get(self.processor_group.group_id, {})
-                .deployments.get(self.endpoint_deployment.name, {})
-                .replica_states.get("RUNNING", 0)
-            )
-        else:
-            num_replicas = 0
 
         return ReceiveProcessRespondSnapshot(
             status=self._status,
             timestamp_millis=utils.timestamp_millis(),
             processor_snapshots=processor_snapshots,
-            num_replicas=num_replicas,
+            num_replicas=await self.num_replicas(),
         )
